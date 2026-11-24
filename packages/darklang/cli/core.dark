@@ -13,6 +13,8 @@ type SubAppAction =
   | Exit
   /// Hand off to another command (e.g. a browser launching a foreground app), replacing this page.
   | LaunchCommand(String)
+  /// Hand the terminal to an external program, not a CLI command, and come back to this page.
+  | RunProgram(String, List<String>)
 
 
 type SubApp =

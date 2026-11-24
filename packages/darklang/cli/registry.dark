@@ -130,11 +130,11 @@ module Registry =
         Accepts.between(1, 1, [])))
 
 
-  let acceptsVal(): Accepts.Accepts = Accepts.text(2)
+  let acceptsVal(): Accepts.Accepts = Accepts.text(1)
 
-  let acceptsFn(): Accepts.Accepts = Accepts.text(2)
+  let acceptsFn(): Accepts.Accepts = Accepts.text(1)
 
-  let acceptsType(): Accepts.Accepts = Accepts.text(2)
+  let acceptsType(): Accepts.Accepts = Accepts.text(1)
 
   let acceptsTrait(): Accepts.Accepts = Accepts.text(2)
 
@@ -142,7 +142,9 @@ module Registry =
 
   let acceptsModule(): Accepts.Accepts = Accepts.between(2, 2, [])
 
-  let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [ "--patch" ])
+  let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [ "--patch", "--text" ])
+
+  let acceptsFluid(): Accepts.Accepts = Accepts.freeText(0, [])
 
   let acceptsRename(): Accepts.Accepts = Accepts.between(2, 2, [])
 
@@ -661,6 +663,15 @@ module Registry =
         Packages.Edit.complete)
 
       (
+        "fluid",
+        "Edit code as a tree (experimental)",
+        [],
+        acceptsFluid,
+        Fluid.App.execute,
+        Fluid.App.help,
+        Fluid.App.complete)
+
+      (
         "rename",
         "Give an item a different name (its content and callers are untouched)",
         [],
@@ -1147,6 +1158,7 @@ module Registry =
           "impls"
           "module"
           "edit"
+          "fluid"
           "rename"
           "hash"
           "deprecate"

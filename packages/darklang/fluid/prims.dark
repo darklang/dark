@@ -1,0 +1,399 @@
+/// Specs for the primitive kinds. Every client (PT, derived, generated) reuses these for its leaves.
+module Darklang.Fluid.Prims
+
+type TypeReference = LanguageTools.ProgramTypes.TypeReference
+
+let intKind(): Kind = Kind.prim("Int")
+
+let stringKind(): Kind = Kind.prim("String")
+
+let boolKind(): Kind = Kind.prim("Bool")
+
+let floatKind(): Kind = Kind.prim("Float")
+
+let unitKind(): Kind = Kind.prim("Unit")
+
+let listKind(): Kind = Kind.prim("List")
+
+
+// The three below exist because a VALUE has shapes a program does not. A program's tuple is
+// `Expr.ETuple` and its dict is `Expr.EDict`; a runtime tuple and a runtime dict are neither, and a
+// function or a database handle has no written form at all.
+//
+// Prims rather than named types, which is what they were. A `Kind.named "Tuple"` sends the value entry
+// point off to look up a package type called `Tuple` to derive an editor from, finds nothing, and draws
+// the node with the unknown-kind fallback: `Tuple { items = [1, "two"] }` on screen where the printer
+// writes `(1, "two")`. Found by opening real values rather than by reading this.
+let tupleKind(): Kind =
+  Kind.prim("Tuple")
+
+
+let dictKind(): Kind =
+  Kind.prim("Dict")
+
+
+let dictPairKind(): Kind =
+  Kind.prim("DictPair")
+
+
+/// A value with nothing to project: a function, a database, a blob, a stream. It draws what it is.
+let opaqueKind(): Kind =
+  Kind.prim("Opaque")
+
+
+// --- Int: one run of digits ---
+
+let intNode(digits: String): Node =
+  Node.make(intKind(), [ ("digits", Field.Text(digits)) ])
+
+
+/// The width an integer leaf is being typed at, as a name `Value.intOfWidth` knows, or "" for a plain
+/// `Int`.
+///
+/// It comes from the SLOT, not from the node. Every width draws the same digits, so the projection has
+/// nowhere to put it, and the only thing that knows an `Int8` from an `Int` is the declared type of the
+/// field being filled. That is exactly what the hole's `Expect` carries.
+///
+/// This is why it has to work that way rather than by preserving the old node: `c` CLEARS the slot to a
+/// hole before you type, so by the time a digit arrives the previous node is gone. An `Int8` retyped
+/// came back a plain `Int` -- correct digits, wrong type, and nothing on screen to tell you.
+let intWidthOf(e: Expect): String =
+  match e.typ with
+  | Some(TInt8) -> "Int8"
+  | Some(TUInt8) -> "UInt8"
+  | Some(TInt16) -> "Int16"
+  | Some(TUInt16) -> "UInt16"
+  | Some(TInt32) -> "Int32"
+  | Some(TUInt32) -> "UInt32"
+  | Some(TInt64) -> "Int64"
+  | Some(TUInt64) -> "UInt64"
+  | Some(TInt128) -> "Int128"
+  | Some(TUInt128) -> "UInt128"
+  | _ -> ""
+
+
+/// An integer leaf, carrying its width when it has one worth carrying.
+///
+/// Nothing is written for a plain `Int`, so a PT document's integer leaves are exactly what they were.
+/// A hidden field that is always present is a field every structural comparison has to know about.
+let intNodeOfWidth(width: String, digits: String): Node =
+  if width == "" then
+    intNode(digits)
+  else
+    Node.make(intKind(), [ ("digits", Field.Text(digits)), ("_w", Field.Text(width)) ])
+
+
+let intSummary(n: Node): String =
+  Node.text(n, "digits") |> Stdlib.Option.withDefault("")
+
+
+let intFromDigit(c: String, e: Expect): Node =
+  intNodeOfWidth(intWidthOf(e), c)
+
+
+// --- String: quotes are punctuation, the body is one run ---
+
+let stringNode(body: String): Node =
+  Node.make(stringKind(), [ ("body", Field.Text(body)) ])
+
+
+let stringSummary(n: Node): String =
+  "\"" + (Node.text(n, "body") |> Stdlib.Option.withDefault("")) + "\""
+
+
+/// Typing into a slot that expects a STRING types a string. The quote is still how you open one that
+/// starts with punctuation, but requiring it everywhere meant that filling a text cell in a grid -- the
+/// most ordinary thing there is to do to a table -- began with a key nobody would guess, and a bare word
+/// sat there as an unresolvable partial instead.
+///
+/// This only fires where a slot expects the prim String KIND. A Darklang expression hole expects an Expr,
+/// so a letter there still starts a variable.
+let stringFromChar(c: String, e: Expect): Node =
+  stringNode(c)
+
+
+// --- Bool ---
+
+let boolNode(b: Bool): Node =
+  Node.make(boolKind(), [ ("value", Field.Text(if b then "true" else "false")) ])
+
+
+// --- Float: whole and fraction, the point is punctuation ---
+
+let floatNode(whole: String, fraction: String): Node =
+  Node.make(floatKind(), [ ("whole", Field.Text(whole)), ("fraction", Field.Text(fraction)) ])
+
+
+let floatFromDigit(c: String, e: Expect): Node =
+  floatNode(c, "")
+
+
+// --- Unit ---
+
+let unitNode(): Node =
+  Node.make(unitKind(), [])
+
+
+// --- List: items of one expectation. The item expectation lives on the node's Many field. ---
+
+let listNode(items: List<Slot>, each: Expect): Node =
+  Node.make(listKind(), [ ("items", Field.Many(items, each)) ])
+
+
+/// `[` into a hole makes a list with one hole in it. What that hole expects comes from the list hole's
+/// type when we know it; `any` otherwise.
+let listFromBracket(c: String, e: Expect): Node =
+  let each =
+    match e.typ with
+    | Some(TList(inner)) -> Expect.ofType(inner, "item")
+    | _ -> Expect.any("item")
+
+  listNode([ Slot.Empty(each) ], each)
+
+
+let listSummary(n: Node): String =
+  "[" + Stdlib.display(Stdlib.List.length(Node.items(n, "items"))) + " items]"
+
+
+// --- Tuple, dict, opaque: the shapes a runtime value has and a program does not ---
+
+let tupleNode(items: List<Slot>): Node =
+  Node.make(tupleKind(), [ ("items", Field.Many(items, Expect.any("member"))) ])
+
+
+let tuplePieces(): List<Piece> =
+  [ Piece.Group(
+      [ Piece.Punct("(")
+        Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct(","), Piece.Line ]) ])
+        Piece.SoftLine
+        Piece.Punct(")") ]) ]
+
+
+let tupleSummary(n: Node): String =
+  "(" + Stdlib.display(Stdlib.List.length(Node.items(n, "items"))) + " members)"
+
+
+/// One entry of a dict. The KEY is a slot, not a text run.
+///
+/// A runtime dict key is a whole value (`DictKey of Dval` in the engine, `Dict<Dval, Dval>` in the
+/// mirror), so a string key is a `DString` and draws its own quotes, the way the printer writes
+/// `{ "j": 2 }`. Modelling it as text compiled fine and crashed on the first real dict, because Dark
+/// checks a call when it runs it and nothing had ever run this one: a dict cannot be CONSTRUCTED from
+/// Dark, so no probe could reach the branch. It took opening one that already existed.
+let dictPairNode(key: Slot, value: Slot): Node =
+  Node.make(dictPairKind(), [ ("key", Field.One(key)), ("value", Field.One(value)) ])
+
+
+let dictNode(pairs: List<Slot>): Node =
+  Node.make(dictKind(), [ ("pairs", Field.Many(pairs, Expect.any("pair"))) ])
+
+
+let dictPairPieces(): List<Piece> =
+  [ Piece.Slot("key"), Piece.Punct(":"), Piece.Space, Piece.Slot("value") ]
+
+
+let dictPieces(): List<Piece> =
+  // An empty dict is `{}`, not `{  }`: the braces of a dict with entries carry a space on each side, and
+  // both of them survive when there is nothing between them. Same shape `Dict {}` needed.
+  [ Piece.WhenEmpty(
+      "pairs",
+      [ Piece.Punct("{}") ],
+      [ Piece.Group(
+          [ Piece.Punct("{")
+            Piece.Nest(2, [ Piece.Line, Piece.Each("pairs", [ Piece.Punct(","), Piece.Line ]) ])
+            Piece.Line
+            Piece.Punct("}") ]) ]) ]
+
+
+let dictSummary(n: Node): String =
+  "{" + Stdlib.display(Stdlib.List.length(Node.items(n, "pairs"))) + " pairs}"
+
+
+let opaqueNode(source: String): Node =
+  Node.make(opaqueKind(), [ ("source", Field.Text(source)) ])
+
+
+let opaqueSummary(n: Node): String =
+  Node.text(n, "source") |> Stdlib.Option.withDefault("<opaque>")
+
+
+/// The type every item of this list is a record of, when they agree on one.
+///
+/// Read off the items because that is the only place it is written: a list node carries no element type.
+/// `Derive.tableKindFor` builds the same name; it is spelled here rather than called because `Prims` is
+/// below `Derive` and a cycle for one string is a bad trade.
+let rowTypeOf(n: Node): Option<String> =
+  let kindOf(s: Slot): Option<Kind> =
+    match s with
+    | Filled(c) -> Option.Some(c.kind)
+    | _ -> Option.None
+
+  match Node.items(n, "items") |> Stdlib.List.map(kindOf) with
+  | [] -> Option.None
+  | [first, ...rest] ->
+    match first with
+    | Some(k) ->
+      match k.typ with
+      | Named(name) when Stdlib.Option.isNone(k.case) ->
+        if rest |> Stdlib.List.all(fun o -> o == Option.Some(k)) then
+          Option.Some(name)
+        else
+          Option.None
+      | _ -> Option.None
+    | None -> Option.None
+
+
+let rowsAgreeOnAType(n: Node): Bool =
+  Stdlib.Option.isSome(rowTypeOf(n))
+
+
+let listPieces(): List<Piece> =
+  [ Piece.WhenEmpty(
+      "items",
+      [ Piece.Punct("["), Piece.Punct("]") ],
+      [ Piece.Group(
+          [ Piece.Punct("[")
+            Piece.Nest(2, [ Piece.Line, Piece.Each("items", [ Piece.Punct(","), Piece.Line ]) ])
+            Piece.Line
+            Piece.Punct("]") ]) ]) ]
+
+
+let specs(): List<Spec> =
+  [ Spec
+      { kind = intKind()
+        pieces = [ Piece.Text("digits", Layout.Style.Literal) ]
+        holeRules = [ HoleRule { onChar = "<digit>", fill = HoleFill.WithChar(intFromDigit) } ]
+        wrapRules = []
+        textClasses = []
+        maxItems = Spec.noMaxItems
+        noSequence = []
+        opensItems = []
+        closer = Option.None
+        operands = Option.None
+        segments = Option.None
+        sequence = Option.None
+        collapsesTo = Option.None
+        collapsesWhenEmptied = Option.None
+        textSlot = Option.None
+        bindsNames = false
+        completions = []
+        complete = Spec.noCompletions
+        resolve = Spec.noResolve
+        binders = Spec.noBinders
+        offers = Spec.noOffers
+        scopeCandidate = Option.None
+        actions = []
+        empty = intNode("")
+        summary = intSummary }
+
+    Spec
+      { kind = stringKind()
+        pieces =
+          [ Piece.Punct("\""), Piece.QuietText("body", Layout.Style.Literal), Piece.Punct("\"") ]
+        holeRules =
+          [ HoleRule { onChar = "\"", fill = HoleFill.Node(stringNode("")) }
+            HoleRule { onChar = "<letter>", fill = HoleFill.WithChar(stringFromChar) }
+            HoleRule { onChar = "<digit>", fill = HoleFill.WithChar(stringFromChar) } ]
+        wrapRules = []
+        textClasses = []
+        maxItems = Spec.noMaxItems
+        noSequence = []
+        opensItems = []
+        closer = Option.None
+        operands = Option.None
+        segments = Option.None
+        sequence = Option.None
+        collapsesTo = Option.None
+        collapsesWhenEmptied = Option.None
+        textSlot = Option.None
+        bindsNames = false
+        completions = []
+        complete = Spec.noCompletions
+        resolve = Spec.noResolve
+        binders = Spec.noBinders
+        offers = Spec.noOffers
+        scopeCandidate = Option.None
+        actions = []
+        empty = stringNode("")
+        summary = stringSummary }
+
+    Spec.withCompletions(
+      Spec.simple(boolKind(), [ Piece.Text("value", Layout.Style.Keyword) ], boolNode(false)),
+      [ Spec.candidate("true", "Bool", boolNode(true))
+        Spec.candidate("false", "Bool", boolNode(false)) ])
+
+    Spec.withRules(
+      Spec.simple(
+        floatKind(),
+        [ Piece.Text("whole", Layout.Style.Literal)
+          Piece.Punct(".")
+          Piece.Text("fraction", Layout.Style.Literal) ],
+        floatNode("", "")),
+      [ HoleRule { onChar = "<digit>", fill = HoleFill.WithChar(floatFromDigit) } ])
+
+    Spec.withCompletions(
+      Spec.simple(unitKind(), [ Piece.Punct("()") ], unitNode()),
+      [ Spec.candidate("()", "Unit", unitNode()) ])
+
+    // "see as a grid" is on the LIST rather than only on the table, so the toggle goes both ways. The row
+    // type is read off the items, which is the only place it is written down: a list node does not carry
+    // its element type, and does not need to for anything else it does.
+    { Spec
+        { kind = listKind()
+          pieces = listPieces()
+          holeRules = [ HoleRule { onChar = "[", fill = HoleFill.WithChar(listFromBracket) } ]
+          wrapRules = []
+          textClasses = []
+          maxItems = Spec.noMaxItems
+          noSequence = []
+          opensItems = []
+          closer = Option.None
+          operands = Option.None
+          segments = Option.None
+          sequence = Option.None
+          collapsesTo = Option.None
+          collapsesWhenEmptied = Option.None
+          textSlot = Option.None
+          bindsNames = false
+          completions = []
+          complete = Spec.noCompletions
+          resolve = Spec.noResolve
+          binders = Spec.noBinders
+          offers = Spec.noOffers
+          scopeCandidate = Option.None
+          actions = []
+          empty = listNode([], Expect.any("item"))
+          summary = listSummary } with
+        actions =
+          [ Action
+              { name = "see as a grid"
+                key = Option.None
+                doc = "one row per record, one column per field"
+                applies = rowsAgreeOnAType
+                run =
+                  (fun n ->
+                     match rowTypeOf(n) with
+                     | Some(t) ->
+                       Slot.Filled(
+                         Node.make(
+                           Kind.named("[" + t + "]"),
+                           [ (
+                               "items",
+                               Field.Many(
+                                 Node.items(n, "items"),
+                                 Node.itemExpect(n, "items")
+                                 |> Stdlib.Option.withDefault(Expect.any("row")))) ]))
+                     | None -> Slot.Filled(n)) } ] }
+
+    // No hole rules on these three. `ofDval` builds them and nothing types one: `(` already means a
+    // group where a value goes, and giving it a second meaning here would be a decision about the
+    // LANGUAGE made in passing, by a spec that only exists to draw what a runtime value already is.
+    { Spec.simple(tupleKind(), tuplePieces(), tupleNode([])) with summary = tupleSummary }
+    { Spec.simple(dictKind(), dictPieces(), dictNode([])) with summary = dictSummary }
+    Spec.simple(
+      dictPairKind(),
+      dictPairPieces(),
+      dictPairNode(Slot.Empty(Expect.any("key")), Slot.Empty(Expect.any("value"))))
+
+    { Spec.simple(opaqueKind(), [ Piece.Text("source", Layout.Style.Dim) ], opaqueNode("")) with
+        summary = opaqueSummary } ]
