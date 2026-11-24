@@ -839,7 +839,11 @@ test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
 test serveAllowParses =
   let parsed =
     Cli.Http.Serve.parseArgs(
-      [ "Me.App.router", "--allow", "clock; env read HOME", "--allow", "random" ],
+      [ "Me.App.router"
+        "--allow"
+        "clock; env read HOME"
+        "--allow"
+        "random" ],
       Cli.Http.Serve.defaultArgs())
 
   Stdlib.Test.all(
@@ -849,13 +853,20 @@ test serveAllowParses =
 
 /// `serve --allow` refuses a deny rule and a rule it can't read, before looking for the router.
 test serveAllowRefusesDenyAndBadRules = Instance.withInstance(fun i ->
-  let (denyCode, denyOut) = Instance.ran(i, [ "serve", "Me.App.router", "--allow", "deny all" ])
-  let (badCode, badOut) = Instance.ran(i, [ "serve", "Me.App.router", "--allow", "nonsense" ])
+  let (denyCode, denyOut) =
+    Instance.ran(i, [ "serve", "Me.App.router", "--allow", "deny all" ])
+
+  let (badCode, badOut) =
+    Instance.ran(i, [ "serve", "Me.App.router", "--allow", "nonsense" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(denyCode, 1, "a deny rule is refused")
       Instance.says(denyOut, "--allow takes allow rules only", "says why")
       Instance.exitedWith(badCode, 1, "a bad rule is refused")
-      Instance.says(badOut, "invalid permission rule: nonsense", "names the rule") ]))
+      Instance.says(
+        badOut,
+        "invalid permission rule: nonsense",
+        "names the rule") ]))
 
 
 /// Calls carrying an EXPLICIT type argument take a different path through Apply than the usual inferred

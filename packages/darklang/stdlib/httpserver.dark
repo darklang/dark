@@ -371,7 +371,11 @@ let serve(
   handler: Http.Request -> Http.Response,
   onListening: Unit -> Unit)
   : Result<Unit, String> =
-  serveUnder(config, LanguageTools.Permissions.Policy { allow = [], deny = [] }, handler, onListening)
+  serveUnder(
+    config,
+    LanguageTools.Permissions.Policy { allow = [], deny = [] },
+    handler,
+    onListening)
 
 
 /// <fn serve> with <param grants> allowed for this server only (`dark serve --allow`). Only the
