@@ -15,7 +15,8 @@ dark_format_skipped() {  # dark_format_skipped <path relative to the checkout>
 dark_format_changed_files() {
   local base=""
   if [[ -n "${CIRCLE_SHA1:-}" ]]; then
-    git fetch -q --depth=200 --filter=blob:none origin "+refs/heads/main:refs/remotes/origin/main" 2>/dev/null || true
+    # CI checks out HEAD alone, so its history has to come too or nothing connects it to main
+    git fetch -q --depth=200 --filter=blob:none origin "+refs/heads/main:refs/remotes/origin/main" "$(git rev-parse HEAD)" 2>/dev/null || true
   fi
   for ref in refs/remotes/upstream/main refs/remotes/origin/main; do
     if git rev-parse -q --verify "$ref" >/dev/null; then

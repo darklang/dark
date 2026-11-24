@@ -1274,6 +1274,7 @@ gate_dark_format() {
     if changed=$(dark_format_changed_dark_files); then
       [[ -z "$changed" ]] || mapfile -t files <<<"$changed"
     else
+      echo "dark-format: checking every .dark file (no merge-base with main, or the change touches the formatter)"
       all=1
     fi
   fi
@@ -1323,7 +1324,11 @@ gate_dark_format() {
        WHERE live = 1 AND draft = 0 ORDER BY 1, 2, 3, 4, 5"
   }
 
-  ./scripts/build/reload-packages > "$WORK/logs/reload-as-written.log" 2>&1
+  if ! ./scripts/build/reload-packages > "$WORK/logs/reload-as-written.log" 2>&1; then
+    echo "dark-format: packages/ as written doesn't load:"
+    tail -20 "$WORK/logs/reload-as-written.log"
+    exit 1
+  fi
   written=$(hashes)
 
   # The load rewrites package-ref-hashes.txt in the tree it loads, which here is the checkout's.
