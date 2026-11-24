@@ -3,13 +3,32 @@ module Darklang.Tools.LinkCheck
 
 type Link =
   { source: String
-    target: String }
+    target: String
+    fragment: Option<String> }
+
+
+type Outcome =
+  | Reachable
+  | Broken
+  | RedirectFailure
+  | Blocked
+  | NetworkError
+  | HttpError
+  | InvalidContent
+
+
+type Mode =
+  | Quick
+  | Audit
 
 
 /// The result of checking one URL.
 type Check =
   { url: String
-    finalUrl: String
+    finalUrl: Option<String>
+    method: String
+    outcome: Outcome
+    anchors: Option<List<String>>
     status: Option<Int64>
     error: Option<String> }
 
@@ -162,9 +181,60 @@ let sameOrigin(a: String, b: String): Bool =
   | _ -> false
 
 
+/// Extract URLs from CSS url() and quoted @import rules.
+let cssReferences(css: String): List<String> =
+  let css = Stdlib.Regex.replaceAll(css, "(?s)/\\*.*?\\*/", "") |> Stdlib.Result.withDefault(css)
+  Stdlib.Regex.findAllMatches(
+    css,
+    Stdlib.Regex.ofPattern(
+      "(?is)\\burl\\(\\s*(?:\"(?<double>[^\"]*)\"|'(?<single>[^']*)'|(?<bare>[^\\s)]+))\\s*\\)|@import\\s+(?:\"(?<importDouble>[^\"]*)\"|'(?<importSingle>[^']*)')"))
+  |> Stdlib.Result.withDefault([])
+  |> Stdlib.List.map(fun m ->
+    capture(m, "double")
+    + capture(m, "single")
+    + capture(m, "bare")
+    + capture(m, "importDouble")
+    + capture(m, "importSingle"))
+
+
+/// Read srcset candidates, keeping commas within a URL such as a data URI.
+let srcsetReferences(srcset: String): List<String> =
+  Stdlib.Regex.findAllMatches(
+    srcset,
+    Stdlib.Regex.ofPattern("(?i)(?:^|,)\\s*(?<url>data:[^\\s]+|[^\\s,]+)(?:\\s+[^,]*)?"))
+  |> Stdlib.Result.withDefault([])
+  |> Stdlib.List.map(fun m -> capture(m, "url"))
+
+
+/// Discover literal redirect targets in meta refresh and simple inline scripts.
+let redirectReferences(text: String, pattern: String): List<String> =
+  Stdlib.Regex.findAllMatches(text, Stdlib.Regex.ofPattern(pattern))
+  |> Stdlib.Result.withDefault([])
+  |> Stdlib.List.map(fun m -> capture(m, "double") + capture(m, "single") + capture(m, "bare"))
+  |> Stdlib.List.filter(fun target -> Stdlib.String.trim(target) != "")
+
+
+let link(page: String, base: String, reference: String): Option<Link> =
+  resolve(base, reference)
+  |> Stdlib.Option.map(fun target ->
+    let fragment =
+      Stdlib.Url.parseReference(Stdlib.String.trim(reference))
+      |> Stdlib.Result.toOption
+      |> Stdlib.Option.andThen(fun url -> url.fragment)
+      |> Stdlib.Option.map(Stdlib.Url.percentDecode)
+      |> Stdlib.Option.andThen(fun id ->
+        if
+          id == "" || Stdlib.String.toLowercase(id) == "top" || Stdlib.String.contains(id, ":~:")
+        then
+          Option.None
+        else
+          Option.Some(id))
+
+    Link { source = page, target = target, fragment = fragment })
+
+
 /// Resolve links using the final response URL and the first HTML base href.
-let links(page: String, html: String): List<Link> =
-  let elements = tags(html)
+let htmlLinks(page: String, html: String, elements: List<Tag>): List<Link> =
   let base =
     elements
     |> Stdlib.List.filter(fun t -> t.name == "base")
@@ -173,15 +243,110 @@ let links(page: String, html: String): List<Link> =
     |> Stdlib.Option.andThen(fun href -> resolve(page, href))
     |> Stdlib.Option.withDefault(page)
 
-  elements
-  |> Stdlib.List.filter(fun t -> t.name != "base")
-  |> Stdlib.List.map(fun tag ->
-    [ "href", "src" ]
-    |> Stdlib.List.filterMap(fun key -> attribute(tag, key))
-    |> Stdlib.List.filterMap(fun ref -> resolve(base, ref)))
-  |> Stdlib.List.flatten
+  let references =
+    elements
+    |> Stdlib.List.filter(fun t -> t.name != "base")
+    |> Stdlib.List.map(fun tag ->
+      let rel = attribute(tag, "rel") |> Stdlib.Option.withDefault("")
+      let connectionHint =
+        tag.name == "link"
+        && (Stdlib.Regex.isMatch(rel, "(?i)(^|\\s)(preconnect|dns-prefetch)(\\s|$)")
+            |> Stdlib.Result.withDefault(false))
+
+      let ordinary =
+        if connectionHint then
+          []
+        else
+          [ "href", "src" ] |> Stdlib.List.filterMap(fun key -> attribute(tag, key))
+
+      let candidates =
+        attribute(tag, "srcset")
+        |> Stdlib.Option.withDefault("")
+        |> srcsetReferences
+
+      let inlineCss =
+        attribute(tag, "style")
+        |> Stdlib.Option.withDefault("")
+        |> cssReferences
+
+      let metadata =
+        Stdlib.Option.or(attribute(tag, "property"), attribute(tag, "name"))
+        |> Stdlib.Option.withDefault("")
+        |> Stdlib.String.toLowercase
+
+      let social =
+        if
+          tag.name == "meta"
+          && Stdlib.List.contains(
+            [ "og:url"
+              "og:image"
+              "og:image:url"
+              "og:image:secure_url"
+              "og:audio"
+              "og:video"
+              "og:video:url"
+              "og:video:secure_url"
+              "twitter:image"
+              "twitter:image:src"
+              "twitter:player"
+              "twitter:player:stream" ],
+            metadata)
+        then
+          attribute(tag, "content") |> Stdlib.Option.toList
+        else
+          []
+
+      let directive =
+        attribute(tag, "http-equiv")
+        |> Stdlib.Option.withDefault("")
+        |> Stdlib.String.trim
+        |> Stdlib.String.toLowercase
+
+      let refresh =
+        if tag.name == "meta" && directive == "refresh" then
+          let content = attribute(tag, "content") |> Stdlib.Option.withDefault("")
+          redirectReferences(
+            content,
+            "(?i)^\\s*[0-9]+(?:\\.[0-9]+)?\\s*;\\s*url\\s*=\\s*(?:\"(?<double>[^\"]*)\"|'(?<single>[^']*)'|(?<bare>[^\\s'\"][^'\"]*))\\s*$")
+        else
+          []
+
+      [ ...ordinary, ...candidates, ...inlineCss, ...social, ...refresh ])
+    |> Stdlib.List.flatten
+
+  let inlineReferences =
+    Stdlib.Regex.findAllMatches(
+      html,
+      Stdlib.Regex.ofPattern(
+        "(?is)<!--.*?-->|<(?:textarea|title)\\b[^>]*>.*?</(?:textarea|title)\\s*>|<script(?<attrs>\\b[^>]*)>(?<script>.*?)</script\\s*>|<style\\b[^>]*>(?<css>.*?)</style\\s*>"))
+    |> Stdlib.Result.withDefault([])
+    |> Stdlib.List.map(fun m ->
+      let css = cssReferences(capture(m, "css"))
+      let attrs =
+        capture(m, "attrs")
+        |> Stdlib.String.trim
+        |> Stdlib.String.toLowercase
+
+      let script =
+        if
+          attrs == "" || attrs == "type=\"text/javascript\"" || attrs == "type='text/javascript'"
+        then
+          redirectReferences(
+            capture(m, "script"),
+            "^\\s*(?:window\\.)?location(?:\\.href)?\\s*=\\s*(?:\"(?<double>[^\"\\\\\\r\\n]*)\"|'(?<single>[^'\\\\\\r\\n]*)')\\s*;?\\s*$")
+        else
+          []
+
+      [ ...css, ...script ])
+    |> Stdlib.List.flatten
+
+  [ ...references, ...inlineReferences ]
+  |> Stdlib.List.filterMap(fun reference -> link(page, base, reference))
   |> Stdlib.List.unique
-  |> Stdlib.List.map(fun target -> Link { source = page, target = target })
+
+
+let links(page: String, html: String): List<Link> =
+  htmlLinks(page, html, tags(html))
 
 
 /// Send an HTTP request. Tests use a fake function instead of the network.
@@ -193,69 +358,169 @@ type Fetch =
 let inspectResponse(
   start: String,
   url: String,
+  method: String,
   response: Result<Stdlib.HttpClient.Response<Bytes>, Stdlib.HttpClient.RequestError>)
   : (Check * List<Link>) =
   match response with
   | Error(e) ->
     (
       Check
-        { url = url, finalUrl = url, status = Option.None, error = Option.Some(Stdlib.display(e)) },
+        { url = url
+          finalUrl = Option.None
+          method = method
+          outcome =
+            if e == Stdlib.HttpClient.RequestError.TooManyRedirects then
+              Outcome.RedirectFailure
+            else
+              Outcome.NetworkError
+          anchors = Option.None
+          status = Option.None
+          error = Option.Some(Stdlib.display(e)) },
       [])
   | Ok(r) ->
-    let error =
-      if r.statusCode < 200 || r.statusCode >= 300 then
-        Option.Some($"HTTP {r.statusCode}")
+    let status = r.statusCode
+    let outcome =
+      if status == 404 || status == 410 then
+        Outcome.Broken
+      else if status == 401 || status == 403 || status == 429 then
+        Outcome.Blocked
+      else if Stdlib.List.contains([ 301, 302, 303, 307, 308 ], status) then
+        Outcome.RedirectFailure
+      else if status < 200 || status >= 300 then
+        Outcome.HttpError
       else
-        Option.None
+        Outcome.Reachable
 
     let contentType =
       Stdlib.HttpClient.Response.header(r, "content-type")
       |> Stdlib.Option.withDefault("")
       |> Stdlib.String.toLowercase
 
+    let html =
+      Stdlib.String.startsWith(contentType, "text/html")
+      || Stdlib.String.startsWith(contentType, "application/xhtml+xml")
+
+    let css = Stdlib.String.startsWith(contentType, "text/css")
     let parsed =
       if
-        sameOrigin(start, url)
+        method == "GET"
         && sameOrigin(start, r.url)
-        && error == Option.None
-        && (Stdlib.String.startsWith(contentType, "text/html")
-            || Stdlib.String.startsWith(contentType, "application/xhtml+xml"))
+        && sameOrigin(start, url)
+        && outcome == Outcome.Reachable
+        && (html || css)
       then
-        match Stdlib.HttpClient.Response.text(r) with
-        | Ok(html) -> Result.Ok(links(r.url, html))
-        | Error(e) -> Result.Error(Stdlib.display(e))
-      else
-        Result.Ok([])
+        Stdlib.HttpClient.Response.text(r)
+        |> Stdlib.Result.map(fun body ->
+          if html then
+            let elements = tags(body)
+            let anchors =
+              elements
+              |> Stdlib.List.map(fun t ->
+                [ ...Stdlib.Option.toList(attribute(t, "id"))
+                  ...if t.name == "a" then Stdlib.Option.toList(attribute(t, "name")) else [] ])
+              |> Stdlib.List.flatten
+              |> Stdlib.List.unique
 
-    let (found, error) =
+            (htmlLinks(r.url, body, elements), Option.Some(anchors))
+          else
+            (
+              cssReferences(body)
+              |> Stdlib.List.filterMap(fun reference -> link(r.url, r.url, reference)),
+              Option.None))
+      else
+        Result.Ok(([], Option.None))
+
+    let (found, anchors, outcome, error) =
       match parsed with
-      | Ok(found) -> (found, error)
-      | Error(e) -> ([], Option.Some(e))
+      | Ok((found, anchors)) ->
+        (
+          found,
+          anchors,
+          outcome,
+          if outcome == Outcome.Reachable then
+            Option.None
+          else
+            Option.Some($"HTTP {status}"))
+      | Error(e) -> ([], Option.None, Outcome.InvalidContent, Option.Some(Stdlib.display(e)))
 
     (
-      Check { url = url, finalUrl = r.url, status = Option.Some(r.statusCode), error = error },
+      Check
+        { url = url
+          finalUrl = Option.Some(r.url)
+          method = method
+          outcome = outcome
+          anchors = anchors
+          status = Option.Some(status)
+          error = error },
       found)
 
 
-/// Check four URLs at a time. Retry timeouts once and use GET when HEAD is unsupported.
+let host(url: String): String =
+  Stdlib.Url.parse(url)
+  |> Stdlib.Result.toOption
+  |> Stdlib.Option.andThen(fun parsed -> parsed.host)
+  |> Stdlib.Option.withDefault("")
+
+
+/// Audit batches start at most one URL per host. Redirects and retries stay in that slot.
+let auditBatch(queue: List<String>, count: Int64): (List<String> * List<String>) =
+  let (batch, rest, _) = Stdlib.List.fold(queue, ([], [], []), fun((batch, rest, hosts), url) ->
+    let h = host(url)
+    if Stdlib.List.length(batch) >= count || Stdlib.List.contains(hosts, h) then
+      (batch, [ url, ...rest ], hosts)
+    else
+      ([ url, ...batch ], rest, [ h, ...hosts ]))
+
+  (Stdlib.List.reverse(batch), Stdlib.List.reverse(rest))
+
+
+/// Only validate fragments for HTML fetched from the starting origin.
+let brokenFragments(report: Report): List<Link> =
+  let pages = Stdlib.List.fold(report.checks, Stdlib.Dict.empty, fun(pages, check) ->
+    match check.anchors with
+    | Some(ids) ->
+      let pages = Stdlib.Dict.set(pages, check.url, ids)
+      match check.finalUrl with
+      | Some(url) -> Stdlib.Dict.set(pages, url, ids)
+      | None -> pages
+    | None -> pages)
+
+  report.links
+  |> Stdlib.List.filter(fun l ->
+    match l.fragment, Stdlib.Dict.get(pages, l.target) with
+    | Some(id), Some(ids) -> !Stdlib.List.contains(ids, id)
+    | _ -> false)
+  |> Stdlib.List.unique
+
+
+/// Check four URLs at a time. Retry timeouts once and confirm missing or unsupported HEAD responses with GET.
 /// Call onCheck once for each checked URL.
 let crawlWithProgress(
+  mode: Mode,
   start: String,
   limit: Int64,
   fetch: Fetch,
   onCheck: (Int64, Check) -> Unit)
   : Report =
-  let loop(queue: List<String>, seen: Dict<String, Check>, edges: List<Link>): Report =
+  let loop(
+    origin: String,
+    queue: List<String>,
+    seen: Dict<String, Check>,
+    edges: List<Link>)
+    : Report =
     let queue = Stdlib.List.filter(queue, fun url -> !Stdlib.Dict.containsKey(seen, url))
     if Stdlib.List.isEmpty(queue) || Stdlib.Dict.size(seen) >= limit then
       Report { checks = Stdlib.Dict.values(seen), links = edges, pending = queue }
     else
       let count = Stdlib.min(4, limit - Stdlib.Dict.size(seen))
-      let batch = Stdlib.List.take(queue, count)
-      let rest = Stdlib.List.drop(queue, count)
+      let (batch, rest) =
+        match mode with
+        | Audit -> auditBatch(queue, count)
+        | Quick -> (Stdlib.List.take(queue, count), Stdlib.List.drop(queue, count))
+
       // Start every request before reading a response, so their network waits overlap.
       let requests = Stdlib.List.map(batch, fun url ->
-        let method = if sameOrigin(start, url) then "GET" else "HEAD"
+        let method = if mode == Mode.Audit || sameOrigin(origin, url) then "GET" else "HEAD"
         (url, method, fetch(method, url)))
 
       // Retries and GET fallbacks reuse their URL's slot in the batch.
@@ -266,27 +531,46 @@ let crawlWithProgress(
 
       let responses = Stdlib.List.map(retried, fun((url, method, response)) ->
         if method == "GET" then
-          (url, response)
+          (url, method, response)
         else
           match response with
-          | Ok(r) when r.statusCode == 405 || r.statusCode == 501 -> (url, fetch("GET", url))
-          | _ -> (url, response))
+          | Ok(r) when Stdlib.List.contains([ 404, 405, 410, 501 ], r.statusCode) ->
+            (url, "GET", fetch("GET", url))
+          | _ -> (url, method, response))
 
-      let (seen, found) = Stdlib.List.fold(responses, (seen, []), fun((seen, found), item) ->
-        let (url, response) = item
-        let (check, discovered) = inspectResponse(start, url, response)
-        onCheck(Stdlib.Dict.size(seen) + 1, check)
-        (Stdlib.Dict.set(seen, url, check), [ ...found, ...discovered ]))
+      let (origin, seen, found) = Stdlib.List.fold(
+        responses,
+        (origin, seen, []),
+        fun((origin, seen, found), item) ->
+          let (url, method, response) = item
+          // An HTTP entry point can upgrade to HTTPS on the same host.
+          let upgraded =
+            match response with
+            | Ok(r)
+              when url == start && Stdlib.String.startsWith(start, "http://") && Stdlib.String.startsWith(r.url, "https://") && host(start) == host(r.url) ->
+              r.url
+            | _ -> origin
+
+          let (check, discovered) =
+            if upgraded != origin then
+              // The entry URL is HTTP, while its document and links belong to HTTPS.
+              let (check, found) = inspectResponse(upgraded, upgraded, method, response)
+              ({ check with url = url }, found)
+            else
+              inspectResponse(origin, url, method, response)
+
+          onCheck(Stdlib.Dict.size(seen) + 1, check)
+          (upgraded, Stdlib.Dict.set(seen, url, check), [ ...found, ...discovered ]))
 
       let next = [ ...rest, ...Stdlib.List.map(found, fun l -> l.target) ] |> Stdlib.List.unique
-      loop(next, seen, [ ...edges, ...found ])
+      loop(origin, next, seen, [ ...edges, ...found ])
 
-  loop([ start ], Stdlib.Dict.empty, [])
+  loop(start, [ start ], Stdlib.Dict.empty, [])
 
 
 /// Collect a report without printing progress, for callers that consume it themselves.
 let crawlWith(start: String, limit: Int64, fetch: Fetch): Report =
-  crawlWithProgress(start, limit, fetch, fun(_count, _check) -> ())
+  crawlWithProgress(Mode.Quick, start, limit, fetch, fun(_count, _check) -> ())
 
 
 /// Print a completed URL while the crawl is still running.
@@ -303,12 +587,20 @@ let printCheck(count: Int64, check: Check): Unit =
 
 
 let fetch(
+  mode: Mode,
   method: String,
   url: String)
   : Result<Stdlib.HttpClient.Response<Bytes>, Stdlib.HttpClient.RequestError> =
+  let options =
+    match mode with
+    | Audit -> [ Stdlib.HttpClient.Middleware.retry(2, 500) ]
+    | Quick -> []
+
   let send =
     Stdlib.HttpClient.client(
-      [ ...Stdlib.HttpClient.Middleware.defaults(), Stdlib.HttpClient.Middleware.timeout(15000) ])
+      [ ...Stdlib.HttpClient.Middleware.defaults()
+        ...options
+        Stdlib.HttpClient.Middleware.timeout(15000) ])
 
   send(
     Stdlib.HttpClient.Request.make(
@@ -321,60 +613,101 @@ let fetch(
 let exitCode(report: Report): Int64 =
   if !Stdlib.List.isEmpty(report.pending) then
     2
-  else if Stdlib.List.any(report.checks, fun c -> c.error != Option.None) then
+  else if
+    Stdlib.List.any(report.checks, fun c -> c.error != Option.None)
+    || !Stdlib.List.isEmpty(brokenFragments(report))
+  then
     1
   else
     0
 
 
 /// Validate arguments before making any requests.
-let parseArgs(args: List<String>): Result<(String * Int64), String> =
+let parseOptions(args: List<String>): Result<(String * Int64 * Mode), String> =
   let parse(
     rest: List<String>,
     url: Option<String>,
-    limit: Int64)
-    : Result<(String * Int64), String> =
+    limit: Int64,
+    mode: Mode)
+    : Result<(String * Int64 * Mode), String> =
     match rest with
     | [] ->
       match url with
-      | Some(u) -> Result.Ok((u, limit))
+      | Some(u) -> Result.Ok((u, limit, mode))
       | None -> Result.Error("A starting URL is required")
+    | ["--audit", ...rest] when mode == Mode.Quick -> parse(rest, url, limit, Mode.Audit)
     | ["--limit", n, ...rest] ->
       match Stdlib.Int64.parse(n) with
-      | Ok(n) when n > 0 -> parse(rest, url, n)
+      | Ok(n) when n > 0 -> parse(rest, url, n, mode)
       | _ -> Result.Error("--limit must be a positive integer")
     | [arg, ...rest] when url == Option.None && !Stdlib.String.startsWith(arg, "--") ->
       match resolve(arg, arg) with
-      | Some(u) -> parse(rest, Option.Some(u), limit)
+      | Some(u) -> parse(rest, Option.Some(u), limit, mode)
       | None -> Result.Error("The starting URL must be an absolute HTTP(S) URL without credentials")
     | _ -> Result.Error("Unexpected argument")
 
-  parse(args, Option.None, 3000)
+  parse(args, Option.None, 3000, Mode.Quick)
+
+
+let parseArgs(args: List<String>): Result<(String * Int64), String> =
+  parseOptions(args) |> Stdlib.Result.map(fun((url, limit, _mode)) -> (url, limit))
 
 
 /// `dark run Darklang.Tools.LinkCheck.checkSite https://docs.darklang.com [--limit N]`
-/// Exit 0: all checked links passed; 1: failures; 2: invalid arguments or incomplete crawl.
+/// Exit 0 when all links pass, 1 for findings, and 2 for invalid arguments or an incomplete crawl.
 let checkSite(args: List<String>): Int64 =
-  match parseArgs(args) with
+  match parseOptions(args) with
   | Error(e) ->
     Stdlib.printErrorLine(
-      e + "\nUsage: dark run Darklang.Tools.LinkCheck.checkSite URL [--limit N]")
+      e + "\nUsage: dark run Darklang.Tools.LinkCheck.checkSite URL [--limit N] [--audit]")
 
     2
-  | Ok((url, limit)) ->
-    let report = crawlWithProgress(url, limit, fetch, printCheck)
-    let failures = Stdlib.List.filter(report.checks, fun c -> c.error != Option.None)
-    if !Stdlib.List.isEmpty(failures) then Stdlib.printLine("\nFailures:")
-    failures
-    |> Stdlib.List.iter(fun c ->
-      Stdlib.printLine(c.url + ": " + Stdlib.Option.withDefault(c.error, ""))
-      report.links
-      |> Stdlib.List.filter(fun l -> l.target == c.url)
-      |> Stdlib.List.map(fun l -> l.source)
-      |> Stdlib.List.unique
-      |> Stdlib.List.iter(fun source -> Stdlib.printLine("  linked from " + source)))
+  | Ok((url, limit, mode)) ->
+    let report =
+      crawlWithProgress(
+        mode,
+        url,
+        limit,
+        (fun(method, target) -> fetch(mode, method, target)),
+        printCheck)
+
+    let groups =
+      [ (Outcome.Broken, "Broken links")
+        (Outcome.RedirectFailure, "Redirect failures")
+        (Outcome.Blocked, "Blocked or rate-limited")
+        (Outcome.NetworkError, "Network errors")
+        (Outcome.HttpError, "Other HTTP errors")
+        (Outcome.InvalidContent, "Unreadable content") ]
+
+    groups
+    |> Stdlib.List.iter(fun((outcome, title)) ->
+      let checks = Stdlib.List.filter(report.checks, fun c -> c.outcome == outcome)
+      if !Stdlib.List.isEmpty(checks) then
+        Stdlib.printLine($"\n{title} ({Stdlib.List.length(checks)}):")
+
+      checks
+      |> Stdlib.List.iter(fun c ->
+        let error = Stdlib.Option.withDefault(c.error, "")
+        let finalUrl = Stdlib.Option.withDefault(c.finalUrl, "unavailable")
+        Stdlib.printLine($"  {c.method} {c.url} — {error} (final URL: {finalUrl})")
+        report.links
+        |> Stdlib.List.filter(fun l -> l.target == c.url)
+        |> Stdlib.List.map(fun l -> l.source)
+        |> Stdlib.List.unique
+        |> Stdlib.List.iter(fun source -> Stdlib.printLine("    linked from " + source))))
+
+    let fragments = brokenFragments(report)
+    if !Stdlib.List.isEmpty(fragments) then Stdlib.printLine("\nMissing fragments:")
+    fragments
+    |> Stdlib.List.iter(fun l ->
+      let id = Stdlib.Option.withDefault(l.fragment, "")
+      Stdlib.printLine($"  {l.target}#{id} linked from {l.source}"))
+
+    let passed =
+      Stdlib.List.filter(report.checks, fun c -> c.outcome == Outcome.Reachable)
+      |> Stdlib.List.length
 
     Stdlib.printLine(
-      $"Checked {Stdlib.List.length(report.checks)} URLs; {Stdlib.List.length(failures)} failed; {Stdlib.List.length(report.pending)} pending.")
+      $"Checked {Stdlib.List.length(report.checks)} URLs; {passed} reachable; {Stdlib.List.length(fragments)} missing fragments; {Stdlib.List.length(report.pending)} pending.")
 
     exitCode(report)

@@ -1,7 +1,9 @@
 module Darklang.Tools.LinkCheck.Tests
 
 let targets(page: String, html: String): List<String> =
-  Tools.LinkCheck.links(page, html) |> Stdlib.List.map(fun l -> l.target)
+  Tools.LinkCheck.links(page, html)
+  |> Stdlib.List.map(fun l -> l.target)
+  |> Stdlib.List.unique
 
 
 test relativeLinks =
@@ -137,10 +139,25 @@ test crawlFollowsRedirectBaseAndHandlesCycles =
       report.links
       |> Stdlib.List.filter(fun l -> l.target == "https://docs.example/broken")
       |> Stdlib.List.map(fun l -> l.source)
+      |> Stdlib.List.unique
       |> Stdlib.Test.equal(
         [ "https://docs.example/", "https://docs.example/new/" ])
 
       Tools.LinkCheck.exitCode(report) |> Stdlib.Test.equal(1) ])
+
+
+test confirmsExternalHeadNotFoundWithGet =
+  let fetch(method: String, url: String) =
+    match method, url with
+    | "HEAD", "https://other.example/" ->
+      Stdlib.Result.Result.Ok(response(url, 404, ""))
+    | _ -> fixture(method, url)
+
+  let report = Tools.LinkCheck.crawlWith("https://docs.example/", 20, fetch)
+  report.checks
+  |> Stdlib.List.filter(fun c -> c.error != Stdlib.Option.Option.None)
+  |> Stdlib.List.map(fun c -> c.url)
+  |> Stdlib.Test.equal([ "https://docs.example/broken" ])
 
 
 test limitReportsIncomplete =
@@ -216,3 +233,71 @@ test validatesArguments =
         | Error(_) -> true
         | Ok(_) -> false)
       |> Stdlib.Test.equal(true) ])
+
+
+test discoversResponsiveImagesCssAndSocialMetadata =
+  targets(
+    "https://docs.example/guide/",
+    "<meta property='og:image' content='/social.png'>"
+    + "<link rel='preconnect' href='https://search.example/'>"
+    + "<img srcset='data:image/png;base64,AAAA 1x, /large.png 2x'>"
+    + "<style>@import 'nested.css'; x { background: url(/background.png) }</style>"
+    + "<div style='background: url(&quot;inline.png&quot;)'></div>")
+  |> Stdlib.Test.equal(
+    [ "https://docs.example/social.png"
+      "https://docs.example/large.png"
+      "https://docs.example/guide/inline.png"
+      "https://docs.example/guide/nested.css"
+      "https://docs.example/background.png" ])
+
+
+test discoversLiteralPageRedirects =
+  targets(
+    "https://docs.example/guide/",
+    "<meta http-equiv='Refresh' content='0; URL=&quot;intro&quot;'>"
+    + "<script type='text/javascript'>window.location.href = 'intro';</script>"
+    + "<script>location = '/script-only'</script>"
+    + "<script>const example = \"location = '/example'\";</script>"
+    + "<script type='application/json'>location = '/data'</script>"
+    + "<textarea><script>location = '/example-two'</script></textarea>"
+    + "<meta http-equiv='refresh' content='30'>")
+  |> Stdlib.Test.equal(
+    [ "https://docs.example/guide/intro", "https://docs.example/script-only" ])
+
+
+test auditUsesGetAndKeepsFailuresDistinct =
+  let fetch(method: String, url: String) =
+    match method, url with
+    | "GET", "https://docs.example/" ->
+      Stdlib.Result.Result.Ok(
+        response(
+          url,
+          200,
+          "<a href='https://other.example/limit'>limited</a>"
+          + "<a href='https://other.example/loop'>loop</a>"
+          + "<a href='#found'>valid</a><a href='#lost'>missing</a><i id='found'></i>"))
+    | "GET", "https://other.example/limit" ->
+      Stdlib.Result.Result.Ok(response(url, 429, ""))
+    | "GET", "https://other.example/loop" ->
+      Stdlib.Result.Result.Error(
+        Stdlib.HttpClient.RequestError.TooManyRedirects)
+    | _ -> Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadMethod)
+
+  let report =
+    Tools.LinkCheck.crawlWithProgress(
+      Tools.LinkCheck.Mode.Audit,
+      "https://docs.example/",
+      20,
+      fetch,
+      fun(_n, _c) -> ())
+
+  Stdlib.Test.all(
+    [ Stdlib.List.map(report.checks, fun c -> (c.method, c.outcome))
+      |> Stdlib.Test.equal(
+        [ ("GET", Tools.LinkCheck.Outcome.Reachable)
+          ("GET", Tools.LinkCheck.Outcome.Blocked)
+          ("GET", Tools.LinkCheck.Outcome.RedirectFailure) ])
+
+      Tools.LinkCheck.brokenFragments(report)
+      |> Stdlib.List.map(fun l -> l.fragment)
+      |> Stdlib.Test.equal([ Stdlib.Option.Option.Some("lost") ]) ])
