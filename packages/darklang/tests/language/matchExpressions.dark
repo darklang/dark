@@ -933,6 +933,24 @@ module PatternGrouping =
          | (Error(err), Ok(_)) | (Ok(_), Error(err))  -> err)
         |> Stdlib.Test.equal("error") ])
 
+  type Op =
+    | Deprecate(Int64, String, String)
+    | UpdateDoc(Int64, String, String)
+
+  // the `_`s after a shared name must not overwrite it
+  test orPatternsWithWildcardsAfterName =
+    Stdlib.Test.all(
+      [ (match Op.UpdateDoc(1, "a", "b") with
+         | Deprecate(l, _, _) | UpdateDoc(l, _, _) when l == 1 -> l
+         | _ -> 0)
+        |> Stdlib.Test.equal(1)
+        (match ((1, "a", "b"), 2) with
+         | ((l, _, _), 1) | ((l, _, _), 2) -> l)
+        |> Stdlib.Test.equal(1)
+        (match (1, "a", "b") with
+         | (x, y, _) | (x, _, y) -> (x, y))
+        |> Stdlib.Test.equal((1, "a")) ])
+
 // `p as name` matches what `p` matches and also binds the whole value to `name`.
 test asPatterns =
   Stdlib.Test.all(

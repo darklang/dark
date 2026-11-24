@@ -356,10 +356,6 @@ module MatchPattern =
           let pat, patSymbols, patRc = toRT Map.empty rc pat
           (pat, patSymbols, patRc))
 
-      // Find the highest register count needed across all patterns
-      // to make sure we allocate enough registers to handle any of the patterns
-      let maxRc = patternsWithSymbols |> List.map (fun (_, _, rc) -> rc) |> List.max
-
       // build a consistent symbol-to-register mapping across all patterns
       // maintains consistency by using the same register for the same symbol across patterns
       let commonSymbolMapping =
@@ -382,14 +378,38 @@ module MatchPattern =
             (Map.empty, rc)
           |> fst // take just the mapping, discard the final nextFreeRegister since we don't need it anymore
 
+      // The common registers take [rc, rc + commonCount), so every other register
+      // moves up past them. Left in place, a later `_` or unshared name could
+      // write over a common one, as in `A(l, _, _) | B(l, _, _)`.
+      let commonCount = Map.count commonSymbolMapping
+
+      let maxRc = patternsWithSymbols |> List.map (fun (_, _, rc) -> rc) |> List.max
+
       // Update all patterns to use the consistent register mapping.
       // For each variable pattern encountered:
       // - If the variable appears in all patterns (is in commonSymbolMapping),
       //   replace its register with the common register assigned to that symbol
-      // - Otherwise, leave its original register unchanged
+      // - Otherwise, move it past the common registers
       let patternsWithConsistentRegisters =
         patternsWithSymbols
         |> List.map (fun (pat, symbolMap, _) ->
+          let commonRegs =
+            commonSymbolMapping
+            |> Map.keys
+            |> Seq.choose (fun name -> Map.tryFind name symbolMap)
+            |> Seq.toList
+
+          // packed right after the common block, so no register goes unused
+          let remap reg =
+            match
+              Map.tryFindKey (fun _ v -> v = reg) symbolMap
+              |> Option.bind (fun name -> Map.tryFind name commonSymbolMapping)
+            with
+            | Some commonReg -> commonReg
+            | None ->
+              let commonBelow =
+                commonRegs |> List.filter (fun r -> r < reg) |> List.length
+              reg + commonCount - commonBelow
           let rec updateRegisters pattern =
             match pattern with
             | RT.MPUnit -> RT.MPUnit
@@ -410,14 +430,7 @@ module MatchPattern =
             | RT.MPDecimal d -> RT.MPDecimal d
             | RT.MPChar c -> RT.MPChar c
             | RT.MPString s -> RT.MPString s
-            | RT.MPVariable reg ->
-              // when we find a variable, check if it should use a common register
-              match Map.tryFindKey (fun _ v -> v = reg) symbolMap with
-              | Some varName ->
-                match Map.tryFind varName commonSymbolMapping with
-                | Some commonReg -> RT.MPVariable commonReg
-                | None -> pattern
-              | None -> pattern
+            | RT.MPVariable reg -> RT.MPVariable(remap reg)
             | RT.MPList pats -> RT.MPList(List.map updateRegisters pats)
             | RT.MPListCons(head, tail) ->
               RT.MPListCons(updateRegisters head, updateRegisters tail)
@@ -434,13 +447,7 @@ module MatchPattern =
                 List.map (fun (name, pat) -> (name, updateRegisters pat)) fields
               )
             | RT.MPOr patterns -> RT.MPOr(NEList.map updateRegisters patterns)
-            | RT.MPAs(inner, reg) ->
-              let reg =
-                match Map.tryFindKey (fun _ v -> v = reg) symbolMap with
-                | Some varName ->
-                  Map.tryFind varName commonSymbolMapping |> Option.defaultValue reg
-                | None -> reg
-              RT.MPAs(updateRegisters inner, reg)
+            | RT.MPAs(inner, reg) -> RT.MPAs(updateRegisters inner, remap reg)
           updateRegisters pat)
 
       let patterns =
