@@ -137,7 +137,22 @@ let wordSynonyms(word: String): List<String> =
   | "tostring" -> [ "display" ]
   | "torepr" -> [ "inspect" ]
   | "repr" -> [ "inspect" ]
+  | "async" | "task" | "promise" | "future" | "coroutine" | "goroutine" ->
+    [ "Exec.spawn", "Exec.await" ]
+  | "thread" | "parallel" | "concurrent" | "concurrency" -> [ "List.parallelMap", "Exec.spawn" ]
+  | "mutex" | "lock" | "semaphore" -> [ "Cli.File.withLock" ]
+  | "channel" | "channels" | "mailbox" -> [ "Exec.spawn", "Exec.await" ]
   | _ -> []
+
+
+/// What a query reaching for something Dark does not have should read instead.
+let conceptNote(query: String): Option<String> =
+  let words = queryTokens(query)
+  if Stdlib.List.any(words, fun w -> w == "channel" || w == "channels" || w == "mailbox") then
+    Option.Some(
+      "  (Dark has no channels: `Exec.spawn` runs a function beside yours and `Exec.await` takes its result; `dark docs processes` has more)")
+  else
+    Option.None
 
 
 // What a whole query may also mean, for words that mean something only together.
@@ -322,13 +337,24 @@ let usageKey(uses: Dict<String, Int64>, path: String): String =
   Stdlib.String.padStart(Stdlib.display(999999 - capped), '0', 6)
 
 
+// A match rank as one sort key digit: Darklang's own code (the CLI, the tools) after every
+// other name match, though before what matches only in its docs.
+let matchKey(rank: Int64, owner: String, modules: List<String>): Int64 =
+  if rank == 4 then
+    8
+  else if tier(owner, modules) == "2" then
+    rank + 4
+  else
+    rank
+
+
 // Sort key: match quality first, then whether the module is named by the query,
 // then the tier, then how many items call it, and finally the full path for
 // deterministic ordering. Each part is fixed-width, so plain string ordering under
 // `sortBy` gives the intended result.
 let rankKey(ranker: Ranker, owner: String, modules: List<String>, name: String): String =
   let lowerName = Stdlib.String.toLowercase(name)
-  let mr = Stdlib.display(rankInModule(ranker, modules, lowerName))
+  let mr = Stdlib.display(matchKey(rankInModule(ranker, modules, lowerName), owner, modules))
   let mh = Stdlib.display(moduleHit(ranker, modules, lowerName))
   let path =
     [ [ owner ], modules, [ name ] ]
@@ -768,6 +794,7 @@ let nothingFound(
   query: LanguageTools.ProgramTypes.Search.SearchQuery)
   : NothingFound =
   let words = queryWords(query.text)
+  let dotted = Stdlib.String.contains(query.text, ".")
   let resultsFor = fun word ->
     let found =
       LanguageTools.PackageManager.Search.search(branchId, { query with text = word })
@@ -776,7 +803,7 @@ let nothingFound(
     let (kept, _) = withoutTestHelpers(found)
     kept
 
-  let several = Stdlib.List.length(words) > 1
+  let several = Stdlib.Bool.not(dotted) && Stdlib.List.length(words) > 1
   let perWord = if several then words |> Stdlib.List.map(fun w -> (w, resultsFor(w))) else []
 
   let counts =
@@ -786,22 +813,62 @@ let nothingFound(
       [ (query.text, 0) ]
 
   let partial = if several then bestPartialMatches(rankerFor(query.text), perWord, 5) else []
+
   let didYouMean =
-    match Stdlib.List.filter(counts, fun((_, n)) -> n == 0) with
-    | [] -> []
-    | missing ->
-      let names = namesUnder(branchId, query.currentModule)
-      missing
-      |> Stdlib.List.filterMap(fun((w, _)) ->
-        match nearNames(w, names) with
-        | [] -> Option.None
-        | near -> Option.Some((w, near)))
+    if dotted then
+      match nearestFullNames(branchId, query) with
+      | [] -> []
+      | near -> [ (query.text, near) ]
+    else
+      match Stdlib.List.filter(counts, fun((_, n)) -> n == 0) with
+      | [] -> []
+      | missing ->
+        let names = namesUnder(branchId, query.currentModule)
+        missing
+        |> Stdlib.List.filterMap(fun((w, _)) ->
+          match nearNames(w, names) with
+          | [] -> Option.None
+          | near -> Option.Some((w, near)))
 
   NothingFound
     { wordCounts = if several then counts else []
       didYouMean = didYouMean
       fallback = Option.None
       partial = partial }
+
+
+/// Real names near a dotted <param query> that found nothing: what <fn Errors.didYouMean> makes of
+/// it, or else the best matches for its last part. Its other parts are module names, and taken a
+/// word at a time they only matched words: `Stdio` for `Stdlib`.
+let nearestFullNames(
+  branchId: Uuid,
+  query: LanguageTools.ProgramTypes.Search.SearchQuery)
+  : List<String> =
+  let parts =
+    query.text
+    |> Stdlib.String.split(".")
+    |> Stdlib.List.filter(fun p -> Stdlib.Bool.not(Stdlib.String.isEmpty(p)))
+
+  match Errors.didYouMean(branchId, parts) with
+  | [] ->
+    match Stdlib.List.last(parts) with
+    | None -> []
+    | Some(item) ->
+      let found =
+        LanguageTools.PackageManager.Search.search(branchId, { query with text = item })
+        |> Query.withoutInternal
+
+      let (kept, _) = withoutTestHelpers(found)
+      let ranker = rankerFor(item)
+      Stdlib.List.flatten(
+        [ kept.fns |> Stdlib.List.map(fun i -> suggestionWithSortKey(ranker, i))
+          kept.types |> Stdlib.List.map(fun i -> suggestionWithSortKey(ranker, i))
+          kept.values |> Stdlib.List.map(fun i -> suggestionWithSortKey(ranker, i)) ])
+      |> Stdlib.List.sortBy(fun((key, _)) -> key)
+      |> Stdlib.List.map(Stdlib.Tuple2.second)
+      |> Stdlib.List.unique
+      |> Stdlib.List.take(3)
+  | names -> names
 
 
 // <type NothingFound> as hint lines.
@@ -1513,7 +1580,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
               "Matching deprecated modules are hidden. Use --include-deprecated to show them.")
 
         let results = { results with submodules = visibleModules }
-
         // `bytes to string`: the Stdlib functions by what they take and return. They
         // print in a section of their own, so they leave the name matches.
         let wantsFns =
@@ -1655,6 +1721,10 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           operatorHint(state.currentBranchId, rawQueryText)
           hiddenTestsHint(hiddenTests)
           hiddenHelpersHint(hiddenHelpers)
+          match conceptNote(queryText) with
+          | Some(note) -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(note))
+          | None -> ()
+
           nothingFoundLines(found)
           |> Stdlib.List.iter(fun line -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(line)))
 
@@ -1679,6 +1749,10 @@ let executeQuery(state: AppState, args: List<String>): AppState =
               |> Stdlib.String.join(", ")
 
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  (also searched {shown})"))
+
+          match conceptNote(queryText) with
+          | Some(note) -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(note))
+          | None -> ()
 
           if parsed.mode == DisplayMode.Detailed then Stdlib.printLine("")
           match typeQuery(searchText) with

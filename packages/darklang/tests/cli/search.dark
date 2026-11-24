@@ -84,3 +84,63 @@ test searchLeavesTestsOutUnlessAsked = Instance.withInstance(fun i ->
         seen([ "search", "ceiling", "--test" ]),
         nanTest,
         "and --test asks for them by itself") ]))
+
+
+/// Other languages' words for concurrency find what Dark has instead.
+test concurrencyWordsFindWhatDarkHas = Instance.withInstance(fun i ->
+  let async =
+    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "search", "async" ]))
+
+  let mutex =
+    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "search", "mutex" ]))
+
+  let channel =
+    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "search", "channel" ]))
+
+  Stdlib.Test.all(
+    [ Instance.says(
+        async,
+        "Darklang.Stdlib.Exec.spawn",
+        "async finds Exec.spawn")
+
+      Instance.says(
+        mutex,
+        "Darklang.Stdlib.Cli.File.withLock",
+        "mutex finds withLock")
+
+      Instance.says(
+        channel,
+        "dark docs processes",
+        "channel points at the docs") ]))
+
+
+/// A dotted name that finds nothing suggests real names, not a word per part.
+test dottedMissSuggestsFullNames = Instance.withInstance(fun i ->
+  let output =
+    Stdlib.Cli.Tui.Text.stripSgr(
+      Instance.said(i, [ "search", "--exact", "Stdlib.Cli.Stderr.printLine" ]))
+
+  Stdlib.Test.all(
+    [ Instance.says(output, "`Stdlib.printLine`", "the real name")
+      Instance.doesNotSay(output, "Stdio", "no word-at-a-time typo")
+      Instance.doesNotSay(
+        output,
+        "One word at a time",
+        "no per-word counts") ]))
+
+
+/// Darklang's own tools still show, after the Stdlib matches.
+test toolsRankAfterStdlib = Instance.withInstance(fun i ->
+  let out =
+    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "search", "json escape" ]))
+
+  let at = fun name ->
+    Stdlib.String.indexOf(out, name) |> Stdlib.Option.withDefault(-1)
+
+  let stdlib = at("Darklang.Stdlib.AltJson.Format.escapeBytes")
+  let cli = at("Darklang.Cli.jsonEscape")
+  Stdlib.Test.all(
+    [ Instance.says(out, "Darklang.Cli.jsonEscape", "the CLI's own fn shows")
+      Stdlib.Test.expect(
+        stdlib >= 0 && stdlib < cli,
+        $"Stdlib ranks first:\n{out}") ]))
