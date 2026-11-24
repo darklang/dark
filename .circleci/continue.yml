@@ -235,20 +235,24 @@ commands:
   # The same tree in about 3s instead of about 40s, for the jobs every PR waits on.
   #
   # The built-in `checkout` clones the whole history (over 250k objects) every job.
-  # Nothing in these jobs reads history: they ask git for HEAD and for `status`, both of
-  # which a one-commit fetch answers. The repo is public, so this goes over https and needs
+  # Most jobs only need HEAD and status. The build's dark-format gate needs enough history
+  # to find the merge base with main. The repo is public, so this goes over https and needs
   # no key. A fork's PR commit is fetchable from darklang/dark through its `refs/pull` ref.
   shallow-checkout:
+    parameters:
+      depth:
+        type: integer
+        default: 1
     steps:
       - run:
-          name: Checkout code (this commit only)
+          name: Checkout code
           command: |
             rm -Rf /home/dark/app/*
             git init -q .
             git remote add origin "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
-            if ! git fetch -q --depth=1 origin "$CIRCLE_SHA1"; then
+            if ! git fetch -q --depth=<< parameters.depth >> origin "$CIRCLE_SHA1"; then
               # Fetching by hash is the normal path; a PR's own ref is the fallback.
-              git fetch -q --depth=1 origin "refs/pull/${CIRCLE_PULL_REQUEST##*/}/head"
+              git fetch -q --depth=<< parameters.depth >> origin "refs/pull/${CIRCLE_PULL_REQUEST##*/}/head"
             fi
             git checkout -q --detach FETCH_HEAD
             [[ "$(git rev-parse HEAD)" == "$CIRCLE_SHA1" ]] \
@@ -295,7 +299,8 @@ jobs:
     # finish early. It becomes worth turning on when the sequenced groups are small, which
     # means the remaining CLI suites moving onto `CliInstance`.
     steps:
-      - shallow-checkout
+      - shallow-checkout:
+          depth: 200
       - setup-app
       # Lint, format and the CI scripts' own tests: about half a minute, and the likeliest to
       # fail. Beside the restore and the first compile, which leave a CPU free; the job fails
