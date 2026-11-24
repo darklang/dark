@@ -48,6 +48,9 @@ needs `--allow <rule>` on `run`, placed before the function name:
 `serve` takes no `--allow`, so allow what it needs first: `permissions allow http-server
 127.0.0.1 <port>`, and `permissions allow file read <dir>` / `file write <dir>`.
 
+Effects are inferred, never declared; a save says what they are (`effects: none`). Keep pure
+code pure: pass what reads, writes or fetches in as an argument instead of calling it inside.
+
 ## Functions most programs need
 
 Anything that can fail returns a Result or an Option: unwrap it with `match`,

@@ -331,14 +331,15 @@ test editReportsUpdatedFunctionAndDependents = Instance.withInstance(fun instanc
 
   let report =
     match Stdlib.String.splitOnNewline(out) with
-    | [summary, dependents, ..._] ->
+    | [summary, effects, dependents, ..._] ->
       Stdlib.Test.all(
         [ Instance.says(summary, "Updated Me.Follow.helper", "names the update first")
+          Instance.says(effects, "effects: ", "then its effects")
           Instance.says(
             dependents,
             "  Me.Follow.a and Me.Follow.b now use the new version",
             "names the dependents in order") ])
-    | _ -> Stdlib.Test.fail($"expected two report lines: {out}")
+    | _ -> Stdlib.Test.fail($"expected three report lines: {out}")
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, out)

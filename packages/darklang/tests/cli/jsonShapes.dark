@@ -275,7 +275,7 @@ test aDraftThroughCommitKeepsItsShape =
           [ (fun j ->
                rowsHaveKeys(
                  field(j, "changed"),
-                 [ "change", "followed", "hash", "kind", "name" ]))
+                 [ "change", "followed", "hash", "kind", "name", "newEffects" ]))
 
             (fun j ->
                isTrue(int(j, "draftOps") > 0, "counts the draft's ops")) ])

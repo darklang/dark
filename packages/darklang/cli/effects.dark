@@ -5,6 +5,73 @@ let reasons(hash: String): (Bool * List<(LanguageTools.Permissions.Effect * List
   Builtin.pmFnEffectReasons(hash)
 
 
+/// The effects `effects <fn>` finds, by name, and whether every call was followed.
+let namesOf(hash: String): (List<String> * Bool) =
+  let (complete, found) = reasons(hash)
+  (found |> Stdlib.List.map(fun((effect, _)) -> LanguageTools.Permissions.effectName(effect)),
+   complete)
+
+
+let without(names: List<String>, others: List<String>): List<String> =
+  names |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(others, n)))
+
+
+/// What the version <param hash> does that <param previous> did not; empty when nothing.
+let added(previous: String, hash: String): List<String> =
+  if previous == hash then
+    []
+  else
+    let (before, _) = namesOf(previous)
+    let (after, _) = namesOf(hash)
+    without(after, before)
+
+
+/// `  now also http, raise` for a fn a branch changed to do more than its parent's version.
+let entryNote(e: SCM.PackageOps.BranchDiffEntry): String =
+  if e.kind != "fn" || e.change == "new" then
+    ""
+  else
+    match added(e.parentHash, e.hash) with
+    | [] -> ""
+    | names -> "  now also " + Stdlib.String.join(names, ", ")
+
+
+/// What a fn save says about its effects: `none`, `http, raise (was none)`, `file-read (no longer http)`.
+let saveSummary(previous: Option<String>, hash: String): String =
+  let (now, complete) = namesOf(hash)
+  let shown =
+    match now, complete with
+    | [], true -> "none"
+    | [], false -> "not fully known"
+    | _, true -> Stdlib.String.join(now, ", ")
+    | _, false -> Stdlib.String.join(now, ", ") + ", possibly more"
+
+  let change =
+    match previous with
+    | Some(previous) when previous != hash ->
+      let (before, _) = namesOf(previous)
+      let gained = without(now, before)
+      let lost = without(before, now)
+      if Stdlib.List.isEmpty(before) && Stdlib.Bool.not(Stdlib.List.isEmpty(now)) then
+        " (was none)"
+      else
+        let parts =
+          Stdlib.List.concat(
+            (if Stdlib.List.isEmpty(gained) then
+               []
+             else
+               [ "now also " + Stdlib.String.join(gained, ", ") ]),
+            if Stdlib.List.isEmpty(lost) then
+              []
+            else
+              [ "no longer " + Stdlib.String.join(lost, ", ") ])
+
+        if Stdlib.List.isEmpty(parts) then "" else " (" + Stdlib.String.join(parts, "; ") + ")"
+    | _ -> ""
+
+  shown + change
+
+
 let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [name] ->
