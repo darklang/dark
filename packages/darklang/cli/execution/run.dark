@@ -396,9 +396,8 @@ let printScriptError(
   | _ ->
     let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)
     Stdlib.printErrorLine($"Script error: {pretty}")
-    Stdlib.List.iter(
-      ExecutionError.whereLines(state.currentBranchId, e, entry),
-      fun line -> Stdlib.printErrorLine(line))
+    Stdlib.List.iter(ExecutionError.whereLines(state.currentBranchId, e, entry), fun line ->
+      Stdlib.printErrorLine(line))
 
   { state with exitCode = 1 }
 
