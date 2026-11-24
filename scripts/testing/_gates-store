@@ -1207,7 +1207,7 @@ gate_dark_format() {
       echo "dark-format: no .dark file changed."
       return 0
     fi
-    if ! DOTNET_gcServer=1 "$CLI" format --check "${files[@]}" </dev/null > "$WORK/logs/check.log" 2>&1; then
+    if ! dark_format_run "$CLI" format --check "${files[@]}" </dev/null > "$WORK/logs/check.log" 2>&1; then
       echo "dark-format: \`dark format\` would change these; run it on them:"
       grep -v -e ": formatted$" -e "^[0-9]* not formatted, " "$WORK/logs/check.log" | head -20
       exit 1
@@ -1231,8 +1231,7 @@ gate_dark_format() {
   done < <(dark_format_all)
 
   start=$(date +%s)
-  # A collector per core (as `scripts/formatting/format` does): the cores otherwise wait on one.
-  DOTNET_gcServer=1 "$CLI" format "${all_files[@]}" </dev/null > "$WORK/logs/fmt-1.log" 2>&1 \
+  dark_format_run "$CLI" format "${all_files[@]}" </dev/null > "$WORK/logs/fmt-1.log" 2>&1 \
     || { echo "dark-format: dark format failed:"; grep -v "formatted" "$WORK/logs/fmt-1.log" | tail -20; exit 1; }
   took=$(( $(date +%s) - start ))
   first=$(tail -1 "$WORK/logs/fmt-1.log")
@@ -1271,7 +1270,7 @@ gate_dark_format() {
     exit 1
   fi
 
-  "$CLI" format "${all_files[@]}" </dev/null > "$WORK/logs/fmt-2.log" 2>&1 || true
+  dark_format_run "$CLI" format "${all_files[@]}" </dev/null > "$WORK/logs/fmt-2.log" 2>&1 || true
   again=$(tail -1 "$WORK/logs/fmt-2.log")
   if [[ "$again" != "0 formatted, "* ]]; then
     echo "dark-format: formatting a formatted tree changed it again: $again"
