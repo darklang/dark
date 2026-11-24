@@ -120,8 +120,8 @@ test describesSeveralEffects =
     LanguageTools.Permissions.Effect.FileWrite
     LanguageTools.Permissions.Effect.Process ]
   |> Stdlib.List.map(fun effect ->
-    Darklang.Compiler.Access.Reason { effect = effect, path = [] })
-  |> Darklang.Compiler.Access.describeAll
+    Compiler.Access.Reason { effect = effect, path = [] })
+  |> Compiler.Access.describeAll
   |> Stdlib.Test.equal("reads files, writes files and starts programs")
 
 
@@ -143,11 +143,21 @@ test anExecutableIsNamedByItsHash =
 test theApprovedAccessGoesToDarkc =
   let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
   argumentsFor(
-    Compiler.Darkc.Job.Executable(hash, "./cat", Stdlib.Option.Option.Some("/p/abc123.json")),
+    Compiler.Darkc.Job.Executable(
+      hash,
+      "./cat",
+      Stdlib.Option.Option.Some("/p/abc123.json")),
     -1)
   |> Stdlib.List.drop(4)
   |> Stdlib.Test.equal(
-    [ "-q", "--json", "--entry", "abc123", "-o", "./cat", "--policy", "/p/abc123.json" ])
+    [ "-q"
+      "--json"
+      "--entry"
+      "abc123"
+      "-o"
+      "./cat"
+      "--policy"
+      "/p/abc123.json" ])
 
 
 test theCacheAndServerAreSaidEveryTime =

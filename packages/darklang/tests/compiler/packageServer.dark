@@ -4,7 +4,7 @@ module Darklang.Compiler.PackageServer.Tests
 
 let get(url: String): (Int64 * String) =
   let response =
-    Darklang.Compiler.PackageServer.router(
+    Compiler.PackageServer.router(
       Stdlib.Http.Request
         { method = "GET", url = url, headers = [], body = Stdlib.Bytes.empty })
 
@@ -12,7 +12,7 @@ let get(url: String): (Int64 * String) =
 
 
 let hashOf(name: String): String =
-  match Darklang.Compiler.PackageServer.parseLocation(name) with
+  match Compiler.PackageServer.parseLocation(name) with
   | Some(loc) ->
     match LanguageTools.PackageManager.Function.find(
             SCM.Branch.mainBranchId,
@@ -56,6 +56,7 @@ test functionWithLocation =
 // A module name, as `/:location` or `/search`, lists the module's contents.
 test browseModule =
   let (status, body) = get("/Darklang.Stdlib.List")
+
   let (searchStatus, searchBody) =
     get(
       "/search?modules=Darklang.Stdlib.List&searchDepth=direct&entityTypes=module")
@@ -76,11 +77,18 @@ test refusedWithoutTheToken =
     Stdlib.Http.Request
       { method = "GET", url = "/ping", headers = [], body = Stdlib.Bytes.empty }
 
-  let wrong = { req with headers = [ ("Authorization", "Basic " + Stdlib.Base64.encodeText("dark:other")) ] }
+  let wrong =
+    { req with
+        headers =
+          [ (
+              "Authorization",
+              "Basic " + Stdlib.Base64.encodeText("dark:other")) ] }
+
   Stdlib.Test.all(
-    [ Darklang.Compiler.PackageServer.guardedRouter("secret", req).statusCode
+    [ (Compiler.PackageServer.guardedRouter("secret", req)).statusCode
       |> Stdlib.Test.equal(401)
-      Darklang.Compiler.PackageServer.guardedRouter("secret", wrong).statusCode
+
+      (Compiler.PackageServer.guardedRouter("secret", wrong)).statusCode
       |> Stdlib.Test.equal(401) ])
 
 
@@ -89,8 +97,11 @@ test servedWithTheToken =
     Stdlib.Http.Request
       { method = "GET"
         url = "/ping"
-        headers = [ ("authorization", "Basic " + Stdlib.Base64.encodeText("dark:secret")) ]
+        headers =
+          [ (
+              "authorization",
+              "Basic " + Stdlib.Base64.encodeText("dark:secret")) ]
         body = Stdlib.Bytes.empty }
 
-  Darklang.Compiler.PackageServer.guardedRouter("secret", req).statusCode
+  (Compiler.PackageServer.guardedRouter("secret", req)).statusCode
   |> Stdlib.Test.equal(200)

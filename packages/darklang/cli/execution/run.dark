@@ -315,13 +315,17 @@ let executePackageFn(
     let location = LanguageTools.ProgramTypes.parsePackageLocation(found.name)
     let deprecation =
       LanguageTools.PackageManager.currentDeprecation(
-        branchId, location, found.hash, LanguageTools.ProgramTypes.ItemKind.Fn)
+        branchId,
+        location,
+        found.hash,
+        LanguageTools.ProgramTypes.ItemKind.Fn)
 
     match deprecation with
     | Some((WithReplacement(reference), _)) ->
       let replacement = Packages.View.resolveReplacementName(branchId, reference)
       Stdlib.printErrorLine(
-        Stdlib.Cli.UI.Colors.warning($"Warning: {found.name} is deprecated. Use {replacement} instead."))
+        Stdlib.Cli.UI.Colors.warning(
+          $"Warning: {found.name} is deprecated. Use {replacement} instead."))
     | Some(_) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning($"Warning: {found.name} is deprecated."))
     | None -> ()
