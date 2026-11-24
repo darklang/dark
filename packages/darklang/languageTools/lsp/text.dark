@@ -17,7 +17,10 @@ let splitAt(line: String, column: Int64): (String * String) =
     |> Stdlib.String.toList
     |> Stdlib.List.fold(("", "", 0), fun((before, after, at), c) ->
       let s = Stdlib.String.fromChar(c)
-      if at < column then (before + s, after, at + width(s)) else (before, after + s, at))
+      if at < column then
+        (before + s, after, at + width(s))
+      else
+        (before, after + s, at))
 
   (before, after)
 
@@ -50,6 +53,10 @@ let replace(
 let before(text: String, line: Int64, column: Int64, limit: Int64): String =
   let all = lines(text)
   let first = Stdlib.max(0, line - limit)
-  let whole = all |> Stdlib.List.drop(first) |> Stdlib.List.take(line - first)
+  let whole =
+    all
+    |> Stdlib.List.drop(first)
+    |> Stdlib.List.take(line - first)
+
   let (head, _) = splitAt(Stdlib.List.getAt(all, line) |> Stdlib.Option.withDefault(""), column)
   Stdlib.String.join(Stdlib.List.append(whole, head), "\n")

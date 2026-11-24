@@ -33,7 +33,10 @@ let diagnostic(severity: Int64, r: Parser.Range, code: Option<String>, message: 
 
   Json.Object(
     Stdlib.List.flatten(
-      [ [ ("range", range(r)), ("severity", Json.Integer(severity)), ("source", Json.String("dark")) ]
+      [ [ ("range", range(r))
+          ("severity", Json.Integer(severity))
+          ("source", Json.String("dark")) ]
+
         codeField
         [ ("message", Json.String(message)) ] ]))
 
@@ -111,12 +114,15 @@ let sources(
     [ pairSources(
         Stdlib.List.map(written.fns, fun f -> WrittenTypes.Expr.range(f.body)),
         Stdlib.List.map(program.fns, fun f -> f.hash))
+
       pairSources(
         Stdlib.List.map(written.values, fun v -> WrittenTypes.Expr.range(v.body)),
         Stdlib.List.map(program.values, fun v -> v.hash))
+
       pairSources(
         Stdlib.List.map(written.types, fun t -> t.range),
         Stdlib.List.map(program.types, fun t -> t.hash))
+
       subs ])
 
 
@@ -147,10 +153,7 @@ let opsOf(program: Parser.CliScript.PTCliScriptModule): List<ProgramTypes.Packag
 /// Unresolved names are already reported where they are written, by the name resolver.
 let reportedElsewhere(issue: AtRestTypeChecker.Issue): Bool =
   match issue.code with
-  | UnresolvedTypeName
-  | UnresolvedFunctionName
-  | UnresolvedValueName
-  | UnresolvedTraitName -> true
+  | UnresolvedTypeName | UnresolvedFunctionName | UnresolvedValueName | UnresolvedTraitName -> true
   | _ -> false
 
 
@@ -166,7 +169,8 @@ let issueDiagnostic(severity: Int64, r: Parser.Range, issue: AtRestTypeChecker.I
 
   match d, issue.context with
   | Object(fields), UncoveredPattern(Some(missing)) ->
-    Json.Object(Stdlib.List.append(fields, ("data", Json.Object([ ("missing", Json.String(missing)) ]))))
+    Json.Object(
+      Stdlib.List.append(fields, ("data", Json.Object([ ("missing", Json.String(missing)) ]))))
   | _ -> d
 
 
@@ -193,7 +197,11 @@ let checkerDiagnostics(
 
     Stdlib.List.concat(place(1, item.diagnostics), place(2, item.warnings))
 
-  let itemFindings = report.items |> Stdlib.List.map(onItem) |> Stdlib.List.flatten
+  let itemFindings =
+    report.items
+    |> Stdlib.List.map(onItem)
+    |> Stdlib.List.flatten
+
   let fileWarnings =
     if Stdlib.List.isEmpty(report.items) then
       Stdlib.List.map(report.warnings, fun i -> issueDiagnostic(2, whole, i))
@@ -210,7 +218,10 @@ let checkerDiagnostics(
 let typeText(branchId: Uuid, t: AtRestTypeChecker.StaticType): Option<String> =
   let text =
     AtRestTypeChecker.staticTypeToStringWith(
-      (fun hash -> PackageManager.Type.locations(branchId, hash) |> Stdlib.List.head |> Stdlib.Option.map(fun l -> l.name)),
+      (fun hash ->
+         PackageManager.Type.locations(branchId, hash)
+         |> Stdlib.List.head
+         |> Stdlib.Option.map(fun l -> l.name)),
       t)
 
   if Stdlib.String.contains(text, "'") then Option.None else Option.Some(text)
@@ -227,8 +238,14 @@ let typeHints(
   let bodies = Syntax.bodies(file)
   srcs
   |> Stdlib.List.map(fun src ->
-    let item = report.items |> Stdlib.List.findFirst(fun i -> ProgramTypes.hashToString(ProgramTypes.Reference.hash(i.item)) == src.hash)
-    let body = bodies |> Stdlib.List.findFirst(fun b -> WrittenTypes.Expr.range(b.body) == src.range)
+    let item =
+      report.items
+      |> Stdlib.List.findFirst(fun i ->
+        ProgramTypes.hashToString(ProgramTypes.Reference.hash(i.item)) == src.hash)
+
+    let body =
+      bodies |> Stdlib.List.findFirst(fun b -> WrittenTypes.Expr.range(b.body) == src.range)
+
     match item, body with
     | Some(item), Some(body) ->
       let checked(name: String, n: Int64): Option<AtRestTypeChecker.StaticType> =
@@ -242,7 +259,8 @@ let typeHints(
         |> Stdlib.List.fold(([], Stdlib.Dict.empty), fun((hints, seen), (name, r, shown)) ->
           let n = Stdlib.Dict.get(seen, name) |> Stdlib.Option.withDefault(0)
           let hint =
-            match shown, checked(name, n) |> Stdlib.Option.andThen(fun t -> typeText(branchId, t)) with
+            match shown, checked(name, n)
+                  |> Stdlib.Option.andThen(fun t -> typeText(branchId, t)) with
             | Shows, Some(text) -> [ (r.end_, ": " + text) ]
             | _ -> []
 
@@ -276,14 +294,21 @@ let analyse(ctx: NameResolver.NRContext, text: String): Analysis =
         | Ok(written) ->
           let srcs = sources(written, program)
           let report = AtRestTypeChecker.checkPackageOps(opsOf(program))
-          (unresolved, checkerDiagnostics(sf.range, srcs, report), typeHints(ctx.branchId, file, srcs, report))
+          (
+            unresolved,
+            checkerDiagnostics(sf.range, srcs, report),
+            typeHints(ctx.branchId, file, srcs, report))
         | Error(_) -> (unresolved, [], [])
       | Error(_) -> ([], [], [])
 
     let nameDiagnostics =
       unresolved
       |> Stdlib.List.map(fun((r, name, err)) ->
-        diagnostic(2, r, Option.None, PrettyPrinter.ProgramTypes.NameResolutionError.error(name, err)))
+        diagnostic(
+          2,
+          r,
+          Option.None,
+          PrettyPrinter.ProgramTypes.NameResolutionError.error(name, err)))
 
     Analysis
       { parsed = Option.Some(file)

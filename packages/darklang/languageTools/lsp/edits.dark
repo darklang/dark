@@ -12,7 +12,11 @@ let withoutColour(text: String): String =
 /// stdout is the protocol channel.
 let quietly(f: Unit -> Cli.AppState): (Bool * String) =
   let (state, printed) = Cli.Workbench.captureOutputAnd(f)
-  (state.exitCode == 0, printed |> withoutColour |> Stdlib.String.trim)
+  (
+    state.exitCode == 0,
+    printed
+    |> withoutColour
+    |> Stdlib.String.trim)
 
 
 /// `dark/fs/write`: save a store document the way `dark edit` (one item) or `dark module` (a
@@ -22,16 +26,25 @@ let save(branchId: Uuid, uri: String, text: String): Json =
   let outcome =
     match Names.parseUri(uri) with
     | Some(Item(loc, _)) ->
-      Option.Some(quietly(fun () -> Cli.Packages.ModuleCommand.saveEdit(state, Cli.Packages.Edit.moduleArgFor(loc), text)))
+      Option.Some(
+        quietly(fun () ->
+          Cli.Packages.ModuleCommand.saveEdit(state, Cli.Packages.Edit.moduleArgFor(loc), text)))
     | Some(Module(path)) ->
       Option.Some(
         quietly(fun () ->
-          Cli.Packages.ModuleCommand.save(state, "/" + Stdlib.String.join(path, "."), text, Cli.Packages.ModuleCommand.SaveMode.Module)))
+          Cli.Packages.ModuleCommand.save(
+            state,
+            "/" + Stdlib.String.join(path, "."),
+            text,
+            Cli.Packages.ModuleCommand.SaveMode.Module)))
     | None -> Option.None
 
   match outcome with
-  | Some((saved, said)) -> Json.Object([ ("saved", Json.Bool(saved)), ("message", Json.String(said)) ])
-  | None -> Json.Object([ ("saved", Json.Bool(false)), ("message", Json.String($"{uri} is not a store document")) ])
+  | Some((saved, said)) ->
+    Json.Object([ ("saved", Json.Bool(saved)), ("message", Json.String(said)) ])
+  | None ->
+    Json.Object(
+      [ ("saved", Json.Bool(false)), ("message", Json.String($"{uri} is not a store document")) ])
 
 
 // --- rename ---
@@ -87,14 +100,21 @@ let renameItem(
 
             (uri, edits))
 
-        match SCM.PackageOps.add(branchId, Cli.Packages.Rename.ops(branchId, old, renamed, reference)) with
+        match SCM.PackageOps.add(
+                branchId,
+                Cli.Packages.Rename.ops(branchId, old, renamed, reference)) with
         | Ok(_) -> Result.Ok(workspaceEdit(inDocs))
         | Error(e) -> Result.Error($"could not rename: {e}")
 
 
-let renameLocal(uri: String, occurrences: List<Syntax.Occurrence>, newName: String): Result<Json, String> =
+let renameLocal(
+  uri: String,
+  occurrences: List<Syntax.Occurrence>,
+  newName: String)
+  : Result<Json, String> =
   if isIdentifier(newName) then
-    Result.Ok(workspaceEdit([ (uri, Stdlib.List.map(occurrences, fun o -> textEdit(o.range, newName))) ]))
+    Result.Ok(
+      workspaceEdit([ (uri, Stdlib.List.map(occurrences, fun o -> textEdit(o.range, newName))) ]))
   else
     Result.Error($"{newName} is not a name")
 

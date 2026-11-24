@@ -10,7 +10,13 @@ type Preference =
   | Offered
 
 
-let quickFix(title: String, uri: String, edits: List<Json>, diagnostic: Json, preference: Preference): Json =
+let quickFix(
+  title: String,
+  uri: String,
+  edits: List<Json>,
+  diagnostic: Json,
+  preference: Preference)
+  : Json =
   Json.Object(
     [ ("title", Json.String(title))
       ("kind", Json.String("quickfix"))
@@ -20,7 +26,10 @@ let quickFix(title: String, uri: String, edits: List<Json>, diagnostic: Json, pr
 
 
 let rangeOf(json: Json): Option<Parser.Range> =
-  match Requests.at(json, [ "start" ]) |> Stdlib.Option.andThen(Requests.point), Requests.at(json, [ "end" ]) |> Stdlib.Option.andThen(Requests.point) with
+  match Requests.at(json, [ "start" ]) |> Stdlib.Option.andThen(Requests.point), Requests.at(
+          json,
+          [ "end" ])
+        |> Stdlib.Option.andThen(Requests.point) with
   | Some((sl, sc)), Some((el, ec)) ->
     Option.Some(
       Parser.Range
@@ -55,7 +64,12 @@ let shortest(ctx: NameResolver.NRContext, loc: ProgramTypes.PackageLocation): St
   |> Stdlib.String.join(".")
 
 
-let qualify(view: Requests.View, doc: Requests.Document, diagnostic: Json, r: Parser.Range): List<Json> =
+let qualify(
+  view: Requests.View,
+  doc: Requests.Document,
+  diagnostic: Json,
+  r: Parser.Range)
+  : List<Json> =
   // The range can be the whole call (`padStart(s, ' ', 3)` reads as an unknown local applied):
   // the name is what it starts with.
   let written =
@@ -64,8 +78,15 @@ let qualify(view: Requests.View, doc: Requests.Document, diagnostic: Json, r: Pa
     |> Stdlib.Option.join
     |> Stdlib.Option.withDefault("")
 
-  let r = { r with end_ = Parser.Point { row = r.start.row, column = r.start.column + Text.width(written) } }
-  let name = Stdlib.String.split(written, ".") |> Stdlib.List.last |> Stdlib.Option.withDefault(written)
+  let r =
+    { r with
+        end_ = Parser.Point { row = r.start.row, column = r.start.column + Text.width(written) } }
+
+  let name =
+    Stdlib.String.split(written, ".")
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault(written)
+
   let found =
     PackageManager.Search.search(
       view.branchId,
@@ -88,7 +109,12 @@ let qualify(view: Requests.View, doc: Requests.Document, diagnostic: Json, r: Pa
   |> Stdlib.List.take(5)
   |> Stdlib.List.map(fun loc ->
     let replacement = shortest(ctx, loc)
-    quickFix($"Use {replacement}", doc.uri, [ Edits.textEdit(r, replacement) ], diagnostic, Preference.Offered))
+    quickFix(
+      $"Use {replacement}",
+      doc.uri,
+      [ Edits.textEdit(r, replacement) ],
+      diagnostic,
+      Preference.Offered))
 
 
 // --- a match that misses a case ---
@@ -102,12 +128,22 @@ let matchesIn(n: Syntax.Node): List<WrittenTypes.Expr> =
       | _ -> []
     | _ -> []
 
-  Stdlib.List.concat(own, Syntax.children(n) |> Stdlib.List.map(matchesIn) |> Stdlib.List.flatten)
+  Stdlib.List.concat(
+    own,
+    Syntax.children(n)
+    |> Stdlib.List.map(matchesIn)
+    |> Stdlib.List.flatten)
 
 
 /// A case for <param missing> after the last case of the match the diagnostic is about: the
 /// innermost one around the cursor, or the only one in the declaration.
-let addCase(doc: Requests.Document, diagnostic: Json, r: Parser.Range, cursor: Parser.Range, missing: String): List<Json> =
+let addCase(
+  doc: Requests.Document,
+  diagnostic: Json,
+  r: Parser.Range,
+  cursor: Parser.Range,
+  missing: String)
+  : List<Json> =
   let matches =
     match Requests.parsed(doc) with
     | Some(file) ->
@@ -119,13 +155,14 @@ let addCase(doc: Requests.Document, diagnostic: Json, r: Parser.Range, cursor: P
 
   let around =
     matches
-    |> Stdlib.List.filter(fun m -> Syntax.contains(WrittenTypes.Expr.range(m), cursor.start.row, cursor.start.column))
+    |> Stdlib.List.filter(fun m ->
+      Syntax.contains(WrittenTypes.Expr.range(m), cursor.start.row, cursor.start.column))
     |> Stdlib.List.last
 
   let chosen =
     match around, matches with
     | Some(m), _ -> Option.Some(m)
-    | None, [ only ] -> Option.Some(only)
+    | None, [only] -> Option.Some(only)
     | _ -> Option.None
 
   match chosen with
@@ -136,14 +173,20 @@ let addCase(doc: Requests.Document, diagnostic: Json, r: Parser.Range, cursor: P
       let at = (WrittenTypes.Expr.range(last.rhs)).end_
       let (indent, _) = Text.splitAt(Names.lineOf(doc.text, bar.start.row), bar.start.column)
       let insert = "\n" + indent + "| " + missing + " -> ()"
-      [ quickFix($"Add a case for {missing}", doc.uri, [ Edits.textEdit(Parser.Range { start = at, end_ = at }, insert) ], diagnostic, Preference.Preferred) ]
+      [ quickFix(
+          $"Add a case for {missing}",
+          doc.uri,
+          [ Edits.textEdit(Parser.Range { start = at, end_ = at }, insert) ],
+          diagnostic,
+          Preference.Preferred) ]
     | None -> []
   | _ -> []
 
 
 /// The fixes for the diagnostics the editor sends with the request.
 let codeActions(view: Requests.View, params: Json): Json =
-  match Requests.document(view, params), rangeOf(Requests.at(params, [ "range" ]) |> Stdlib.Option.withDefault(Json.Null)) with
+  match Requests.document(view, params), rangeOf(
+          Requests.at(params, [ "range" ]) |> Stdlib.Option.withDefault(Json.Null)) with
   | Some(doc), Some(cursor) ->
     let diagnostics =
       match Requests.at(params, [ "context", "diagnostics" ]) with
@@ -159,7 +202,11 @@ let codeActions(view: Requests.View, params: Json): Json =
         match Requests.stringAt(d, [ "code" ]), Requests.stringAt(d, [ "data", "missing" ]) with
         | Some("NonExhaustiveMatch"), Some(missing) -> addCase(doc, d, r, cursor, missing)
         | Some("UnknownVariable"), _ -> qualify(view, doc, d, r)
-        | _ -> if Stdlib.String.endsWith(message, "not found") then qualify(view, doc, d, r) else [])
+        | _ ->
+          if Stdlib.String.endsWith(message, "not found") then
+            qualify(view, doc, d, r)
+          else
+            [])
     |> Stdlib.List.flatten
     |> Json.Array
   | _ -> Json.Array([])

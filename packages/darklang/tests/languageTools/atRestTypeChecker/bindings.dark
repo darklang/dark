@@ -15,10 +15,14 @@ module Bindings =
       match itemNamed(ops, name) with
       | None -> [ "no such declaration" ]
       | Some(target) ->
-        match Stdlib.List.findFirst(report.items, fun i -> i.item == target) with
+        match Stdlib.List.findFirst(report.items, fun i ->
+                i.item == target) with
         | Some(i) ->
           i.bindings
-          |> Stdlib.List.map(fun b -> b.name + ": " + LanguageTools.AtRestTypeChecker.staticTypeToString(b.typ))
+          |> Stdlib.List.map(fun b ->
+            b.name
+            + ": "
+            + LanguageTools.AtRestTypeChecker.staticTypeToString(b.typ))
         | None -> [ "no report for the declaration" ]
 
 
@@ -30,7 +34,8 @@ module Bindings =
           "  let (a, b) = (1, \"one\")"
           "  b" ]),
       "f")
-    |> Stdlib.Test.equal([ "x: Int64", "doubled: List<Int64>", "a: Int64", "b: String" ])
+    |> Stdlib.Test.equal(
+      [ "x: Int64", "doubled: List<Int64>", "a: Int64", "b: String" ])
 
 
   test matchCases =

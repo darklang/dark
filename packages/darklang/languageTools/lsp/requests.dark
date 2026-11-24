@@ -32,7 +32,7 @@ let field(params: Json, key: String): Option<Json> =
 let at(params: Json, path: List<String>): Option<Json> =
   match path with
   | [] -> Option.Some(params)
-  | [ key, ...rest ] -> field(params, key) |> Stdlib.Option.andThen(fun j -> at(j, rest))
+  | [key, ...rest] -> field(params, key) |> Stdlib.Option.andThen(fun j -> at(j, rest))
 
 
 let stringAt(params: Json, path: List<String>): Option<String> =
@@ -61,7 +61,8 @@ let point(json: Json): Option<(Int64 * Int64)> =
 
 /// The open document a request names, and the position in it when it names one.
 let document(view: View, params: Json): Option<Document> =
-  stringAt(params, [ "textDocument", "uri" ]) |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(view.documents, uri))
+  stringAt(params, [ "textDocument", "uri" ])
+  |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(view.documents, uri))
 
 
 let parsed(doc: Document): Option<WrittenTypes.ParsedFile> =
@@ -94,14 +95,20 @@ let localAt(view: View, params: Json): Option<(Document * Parser.Range * List<Sy
   | _ -> Option.None
 
 
-let atPosition(view: View, params: Json, answer: (NameResolver.NRContext, String, Int64, Int64) -> Json): Json =
+let atPosition(
+  view: View,
+  params: Json,
+  answer: (NameResolver.NRContext, String, Int64, Int64) -> Json)
+  : Json =
   match document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
   | Some(doc), Some((line, character)) -> answer(context(view, doc), doc.text, line, character)
   | _ -> Json.Null
 
 
 let openDocs(view: View): List<(String * String)> =
-  view.documents |> Stdlib.Dict.values |> Stdlib.List.map(fun d -> (d.uri, d.text))
+  view.documents
+  |> Stdlib.Dict.values
+  |> Stdlib.List.map(fun d -> (d.uri, d.text))
 
 
 // --- answers ---
@@ -125,13 +132,16 @@ let highlights(view: View, params: Json): Json =
     match itemAt(view, params), document(view, params) with
     | Some(item), Some(doc) ->
       Navigation.namedIn(context(view, doc), doc.text, item)
-      |> Stdlib.List.map(fun r -> Json.Object([ ("range", Analysis.range(r)), ("kind", Json.Integer(1)) ]))
+      |> Stdlib.List.map(fun r ->
+        Json.Object([ ("range", Analysis.range(r)), ("kind", Json.Integer(1)) ]))
       |> Json.Array
     | _ -> Json.Array([])
 
 
 let references(view: View, params: Json): Json =
-  let includeDeclaration = boolAt(params, [ "context", "includeDeclaration" ]) |> Stdlib.Option.withDefault(true)
+  let includeDeclaration =
+    boolAt(params, [ "context", "includeDeclaration" ]) |> Stdlib.Option.withDefault(true)
+
   match localAt(view, params) with
   | Some((doc, binding, occurrences)) ->
     occurrences
@@ -140,7 +150,8 @@ let references(view: View, params: Json): Json =
     |> Json.Array
   | None ->
     match itemAt(view, params) with
-    | Some(item) -> Json.Array(Navigation.references(view.branchId, item, openDocs(view), includeDeclaration))
+    | Some(item) ->
+      Json.Array(Navigation.references(view.branchId, item, openDocs(view), includeDeclaration))
     | None -> Json.Null
 
 
@@ -152,7 +163,9 @@ let foldingRanges(view: View, params: Json): Json =
     |> Stdlib.List.map(fun f ->
       let kind = if f.comment then [ ("kind", Json.String("comment")) ] else []
       Json.Object(
-        Stdlib.List.concat([ ("startLine", Json.Integer(f.startLine)), ("endLine", Json.Integer(f.endLine)) ], kind)))
+        Stdlib.List.concat(
+          [ ("startLine", Json.Integer(f.startLine)), ("endLine", Json.Integer(f.endLine)) ],
+          kind)))
     |> Json.Array
 
 
@@ -181,7 +194,8 @@ let selectionRanges(view: View, params: Json): Json =
 
 let prepareCallHierarchy(view: View, params: Json): Json =
   match itemAt(view, params) with
-  | Some(Fn(found)) -> Json.Array([ Navigation.hierarchyItem(found.location, ProgramTypes.ItemKind.Fn) ])
+  | Some(Fn(found)) ->
+    Json.Array([ Navigation.hierarchyItem(found.location, ProgramTypes.ItemKind.Fn) ])
   | _ -> Json.Null
 
 
@@ -202,9 +216,10 @@ let outline(view: View, params: Json): Json =
 /// function with the value each call gave beside it.
 let read(view: View, params: Json): Json =
   let text =
-    match stringAt(params, [ "uri" ]) |> Stdlib.Option.map(fun uri -> Stdlib.String.split(uri, "?trace=")) with
-    | Some([ uri ]) -> Names.source(view.branchId, uri)
-    | Some([ uri, traceId ]) ->
+    match stringAt(params, [ "uri" ])
+          |> Stdlib.Option.map(fun uri -> Stdlib.String.split(uri, "?trace=")) with
+    | Some([uri]) -> Names.source(view.branchId, uri)
+    | Some([uri, traceId]) ->
       match Names.parseUri(uri) with
       | Some(Item(loc, Fn)) -> Lens.traceDocument(view.branchId, loc, traceId)
       | _ -> Option.None
@@ -227,7 +242,10 @@ let inlayHints(view: View, params: Json): Json =
         a.typeHints
         |> Stdlib.List.map(fun((at, label)) ->
           // 1: a type
-          Json.Object([ ("position", Analysis.position(at)), ("label", Json.String(label)), ("kind", Json.Integer(1)) ]))
+          Json.Object(
+            [ ("position", Analysis.position(at))
+              ("label", Json.String(label))
+              ("kind", Json.Integer(1)) ]))
       | None -> []
 
     let values =
@@ -299,14 +317,18 @@ let format(branchId: Uuid, text: String): Result<String, String> =
   let header = "module Formatting\n\n"
   let hasHeader =
     match Text.lines(text) |> Stdlib.List.head with
-    | Some(first) -> Stdlib.String.startsWith(first, "module ") && Stdlib.Bool.not(Stdlib.String.contains(first, "="))
+    | Some(first) ->
+      Stdlib.String.startsWith(first, "module ")
+      && Stdlib.Bool.not(Stdlib.String.contains(first, "="))
     | None -> false
 
   if hasHeader then
-    Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, text) |> Stdlib.Result.map(fun f -> f.text)
+    Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, text)
+    |> Stdlib.Result.map(fun f -> f.text)
   else
     Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, header + text)
-    |> Stdlib.Result.map(fun f -> Stdlib.String.stripPrefix(f.text, header) |> Stdlib.Option.withDefault(f.text))
+    |> Stdlib.Result.map(fun f ->
+      Stdlib.String.stripPrefix(f.text, header) |> Stdlib.Option.withDefault(f.text))
 
 
 /// The whole document, laid out as `dark format` lays it out: one edit, or none when it is
@@ -326,7 +348,9 @@ let formatting(view: View, params: Json): Json =
             { start = Parser.Point { row = 0, column = 0 }
               end_ = Parser.Point { row = lineCount, column = 0 } }
 
-        Json.Array([ Json.Object([ ("range", Analysis.range(whole)), ("newText", Json.String(formatted)) ]) ])
+        Json.Array(
+          [ Json.Object(
+              [ ("range", Analysis.range(whole)), ("newText", Json.String(formatted)) ]) ])
     | Error(e) ->
       Rpc.log($"not formatted: {e}")
       Json.Array([])
@@ -345,7 +369,8 @@ let prepareRename(view: View, params: Json): Json =
       |> Stdlib.Option.withDefault(Json.Null)
     | None -> Json.Null
   | None ->
-    match itemAt(view, params), document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+    match itemAt(view, params), document(view, params), at(params, [ "position" ])
+          |> Stdlib.Option.andThen(point) with
     | Some(item), Some(doc), Some((line, character)) ->
       match Names.at(doc.text, line, character) with
       | Some(name) ->
@@ -366,7 +391,8 @@ let answer(view: View, method: String, params: Json): Option<Json> =
   match method with
   | "textDocument/hover" ->
     match document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
-    | Some(doc), Some((line, character)) -> Option.Some(Hover.hover(context(view, doc), doc.text, parsed(doc), line, character))
+    | Some(doc), Some((line, character)) ->
+      Option.Some(Hover.hover(context(view, doc), doc.text, parsed(doc), line, character))
     | _ -> Option.Some(Json.Null)
   | "textDocument/definition" -> Option.Some(definition(view, params))
   | "textDocument/documentSymbol" -> Option.Some(outline(view, params))
@@ -377,11 +403,20 @@ let answer(view: View, method: String, params: Json): Option<Json> =
   | "textDocument/implementation" -> Option.Some(implementation(view, params))
   | "textDocument/prepareCallHierarchy" -> Option.Some(prepareCallHierarchy(view, params))
   | "callHierarchy/incomingCalls" ->
-    Option.Some(Navigation.incoming(view.branchId, stringAt(params, [ "item", "uri" ]) |> Stdlib.Option.withDefault("")))
+    Option.Some(
+      Navigation.incoming(
+        view.branchId,
+        stringAt(params, [ "item", "uri" ]) |> Stdlib.Option.withDefault("")))
   | "callHierarchy/outgoingCalls" ->
-    Option.Some(Navigation.outgoing(view.branchId, stringAt(params, [ "item", "uri" ]) |> Stdlib.Option.withDefault("")))
+    Option.Some(
+      Navigation.outgoing(
+        view.branchId,
+        stringAt(params, [ "item", "uri" ]) |> Stdlib.Option.withDefault("")))
   | "workspace/symbol" ->
-    Option.Some(Symbols.workspace(view.branchId, stringAt(params, [ "query" ]) |> Stdlib.Option.withDefault("")))
+    Option.Some(
+      Symbols.workspace(
+        view.branchId,
+        stringAt(params, [ "query" ]) |> Stdlib.Option.withDefault("")))
   | "textDocument/completion" -> Option.Some(completion(view, params))
   | "completionItem/resolve" -> Option.Some(Completion.resolve(view.branchId, params))
   | "textDocument/signatureHelp" -> Option.Some(atPosition(view, params, Completion.signatureHelp))

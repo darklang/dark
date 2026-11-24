@@ -40,7 +40,11 @@ let step(reader: Reader, text: String): (Reader * Option<String>) =
       | Some(n) -> (Reader.Body(n), Option.None)
       | None -> (reader, Option.None)
     else if Stdlib.String.startsWith(text, "Content-Length:") then
-      let n = Stdlib.String.dropFirst(text, 15) |> Stdlib.String.trim |> Stdlib.Int64.parse
+      let n =
+        Stdlib.String.dropFirst(text, 15)
+        |> Stdlib.String.trim
+        |> Stdlib.Int64.parse
+
       match n with
       | Ok(n) -> (Reader.Header(Option.Some(n)), Option.None)
       | Error(_) -> (reader, Option.None)
@@ -78,7 +82,9 @@ let respondError(id: Json, code: Int64, message: String): Unit =
     Json.Object(
       [ ("jsonrpc", Json.String("2.0"))
         ("id", id)
-        ("error", Json.Object([ ("code", Json.Integer(code)), ("message", Json.String(message)) ])) ]))
+        (
+          "error",
+          Json.Object([ ("code", Json.Integer(code)), ("message", Json.String(message)) ])) ]))
 
 
 let notify(method: String, params: Json): Unit =
@@ -90,11 +96,17 @@ let notify(method: String, params: Json): Unit =
 /// The error codes this server answers with.
 module Code =
   val parseError = -32700
+
   val invalidRequest = -32600
+
   val methodNotFound = -32601
+
   val invalidParams = -32602
+
   val internalError = -32603
+
   val requestFailed = -32803
+
   val requestCancelled = -32800
 
 

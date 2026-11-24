@@ -7,29 +7,58 @@ type Json = Stdlib.AltJson.Json
 /// LSP `CompletionItemKind`s.
 module Kind =
   val function = 3
+
   val variable = 6
+
   val module_ = 9
+
   val keyword = 14
+
   val enumMember = 20
+
   val constant = 21
+
   val struct = 22
+
   val interface = 8
 
 
 val keywords =
-  [ "let", "val", "type", "trait", "impl", "for", "module", "test", "fun", "if", "then", "else", "match", "with", "when", "as", "true", "false" ]
+  [ "let"
+    "val"
+    "type"
+    "trait"
+    "impl"
+    "for"
+    "module"
+    "test"
+    "fun"
+    "if"
+    "then"
+    "else"
+    "match"
+    "with"
+    "when"
+    "as"
+    "true"
+    "false" ]
 
 
 /// What is typed before the cursor, as a dotted name: `Stdlib.List.ma` is (["Stdlib", "List"],
 /// "ma"), and `Stdlib.` is (["Stdlib"], "").
 let typed(before: String): (List<String> * String) =
   let atEnd =
-    Stdlib.Regex.findAllMatches(before, Stdlib.Regex.ofPattern("[A-Za-z_][A-Za-z0-9_']*(\\.[A-Za-z_][A-Za-z0-9_']*)*\\.?"))
+    Stdlib.Regex.findAllMatches(
+      before,
+      Stdlib.Regex.ofPattern("[A-Za-z_][A-Za-z0-9_']*(\\.[A-Za-z_][A-Za-z0-9_']*)*\\.?"))
     |> Stdlib.Result.withDefault([])
     |> Stdlib.List.last
-    |> Stdlib.Option.andThen(fun m -> if m.range.end == Text.width(before) then Option.Some(m.text) else Option.None)
+    |> Stdlib.Option.andThen(fun m ->
+      if m.range.end == Text.width(before) then Option.Some(m.text) else Option.None)
 
-  match atEnd |> Stdlib.Option.map(fun t -> Stdlib.String.split(t, ".")) |> Stdlib.Option.andThen(Stdlib.List.splitLast) with
+  match atEnd
+        |> Stdlib.Option.map(fun t -> Stdlib.String.split(t, "."))
+        |> Stdlib.Option.andThen(Stdlib.List.splitLast) with
   | Some((modules, partial)) -> (modules, partial)
   | None -> ([], "")
 
@@ -54,10 +83,16 @@ let fnItem(branchId: Uuid, loc: ProgramTypes.PackageLocation, hash: ProgramTypes
   match PackageManager.Function.get(hash) with
   | None -> item(loc.name, Kind.function, "2", data)
   | Some(fn) ->
-    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, Stdlib.List.prepend(loc.modules, loc.owner))
+    let ctx =
+      PrettyPrinter.ProgramTypes.Context.forModule(
+        branchId,
+        Stdlib.List.prepend(loc.modules, loc.owner))
+
     let params =
       fn.parameters
-      |> Stdlib.List.map(fun p -> p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ))
+      |> Stdlib.List.map(fun p ->
+        p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ))
+
     let snippet =
       fn.parameters
       |> Stdlib.List.indexedMap(fun(i, p) -> snippetParam(i, p.name))
@@ -65,15 +100,24 @@ let fnItem(branchId: Uuid, loc: ProgramTypes.PackageLocation, hash: ProgramTypes
 
     Json.Object(
       [ ("label", Json.String(loc.name))
-        ("labelDetails",
-         Json.Object(
-           [ ("detail", Json.String("(" + Stdlib.String.join(params, ", ") + ")"))
-             ("description", Json.String(PrettyPrinter.ProgramTypes.typeReference(ctx, fn.returnType))) ]))
+        (
+          "labelDetails",
+          Json.Object(
+            [ ("detail", Json.String("(" + Stdlib.String.join(params, ", ") + ")"))
+              (
+                "description",
+                Json.String(PrettyPrinter.ProgramTypes.typeReference(ctx, fn.returnType))) ]))
+
         ("kind", Json.Integer(Kind.function))
         ("sortText", Json.String("2" + loc.name))
         ("insertText", Json.String(loc.name + "(" + snippet + ")"))
         ("insertTextFormat", Json.Integer(2))
-        ("command", Json.Object([ ("title", Json.String("")), ("command", Json.String("editor.action.triggerParameterHints")) ]))
+        (
+          "command",
+          Json.Object(
+            [ ("title", Json.String(""))
+              ("command", Json.String("editor.action.triggerParameterHints")) ]))
+
         ("data", data) ])
 
 
@@ -95,7 +139,7 @@ let inModule(branchId: Uuid, path: List<String>): List<Json> =
 
   match path with
   | [] -> subs |> Stdlib.List.map(fun name -> item(name, Kind.module_, "4", Json.Null))
-  | [ owner, ...modules ] ->
+  | [owner, ...modules] ->
     let loc(name: String): ProgramTypes.PackageLocation =
       ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
 
@@ -110,26 +154,46 @@ let inModule(branchId: Uuid, path: List<String>): List<Json> =
       |> Stdlib.List.map(fun name -> item(name, Kind.module_, "4", Json.Null))
 
     let cases =
-      match PackageManager.Type.find(branchId, ProgramTypes.PackageLocation { owner = owner, modules = Stdlib.List.dropLast(modules), name = Stdlib.List.last(path) |> Stdlib.Option.withDefault("") }) |> Stdlib.Option.andThen(fun h -> PackageManager.Type.get(h)) with
+      match PackageManager.Type.find(
+              branchId,
+              ProgramTypes.PackageLocation
+                { owner = owner
+                  modules = Stdlib.List.dropLast(modules)
+                  name = Stdlib.List.last(path) |> Stdlib.Option.withDefault("") })
+            |> Stdlib.Option.andThen(fun h -> PackageManager.Type.get(h)) with
       | Some(t) ->
         match t.declaration.definition with
-        | Enum(cases) -> cases |> Stdlib.List.map(fun c -> item(c.name, Kind.enumMember, "1", Json.Null))
+        | Enum(cases) ->
+          cases |> Stdlib.List.map(fun c -> item(c.name, Kind.enumMember, "1", Json.Null))
         | _ -> []
       | None -> []
 
     Stdlib.List.flatten(
       [ cases
         shown(fns) |> Stdlib.List.map(fun((name, hash)) -> fnItem(branchId, loc(name), hash))
-        shown(values) |> Stdlib.List.map(fun((name, _)) -> item(name, Kind.constant, "3", at(name, ProgramTypes.ItemKind.Value)))
-        shown(types) |> Stdlib.List.map(fun((name, _)) -> item(name, Kind.struct, "3", at(name, ProgramTypes.ItemKind.Type)))
-        shown(traits) |> Stdlib.List.map(fun((name, _)) -> item(name, Kind.interface, "3", at(name, ProgramTypes.ItemKind.Trait)))
+
+        shown(values)
+        |> Stdlib.List.map(fun((name, _)) ->
+          item(name, Kind.constant, "3", at(name, ProgramTypes.ItemKind.Value)))
+
+        shown(types)
+        |> Stdlib.List.map(fun((name, _)) ->
+          item(name, Kind.struct, "3", at(name, ProgramTypes.ItemKind.Type)))
+
+        shown(traits)
+        |> Stdlib.List.map(fun((name, _)) ->
+          item(name, Kind.interface, "3", at(name, ProgramTypes.ItemKind.Trait)))
+
         submodules ])
 
 
 /// The modules a written prefix can mean from where the document is, most specific first:
 /// `List` inside `Darklang.Stdlib` is `Darklang.Stdlib.List`, then `Darklang.List`, then `List`.
 let candidates(ctx: NameResolver.NRContext, modules: List<String>): List<List<String>> =
-  NameResolver.namesToTry(ctx.owner, ctx.currentModule, NameResolver.GenericName { modules = modules, name = "x", version = 0s32 })
+  NameResolver.namesToTry(
+    ctx.owner,
+    ctx.currentModule,
+    NameResolver.GenericName { modules = modules, name = "x", version = 0s32 })
   |> Stdlib.List.map(fun n -> n.modules)
   |> Stdlib.List.unique
 
@@ -198,10 +262,11 @@ let complete(
           [ item("Stdlib", Kind.module_, "4", Json.Null) ]
           inModule(ctx.branchId, [])
           keywords |> Stdlib.List.map(fun k -> item(k, Kind.keyword, "5", Json.Null)) ])
-    | [ first, ..._ ] ->
+    | [first, ...] ->
       let isLocal =
         match file with
-        | Some(file) -> Stdlib.List.any(Syntax.scopeAt(file, line, character), fun((name, _)) -> name == first)
+        | Some(file) ->
+          Stdlib.List.any(Syntax.scopeAt(file, line, character), fun((name, _)) -> name == first)
         | None -> false
 
       if isLocal then
@@ -230,7 +295,8 @@ let resolve(branchId: Uuid, completion: Json): Json =
     | Some(Item(loc, kind)) ->
       let parts = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
       Names.resolve(Names.context(branchId, ""), parts)
-      |> Stdlib.Option.andThen(fun found -> if Names.itemKind(found) == kind then Option.Some(found) else Option.None)
+      |> Stdlib.Option.andThen(fun found ->
+        if Names.itemKind(found) == kind then Option.Some(found) else Option.None)
     | _ -> Option.None
 
   match completion, item with
@@ -238,7 +304,11 @@ let resolve(branchId: Uuid, completion: Json): Json =
     Json.Object(
       Stdlib.List.append(
         fields,
-        ("documentation", Json.Object([ ("kind", Json.String("markdown")), ("value", Json.String(Hover.describe(branchId, found))) ]))))
+        (
+          "documentation",
+          Json.Object(
+            [ ("kind", Json.String("markdown"))
+              ("value", Json.String(Hover.describe(branchId, found))) ]))))
   | _ -> completion
 
 
@@ -248,14 +318,18 @@ let resolve(branchId: Uuid, completion: Json): Json =
 /// cursor is on, and whether a pipe gives the first. Strings are skipped, so their commas and
 /// parentheses do not count.
 let callAt(before: String): Option<(String * Int64 * Bool)> =
-  let chars = before |> Stdlib.String.toList |> Stdlib.List.reverse
+  let chars =
+    before
+    |> Stdlib.String.toList
+    |> Stdlib.List.reverse
+
   callIn(chars, 0, 0)
 
 
 let callIn(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int64 * Bool)> =
   match chars with
   | [] -> Option.None
-  | [ c, ...rest ] ->
+  | [c, ...rest] ->
     match Stdlib.String.fromChar(c) with
     | "\"" -> inString(rest, depth, commas)
     | ")" | "]" | "}" -> callIn(rest, depth + 1, commas)
@@ -264,15 +338,21 @@ let callIn(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int
       if depth > 0 then
         callIn(rest, depth - 1, commas)
       else
-        let before = rest |> Stdlib.List.reverse |> Stdlib.String.fromList
+        let before =
+          rest
+          |> Stdlib.List.reverse
+          |> Stdlib.String.fromList
+
         let (modules, name) = typed(before)
         if name == "" then
           Option.None
         else
           let full = Stdlib.String.join(Stdlib.List.append(modules, name), ".")
-          let prior = Stdlib.String.dropLast(before, Stdlib.String.length(full)) |> Stdlib.String.trimEnd
+          let prior =
+            Stdlib.String.dropLast(before, Stdlib.String.length(full)) |> Stdlib.String.trimEnd
+
           Option.Some((full, commas, Stdlib.String.endsWith(prior, "|>")))
-    | "," -> callIn(rest, depth, (if depth == 0 then commas + 1 else commas))
+    | "," -> callIn(rest, depth, if depth == 0 then commas + 1 else commas)
     | _ -> callIn(rest, depth, commas)
 
 
@@ -280,7 +360,11 @@ let callIn(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int
 let inString(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int64 * Bool)> =
   match chars with
   | [] -> Option.None
-  | [ c, ...rest ] -> if Stdlib.String.fromChar(c) == "\"" then callIn(rest, depth, commas) else inString(rest, depth, commas)
+  | [c, ...rest] ->
+    if Stdlib.String.fromChar(c) == "\"" then
+      callIn(rest, depth, commas)
+    else
+      inString(rest, depth, commas)
 
 
 let signatureHelp(ctx: NameResolver.NRContext, text: String, line: Int64, character: Int64): Json =
@@ -290,8 +374,16 @@ let signatureHelp(ctx: NameResolver.NRContext, text: String, line: Int64, charac
     match Names.resolve(ctx, Stdlib.String.split(name, ".")) with
     | Some(Fn(found)) ->
       let fn = found.entity
-      let pctx = PrettyPrinter.ProgramTypes.Context.forModule(ctx.branchId, Stdlib.List.prepend(found.location.modules, found.location.owner))
-      let shown = fn.parameters |> Stdlib.List.map(fun p -> p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(pctx, p.typ))
+      let pctx =
+        PrettyPrinter.ProgramTypes.Context.forModule(
+          ctx.branchId,
+          Stdlib.List.prepend(found.location.modules, found.location.owner))
+
+      let shown =
+        fn.parameters
+        |> Stdlib.List.map(fun p ->
+          p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(pctx, p.typ))
+
       let prefix = found.location.name + "("
       // each parameter's [start, end) in the label, in UTF-16 units
       let (offsets, _) =
@@ -300,23 +392,38 @@ let signatureHelp(ctx: NameResolver.NRContext, text: String, line: Int64, charac
           let w = Text.width(p)
           (Stdlib.List.append(acc, (at, at + w)), at + w + 2))
 
-      let label = prefix + Stdlib.String.join(shown, ", ") + "): " + PrettyPrinter.ProgramTypes.typeReference(pctx, fn.returnType)
+      let label =
+        prefix
+        + Stdlib.String.join(shown, ", ")
+        + "): "
+        + PrettyPrinter.ProgramTypes.typeReference(pctx, fn.returnType)
+
       let params =
         Stdlib.List.zipShortest(offsets, fn.parameters)
         |> Stdlib.List.map(fun(((s, e), p)) ->
           Json.Object(
             Stdlib.List.flatten(
               [ [ ("label", Json.Array([ Json.Integer(s), Json.Integer(e) ])) ]
-                (if p.description == "" then [] else [ ("documentation", Json.String(Hover.markdownOfDoc(p.description))) ]) ])))
+                if p.description == "" then
+                  []
+                else
+                  [ ("documentation", Json.String(Hover.markdownOfDoc(p.description))) ] ])))
 
       let active = if piped then commas + 1 else commas
       Json.Object(
-        [ ("signatures",
-           Json.Array(
-             [ Json.Object(
-                 [ ("label", Json.String(label))
-                   ("documentation", Json.Object([ ("kind", Json.String("markdown")), ("value", Json.String(Hover.markdownOfDoc(fn.description))) ]))
-                   ("parameters", Json.Array(params)) ]) ]))
+        [ (
+            "signatures",
+            Json.Array(
+              [ Json.Object(
+                  [ ("label", Json.String(label))
+                    (
+                      "documentation",
+                      Json.Object(
+                        [ ("kind", Json.String("markdown"))
+                          ("value", Json.String(Hover.markdownOfDoc(fn.description))) ]))
+
+                    ("parameters", Json.Array(params)) ]) ]))
+
           ("activeSignature", Json.Integer(0))
           ("activeParameter", Json.Integer(active)) ])
     | _ -> Json.Null

@@ -16,7 +16,10 @@ val namePattern = "[A-Za-z_][A-Za-z0-9_']*(\\.[A-Za-z_][A-Za-z0-9_']*)*"
 
 
 let lineOf(text: String, line: Int64): String =
-  text |> Stdlib.String.splitOnNewline |> Stdlib.List.getAt(line) |> Stdlib.Option.withDefault("")
+  text
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.getAt(line)
+  |> Stdlib.Option.withDefault("")
 
 
 /// Every dotted name on <param lineText>, with where it starts and ends.
@@ -28,7 +31,8 @@ let namesOn(lineText: String): List<Stdlib.Regex.Match> =
 /// The name under <param character> on <param line> of <param text>.
 let at(text: String, line: Int64, character: Int64): Option<NameAt> =
   let matches = namesOn(lineOf(text, line))
-  match Stdlib.List.findFirst(matches, fun m -> m.range.start <= character && character <= m.range.end) with
+  match Stdlib.List.findFirst(matches, fun m ->
+          m.range.start <= character && character <= m.range.end) with
   | None -> Option.None
   | Some(m) ->
     // Keep the segments that start at or before the cursor.
@@ -38,6 +42,7 @@ let at(text: String, line: Int64, character: Int64): Option<NameAt> =
       |> Stdlib.List.fold(([], m.range.start), fun((acc, pos), seg) ->
         (Stdlib.List.append(acc, (seg, pos)), pos + Stdlib.String.length(seg) + 1))
       |> Stdlib.Tuple2.first
+
     let kept = Stdlib.List.filter(starts, fun((_, pos)) -> pos <= character)
     let parts = Stdlib.List.map(kept, fun((seg, _)) -> seg)
     let end =
@@ -45,7 +50,8 @@ let at(text: String, line: Int64, character: Int64): Option<NameAt> =
       | Some((seg, pos)) -> pos + Stdlib.String.length(seg)
       | None -> m.range.end
 
-    Option.Some(NameAt { parts = parts, whole = m.text, line = line, start = m.range.start, end = end })
+    Option.Some(
+      NameAt { parts = parts, whole = m.text, line = line, start = m.range.start, end = end })
 
 
 /// What a name can be bound to.
@@ -97,21 +103,24 @@ let moduleUri(path: List<String>): String =
 
 
 let parseUri(uri: String): Option<StoreDoc> =
-  match Stdlib.String.stripPrefix(uri, "darkfs:/") |> Stdlib.Option.andThen(fun p -> Stdlib.String.stripSuffix(p, ".dark")) with
+  match Stdlib.String.stripPrefix(uri, "darkfs:/")
+        |> Stdlib.Option.andThen(fun p -> Stdlib.String.stripSuffix(p, ".dark")) with
   | None -> Option.None
   | Some(path) ->
     match Stdlib.String.splitLast(path, ".") with
     | None ->
       match Stdlib.String.split(path, "/") with
-      | [ "" ] -> Option.None
+      | [""] -> Option.None
       | segments -> Option.Some(StoreDoc.Module(segments))
     | Some((path, ext)) ->
       match ProgramTypes.ItemKind.fromString(ext), Stdlib.String.split(path, "/") with
-      | Some(kind), [ owner, ...rest ] ->
+      | Some(kind), [owner, ...rest] ->
         match Stdlib.List.splitLast(rest) with
         | Some((modules, name)) ->
           Option.Some(
-            StoreDoc.Item(ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }, kind))
+            StoreDoc.Item(
+              ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name },
+              kind))
         | None -> Option.None
       | _ -> Option.None
 
@@ -123,14 +132,17 @@ let moduleOf(doc: StoreDoc): List<String> =
   | Module(path) -> path
   | Item(location, kind) ->
     let path = Stdlib.List.prepend(location.modules, location.owner)
-    if kind == ProgramTypes.ItemKind.TraitImpl then Stdlib.List.dropLast(path) else path
+    if kind == ProgramTypes.ItemKind.TraitImpl then
+      Stdlib.List.dropLast(path)
+    else
+      path
 
 
 /// Names in a store document resolve from its own module; names in a file, from the top.
 let context(branchId: Uuid, uri: String): NameResolver.NRContext =
   let (owner, modules) =
     match parseUri(uri) |> Stdlib.Option.map(moduleOf) with
-    | Some([ owner, ...modules ]) -> (owner, modules)
+    | Some([owner, ...modules]) -> (owner, modules)
     | _ -> ("Script", [])
 
   NameResolver.NRContext
@@ -141,9 +153,13 @@ let context(branchId: Uuid, uri: String): NameResolver.NRContext =
       currentModule = modules }
 
 
-let located(location: Option<ProgramTypes.PackageLocation>, entity: Option<'a>): Option<ProgramTypes.LocatedItem<'a>> =
+let located(
+  location: Option<ProgramTypes.PackageLocation>,
+  entity: Option<'a>)
+  : Option<ProgramTypes.LocatedItem<'a>> =
   match location, entity with
-  | Some(location), Some(entity) -> Option.Some(ProgramTypes.LocatedItem { entity = entity, location = location })
+  | Some(location), Some(entity) ->
+    Option.Some(ProgramTypes.LocatedItem { entity = entity, location = location })
   | _ -> Option.None
 
 
@@ -156,7 +172,9 @@ let resolve(ctx: NameResolver.NRContext, parts: List<String>): Option<Item> =
     match (NameResolver.FnName.resolve(ctx, name)).resolved with
     | Ok(r) ->
       match r.name with
-      | Package(hash) -> located(r.location, PackageManager.Function.get(hash)) |> Stdlib.Option.map(fun i -> Item.Fn(i))
+      | Package(hash) ->
+        located(r.location, PackageManager.Function.get(hash))
+        |> Stdlib.Option.map(fun i -> Item.Fn(i))
       | _ -> Option.None
     | Error(_) -> Option.None
 
@@ -166,18 +184,24 @@ let resolve(ctx: NameResolver.NRContext, parts: List<String>): Option<Item> =
     match (NameResolver.TypeName.resolve(ctx, name)).resolved with
     | Ok(r) ->
       match r.name with
-      | Package(hash) -> located(r.location, PackageManager.Type.get(hash)) |> Stdlib.Option.map(fun i -> Item.Type(i))
+      | Package(hash) ->
+        located(r.location, PackageManager.Type.get(hash))
+        |> Stdlib.Option.map(fun i -> Item.Type(i))
     | Error(_) ->
       match (NameResolver.ValueName.resolve(ctx, name)).resolved with
       | Ok(r) ->
         match r.name with
-        | Package(hash) -> located(r.location, PackageManager.Value.get(hash)) |> Stdlib.Option.map(fun i -> Item.Value(i))
+        | Package(hash) ->
+          located(r.location, PackageManager.Value.get(hash))
+          |> Stdlib.Option.map(fun i -> Item.Value(i))
         | _ -> Option.None
       | Error(_) ->
         match (NameResolver.TraitName.resolve(ctx, name)).resolved with
         | Ok(r) ->
           match r.name with
-          | Package(hash) -> located(r.location, PackageManager.Trait.get(hash)) |> Stdlib.Option.map(fun i -> Item.Trait(i))
+          | Package(hash) ->
+            located(r.location, PackageManager.Trait.get(hash))
+            |> Stdlib.Option.map(fun i -> Item.Trait(i))
         | Error(_) -> Option.None
 
 
@@ -187,4 +211,8 @@ let source(branchId: Uuid, uri: String): Option<String> =
   | None -> Option.None
   | Some(Module(path)) -> Cli.Packages.View.moduleSource(branchId, path) |> Stdlib.Result.toOption
   | Some(Item(loc, kind)) ->
-    Cli.Packages.View.moduleDecl(branchId, Stdlib.List.prepend(loc.modules, loc.owner), kind, loc.name)
+    Cli.Packages.View.moduleDecl(
+      branchId,
+      Stdlib.List.prepend(loc.modules, loc.owner),
+      kind,
+      loc.name)

@@ -31,7 +31,7 @@ let dependents(
   match SCM.Deps.dependents(branchId, [ (Names.itemLocation(item), Names.itemKind(item)) ]) with
   | Ok(found) -> Stdlib.List.take(found, limit)
   | Error(e) ->
-    Rpc.log($"could not read the dependents of {Names.itemLocation(item).name}: {e}")
+    Rpc.log($"could not read the dependents of {(Names.itemLocation(item)).name}: {e}")
     []
 
 
@@ -71,9 +71,14 @@ let references(
     |> Stdlib.List.flatten
 
   let declaration =
-    if includeDeclaration then [ itemLocation(Names.itemLocation(item), Names.itemKind(item)) ] else []
+    if includeDeclaration then
+      [ itemLocation(Names.itemLocation(item), Names.itemKind(item)) ]
+    else
+      []
 
-  let users = dependents(branchId, item) |> Stdlib.List.map(fun((_, loc, kind)) -> itemLocation(loc, kind))
+  let users =
+    dependents(branchId, item) |> Stdlib.List.map(fun((_, loc, kind)) -> itemLocation(loc, kind))
+
   Stdlib.List.flatten([ declaration, inDocs, users ]) |> Stdlib.List.unique
 
 
@@ -105,7 +110,8 @@ let itemOfUri(branchId: Uuid, uri: String): Option<Names.Item> =
   | Some(Item(loc, Fn)) ->
     PackageManager.Function.find(branchId, loc)
     |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h))
-    |> Stdlib.Option.map(fun fn -> Names.Item.Fn(ProgramTypes.LocatedItem { entity = fn, location = loc }))
+    |> Stdlib.Option.map(fun fn ->
+      Names.Item.Fn(ProgramTypes.LocatedItem { entity = fn, location = loc }))
   | _ -> Option.None
 
 
@@ -133,7 +139,8 @@ let outgoing(branchId: Uuid, uri: String): Json =
     SCM.Deps.resolveLocations(called)
     |> Stdlib.List.map(fun((_, loc)) ->
       Json.Object(
-        [ ("to", hierarchyItem(loc, ProgramTypes.ItemKind.Fn)), ("fromRanges", Json.Array([ zero() ])) ]))
+        [ ("to", hierarchyItem(loc, ProgramTypes.ItemKind.Fn))
+          ("fromRanges", Json.Array([ zero() ])) ]))
     |> Json.Array
 
 
@@ -167,7 +174,8 @@ let implementations(branchId: Uuid, item: Names.Item): List<Json> =
     impls
     |> Stdlib.List.map(fun name ->
       itemLocation(
-        ProgramTypes.PackageLocation { owner = loc.owner, modules = Stdlib.List.append(loc.modules, loc.name), name = name },
+        ProgramTypes.PackageLocation
+          { owner = loc.owner, modules = Stdlib.List.append(loc.modules, loc.name), name = name },
         ProgramTypes.ItemKind.TraitImpl))
   | _ -> []
 
@@ -181,7 +189,9 @@ let links(ctx: NameResolver.NRContext, text: String): List<Json> =
   |> Stdlib.String.splitOnNewline
   |> Stdlib.List.indexedMap(fun(line, lineText) ->
     if Stdlib.String.startsWith(Stdlib.String.trimStart(lineText), "///") then
-      Stdlib.Regex.findAllMatches(lineText, Stdlib.Regex.ofPattern("<(?:fn|type|value|trait) ([A-Za-z0-9_.']+)>"))
+      Stdlib.Regex.findAllMatches(
+        lineText,
+        Stdlib.Regex.ofPattern("<(?:fn|type|value|trait) ([A-Za-z0-9_.']+)>"))
       |> Stdlib.Result.withDefault([])
       |> Stdlib.List.filterMap(fun m ->
         match Stdlib.List.head(m.captures) with
@@ -195,7 +205,9 @@ let links(ctx: NameResolver.NRContext, text: String): List<Json> =
 
             Json.Object(
               [ ("range", Analysis.range(r))
-                ("target", Json.String(Names.uriOf(Names.itemLocation(item), Names.itemKind(item)))) ]))
+                (
+                  "target",
+                  Json.String(Names.uriOf(Names.itemLocation(item), Names.itemKind(item)))) ]))
         | _ -> Option.None)
     else
       [])

@@ -17,7 +17,7 @@ type Json = Stdlib.AltJson.Json
 
 type State =
   { reader: Rpc.Reader
-    watch: LanguageTools.Live.Watch
+    watch: Live.Watch
     branchId: Uuid
     /// The branch `dark switch` last stored for this instance, as stored: a switch in a terminal
     /// changes it, and the server follows.
@@ -33,7 +33,7 @@ type State =
     inFlight: List<(Json * Stdlib.Exec.Handle<Result<Option<Json>, String>>)>
     /// Under `dark lsp --live`: the version of the request handler each request runs, followed
     /// as the store changes and kept on the last one that type-checks.
-    handler: Option<LanguageTools.Live.LastGood>
+    handler: Option<Live.LastGood>
     /// `shutdown` was asked for; only `exit` is answered now.
     shuttingDown: Bool
     /// `exit` arrived, or stdin ended: the exit code to stop with.
@@ -61,7 +61,7 @@ let initialState(live: Bool): State =
       inFlight = []
       handler =
         if live then
-          Option.Some(LanguageTools.Live.refresh(SCM.PackageOps.currentBranch(), LanguageTools.Live.start(handlerLocation)))
+          Option.Some(Live.refresh(SCM.PackageOps.currentBranch(), Live.start(handlerLocation)))
         else
           Option.None
       shuttingDown = false
@@ -71,7 +71,12 @@ let initialState(live: Bool): State =
 /// Serve the editor on stdin and stdout until it goes. The exit code is 0 after `shutdown` then
 /// `exit`, and 1 when the editor left without `shutdown`, as the protocol says.
 let run(live: Bool): Int64 =
-  Rpc.log(if live then "dark language server started; requests follow edits to its code" else "dark language server started")
+  Rpc.log(
+    if live then
+      "dark language server started; requests follow edits to its code"
+    else
+      "dark language server started")
+
   loop(initialState(live))
 
 
@@ -92,9 +97,12 @@ let wake(state: State): State =
   let docs = Stdlib.Dict.values(state.documents)
   let pending = Stdlib.List.any(docs, fun d -> Stdlib.Option.isNone(d.analysis))
   let timer = Stdlib.Host.EventSpec.Timer(if pending then quietMs else idleCheckMs)
+  let answering =
+    Stdlib.List.map(state.inFlight, fun((_, h)) -> Stdlib.Host.EventSpec.ExecDone(h.id))
 
-  let answering = Stdlib.List.map(state.inFlight, fun((_, h)) -> Stdlib.Host.EventSpec.ExecDone(h.id))
-  let specs = Stdlib.List.flatten([ [ Rpc.wants(state.reader), Stdlib.Host.EventSpec.StoreChanged, timer ], answering ])
+  let specs =
+    Stdlib.List.flatten(
+      [ [ Rpc.wants(state.reader), Stdlib.Host.EventSpec.StoreChanged, timer ], answering ])
 
   let awaited = Stdlib.Host.await(state.watch, specs)
   let state = { state with watch = awaited.watch }
@@ -148,14 +156,21 @@ let analysePending(state: State): State =
 /// <param doc> analysed. An analysis that fails is a diagnostic saying so, not the end of the
 /// server.
 let analyseSafely(branchId: Uuid, doc: Requests.Document): Analysis.Analysis =
-  match LanguageTools.Live.apply(fun text -> Analysis.analyse(Names.context(branchId, doc.uri), text), doc.text) with
+  match Live.apply(
+          (fun text -> Analysis.analyse(Names.context(branchId, doc.uri), text)),
+          doc.text) with
   | Ok(analysis) -> analysis
   | Error(e) ->
     Rpc.log($"analysing {doc.uri} failed: {e}")
     let start = Parser.Point { row = 0, column = 0 }
     Analysis.Analysis
       { parsed = Option.None
-        diagnostics = [ Analysis.diagnostic(1, Parser.Range { start = start, end_ = start }, Option.None, $"The analysis failed: {e}") ]
+        diagnostics =
+          [ Analysis.diagnostic(
+              1,
+              Parser.Range { start = start, end_ = start },
+              Option.None,
+              $"The analysis failed: {e}") ]
         typeHints = [] }
 
 
@@ -165,7 +180,7 @@ let liveSafely(branchId: Uuid, doc: Requests.Document): Option<Lens.Live> =
   match Requests.storeFnOf(doc.uri) with
   | None -> Option.None
   | Some(loc) ->
-    match LanguageTools.Live.apply(fun text -> Lens.live(branchId, loc, text), doc.text) with
+    match Live.apply((fun text -> Lens.live(branchId, loc, text)), doc.text) with
     | Ok(live) -> live
     | Error(e) ->
       Rpc.log($"live values for {doc.uri} failed: {e}")
@@ -174,7 +189,8 @@ let liveSafely(branchId: Uuid, doc: Requests.Document): Option<Lens.Live> =
 
 /// Whether the editor said it takes the server's `<param what>/refresh` request.
 let refreshes(state: State, what: String): Bool =
-  Requests.boolAt(state.client, [ "workspace", what, "refreshSupport" ]) |> Stdlib.Option.withDefault(false)
+  Requests.boolAt(state.client, [ "workspace", what, "refreshSupport" ])
+  |> Stdlib.Option.withDefault(false)
 
 
 /// Ask the editor to fetch hints, lenses and tokens again: what they show came from the store
@@ -193,7 +209,7 @@ let askToRefresh(state: State): Unit =
 
 
 let storedBranch(): String =
-  LanguageTools.LocalStore.configGet("current_branch") |> Stdlib.Option.withDefault("")
+  LocalStore.configGet("current_branch") |> Stdlib.Option.withDefault("")
 
 
 /// Another process switched branches (`dark switch` in a terminal): the server switches too, and
@@ -207,7 +223,9 @@ let branchMoved(state: State): State =
     let branchId = SCM.PackageOps.selectBranch(wanted)
     Rpc.log($"following the switch to {SCM.PackageOps.branchName(branchId)}")
     Rpc.notify("dark/storeChanged", Json.Object([ ("names", Json.Array([])) ]))
-    let documents = Stdlib.Dict.mapValues(state.documents, fun doc -> { doc with analysis = Option.None })
+    let documents =
+      Stdlib.Dict.mapValues(state.documents, fun doc -> { doc with analysis = Option.None })
+
     { state with branchId = branchId, storedBranch = stored, documents = documents, refresh = true }
 
 
@@ -237,37 +255,45 @@ let newRuns(state: State): State =
 
 /// Whether <param change> can change what <param doc> means: its own item or something it
 /// uses moved. A file is judged by the names in its text.
-let touches(change: LanguageTools.Live.Change, doc: Requests.Document): Bool =
+let touches(change: Live.Change, doc: Requests.Document): Bool =
   if change.unknown then
     true
   else
     match Names.parseUri(doc.uri) with
-    | Some(Item(loc, _)) -> LanguageTools.Live.affects(change, loc)
+    | Some(Item(loc, _)) -> Live.affects(change, loc)
     | Some(Module(path)) ->
       Stdlib.List.any(change.touched, fun t ->
         Stdlib.List.prepend(t.location.modules, t.location.owner) == path
         || Stdlib.String.contains(doc.text, t.location.name))
-    | None -> Stdlib.List.any(change.touched, fun t -> Stdlib.String.contains(doc.text, t.location.name))
+    | None ->
+      Stdlib.List.any(change.touched, fun t -> Stdlib.String.contains(doc.text, t.location.name))
 
 
 /// The store moved under the open documents: names they use may resolve differently now, a
 /// checker finding may have gone, and the values beside a call may be different. The documents
 /// it touches are analysed again once things are quiet, and the editor is told what moved, so it
 /// reloads the store documents it shows.
-let storeChanged(state: State, change: LanguageTools.Live.Change): State =
+let storeChanged(state: State, change: Live.Change): State =
   Rpc.notify(
     "dark/storeChanged",
-    Json.Object([ ("names", Json.Array(LanguageTools.Live.touchedNames(change) |> Stdlib.List.map(fun n -> Json.String(n)))) ]))
+    Json.Object(
+      [ (
+          "names",
+          Json.Array(Live.touchedNames(change) |> Stdlib.List.map(fun n -> Json.String(n)))) ]))
 
   let branchId = SCM.PackageOps.currentBranch()
   let moved = branchId != state.branchId
-  let documents =
-    Stdlib.Dict.mapValues(state.documents, fun doc ->
-      if moved || touches(change, doc) then { doc with analysis = Option.None } else doc)
+  let documents = Stdlib.Dict.mapValues(state.documents, fun doc ->
+    if moved || touches(change, doc) then
+      { doc with analysis = Option.None }
+    else
+      doc)
 
-  let handler = state.handler |> Stdlib.Option.map(fun lg -> LanguageTools.Live.refresh(branchId, lg))
+  let handler = state.handler |> Stdlib.Option.map(fun lg -> Live.refresh(branchId, lg))
   match handler |> Stdlib.Option.andThen(fun lg -> lg.report) with
-  | Some(report) -> Rpc.log($"the request handler's newest version does not check, so the last good one answers: {LanguageTools.Live.reportText(report)}")
+  | Some(report) ->
+    Rpc.log(
+      $"the request handler's newest version does not check, so the last good one answers: {Live.reportText(report)}")
   | None -> ()
 
   { state with branchId = branchId, documents = documents, refresh = true, handler = handler }
@@ -309,7 +335,8 @@ let request(state: State, method: String, id: Json, params: Json): State =
     match method with
     | "initialize" ->
       Rpc.respond(id, initializeResult())
-      { state with client = Requests.field(params, "capabilities") |> Stdlib.Option.withDefault(Json.Null) }
+      { state with
+          client = Requests.field(params, "capabilities") |> Stdlib.Option.withDefault(Json.Null) }
     | "shutdown" ->
       Rpc.respond(id, Json.Null)
       { state with shuttingDown = true }
@@ -329,19 +356,19 @@ let request(state: State, method: String, id: Json, params: Json): State =
       // the typing nor the other requests. A failure comes back as a value.
       let view = view(state)
       let handler = state.handler
-      let handle =
-        Stdlib.Exec.spawn(fun () ->
-          let builtIn() = LanguageTools.Live.apply(fun v -> Requests.answer(v, method, params), view)
-          match handler with
-          | None -> builtIn()
-          | Some(lg) ->
-            // The store's version runs under the instance policy, like any stored code; what it
-            // is refused, the built-in version answers.
-            match LanguageTools.Live.call(lg, (view, method, params)) with
-            | Ok(answer) -> Result.Ok(answer)
-            | Error(e) ->
-              Rpc.log($"the store's handler failed, so the built-in one answers: {e}")
-              builtIn())
+      let handle = Stdlib.Exec.spawn(fun () ->
+        let builtIn() = Live.apply((fun v -> Requests.answer(v, method, params)), view)
+        match handler with
+        | None -> builtIn()
+        | Some(lg) ->
+          // The store's version runs under the instance policy, like any stored code; what it
+          // is refused, the built-in version answers.
+          match Live.call(lg, (view, method, params)) with
+          | Ok(answer) -> Result.Ok(answer)
+          | Error(e) ->
+            Rpc.log($"the store's handler failed, so the built-in one answers: {e}")
+            builtIn())
+
       { state with inFlight = Stdlib.List.append(state.inFlight, (id, handle)) }
 
 
@@ -378,14 +405,20 @@ let notification(state: State, method: String, params: Json): State =
     | Some(id) -> cancel(state, id)
     | None -> state
   | "textDocument/didOpen" ->
-    match stringAt(params, [ "textDocument", "uri" ]), stringAt(params, [ "textDocument", "text" ]) with
+    match stringAt(params, [ "textDocument", "uri" ]), stringAt(
+            params,
+            [ "textDocument", "text" ]) with
     | Some(uri), Some(text) ->
       // Analysed at once: the editor wants the squiggles as the file opens.
       analysePending(setDocument(state, uri, text))
     | _ -> state
   | "textDocument/didChange" ->
-    match stringAt(params, [ "textDocument", "uri" ]) |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(state.documents, uri)), field(params, "contentChanges") with
-    | Some(doc), Some(Array(changes)) -> setDocument(state, doc.uri, Stdlib.List.fold(changes, doc.text, applyChange))
+    match stringAt(params, [ "textDocument", "uri" ])
+          |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(state.documents, uri)), field(
+            params,
+            "contentChanges") with
+    | Some(doc), Some(Array(changes)) ->
+      setDocument(state, doc.uri, Stdlib.List.fold(changes, doc.text, applyChange))
     | _ -> state
   | "textDocument/didSave" ->
     match stringAt(params, [ "textDocument", "uri" ]), stringAt(params, [ "text" ]) with
@@ -420,38 +453,49 @@ let applyChange(text: String, change: Json): String =
 
 let initializeResult(): Json =
   Json.Object(
-    [ ("capabilities",
-       Json.Object(
-         [ ("positionEncoding", Json.String("utf-16"))
-           ("textDocumentSync",
-            Json.Object(
-              [ ("openClose", Json.Bool(true))
-                // 2: each change sends only what changed
-                ("change", Json.Integer(2))
-                ("save", Json.Object([ ("includeText", Json.Bool(true)) ])) ]))
-           ("hoverProvider", Json.Bool(true))
-           ("definitionProvider", Json.Bool(true))
-           ("documentSymbolProvider", Json.Bool(true))
-           ("workspaceSymbolProvider", Json.Bool(true))
-           ("documentHighlightProvider", Json.Bool(true))
-           ("referencesProvider", Json.Bool(true))
-           ("foldingRangeProvider", Json.Bool(true))
-           ("selectionRangeProvider", Json.Bool(true))
-           ("implementationProvider", Json.Bool(true))
-           ("callHierarchyProvider", Json.Bool(true))
-           ("completionProvider",
-            Json.Object(
-              [ ("triggerCharacters", Json.Array([ Json.String(".") ]))
-                ("resolveProvider", Json.Bool(true)) ]))
-           ("signatureHelpProvider",
-            Json.Object(
-              [ ("triggerCharacters", Json.Array([ Json.String("("), Json.String(",") ]))
-                ("retriggerCharacters", Json.Array([ Json.String(" ") ])) ]))
-           ("semanticTokensProvider", Tokens.capability())
-           ("documentFormattingProvider", Json.Bool(true))
-           ("inlayHintProvider", Json.Bool(true))
-           ("codeLensProvider", Json.Object([ ("resolveProvider", Json.Bool(false)) ]))
-           ("codeActionProvider", Json.Object([ ("codeActionKinds", Json.Array([ Json.String("quickfix") ])) ]))
-           ("renameProvider", Json.Object([ ("prepareProvider", Json.Bool(true)) ]))
-           ("documentLinkProvider", Json.Object([ ("resolveProvider", Json.Bool(false)) ])) ]))
+    [ (
+        "capabilities",
+        Json.Object(
+          [ ("positionEncoding", Json.String("utf-16"))
+            (
+              "textDocumentSync",
+              Json.Object(
+                [ ("openClose", Json.Bool(true))
+                  // 2: each change sends only what changed
+                  ("change", Json.Integer(2))
+                  ("save", Json.Object([ ("includeText", Json.Bool(true)) ])) ]))
+
+            ("hoverProvider", Json.Bool(true))
+            ("definitionProvider", Json.Bool(true))
+            ("documentSymbolProvider", Json.Bool(true))
+            ("workspaceSymbolProvider", Json.Bool(true))
+            ("documentHighlightProvider", Json.Bool(true))
+            ("referencesProvider", Json.Bool(true))
+            ("foldingRangeProvider", Json.Bool(true))
+            ("selectionRangeProvider", Json.Bool(true))
+            ("implementationProvider", Json.Bool(true))
+            ("callHierarchyProvider", Json.Bool(true))
+            (
+              "completionProvider",
+              Json.Object(
+                [ ("triggerCharacters", Json.Array([ Json.String(".") ]))
+                  ("resolveProvider", Json.Bool(true)) ]))
+
+            (
+              "signatureHelpProvider",
+              Json.Object(
+                [ ("triggerCharacters", Json.Array([ Json.String("("), Json.String(",") ]))
+                  ("retriggerCharacters", Json.Array([ Json.String(" ") ])) ]))
+
+            ("semanticTokensProvider", Tokens.capability())
+            ("documentFormattingProvider", Json.Bool(true))
+            ("inlayHintProvider", Json.Bool(true))
+            ("codeLensProvider", Json.Object([ ("resolveProvider", Json.Bool(false)) ]))
+            (
+              "codeActionProvider",
+              Json.Object([ ("codeActionKinds", Json.Array([ Json.String("quickfix") ])) ]))
+
+            ("renameProvider", Json.Object([ ("prepareProvider", Json.Bool(true)) ]))
+            ("documentLinkProvider", Json.Object([ ("resolveProvider", Json.Bool(false)) ])) ]))
+
       ("serverInfo", Json.Object([ ("name", Json.String("dark")) ])) ])

@@ -4,8 +4,9 @@ module Darklang.Cli.Effects
 /// The effects `effects <fn>` finds, by name, and whether every call was followed.
 let namesOf(hash: String): (List<String> * Bool) =
   let (complete, found) = LanguageTools.Permissions.effectReasons(hash)
-  (found |> Stdlib.List.map(fun((effect, _)) -> LanguageTools.Permissions.effectName(effect)),
-   complete)
+  (
+    found |> Stdlib.List.map(fun((effect, _)) -> LanguageTools.Permissions.effectName(effect)),
+    complete)
 
 
 let without(names: List<String>, others: List<String>): List<String> =

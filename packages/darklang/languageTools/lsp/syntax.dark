@@ -3,12 +3,13 @@
 module Darklang.LanguageTools.Lsp.Syntax
 
 type Range = Parser.Range
+
 type Expr = WrittenTypes.Expr
 
 
 let contains(r: Range, line: Int64, character: Int64): Bool =
-  let afterStart = line > r.start.row || (line == r.start.row && character >= r.start.column)
-  let beforeEnd = line < r.end_.row || (line == r.end_.row && character <= r.end_.column)
+  let afterStart = line > r.start.row || line == r.start.row && character >= r.start.column
+  let beforeEnd = line < r.end_.row || line == r.end_.row && character <= r.end_.column
   afterStart && beforeEnd
 
 
@@ -56,7 +57,8 @@ let children(n: Node): List<Node> =
       |> Stdlib.List.map(fun((_, k, _, v)) -> [ Node.E(k), Node.E(v) ])
       |> Stdlib.List.flatten
     | ETuple(_, first, _, second, rest, _, _) ->
-      Stdlib.List.flatten([ [ Node.E(first), Node.E(second) ], Stdlib.List.map(rest, fun((_, e)) -> Node.E(e)) ])
+      Stdlib.List.flatten(
+        [ [ Node.E(first), Node.E(second) ], Stdlib.List.map(rest, fun((_, e)) -> Node.E(e)) ])
     | ERecord(_, _, fields, _, _) -> Stdlib.List.map(fields, fun((_, _, e)) -> Node.E(e))
     | ERecordUpdate(_, record, updates, _, _, _) ->
       Stdlib.List.prepend(Stdlib.List.map(updates, fun((_, _, e)) -> Node.E(e)), Node.E(record))
@@ -118,7 +120,10 @@ let declarationBodies(d: WrittenTypes.ModuleDeclaration.Declaration): List<Body>
       match m with
       | Method(f) -> fnBody(f)
       | Alias(v) -> Body { range = v.range, params = [], body = v.body })
-  | SubModule(m) -> m.declarations |> Stdlib.List.map(declarationBodies) |> Stdlib.List.flatten
+  | SubModule(m) ->
+    m.declarations
+    |> Stdlib.List.map(declarationBodies)
+    |> Stdlib.List.flatten
   | Expr(e) -> [ Body { range = WrittenTypes.Expr.range(e), params = [], body = e } ]
   | Type(_) -> []
   | Trait(_) -> []
@@ -134,7 +139,9 @@ let declarations(file: WrittenTypes.ParsedFile): List<WrittenTypes.ModuleDeclara
 
 /// Every body of code in <param file>, submodules' and impls' included.
 let bodies(file: WrittenTypes.ParsedFile): List<Body> =
-  declarations(file) |> Stdlib.List.map(declarationBodies) |> Stdlib.List.flatten
+  declarations(file)
+  |> Stdlib.List.map(declarationBodies)
+  |> Stdlib.List.flatten
 
 
 // --- locals ---
@@ -146,7 +153,9 @@ type Occurrence =
 
 
 let lookup(env: List<(String * Range)>, name: String): Option<Range> =
-  env |> Stdlib.List.findFirst(fun((n, _)) -> n == name) |> Stdlib.Option.map(fun((_, r)) -> r)
+  env
+  |> Stdlib.List.findFirst(fun((n, _)) -> n == name)
+  |> Stdlib.Option.map(fun((_, r)) -> r)
 
 
 let letBinds(p: WrittenTypes.LetPattern): List<(String * Range)> =
@@ -154,13 +163,19 @@ let letBinds(p: WrittenTypes.LetPattern): List<(String * Range)> =
   | LPVariable(r, name) -> [ (name, r) ]
   | LPTuple(_, first, _, second, rest, _, _) ->
     Stdlib.List.flatten(
-      [ letBinds(first), letBinds(second), rest |> Stdlib.List.map(fun((_, p)) -> letBinds(p)) |> Stdlib.List.flatten ])
+      [ letBinds(first)
+        letBinds(second)
+        rest
+        |> Stdlib.List.map(fun((_, p)) -> letBinds(p))
+        |> Stdlib.List.flatten ])
   | _ -> []
 
 
 let matchBinds(p: WrittenTypes.MatchPattern): List<(String * Range)> =
   let all(ps: List<WrittenTypes.MatchPattern>): List<(String * Range)> =
-    ps |> Stdlib.List.map(matchBinds) |> Stdlib.List.flatten
+    ps
+    |> Stdlib.List.map(matchBinds)
+    |> Stdlib.List.flatten
 
   match p with
   | MPVariable(r, name) -> [ (name, r) ]
@@ -183,7 +198,10 @@ let matchBinds(p: WrittenTypes.MatchPattern): List<(String * Range)> =
 
 /// Bring <param binds> into scope. The first of a name wins, so in `A(x) | B(x)` the second `x`
 /// is an occurrence of the first.
-let bind(env: List<(String * Range)>, binds: List<(String * Range)>): (List<(String * Range)> * List<Occurrence>) =
+let bind(
+  env: List<(String * Range)>,
+  binds: List<(String * Range)>)
+  : (List<(String * Range)> * List<Occurrence>) =
   let firsts =
     binds
     |> Stdlib.List.fold([], fun(acc, (name, r)) ->
@@ -208,16 +226,28 @@ let walk(env: List<(String * Range)>, n: Node): List<Occurrence> =
 
   let scoped(binds: List<(String * Range)>, inside: List<Node>): List<Occurrence> =
     let (inner, bound) = bind(env, binds)
-    Stdlib.List.concat(bound, inside |> Stdlib.List.map(fun c -> walk(inner, c)) |> Stdlib.List.flatten)
+    Stdlib.List.concat(
+      bound,
+      inside
+      |> Stdlib.List.map(fun c -> walk(inner, c))
+      |> Stdlib.List.flatten)
 
   match n with
   | E(EVariable(r, name)) -> use(r, name)
   | E(ELet(_, pat, value, body, _, _)) ->
     Stdlib.List.concat(walk(env, Node.E(value)), scoped(letBinds(pat), [ Node.E(body) ]))
   | E(ELambda(_, pats, body, _, _)) ->
-    scoped(pats |> Stdlib.List.map(letBinds) |> Stdlib.List.flatten, [ Node.E(body) ])
+    scoped(
+      pats
+      |> Stdlib.List.map(letBinds)
+      |> Stdlib.List.flatten,
+      [ Node.E(body) ])
   | Pipe(EPipeLambda(_, pats, body, _, _)) ->
-    scoped(pats |> Stdlib.List.map(letBinds) |> Stdlib.List.flatten, [ Node.E(body) ])
+    scoped(
+      pats
+      |> Stdlib.List.map(letBinds)
+      |> Stdlib.List.flatten,
+      [ Node.E(body) ])
   | Pipe(EPipeVariableOrFnCall(r, name)) -> use(r, name)
   | E(EMatch(_, subject, cases, _, _)) ->
     let inCases =
@@ -233,7 +263,10 @@ let walk(env: List<(String * Range)>, n: Node): List<Occurrence> =
       |> Stdlib.List.flatten
 
     Stdlib.List.concat(walk(env, Node.E(subject)), inCases)
-  | _ -> children(n) |> Stdlib.List.map(fun c -> walk(env, c)) |> Stdlib.List.flatten
+  | _ ->
+    children(n)
+    |> Stdlib.List.map(fun c -> walk(env, c))
+    |> Stdlib.List.flatten
 
 
 /// Every local in <param file>: each parameter, `let`, lambda and pattern variable, and each
@@ -247,7 +280,11 @@ let occurrences(file: WrittenTypes.ParsedFile): List<Occurrence> =
 
 
 /// The local written at <param line>:<param character>, and every place it occurs.
-let localAt(file: WrittenTypes.ParsedFile, line: Int64, character: Int64): Option<(Range * List<Occurrence>)> =
+let localAt(
+  file: WrittenTypes.ParsedFile,
+  line: Int64,
+  character: Int64)
+  : Option<(Range * List<Occurrence>)> =
   let all = occurrences(file)
   match Stdlib.List.findFirst(all, fun o -> contains(o.range, line, character)) with
   | None -> Option.None
@@ -255,7 +292,12 @@ let localAt(file: WrittenTypes.ParsedFile, line: Int64, character: Int64): Optio
 
 
 /// The locals in scope at <param line>:<param character> inside <param n>, nearest first.
-let scopeIn(env: List<(String * Range)>, n: Node, line: Int64, character: Int64): List<(String * Range)> =
+let scopeIn(
+  env: List<(String * Range)>,
+  n: Node,
+  line: Int64,
+  character: Int64)
+  : List<(String * Range)> =
   let inside(c: Node): Bool = contains(nodeRange(c), line, character)
   let into(binds: List<(String * Range)>, c: Node): List<(String * Range)> =
     let (inner, _) = bind(env, binds)
@@ -263,16 +305,31 @@ let scopeIn(env: List<(String * Range)>, n: Node, line: Int64, character: Int64)
 
   match n with
   | E(ELet(_, pat, value, body, _, _)) ->
-    if inside(Node.E(value)) then scopeIn(env, Node.E(value), line, character) else into(letBinds(pat), Node.E(body))
-  | E(ELambda(_, pats, body, _, _)) -> into(pats |> Stdlib.List.map(letBinds) |> Stdlib.List.flatten, Node.E(body))
+    if inside(Node.E(value)) then
+      scopeIn(env, Node.E(value), line, character)
+    else
+      into(letBinds(pat), Node.E(body))
+  | E(ELambda(_, pats, body, _, _)) ->
+    into(
+      pats
+      |> Stdlib.List.map(letBinds)
+      |> Stdlib.List.flatten,
+      Node.E(body))
   | Pipe(EPipeLambda(_, pats, body, _, _)) ->
-    into(pats |> Stdlib.List.map(letBinds) |> Stdlib.List.flatten, Node.E(body))
+    into(
+      pats
+      |> Stdlib.List.map(letBinds)
+      |> Stdlib.List.flatten,
+      Node.E(body))
   | E(EMatch(_, subject, cases, _, _)) ->
     let case =
       cases
       |> Stdlib.List.findFirst(fun c ->
         let (bar, _, _) = c.pat
-        contains(Parser.Range { start = bar.start, end_ = (WrittenTypes.Expr.range(c.rhs)).end_ }, line, character))
+        contains(
+          Parser.Range { start = bar.start, end_ = (WrittenTypes.Expr.range(c.rhs)).end_ },
+          line,
+          character))
 
     match case with
     | Some(c) ->
@@ -286,7 +343,11 @@ let scopeIn(env: List<(String * Range)>, n: Node, line: Int64, character: Int64)
       match Stdlib.List.findFirst(parts, inside) with
       | Some(part) -> scopeIn(inner, part, line, character)
       | None -> inner
-    | None -> if inside(Node.E(subject)) then scopeIn(env, Node.E(subject), line, character) else env
+    | None ->
+      if inside(Node.E(subject)) then
+        scopeIn(env, Node.E(subject), line, character)
+      else
+        env
   | _ ->
     match Stdlib.List.findFirst(children(n), inside) with
     | Some(c) -> scopeIn(env, c, line, character)
@@ -317,13 +378,19 @@ let bindsIn(n: Node): List<(String * Range * Hint)> =
     Stdlib.List.map(binds, fun((name, r)) -> (name, r, hint))
 
   let lambda(pats: List<WrittenTypes.LetPattern>): List<(String * Range * Hint)> =
-    tagged(pats |> Stdlib.List.map(letBinds) |> Stdlib.List.flatten, Hint.Shows)
+    tagged(
+      pats
+      |> Stdlib.List.map(letBinds)
+      |> Stdlib.List.flatten,
+      Hint.Shows)
 
   match n with
   | E(ELet(_, pat, value, body, _, _)) ->
-    Stdlib.List.flatten([ bindsIn(Node.E(value)), tagged(letBinds(pat), Hint.Shows), bindsIn(Node.E(body)) ])
+    Stdlib.List.flatten(
+      [ bindsIn(Node.E(value)), tagged(letBinds(pat), Hint.Shows), bindsIn(Node.E(body)) ])
   | E(ELambda(_, pats, body, _, _)) -> Stdlib.List.concat(lambda(pats), bindsIn(Node.E(body)))
-  | Pipe(EPipeLambda(_, pats, body, _, _)) -> Stdlib.List.concat(lambda(pats), bindsIn(Node.E(body)))
+  | Pipe(EPipeLambda(_, pats, body, _, _)) ->
+    Stdlib.List.concat(lambda(pats), bindsIn(Node.E(body)))
   | E(EMatch(_, subject, cases, _, _)) ->
     let inCases =
       cases
@@ -334,11 +401,15 @@ let bindsIn(n: Node): List<(String * Range * Hint)> =
           | Some((_, cond)) -> bindsIn(Node.E(cond))
           | None -> []
 
-        Stdlib.List.flatten([ tagged(matchBinds(pat), Hint.Hidden), guard, bindsIn(Node.E(c.rhs)) ]))
+        Stdlib.List.flatten(
+          [ tagged(matchBinds(pat), Hint.Hidden), guard, bindsIn(Node.E(c.rhs)) ]))
       |> Stdlib.List.flatten
 
     Stdlib.List.concat(bindsIn(Node.E(subject)), inCases)
-  | _ -> children(n) |> Stdlib.List.map(bindsIn) |> Stdlib.List.flatten
+  | _ ->
+    children(n)
+    |> Stdlib.List.map(bindsIn)
+    |> Stdlib.List.flatten
 
 
 // --- what encloses a position ---
@@ -373,7 +444,8 @@ let declarationsAround(
       match d with
       | SubModule(m) -> declarationsAround(m.declarations, line, character)
       | _ ->
-        match declarationBodies(d) |> Stdlib.List.findFirst(fun b -> contains(b.range, line, character)) with
+        match declarationBodies(d)
+              |> Stdlib.List.findFirst(fun b -> contains(b.range, line, character)) with
         | Some(b) ->
           let bodyRange = WrittenTypes.Expr.range(b.body)
           if contains(bodyRange, line, character) then
@@ -405,7 +477,10 @@ type Fold =
 
 
 let foldOf(r: Range): List<Fold> =
-  if r.end_.row > r.start.row then [ Fold { startLine = r.start.row, endLine = r.end_.row, comment = false } ] else []
+  if r.end_.row > r.start.row then
+    [ Fold { startLine = r.start.row, endLine = r.end_.row, comment = false } ]
+  else
+    []
 
 
 /// Expressions worth folding by themselves. A `let` is not: its range runs to the end of the
@@ -432,16 +507,24 @@ let foldsIn(n: Node): List<Fold> =
     | E(EApply(_, _, _, _))
     | E(EPipe(_, _, _))
     | E(EString(_, _, _, _, _))
-    | Pipe(EPipeLambda(_, _, _, _, _)) -> foldOf(nodeRange(n))
+    | Pipe(EPipeLambda(_, _, _, _, _)) ->
+      foldOf(nodeRange(n))
     | _ -> []
 
-  Stdlib.List.concat(own, children(n) |> Stdlib.List.map(foldsIn) |> Stdlib.List.flatten)
+  Stdlib.List.concat(
+    own,
+    children(n)
+    |> Stdlib.List.map(foldsIn)
+    |> Stdlib.List.flatten)
 
 
 let declarationFolds(d: WrittenTypes.ModuleDeclaration.Declaration): List<Fold> =
   let inner =
     match d with
-    | SubModule(m) -> m.declarations |> Stdlib.List.map(declarationFolds) |> Stdlib.List.flatten
+    | SubModule(m) ->
+      m.declarations
+      |> Stdlib.List.map(declarationFolds)
+      |> Stdlib.List.flatten
     | Impl(i) ->
       i.members
       |> Stdlib.List.map(fun m ->
@@ -451,7 +534,11 @@ let declarationFolds(d: WrittenTypes.ModuleDeclaration.Declaration): List<Fold> 
       |> Stdlib.List.flatten
     | _ -> []
 
-  let bodies = declarationBodies(d) |> Stdlib.List.map(fun b -> foldsIn(Node.E(b.body))) |> Stdlib.List.flatten
+  let bodies =
+    declarationBodies(d)
+    |> Stdlib.List.map(fun b -> foldsIn(Node.E(b.body)))
+    |> Stdlib.List.flatten
+
   Stdlib.List.flatten([ foldOf(declarationRange(d)), inner, bodies ])
 
 
@@ -460,7 +547,8 @@ let commentFolds(text: String): List<Fold> =
   let (folds, current) =
     text
     |> Stdlib.String.splitOnNewline
-    |> Stdlib.List.indexedMap(fun(i, l) -> (i, Stdlib.String.startsWith(Stdlib.String.trimStart(l), "//")))
+    |> Stdlib.List.indexedMap(fun(i, l) ->
+      (i, Stdlib.String.startsWith(Stdlib.String.trimStart(l), "//")))
     |> Stdlib.List.fold(([], Option.None), fun((folds, current), (i, isComment)) ->
       match current, isComment with
       | None, true -> (folds, Option.Some((i, i)))
@@ -475,7 +563,8 @@ let commentFolds(text: String): List<Fold> =
 
   runs
   |> Stdlib.List.filter(fun((start, last)) -> last > start)
-  |> Stdlib.List.map(fun((start, last)) -> Fold { startLine = start, endLine = last, comment = true })
+  |> Stdlib.List.map(fun((start, last)) ->
+    Fold { startLine = start, endLine = last, comment = true })
 
 
 /// What folds in a document: declarations, the multi-line expressions in them, each `match`
@@ -483,7 +572,10 @@ let commentFolds(text: String): List<Fold> =
 let folds(file: Option<WrittenTypes.ParsedFile>, text: String): List<Fold> =
   let code =
     match file with
-    | Some(file) -> declarations(file) |> Stdlib.List.map(declarationFolds) |> Stdlib.List.flatten
+    | Some(file) ->
+      declarations(file)
+      |> Stdlib.List.map(declarationFolds)
+      |> Stdlib.List.flatten
     | None -> []
 
   Stdlib.List.concat(code, commentFolds(text))

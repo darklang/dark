@@ -16,10 +16,15 @@ test framing =
   let wanted = LanguageTools.Lsp.Rpc.wants(reader)
   let (reader, body) = LanguageTools.Lsp.Rpc.step(reader, "{\"a\":1}")
   Stdlib.Test.all(
-    [ (none1, none2, none3) |> Stdlib.Test.equal((Option.None, Option.None, Option.None))
+    [ (none1, none2, none3)
+      |> Stdlib.Test.equal((Option.None, Option.None, Option.None))
+
       wanted |> Stdlib.Test.equal(Stdlib.Host.EventSpec.StdinBytes(7))
+
       body |> Stdlib.Test.equal(Option.Some("{\"a\":1}"))
-      reader |> Stdlib.Test.equal(LanguageTools.Lsp.Rpc.Reader.Header(Option.None)) ])
+
+      reader
+      |> Stdlib.Test.equal(LanguageTools.Lsp.Rpc.Reader.Header(Option.None)) ])
 
 
 test nameUnderCursor =
@@ -27,40 +32,63 @@ test nameUnderCursor =
   Stdlib.Test.all(
     [ LanguageTools.Lsp.Names.at(text, 1, 10)
       |> Stdlib.Option.map(fun n -> (n.parts, n.whole, n.start, n.end))
-      |> Stdlib.Test.equal(Option.Some(([ "Stdlib", "List" ], "Stdlib.List.map", 2, 13)))
+      |> Stdlib.Test.equal(
+        Option.Some(([ "Stdlib", "List" ], "Stdlib.List.map", 2, 13)))
+
       LanguageTools.Lsp.Names.at(text, 1, 16)
       |> Stdlib.Option.map(fun n -> n.parts)
       |> Stdlib.Test.equal(Option.Some([ "Stdlib", "List", "map" ]))
-      LanguageTools.Lsp.Names.at(text, 1, 1) |> Stdlib.Test.equal(Option.None) ])
+
+      LanguageTools.Lsp.Names.at(text, 1, 1)
+      |> Stdlib.Test.equal(Option.None) ])
 
 
 test storeUris =
   let loc =
-    LanguageTools.ProgramTypes.PackageLocation { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "map" }
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "map" }
 
-  let uri = LanguageTools.Lsp.Names.uriOf(loc, LanguageTools.ProgramTypes.ItemKind.Fn)
+  let uri =
+    LanguageTools.Lsp.Names.uriOf(loc, LanguageTools.ProgramTypes.ItemKind.Fn)
+
   Stdlib.Test.all(
     [ uri |> Stdlib.Test.equal("darkfs:/Darklang/Stdlib/List/map.fn.dark")
+
       LanguageTools.Lsp.Names.parseUri(uri)
-      |> Stdlib.Test.equal(Option.Some(LanguageTools.Lsp.Names.StoreDoc.Item(loc, LanguageTools.ProgramTypes.ItemKind.Fn)))
+      |> Stdlib.Test.equal(
+        Option.Some(
+          LanguageTools.Lsp.Names.StoreDoc.Item(
+            loc,
+            LanguageTools.ProgramTypes.ItemKind.Fn)))
+
       LanguageTools.Lsp.Names.parseUri("darkfs:/Darklang/Stdlib/List.dark")
-      |> Stdlib.Test.equal(Option.Some(LanguageTools.Lsp.Names.StoreDoc.Module([ "Darklang", "Stdlib", "List" ])))
-      LanguageTools.Lsp.Names.parseUri("darkfs:/A/b.nonsense.dark") |> Stdlib.Test.equal(Option.None)
-      LanguageTools.Lsp.Names.parseUri("file:///a.dark") |> Stdlib.Test.equal(Option.None) ])
+      |> Stdlib.Test.equal(
+        Option.Some(
+          LanguageTools.Lsp.Names.StoreDoc.Module(
+            [ "Darklang", "Stdlib", "List" ])))
+
+      LanguageTools.Lsp.Names.parseUri("darkfs:/A/b.nonsense.dark")
+      |> Stdlib.Test.equal(Option.None)
+
+      LanguageTools.Lsp.Names.parseUri("file:///a.dark")
+      |> Stdlib.Test.equal(Option.None) ])
 
 
 test docMarkup =
-  LanguageTools.Lsp.Hover.markdownOfDoc("Maps <param fn> over {{Some}}; see <fn List.filter>.")
+  LanguageTools.Lsp.Hover.markdownOfDoc(
+    "Maps <param fn> over {{Some}}; see <fn List.filter>.")
   |> Stdlib.Test.equal("Maps `fn` over `Some`; see `List.filter`.")
 
 
 test localsFollowScope =
   // x is a parameter, shadowed inside the lambda; y is bound by a let, z by a match case.
   let file =
-    parse("let f(x: Int64): Int64 =\n  let y = x\n  let g = fun x -> x\n  match y with\n  | Some(z) -> z + x\n  | None -> 0\n")
+    parse(
+      "let f(x: Int64): Int64 =\n  let y = x\n  let g = fun x -> x\n  match y with\n  | Some(z) -> z + x\n  | None -> 0\n")
 
   let bindingOf(line: Int64, character: Int64): Option<(Int64 * Int64)> =
-    LanguageTools.Lsp.Syntax.localAt(file, line, character) |> Stdlib.Option.map(fun((b, _)) -> start(b))
+    LanguageTools.Lsp.Syntax.localAt(file, line, character)
+    |> Stdlib.Option.map(fun((b, _)) -> start(b))
 
   let count(line: Int64, character: Int64): Int64 =
     LanguageTools.Lsp.Syntax.localAt(file, line, character)
@@ -78,21 +106,29 @@ test localsFollowScope =
 
 
 test orPatternBindsOnce =
-  let file = parse("let f(v: Stdlib.Result.Result<Int64, Int64>): Int64 =\n  match v with\n  | Ok(n) | Error(n) -> n\n")
+  let file =
+    parse(
+      "let f(v: Stdlib.Result.Result<Int64, Int64>): Int64 =\n  match v with\n  | Ok(n) | Error(n) -> n\n")
+
   LanguageTools.Lsp.Syntax.localAt(file, 2, 24)
   |> Stdlib.Option.map(fun((b, all)) -> (start(b), Stdlib.List.length(all)))
   |> Stdlib.Test.equal(Option.Some(((2, 7), 3)))
 
 
 test foldsAndSelection =
-  let text = "// a\n// b\nlet f(x: Int64): String =\n  match x with\n  | 0 ->\n    \"zero\"\n  | _ -> \"other\"\n"
+  let text =
+    "// a\n// b\nlet f(x: Int64): String =\n  match x with\n  | 0 ->\n    \"zero\"\n  | _ -> \"other\"\n"
+
   let file = parse(text)
   let folds =
     LanguageTools.Lsp.Syntax.folds(Option.Some(file), text)
     |> Stdlib.List.map(fun f -> (f.startLine, f.endLine, f.comment))
 
   Stdlib.Test.all(
-    [ folds |> Stdlib.Test.equal([ (0, 1, true), (2, 6, false), (3, 6, false), (4, 5, false) ])
+    [ folds
+      |> Stdlib.Test.equal(
+        [ (0, 1, true), (2, 6, false), (3, 6, false), (4, 5, false) ])
+
       LanguageTools.Lsp.Syntax.around(file, 5, 6)
       |> Stdlib.List.map(start)
       |> Stdlib.Test.equal([ (2, 0), (3, 2), (5, 4) ]) ])
@@ -101,52 +137,96 @@ test foldsAndSelection =
 test utf16Columns =
   Stdlib.Test.all(
     [ LanguageTools.Lsp.Text.width("a😀é") |> Stdlib.Test.equal(4)
-      LanguageTools.Lsp.Text.splitAt("a😀b", 3) |> Stdlib.Test.equal(("a😀", "b"))
-      LanguageTools.Lsp.Text.replace("let a = 1\nlet 😀 = 2\n", 1, 6, 1, 7, "x") |> Stdlib.Test.equal("let a = 1\nlet 😀x= 2\n")
-      LanguageTools.Lsp.Text.replace("one\ntwo\nthree", 0, 1, 2, 2, "") |> Stdlib.Test.equal("oree")
-      LanguageTools.Lsp.Text.before("ab\ncd\nef", 2, 1, 1) |> Stdlib.Test.equal("cd\ne") ])
+
+      LanguageTools.Lsp.Text.splitAt("a😀b", 3)
+      |> Stdlib.Test.equal(("a😀", "b"))
+
+      LanguageTools.Lsp.Text.replace("let a = 1\nlet 😀 = 2\n", 1, 6, 1, 7, "x")
+      |> Stdlib.Test.equal("let a = 1\nlet 😀x= 2\n")
+
+      LanguageTools.Lsp.Text.replace("one\ntwo\nthree", 0, 1, 2, 2, "")
+      |> Stdlib.Test.equal("oree")
+
+      LanguageTools.Lsp.Text.before("ab\ncd\nef", 2, 1, 1)
+      |> Stdlib.Test.equal("cd\ne") ])
 
 
 test typedPrefix =
   Stdlib.Test.all(
-    [ LanguageTools.Lsp.Completion.typed("  x |> Stdlib.List.ma") |> Stdlib.Test.equal(([ "Stdlib", "List" ], "ma"))
-      LanguageTools.Lsp.Completion.typed("(Stdlib.") |> Stdlib.Test.equal(([ "Stdlib" ], ""))
-      LanguageTools.Lsp.Completion.typed("let x = ") |> Stdlib.Test.equal(([], ""))
-      LanguageTools.Lsp.Completion.typed("coun") |> Stdlib.Test.equal(([], "coun")) ])
+    [ LanguageTools.Lsp.Completion.typed("  x |> Stdlib.List.ma")
+      |> Stdlib.Test.equal(([ "Stdlib", "List" ], "ma"))
+
+      LanguageTools.Lsp.Completion.typed("(Stdlib.")
+      |> Stdlib.Test.equal(([ "Stdlib" ], ""))
+
+      LanguageTools.Lsp.Completion.typed("let x = ")
+      |> Stdlib.Test.equal(([], ""))
+
+      LanguageTools.Lsp.Completion.typed("coun")
+      |> Stdlib.Test.equal(([], "coun")) ])
 
 
 test callUnderCursor =
   Stdlib.Test.all(
-    [ LanguageTools.Lsp.Completion.callAt("f(Stdlib.String.padStart(s, \"a, b\", ")
+    [ LanguageTools.Lsp.Completion.callAt(
+        "f(Stdlib.String.padStart(s, \"a, b\", ")
       |> Stdlib.Test.equal(Option.Some(("Stdlib.String.padStart", 2, false)))
+
       LanguageTools.Lsp.Completion.callAt("xs\n  |> Stdlib.List.map(")
       |> Stdlib.Test.equal(Option.Some(("Stdlib.List.map", 0, true)))
+
       LanguageTools.Lsp.Completion.callAt("g(h(1), [2, 3], ")
       |> Stdlib.Test.equal(Option.Some(("g", 2, false)))
-      LanguageTools.Lsp.Completion.callAt("let x = 1") |> Stdlib.Test.equal(Option.None) ])
+
+      LanguageTools.Lsp.Completion.callAt("let x = 1")
+      |> Stdlib.Test.equal(Option.None) ])
 
 
 test tokenEncoding =
   Stdlib.Test.all(
-    [ LanguageTools.Lsp.Tokens.pieces([ 5, 3, 4 ], LanguageTools.Parser.Range { start = LanguageTools.Parser.Point { row = 0, column = 2 }, end_ = LanguageTools.Parser.Point { row = 2, column = 1 } }, 4)
+    [ LanguageTools.Lsp.Tokens.pieces(
+        [ 5, 3, 4 ],
+        LanguageTools.Parser.Range
+          { start = LanguageTools.Parser.Point { row = 0, column = 2 }
+            end_ = LanguageTools.Parser.Point { row = 2, column = 1 } },
+        4)
       |> Stdlib.Test.equal([ (0, 2, 3, 4), (1, 0, 3, 4), (2, 0, 1, 4) ])
-      LanguageTools.Lsp.Tokens.encode([ (0, 0, 3, 0), (0, 4, 1, 8), (2, 2, 5, 1) ])
+
+      LanguageTools.Lsp.Tokens.encode(
+        [ (0, 0, 3, 0), (0, 4, 1, 8), (2, 2, 5, 1) ])
       |> Stdlib.AltJson.format
       |> Stdlib.Test.equal("{\"data\":[0,0,3,0,0,0,4,1,8,0,2,2,5,1,0]}") ])
 
 
 test scopeAtCursor =
-  let file = parse("let f(a: Int64): Int64 =\n  let b = a\n  let g = fun c -> c + b\n  g(b)\n")
+  let file =
+    parse(
+      "let f(a: Int64): Int64 =\n  let b = a\n  let g = fun c -> c + b\n  g(b)\n")
+
   Stdlib.Test.all(
-    [ LanguageTools.Lsp.Syntax.scopeAt(file, 2, 20) |> Stdlib.List.map(fun((n, _)) -> n) |> Stdlib.Test.equal([ "c", "b", "a" ])
-      LanguageTools.Lsp.Syntax.scopeAt(file, 3, 4) |> Stdlib.List.map(fun((n, _)) -> n) |> Stdlib.Test.equal([ "g", "b", "a" ])
-      LanguageTools.Lsp.Syntax.scopeAt(file, 1, 10) |> Stdlib.List.map(fun((n, _)) -> n) |> Stdlib.Test.equal([ "a" ]) ])
+    [ LanguageTools.Lsp.Syntax.scopeAt(file, 2, 20)
+      |> Stdlib.List.map(fun((n, _)) -> n)
+      |> Stdlib.Test.equal([ "c", "b", "a" ])
+
+      LanguageTools.Lsp.Syntax.scopeAt(file, 3, 4)
+      |> Stdlib.List.map(fun((n, _)) -> n)
+      |> Stdlib.Test.equal([ "g", "b", "a" ])
+
+      LanguageTools.Lsp.Syntax.scopeAt(file, 1, 10)
+      |> Stdlib.List.map(fun((n, _)) -> n)
+      |> Stdlib.Test.equal([ "a" ]) ])
 
 
 test bindingOrder =
-  let file = parse("let f(a: Int64): Int64 =\n  let b = Stdlib.List.map([ a ], fun c -> c)\n  match b with\n  | d -> (fun e -> e)(d)\n")
+  let file =
+    parse(
+      "let f(a: Int64): Int64 =\n  let b = Stdlib.List.map([ a ], fun c -> c)\n  match b with\n  | d -> (fun e -> e)(d)\n")
+
   LanguageTools.Lsp.Syntax.bodies(file)
-  |> Stdlib.List.map(fun body -> LanguageTools.Lsp.Syntax.bindsIn(LanguageTools.Lsp.Syntax.Node.E(body.body)))
+  |> Stdlib.List.map(fun body ->
+    LanguageTools.Lsp.Syntax.bindsIn(
+      LanguageTools.Lsp.Syntax.Node.E(body.body)))
   |> Stdlib.List.flatten
-  |> Stdlib.List.map(fun((name, _, hint)) -> (name, hint == LanguageTools.Lsp.Syntax.Hint.Shows))
+  |> Stdlib.List.map(fun((name, _, hint)) ->
+    (name, hint == LanguageTools.Lsp.Syntax.Hint.Shows))
   |> Stdlib.Test.equal([ ("c", true), ("b", true), ("d", false), ("e", true) ])

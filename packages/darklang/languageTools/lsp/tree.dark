@@ -6,7 +6,8 @@ type Json = Stdlib.AltJson.Json
 
 
 let entry(name: String, kind: String, uri: String): Json =
-  Json.Object([ ("name", Json.String(name)), ("kind", Json.String(kind)), ("uri", Json.String(uri)) ])
+  Json.Object(
+    [ ("name", Json.String(name)), ("kind", Json.String(kind)), ("uri", Json.String(uri)) ])
 
 
 /// What sits directly in the module at <param path> (owner first; empty for the owners):
@@ -37,7 +38,7 @@ let children(branchId: Uuid, path: List<String>): Json =
   let items(names: List<String>, kind: ProgramTypes.ItemKind): List<Json> =
     match path with
     | [] -> []
-    | [ owner, ...modules ] ->
+    | [owner, ...modules] ->
       names
       |> Stdlib.List.map(fun name ->
         let loc = ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }

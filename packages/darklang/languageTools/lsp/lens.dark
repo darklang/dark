@@ -21,8 +21,13 @@ type Live =
 val replayLimitMs = 1000
 
 
-let printContext(branchId: Uuid, loc: ProgramTypes.PackageLocation): PrettyPrinter.ProgramTypes.Context =
-  { PrettyPrinter.ProgramTypes.Context.forModule(branchId, Stdlib.List.prepend(loc.modules, loc.owner)) with
+let printContext(
+  branchId: Uuid,
+  loc: ProgramTypes.PackageLocation)
+  : PrettyPrinter.ProgramTypes.Context =
+  { PrettyPrinter.ProgramTypes.Context.forModule(
+      branchId,
+      Stdlib.List.prepend(loc.modules, loc.owner)) with
       width = PrettyPrinter.ProgramTypes.sourceWidth
       preferredLocation = Option.Some(loc) }
 
@@ -35,12 +40,20 @@ let newestRunId(branchId: Uuid, loc: ProgramTypes.PackageLocation): Option<Strin
 
 /// The function at <param loc> printed with the values <param run> gave each call, as
 /// `// = value` comments: what a trace document shows.
-let printedWithValues(branchId: Uuid, loc: ProgramTypes.PackageLocation, run: Tracing.Trace): Option<(String * String)> =
-  match PackageManager.Function.find(branchId, loc) |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h)) with
+let printedWithValues(
+  branchId: Uuid,
+  loc: ProgramTypes.PackageLocation,
+  run: Tracing.Trace)
+  : Option<(String * String)> =
+  match PackageManager.Function.find(branchId, loc)
+        |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h)) with
   | None -> Option.None
   | Some(fn) ->
     let values = Live.Values.replayWithin(replayLimitMs, 500, Option.None, branchId, run)
-    let rendered = Stdlib.Dict.map(values.byExpr, fun(_, dv) -> PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 40, dv))
+    let rendered =
+      Stdlib.Dict.map(values.byExpr, fun(_, dv) ->
+        PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 40, dv))
+
     let ctx = printContext(branchId, loc)
     let plain = PrettyPrinter.ProgramTypes.packageFn(ctx, fn)
     let annotated = PrettyPrinter.ProgramTypes.packageFn({ ctx with liveValues = rendered }, fn)
@@ -70,8 +83,12 @@ let live(branchId: Uuid, loc: ProgramTypes.PackageLocation, text: String): Optio
           Stdlib.List.zipShortest(Text.lines(plain), Text.lines(annotated))
           |> Stdlib.List.indexedMap(fun(i, (before, after)) ->
             if before != after && Stdlib.String.startsWith(after, before) then
-              let added = Stdlib.String.dropFirst(after, Stdlib.String.length(before)) |> Stdlib.String.trim
-              let label = Stdlib.String.stripPrefix(added, "// ") |> Stdlib.Option.withDefault(added)
+              let added =
+                Stdlib.String.dropFirst(after, Stdlib.String.length(before)) |> Stdlib.String.trim
+
+              let label =
+                Stdlib.String.stripPrefix(added, "// ") |> Stdlib.Option.withDefault(added)
+
               [ (i, Text.width(before), label) ]
             else
               [])
@@ -85,17 +102,21 @@ let live(branchId: Uuid, loc: ProgramTypes.PackageLocation, text: String): Optio
         let noteHint =
           match note, Text.lines(plain) with
           | "", _ -> []
-          | _, [ first, ..._ ] -> [ (0, Text.width(first), note) ]
+          | _, [first, ...] -> [ (0, Text.width(first), note) ]
           | _, [] -> []
 
-        Option.Some(Live { runId = run.id, hints = Stdlib.List.concat(hints, noteHint), note = note })
+        Option.Some(
+          Live { runId = run.id, hints = Stdlib.List.concat(hints, noteHint), note = note })
 
 
 let inlayHints(live: Live): Json =
   live.hints
   |> Stdlib.List.map(fun((line, column, label)) ->
     Json.Object(
-      [ ("position", Json.Object([ ("line", Json.Integer(line)), ("character", Json.Integer(column)) ]))
+      [ (
+          "position",
+          Json.Object([ ("line", Json.Integer(line)), ("character", Json.Integer(column)) ]))
+
         // The editor's own padding is narrow; a space keeps `* 2` and `= 40` apart.
         ("label", Json.String(" " + label))
         ("paddingLeft", Json.Bool(true)) ]))
@@ -120,11 +141,24 @@ let timing(branchId: Uuid, loc: ProgramTypes.PackageLocation): Option<String> =
   let runs = Tracing.Store.timeInNamed(branchId, Live.entryName(loc), 40)
   match runs with
   | [] -> Option.None
-  | [ last, ..._ ] ->
-    let sorted = runs |> Stdlib.List.sortBy(fun r -> r.totalUs) |> Stdlib.List.map(fun r -> r.totalUs)
-    let median = Stdlib.List.getAt(sorted, Stdlib.List.length(sorted) / 2) |> Stdlib.Option.withDefault(0)
+  | [last, ...] ->
+    let sorted =
+      runs
+      |> Stdlib.List.sortBy(fun r -> r.totalUs)
+      |> Stdlib.List.map(fun r -> r.totalUs)
+
+    let median =
+      Stdlib.List.getAt(sorted, Stdlib.List.length(sorted) / 2) |> Stdlib.Option.withDefault(0)
+
     let count = Stdlib.List.length(runs)
-    let countText = if count == 40 then "40+ runs" else if count == 1 then "1 run" else Stdlib.display(count) + " runs"
+    let countText =
+      if count == 40 then
+        "40+ runs"
+      else if count == 1 then
+        "1 run"
+      else
+        Stdlib.display(count) + " runs"
+
     Option.Some($"{countText} · last {microsText(last.totalUs)} · median {microsText(median)}")
 
 
@@ -147,9 +181,12 @@ let lens(title: String, command: String, arguments: List<Json>): Json =
   let zero = Json.Object([ ("line", Json.Integer(0)), ("character", Json.Integer(0)) ])
   Json.Object(
     [ ("range", Json.Object([ ("start", zero), ("end", zero) ]))
-      ("command",
-       Json.Object(
-         [ ("title", Json.String(title)), ("command", Json.String(command)), ("arguments", Json.Array(arguments)) ])) ])
+      (
+        "command",
+        Json.Object(
+          [ ("title", Json.String(title))
+            ("command", Json.String(command))
+            ("arguments", Json.Array(arguments)) ])) ])
 
 
 /// The tests that call the function, by name.
@@ -165,7 +202,8 @@ let tests(branchId: Uuid, loc: ProgramTypes.PackageLocation): List<String> =
 /// The code lenses over the function at <param loc>: run it (when it takes no arguments), its
 /// recorded runs and their timing, its effects, and its tests.
 let codeLenses(branchId: Uuid, uri: String, loc: ProgramTypes.PackageLocation): Json =
-  match PackageManager.Function.find(branchId, loc) |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h)) with
+  match PackageManager.Function.find(branchId, loc)
+        |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h)) with
   | None -> Json.Array([])
   | Some(fn) ->
     let name = Live.entryName(loc)
@@ -212,7 +250,11 @@ let runs(branchId: Uuid, loc: ProgramTypes.PackageLocation): Json =
 
 
 /// The document a trace opens as: the function with each call's value from that run beside it.
-let traceDocument(branchId: Uuid, loc: ProgramTypes.PackageLocation, traceId: String): Option<String> =
+let traceDocument(
+  branchId: Uuid,
+  loc: ProgramTypes.PackageLocation,
+  traceId: String)
+  : Option<String> =
   Tracing.Store.get(traceId)
   |> Stdlib.Option.andThen(fun run -> printedWithValues(branchId, loc, run))
   |> Stdlib.Option.map(fun((_, annotated)) -> annotated)
