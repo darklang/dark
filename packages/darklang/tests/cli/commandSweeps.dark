@@ -470,6 +470,7 @@ let knownGood(
     ("traces", [ "inspect", run ])
     ("conflicts", [ "list" ])
     ("backups", [ "list" ])
+    ("alias", [ "ls" ])
     ("permissions", [ "show", fnName ])
     ("effects", [ fnName ])
     ("typecheck", [ "Darklang.Stdlib.Bool" ])
