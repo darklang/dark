@@ -18,8 +18,12 @@ set script [lindex $argv 1]
 catch {unset env(CI)}
 catch {unset env(DARK_NO_INPUT)}
 spawn -noecho $cli run $script
+# .NET switches the terminal to keypad mode (ESC[?1h ESC=) the first time it sets the console up,
+# and that can land between two of the prompt's lines, so any escape may appear where colour can.
+set esc {(?:\x1b(?:\[[0-9;?]*[A-Za-z]|[=>]))*}
+set remember [string map [list ESC $esc] {\r?\nESC +ESC([0-9]+)ESC\. Remember for this code version}]
 expect {
-  -re {\r?\n +(?:\x1b\[[0-9;]*m)*([0-9]+)(?:\x1b\[[0-9;]*m)*\. Remember for this code version} {
+  -re $remember {
     set choice $expect_out(1,string)
   }
   timeout { fail "no remember-for-this-version option" }
