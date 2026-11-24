@@ -61,7 +61,6 @@ let createValueInline(
             location,
             LanguageTools.ProgramTypes.ItemKind.Value,
             "value",
-            $"val {location.name} = {expression}",
             0,
             fun ctx ->
               let (packageValue, unresolvedNames) =

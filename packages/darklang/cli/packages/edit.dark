@@ -197,16 +197,8 @@ let applyPatch(
           View.rawSource(state.currentBranchId, location)
           |> Stdlib.Result.withDefault(currentSource)
 
-        // the save already printed it if it stored a reformatted version
-        if
-          savedSource != currentSource
-          && Stdlib.Bool.not(holdsAsWritten(updatedSource, savedSource))
-        then
-          Stdlib.printErrorLine("The edit reported errors. The stored declaration is above.")
-        else
-          Stdlib.printErrorLine("The edit reported errors. The current declaration is on stdout:")
-          Stdlib.printLine(savedSource)
-
+        Stdlib.printErrorLine("The edit reported errors. The current declaration is on stdout:")
+        Stdlib.printLine(savedSource)
         updatedState
       else
         updatedState

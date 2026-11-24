@@ -396,7 +396,6 @@ let addTest(
               location,
               LanguageTools.ProgramTypes.ItemKind.Test,
               "test",
-              fullSource,
               0,
               fun ctx ->
                 let (packageTest, unresolvedNames) =
