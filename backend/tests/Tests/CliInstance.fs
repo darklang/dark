@@ -99,6 +99,8 @@ let private childEnv
   psi.Environment["HOME"] <- homeOf dir
   psi.Environment["USERPROFILE"] <- homeOf dir
   psi.Environment["DARK_CONFIG_TELEMETRY_EXPORTER"] <- "none"
+  // tests read what a person sees; a pipe would otherwise get plain output
+  psi.Environment["DARK_OUTPUT"] <- "pretty"
 
 /// Run one command in `dir` and wait, discarding what it said. For preparing the template;
 /// tests use `runRaw`.

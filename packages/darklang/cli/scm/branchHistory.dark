@@ -121,90 +121,81 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
   // not what `diff` asks for.
   | [] ->
     let r = Commit.review(state)
-    if ScmJson.wantsJson(args) then
-      let printed =
-        printJson(
-          ScmJson.draftDiffJson(
-            ScmJson.DraftDiffJson
-              { draftOps = (SCM.Draft.counts()).ops, changed = r.items, removed = r.removed }))
+    let pretty =
+      fun () ->
+        if Stdlib.List.isEmpty(r.changed) then
+          // Ops that bind no name (a deprecation, a restore, an ack) have nothing to show in a per-name
+          // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
+          let ops = (SCM.Draft.counts()).ops
+          if ops == 0 then
+            printOk("clean: nothing changed since your last commit.")
+          else
+            printOk(
+              $"""{Text.plural(ops, "op")} to commit, no changed names (no new version: restores, deprecations, docs, acks)""")
 
-      exitWith(state, printed)
-    else if Stdlib.List.isEmpty(r.changed) then
-      // Ops that bind no name (a deprecation, a restore, an ack) have nothing to show in a per-name
-      // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
-      let ops = (SCM.Draft.counts()).ops
-      if ops == 0 then
-        printOk("clean: nothing changed since your last commit.")
-      else
-        printOk(
-          $"""{Text.plural(ops, "op")} to commit, no changed names (no new version: restores, deprecations, docs, acks)""")
+          printHint("  `dark diff <branch>` compares a branch with its parent.")
+          state
+        else
+          let nameWidth = Commit.widest(r.items |> Stdlib.List.map(fun i -> i.name))
+          printOk($"  CHANGED ({Stdlib.display(Stdlib.List.length(r.changed))})")
+          r.items |> Stdlib.List.iter(fun item -> Stdlib.printLine(Commit.changedLine(nameWidth, item)))
+          printHint("  `dark commit` reviews and commits it; `dark diff <branch>` compares a branch.")
+          state
 
-      printHint("  `dark diff <branch>` compares a branch with its parent.")
-      state
-    else
-      let nameWidth = Commit.widest(r.items |> Stdlib.List.map(fun i -> i.name))
-      printOk($"  CHANGED ({Stdlib.display(Stdlib.List.length(r.changed))})")
-      r.items |> Stdlib.List.iter(fun item -> Stdlib.printLine(Commit.changedLine(nameWidth, item)))
-      printHint("  `dark commit` reviews and commits it; `dark diff <branch>` compares a branch.")
-      state
+    Output.answer(
+      state,
+      pretty,
+      fun () ->
+        ScmJson.DraftDiffJson
+          { draftOps = (SCM.Draft.counts()).ops, changed = r.items, removed = r.removed })
   | [id] ->
-    if ScmJson.wantsJson(args) then
-      match resolveRef(id) with
-      | None -> failed(state)
-      | Some(branchId) ->
-        exitWith(
-          state,
-          printJson(ScmJson.branchDiffJson(SCM.PackageOps.branchDiffEntries(branchId))))
-    else
-      executeDiff(state, id, Source.showIf(Stdlib.List.contains(args, "--source")))
+    match resolveRef(id) with
+    | None -> failed(state)
+    | Some(branchId) ->
+      Output.answer(
+        state,
+        fun () -> executeDiff(state, id, Source.showIf(Stdlib.List.contains(args, "--source"))),
+        fun () -> SCM.PackageOps.branchDiffEntries(branchId))
   | _ ->
     printErr("usage: dark diff <branch> [--source] [--json]")
     printHint("  `dark branches` lists them.")
     failed(state)
 
 
-/// The branch's ops as JSON, oldest first -- the same sequence the human view prints.
-/// False when the branch is not found, so `log --json` exits 1 rather than reading as an empty log.
-let branchOpsAsJson(branchRef: String): Bool =
-  match resolveRef(branchRef) with
-  | None -> false
-  | Some(branchId) ->
-    let rendered =
-      SCM.PackageOps.branchOps(branchId)
-      |> Stdlib.List.indexedMap(fun(i, op) ->
-        ScmJson.BranchOpJson
-          { seq = i, op = PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op) })
+/// The branch's ops, oldest first: the same sequence the human view prints.
+let branchOps(branchId: Uuid): List<ScmJson.BranchOpJson> =
+  SCM.PackageOps.branchOps(branchId)
+  |> Stdlib.List.indexedMap(fun(i, op) ->
+    ScmJson.BranchOpJson
+      { seq = i, op = PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op) })
 
-    printJson(ScmJson.branchOpsJson(rendered))
+
+/// `log` on the branch <param branchRef>; a branch not found exits 1 rather than reading as an
+/// empty log.
+let logOf(state: AppState, branchRef: String): AppState =
+  match resolveRef(branchRef) with
+  | None -> failed(state)
+  | Some(branchId) ->
+    Output.answer(state, fun () -> executeLog(state, branchRef), fun () -> branchOps(branchId))
 
 
 /// `dark log [<id>]` -- history, meaning whichever history you're standing in. On a BRANCH that's the
 /// branch's own ops, oldest first; on MAIN there is no delta, so it's the commits.
 let executeLogCmd(state: AppState, args: List<String>): AppState =
-  let wantsJson = ScmJson.wantsJson(args)
   let refs = args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
   match refs with
-  | [id] ->
-    if wantsJson then
-      exitWith(state, branchOpsAsJson(id))
-    else
-      executeLog(state, id)
+  | [id] -> logOf(state, id)
   | [] ->
     match SCM.PackageOps.currentBranch() with
+    // On main `log` IS the commit history, so it answers with exactly what `commits` answers.
     | id when SCM.Branch.isMain(id) ->
-      if wantsJson then
-        // On main `log` IS the commit history, so it answers with exactly what `commits --json` answers.
-        exitWith(state, printJson(ScmJson.commitsJson(Commits.commitRows(20))))
-      else
-        Commits.executeList(state, 20, Commits.Housekeeping.Hide)
+      Output.answer(
+        state,
+        fun () -> Commits.executeList(state, 20, Commits.Housekeeping.Hide),
+        fun () -> Commits.commitRows(20))
     // By NAME, because `executeLog` echoes back whatever it was handed and everything else the CLI
     // prints about a branch is its name. `resolveRef` turns it straight back into this id.
-    | id ->
-      let branchRef = SCM.PackageOps.branchName(id)
-      if wantsJson then
-        exitWith(state, branchOpsAsJson(branchRef))
-      else
-        executeLog(state, branchRef)
+    | id -> logOf(state, SCM.PackageOps.branchName(id))
   | _ ->
     printErr("usage: dark log [<branch>] [--json]")
     failed(state)

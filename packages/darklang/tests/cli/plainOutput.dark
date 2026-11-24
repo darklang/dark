@@ -1,0 +1,143 @@
+/// Read by a program, a command prints one record per line with no decoration: `--plain`, or a
+/// stdout that isn't a terminal. `--json` prints the same answer as JSON.
+module Darklang.Cli.Tests.PlainOutput
+
+let authored(i: Instance.T): Unit =
+  let _ = Instance.ran(i, [ "type", "Tests.Plain.T", "= { x: Int64 }" ])
+  let _ = Instance.ran(i, [ "val", "Tests.Plain.v", "= 42" ])
+  let _ = Instance.ran(i, [ "fn", "Tests.Plain.f", "(x: Int64): Int64 = x" ])
+  let _ = Instance.ran(i, [ "fn", "Tests.Plain.Inner.g", "(x: Int64): Int64 = Tests.Plain.f(x)" ])
+  let _ = Instance.ran(i, [ "commit", "plain", "-y" ])
+  let _ = Instance.ran(i, [ "branch", "create", "feature" ])
+  let _ = Instance.ran(i, [ "fn", "Tests.Plain.f", "(x: Int64): Int64 = x + 1" ])
+  let _ = Instance.ran(i, [ "switch", "main" ])
+  ()
+
+
+/// What a program sees when it runs `args` with no flag: stdout is a pipe.
+let piped(i: Instance.T, args: List<String>): (Int64 * String * String) =
+  let out = Instance.call(i, { Instance.command(args) with env = [ ("DARK_OUTPUT", "") ] })
+  (out.exitCode, Stdlib.String.trim(out.stdout), Stdlib.String.trim(out.stderr))
+
+
+/// Both streams of `args` run at a terminal, which ends its lines with `\r\n`.
+let atTerminal(i: Instance.T, args: List<String>): (Int64 * String) =
+  let out =
+    Instance.call(
+      i,
+      { Instance.command(args) with
+          env = [ ("DARK_OUTPUT", ""), ("NO_COLOR", ""), ("CLICOLOR_FORCE", "") ]
+          tty = true })
+
+  (out.exitCode, Stdlib.String.replaceAll(out.stdout, "\r\n", "\n"))
+
+
+/// One run of every command that answers through `Output`.
+val answering: List<List<String>> =
+  [ [ "ls", "Tests.Plain" ]
+    [ "tree", "Tests.Plain" ]
+    [ "status" ]
+    [ "commits" ]
+    [ "branches" ]
+    [ "diff" ]
+    [ "diff", "feature" ]
+    [ "log" ]
+    [ "log", "feature" ]
+    [ "conflicts" ]
+    [ "conflicts", "branch", "feature" ]
+    [ "deps", "Tests.Plain.f" ]
+    [ "deps", "usedby", "Tests.Plain.f", "--deep" ] ]
+
+
+val decoration: List<String> =
+  [ "\u001b"
+    Cli.Glyphs.module_
+    Cli.Glyphs.fn
+    Cli.Glyphs.trait_
+    Cli.Glyphs.impl_
+    Cli.Glyphs.test
+    "├"
+    "└"
+    "⚠" ]
+
+
+test everyAnswerInThreeModes = Instance.withInstance(fun i ->
+  let _ = authored(i)
+  let commands = Cli.Registry.allCommands()
+  answering
+  |> Stdlib.List.map(fun args ->
+    let line = Stdlib.String.join(args, " ")
+    let name = Stdlib.List.head(args) |> Stdlib.Option.withDefault("")
+    let takesJson =
+      commands
+      |> Stdlib.List.any(fun cmd ->
+        let accepts = cmd.accepts
+        cmd.name == name && Stdlib.List.contains(CommandHelp.Help.flagsOf(accepts()), "--json"))
+
+    let (prettyCode, _) = atTerminal(i, args)
+    let (plainCode, plain) = atTerminal(i, Stdlib.List.append(args, "--plain"))
+    let (pipedCode, pipedOut, _) = piped(i, args)
+    let (jsonCode, json, _) = Instance.streams(i, Stdlib.List.append(args, "--json"))
+    let parsed =
+      match Stdlib.Json.parse<Stdlib.AltJson.Json>(json) with
+      | Ok(_) -> Stdlib.Test.Result.Pass
+      | Error(_) -> Stdlib.Test.fail($"{line} --json: not JSON: {json}")
+
+    Stdlib.Test.all(
+      Stdlib.List.flatten(
+        [ [ takesJson |> Stdlib.Test.equal(true)
+            Instance.exitedWith(prettyCode, 0, $"{line} at a terminal")
+            Instance.exitedWith(plainCode, 0, $"{line} --plain")
+            Instance.exitedWith(pipedCode, 0, $"{line} piped")
+            Instance.exitedWith(jsonCode, 0, $"{line} --json")
+            parsed
+            Stdlib.String.trim(plain) |> Stdlib.Test.equal(pipedOut) ]
+          decoration
+          |> Stdlib.List.map(fun d -> Instance.doesNotSay(plain, d, $"{line} --plain")) ])))
+  |> Stdlib.Test.all)
+
+
+test lsAndTreePrintRows = Instance.withInstance(fun i ->
+  let _ = authored(i)
+  let (_, ls, _) = piped(i, [ "ls", "Tests.Plain" ])
+  let (_, tree, _) = piped(i, [ "tree", "Tests.Plain" ])
+  Stdlib.Test.all(
+    [ ls
+      |> Stdlib.Test.equal(
+        Stdlib.String.join(
+          [ "module\tTests.Plain.Inner"
+            "type\tTests.Plain.T"
+            "fn\tTests.Plain.f"
+            "val\tTests.Plain.v" ],
+          "\n"))
+      tree
+      |> Stdlib.Test.equal(
+        Stdlib.String.join(
+          [ "module\tTests.Plain.Inner"
+            "fn\tTests.Plain.Inner.g"
+            "type\tTests.Plain.T"
+            "val\tTests.Plain.v"
+            "fn\tTests.Plain.f" ],
+          "\n")) ]))
+
+
+test statusPrintsItsFields = Instance.withInstance(fun i ->
+  let (code, out, err) = piped(i, [ "status" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "status")
+      out |> Stdlib.Test.equal("branch\tmain\ndraftOps\t0\nconstraints\t0")
+      err |> Stdlib.Test.equal("") ]))
+
+
+test theFlagsGoAnywhere = Instance.withInstance(fun i ->
+  let (_, after, _) = Instance.streams(i, [ "status", "--plain" ])
+  let (_, before, _) = Instance.streams(i, [ "--plain", "status" ])
+  let pretty =
+    Instance.call(
+      i,
+      { Instance.command([ "--pretty", "status" ]) with env = [ ("DARK_OUTPUT", "plain") ] })
+
+  Stdlib.Test.all(
+    [ Instance.says(after, "branch\tmain", "--plain after the command")
+      before |> Stdlib.Test.equal(after)
+      Instance.says(pretty.stdout, "On branch main", "--pretty over DARK_OUTPUT=plain") ]))

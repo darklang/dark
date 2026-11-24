@@ -26,6 +26,11 @@ use; it was a fifth name for `item`.
 ## Global flags
   --branch <name>   run ONE command on a branch, without switching to it
   --json            on any command that answers a question
+  --plain           one record per line, fields split by tabs
+  --pretty          headers, glyphs and colour, for a person
+
+Output is pretty at a terminal and plain anywhere else: a pipe, a file, a script,
+an agent. `DARK_OUTPUT=plain` or `DARK_OUTPUT=pretty` picks one for every command.
 
 Branch context DOES persist: `dark switch <name>` moves you and the next `dark`
 starts there. `--branch` is for a one-off.

@@ -194,17 +194,14 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
     ([ "nav" ], 1, Stream.Silent, Stream.Says("Interactive terminal UI unavailable"))
     ([ "search" ], 1, Stream.Silent, Stream.Says("Interactive terminal UI unavailable"))
     ([ "builtins", "zzzqqq" ], 0, Stream.Silent, Stream.Says("Showing 0 functions"))
-    ([ "ls", "Darklang.Stdlib.Bool" ],
-     0,
-     Stream.Says("fn      Darklang.Stdlib.Bool.and"),
-     Stream.Silent)
+    ([ "ls", "Darklang.Stdlib.Bool" ], 0, Stream.Says("Contents of"), Stream.Silent)
     ([ "nav", "Darklang.Stdlib.Bool" ],
      0,
      Stream.Says("Changed to"),
      Stream.Says("only for this command"))
     ([ "tree", "Darklang.Stdlib", "--depth", "1" ],
      0,
-     Stream.Says("module  Darklang.Stdlib.List"),
+     Stream.Says("Package tree"),
      Stream.Silent)
     ([ "search", "Stdlib.List.map" ],
      0,

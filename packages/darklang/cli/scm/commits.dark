@@ -125,14 +125,13 @@ let commitRows(limit: Int64): List<ScmJson.CommitRowJson> =
 
 
 let execute(state: AppState, args: List<String>): AppState =
-  let wantsJson = ScmJson.wantsJson(args)
-  let args = ScmJson.stripJson(args)
+  let args = args |> Stdlib.List.filter(fun a -> a != "--json")
   let detailed = Stdlib.List.contains(args, "--detailed")
   let housekeeping = Housekeeping.showIf(Stdlib.List.contains(args, "--all"))
   let args = args |> Stdlib.List.filter(fun a -> a != "--detailed" && a != "--all")
 
-  // Parsed ONCE, before the shapes split, so `--json` and `--detailed` refuse a junk argument the same
-  // way the pretty path does rather than defaulting it to 20 and answering as though nothing was asked.
+  // Parsed ONCE, before the shapes split, so every shape refuses a junk argument the same way
+  // rather than defaulting it to 20 and answering as though nothing was asked.
   let limit =
     match args with
     | [n] -> Stdlib.Int64.parse(n) |> Stdlib.Result.toOption
@@ -151,20 +150,14 @@ let execute(state: AppState, args: List<String>): AppState =
     failed(state)
   | _, _ ->
     let limit = limit |> Stdlib.Option.withDefault(20)
-    if wantsJson then
-      exitWith(state, printJson(ScmJson.commitsJson(commitRows(limit))))
-    else if detailed then
-      executeDetailed(state, limit, housekeeping)
-    else
-      match args with
-      // `limit` above already parsed the count and refused anything that isn't one, so both shapes here are
-      // the same call.
-      | [] -> executeList(state, limit, housekeeping)
-      | [_n] -> executeList(state, limit, housekeeping)
-      | _ ->
-        printErr("`dark commits` takes at most a count.")
-        Stdlib.printErrorLine(help(state))
-        failed(state)
+    let pretty =
+      fun () ->
+        if detailed then
+          executeDetailed(state, limit, housekeeping)
+        else
+          executeList(state, limit, housekeeping)
+
+    Output.answer(state, pretty, fun () -> commitRows(limit))
 
 
 /// Print a commit: its metadata, then the ops it committed.

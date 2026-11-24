@@ -56,7 +56,7 @@ module Registry =
 
 
   let acceptsLs(): Accepts.Accepts =
-    Accepts.upTo(1, [ "--include-deprecated", "--include-internal", "--versions" ])
+    Accepts.upTo(1, [ "--include-deprecated", "--include-internal", "--versions", "--json" ])
 
 
   let acceptsBack(): Accepts.Accepts = Accepts.nothing()
@@ -77,7 +77,7 @@ module Registry =
   let acceptsTree(): Accepts.Accepts =
     Accepts.withValues(
       [ "--depth" ],
-      Accepts.upTo(1, [ "--toc", "--include-deprecated", "--include-internal" ]))
+      Accepts.upTo(1, [ "--toc", "--include-deprecated", "--include-internal", "--json" ]))
 
 
   let acceptsSearch(): Accepts.Accepts =
@@ -551,6 +551,20 @@ module Registry =
     if asksForHelp && known then
       executeCommandHelp(name, state)
     else
+      let state = { state with output = Output.modeOf(options) }
+
+      // `--plain` and `--pretty` go with every command, so none of them declares them.
+      let (options, args) =
+        if handler.name == "run-script" then
+          (options, args)
+        else
+          let rest = Stdlib.List.drop(args, Stdlib.List.length(options))
+          let kept =
+            options
+            |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.List.contains(Output.flags, a)))
+
+          (kept, Stdlib.List.concat(kept, rest))
+
       // What the command takes is declared beside it (`accepts`), and checked here, once, before it
       // runs: a flag it does not have, a word past the last it takes, or nothing where it needs
       // something. A refusal exits 1 and the command never sees the arguments. The usage is not
@@ -748,6 +762,8 @@ module Registry =
       [ "Global flags:"
         "  --branch <name>       run on that branch, this time only"
         "  --no-input            never prompt (same as DARK_NO_INPUT=1)"
+        "  --plain               one record per line, as when piped"
+        "  --pretty              for a person, even when piped"
         "  --trace, --no-trace   record a trace of this run, or don't"
         "  -h, --help            help for dark or any command"
         "  -v, --version         print the version" ]

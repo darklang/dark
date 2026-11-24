@@ -83,6 +83,8 @@ Always give a value:
 - An HTTP request runs in the background until its result is used. To time one, wrap it in
   `Stdlib.await(...)` before reading the clock again, or the time comes out near zero.
 
+Output read by a program (your shell, a pipe) is plain: one record per line, fields split by tabs.
+
 Logs in ~/.darklang/logs/: cli.log (errors that ended a command), host-audit.jsonl
 (every file, network, env and process access), telemetry.jsonl (DARK_TELEMETRY=1).
 

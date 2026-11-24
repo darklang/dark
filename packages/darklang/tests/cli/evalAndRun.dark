@@ -587,7 +587,7 @@ test lsViewAndHelpAnswer = Instance.withInstance(fun i ->
   let helpRun = Instance.said(i, [ "help", "run" ])
   let helpLs = Instance.said(i, [ "help", "ls" ])
   Stdlib.Test.all(
-    [ Instance.says(lsList, "fn      Stdlib.List.map", "ls: a fn row")
+    [ Instance.says(lsList, "Functions", "ls: the section")
 
       Instance.says(lsList, "head", "ls: a fn")
 
@@ -597,7 +597,7 @@ test lsViewAndHelpAnswer = Instance.withInstance(fun i ->
 
       Instance.says(view, "->", "view: the signature's arrow")
 
-      Instance.says(lsOption, "type    Stdlib.Option.Option", "ls: a type row")
+      Instance.says(lsOption, "Types", "ls: the types section")
 
       Instance.says(lsOption, "Option", "ls: the Option type")
 

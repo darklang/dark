@@ -870,7 +870,7 @@ let aRefusedImplementationOrBoundSavesNothing =
           lacks
             state
             [ "ls"; "Tests.RfzBad.Int64" ]
-            "impl "
+            "implementation of trait"
             "and none of the three was written"
 
         do!

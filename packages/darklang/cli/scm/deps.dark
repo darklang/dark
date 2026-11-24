@@ -323,51 +323,72 @@ let edgeJson(
       behind = isBehind(loc, targetHash) }
 
 
-/// `dark deps <path> --json`: what it uses and what uses it, in one object.
-///
-/// Both directions at once, plus which references are already behind -- what "what breaks if I change
-/// this" actually needs.
-let executeJson(
-  state: AppState,
+/// Which way `deps` looks.
+type Direction =
+  | Uses
+  | UsedBy
+  | Both
+
+
+/// What `deps` answers for a program: what <param entityName> uses, what uses it, or both, as
+/// <param direction> asks. Under <param deep>, every dependent, not only the direct ones.
+let answerOf(
+  branchId: Uuid,
   sourceHash: LanguageTools.ProgramTypes.Hash,
   loc: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind,
-  entityName: String)
-  : AppState =
-  match SCM.Deps.dependencyEdges(
-          state.currentBranchId,
-          loc,
-          LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
-  | Error(e) ->
-    printErr($"Couldn't read the dependencies of {entityName}: {e}")
-    failed(state)
-  | Ok(edges) ->
-    match SCM.Deps.dependents(SCM.PackageOps.currentBranch(), [ (loc, kind) ]) with
-    | Error(e) ->
-      printErr($"Couldn't read the dependents of {entityName}: {e}")
-      failed(state)
-    | Ok(found) ->
-      let dependencies = edges |> Stdlib.List.map(edgeJson)
+  entityName: String,
+  direction: Direction,
+  deep: Bool)
+  : Result<ScmJson.DepsJson, String> =
+  let dependencies =
+    if direction == Direction.UsedBy then
+      Result.Ok([])
+    else
+      SCM.Deps.dependencyEdges(
+        branchId,
+        loc,
+        LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind))
+      |> Stdlib.Result.map(fun edges -> edges |> Stdlib.List.map(edgeJson))
+      |> Stdlib.Result.mapError(fun e -> $"Couldn't read the dependencies of {entityName}: {e}")
 
-      let dependents =
+  let dependents =
+    if direction == Direction.Uses then
+      Result.Ok([])
+    else if deep then
+      getTransitiveDependents(branchId, loc, kind)
+      |> Stdlib.Result.map(fun items ->
+        items
+        |> Stdlib.List.map(fun((dLoc, dKind)) ->
+          ScmJson.DependencyJson
+            { name = fqnOf(dLoc)
+              kind = LanguageTools.ProgramTypes.ItemKind.toString(dKind)
+              hash =
+                SCM.Propagation.currentHash(dLoc)
+                |> Stdlib.Option.map(LanguageTools.ProgramTypes.hashToString)
+                |> Stdlib.Option.withDefault("")
+              behind = false }))
+      |> Stdlib.Result.mapError(fun e -> $"Couldn't read the dependents of {entityName}: {e}")
+    else
+      SCM.Deps.dependents(SCM.PackageOps.currentBranch(), [ (loc, kind) ])
+      |> Stdlib.Result.map(fun found ->
         found
         |> Stdlib.List.map(fun d ->
           let (h, dLoc, dKind) = d
-          edgeJson((h, dKind, dLoc)))
+          edgeJson((h, dKind, dLoc))))
+      |> Stdlib.Result.mapError(fun e -> $"Couldn't read the dependents of {entityName}: {e}")
 
-      let printed =
-        printJson(
-          ScmJson.depsJson(
-            ScmJson.DepsJson
-              { item = entityName, dependencies = dependencies, dependents = dependents }))
-
-      exitWith(state, printed)
+  match dependencies, dependents with
+  | Error(e), _ -> Result.Error(e)
+  | _, Error(e) -> Result.Error(e)
+  | Ok(uses), Ok(usedBy) ->
+    Result.Ok(
+      ScmJson.DepsJson { item = entityName, dependencies = uses, dependents = usedBy })
 
 
 let execute(state: AppState, args: List<String>): AppState =
   // Flags: --deep (transitive), --all (don't cap the listing), --json
-  let wantsJson = ScmJson.wantsJson(args)
-  let args = ScmJson.stripJson(args)
+  let args = args |> Stdlib.List.filter(fun a -> a != "--json")
   let deep = Stdlib.List.contains(args, "--deep")
   let all = Stdlib.List.contains(args, Listing.allFlag)
   let cap = Listing.shouldCap(all)
@@ -375,6 +396,27 @@ let execute(state: AppState, args: List<String>): AppState =
     args |> Stdlib.List.filter(fun arg -> arg != "--deep" && arg != Listing.allFlag)
 
   let branchId = state.currentBranchId
+
+  // The answer for a program is read here, before anything is printed, so a store that can't be
+  // read leaves stdout empty and exits 1.
+  let answer(
+    pretty: Unit -> Bool,
+    resolved:
+      (LanguageTools.ProgramTypes.Hash *
+       LanguageTools.ProgramTypes.PackageLocation *
+       String *
+       LanguageTools.ProgramTypes.ItemKind),
+    direction: Direction)
+    : AppState =
+    let (hash, loc, name, entityType) = resolved
+    if state.output == Output.Mode.Pretty then
+      exitWith(state, pretty())
+    else
+      match answerOf(branchId, hash, loc, entityType, name, direction, deep) with
+      | Error(e) ->
+        printErr(e)
+        failed(state)
+      | Ok(found) -> Output.answer(state, fun () -> state, fun () -> found)
 
   // Any OTHER `--flag` is a mistake, not a path. Unrefused it reaches the lookup as though it were a
   // package name and answers "Not found", which reads as "no such package" about a flag.
@@ -407,12 +449,10 @@ let execute(state: AppState, args: List<String>): AppState =
         failed(state)
       | Ok(result) ->
         let (hash, loc, name, entityType) = result
-
-        // Honoured on EVERY arm, not just the bare one: an agent that asked for JSON must not get a table.
-        if wantsJson then
-          executeJson(state, hash, loc, entityType, name)
-        else
-          exitWith(state, showDependencies(branchId, loc, entityType, hash, name, cap))
+        answer(
+          fun () -> showDependencies(branchId, loc, entityType, hash, name, cap),
+          result,
+          Direction.Uses)
     | ["usedby", pathArg] ->
       match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
       | Error(errMsg) ->
@@ -420,19 +460,15 @@ let execute(state: AppState, args: List<String>): AppState =
         printErr($"Cannot show deps for {pathArg}: {errMsg}")
         failed(state)
       | Ok(result) ->
-        let (hash, loc, name, entityType) = result
-
-        // Same as the `uses` arm.
-        if wantsJson then
-          executeJson(state, hash, loc, entityType, name)
-        else
-          let ok =
+        let (_hash, loc, name, entityType) = result
+        let pretty =
+          fun () ->
             if deep then
               showTransitiveDependents(branchId, loc, entityType, name, cap)
             else
               showDependents(loc, entityType, name, cap)
 
-          exitWith(state, ok)
+        answer(pretty, result, Direction.UsedBy)
     | [pathArg] ->
       // Default to showing both uses and usedby
       match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
@@ -442,18 +478,19 @@ let execute(state: AppState, args: List<String>): AppState =
         failed(state)
       | Ok(result) ->
         let (hash, loc, name, entityType) = result
-        if wantsJson then
-          executeJson(state, hash, loc, entityType, name)
-        else
-          let usesOk = showDependencies(branchId, loc, entityType, hash, name, cap)
-          Stdlib.printErrorLine("")
-          let usedByOk =
-            if deep then
-              showTransitiveDependents(branchId, loc, entityType, name, cap)
-            else
-              showDependents(loc, entityType, name, cap)
+        let pretty =
+          fun () ->
+            let usesOk = showDependencies(branchId, loc, entityType, hash, name, cap)
+            Stdlib.printErrorLine("")
+            let usedByOk =
+              if deep then
+                showTransitiveDependents(branchId, loc, entityType, name, cap)
+              else
+                showDependents(loc, entityType, name, cap)
 
-          exitWith(state, usesOk && usedByOk)
+            usesOk && usedByOk
+
+        answer(pretty, result, Direction.Both)
     | _ ->
       Stdlib.printErrorLine(help(state))
       failed(state)

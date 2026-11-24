@@ -42,8 +42,8 @@ test treeRefusesWhatItCannotShow = Instance.withInstance(fun i ->
   let withDepth =
     Instance.output(i, [ "tree", "Darklang.Stdlib.Option", "--depth=1" ])
 
-  // A row the render prints. Seeing it in a refusal means it showed a tree anyway.
-  let header = "module  "
+  // The header the render prints. Seeing it in a refusal means it showed a tree anyway.
+  let header = "Package tree from"
   Stdlib.Test.all(
     [ Instance.says(badFlag, "does not take `--zzbogus`", "an unknown flag is refused")
       Instance.doesNotSay(badFlag, header, "with no tree")
