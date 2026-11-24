@@ -84,7 +84,8 @@ test helpSaysSubmodulesAreLeftOut = Instance.withInstance(fun i ->
 test aModuleWithNothingDirectlyInItIsRefused = Instance.withInstance(fun i ->
   let inner = Instance.home(i) + "/inner.dark"
   let _ =
-    Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2") |> Builtin.unwrap
+    Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2")
+    |> Builtin.unwrap
 
   let _ = Instance.ran(i, [ "module", "/Me.RawEmpty.Inner", inner ])
   match Instance.run(i, [ "view", "Me.RawEmpty", "--raw" ]) with
@@ -102,19 +103,27 @@ test aModuleWithNothingDirectlyInItIsRefused = Instance.withInstance(fun i ->
 // A refused view says why on stderr and leaves stdout empty, so nothing downstream reads help as source.
 test badOptionsExitWithTheReasonOnStderr = Instance.withInstance(fun i ->
   let bogus = Instance.run(i, [ "view", "Stdlib.List.map", "--bogus" ])
-  let mixed = Instance.run(i, [ "view", "Stdlib.List.map", "--raw", "--include-tests" ])
-  match (bogus, mixed) with
-  | (Ok(bogus), Ok(mixed)) ->
+
+  let mixed =
+    Instance.run(i, [ "view", "Stdlib.List.map", "--raw", "--include-tests" ])
+
+  match bogus, mixed with
+  | Ok(bogus), Ok(mixed) ->
     Stdlib.Test.all(
       [ Instance.exitedWith(bogus.exitCode, 1, "view --bogus")
         bogus.stdout |> Stdlib.Test.equal("")
-        Instance.says(bogus.stderr, "`dark view` does not take `--bogus`.", "the reason")
+        Instance.says(
+          bogus.stderr,
+          "`dark view` does not take `--bogus`.",
+          "the reason")
+
         Instance.exitedWith(mixed.exitCode, 1, "view --raw --include-tests")
         mixed.stdout |> Stdlib.Test.equal("")
         Instance.says(
           mixed.stderr,
           "Cannot view: `--include-tests` goes with the default view only",
           "the reason")
+
         Instance.says(mixed.stderr, "Usage: view [path...]", "the help") ])
-  | (Error(e), _) -> Stdlib.Test.fail(e)
-  | (_, Error(e)) -> Stdlib.Test.fail(e))
+  | Error(e), _ -> Stdlib.Test.fail(e)
+  | _, Error(e) -> Stdlib.Test.fail(e))

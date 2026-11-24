@@ -128,7 +128,6 @@ test rebaseRepointsTheBranchsCallersOfANameMainChanged =
         "the branch reports the caller left on the old helper")
 
       rebaseOnlyRepoints(dark, "1 caller(s) now point at the parent's version")
-
       evals(dark, "Tests.App.caller()", "12", "which now runs main's helper")
       same(
         draft(dark),

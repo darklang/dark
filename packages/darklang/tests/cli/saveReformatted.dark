@@ -4,18 +4,26 @@ module Darklang.Cli.Tests.SaveReformatted
 
 test fnPrintsTheStoredForm = Instance.withInstance(fun i ->
   let (code, out, _) =
-    Instance.streams(i, [ "fn", "Me.Fmt.double", "(x: Int64): Int64 = (x * 2)" ])
+    Instance.streams(
+      i,
+      [ "fn", "Me.Fmt.double", "(x: Int64): Int64 = (x * 2)" ])
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "the save")
       Instance.says(out, "stored as:", "the label")
-      Instance.says(out, "let double(x: Int64): Int64 =\n  x * 2", "the stored declaration") ]))
+
+      Instance.says(
+        out,
+        "let double(x: Int64): Int64 =\n  x * 2",
+        "the stored declaration") ]))
 
 
 test fnAlreadyFormattedPrintsNothingMore = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/triple.dark"
   let _ =
-    Stdlib.Cli.File.writeAtomic(path, "let triple(x: Int64): Int64 =\n  x * 3\n")
+    Stdlib.Cli.File.writeAtomic(
+      path,
+      "let triple(x: Int64): Int64 =\n  x * 3\n")
     |> Builtin.unwrap
 
   let (code, out, _) = Instance.streams(i, [ "fn", "Me.Fmt.triple", path ])
@@ -35,10 +43,17 @@ test modulePrintsOnlyWhatItReformatted = Instance.withInstance(fun i ->
   let (againCode, again, _) = Instance.streams(i, [ "module", "/Me.Fmt", path ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "the save")
-      Instance.says(out, "let squeezed(x: Int64): Int64 =\n  x + 2", "the reformatted one")
+      Instance.says(
+        out,
+        "let squeezed(x: Int64): Int64 =\n  x + 2",
+        "the reformatted one")
+
       Instance.doesNotSay(out, "let same", "a declaration stored as written")
       Instance.exitedWith(againCode, 0, "the second save")
-      Instance.doesNotSay(again, "stored as", "a resend that changed nothing") ]))
+      Instance.doesNotSay(
+        again,
+        "stored as",
+        "a resend that changed nothing") ]))
 
 
 test editPrintsTheStoredForm = Instance.withInstance(fun i ->
@@ -52,12 +67,18 @@ test editPrintsTheStoredForm = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "the edit")
       Instance.says(out, "Updated Me.Fmt.inc", "the summary")
-      Instance.says(out, "let inc(x: Int64): Int64 =\n  x + 10", "the stored declaration") ]))
+
+      Instance.says(
+        out,
+        "let inc(x: Int64): Int64 =\n  x + 10",
+        "the stored declaration") ]))
 
 
 test aSubmoduleDeclarationKeepsItsModule = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/sub.dark"
-  let source = "let top(x: Int64): Int64 =\n  x\n\nmodule Sub =\n  let c(x: Int64): Int64 = x+3\n"
+  let source =
+    "let top(x: Int64): Int64 =\n  x\n\nmodule Sub =\n  let c(x: Int64): Int64 = x+3\n"
+
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
   let (code, out, _) = Instance.streams(i, [ "module", "/Me.Fmt", path ])
   Stdlib.Test.all(
@@ -68,14 +89,18 @@ test aSubmoduleDeclarationKeepsItsModule = Instance.withInstance(fun i ->
         "inside its submodule") ]))
 
 
-test aPatchWithATypeErrorShowsTheDeclarationOnce = Instance.withInstance(fun i ->
-  let _ = Instance.ran(i, [ "fn", "Me.Fmt.inc", "(x: Int64): Int64 = x + 1" ])
-  let patch =
-    "@@\n let inc(x: Int64): Int64 =\n-  x + 1\n+  (x + \"one\")\n"
+test aPatchWithATypeErrorShowsTheDeclarationOnce =
+  Instance.withInstance(fun i ->
+    let _ = Instance.ran(i, [ "fn", "Me.Fmt.inc", "(x: Int64): Int64 = x + 1" ])
+    let patch = "@@\n let inc(x: Int64): Int64 =\n-  x + 1\n+  (x + \"one\")\n"
+    let (code, out) =
+      Instance.runWithStdin(i, [ "edit", "Me.Fmt.inc", "--patch", "-" ], patch)
 
-  let (code, out) = Instance.runWithStdin(i, [ "edit", "Me.Fmt.inc", "--patch", "-" ], patch)
-  let shown = Stdlib.String.split(out, "let inc(x: Int64): Int64 =") |> Stdlib.List.length
-  Stdlib.Test.all(
-    [ Instance.exitedWith(code, 1, out)
-      Instance.says(out, "x + \"one\"", "the stored declaration")
-      shown |> Stdlib.Test.equal(2) ]))
+    let shown =
+      Stdlib.String.split(out, "let inc(x: Int64): Int64 =")
+      |> Stdlib.List.length
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, out)
+        Instance.says(out, "x + \"one\"", "the stored declaration")
+        shown |> Stdlib.Test.equal(2) ]))

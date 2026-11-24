@@ -1156,7 +1156,7 @@ type Definitions =
     fns: List<PackageFn.PackageFn>
     traits: List<Trait.Trait>
     impls: List<TraitImpl.TraitImpl>
-    exprs: List<Expr * List<String>> }
+    exprs: List<(Expr * List<String>)> }
 
 
 module SourceFile =

@@ -56,4 +56,7 @@ test noColorFlagTakesTheColourOut = Instance.withInstance(fun i ->
       Instance.says(before, "On branch main", "status answers")
       Instance.doesNotSay(before, "\u001b[32m", "--no-color before the command")
       Instance.says(after, "On branch main", "status answers")
-      Instance.doesNotSay(after, "\u001b[32m", "--no-color after the command") ]))
+      Instance.doesNotSay(
+        after,
+        "\u001b[32m",
+        "--no-color after the command") ]))

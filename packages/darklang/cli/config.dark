@@ -240,7 +240,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | [] | ["list"] ->
     let rows = settings() |> Stdlib.List.map(current)
     if wantsJson then
-      if Cli.printJson(Stdlib.Json.checkedSerialize<List<Current>>(rows)) then
+      if printJson(Stdlib.Json.checkedSerialize<List<Current>>(rows)) then
         state
       else
         { state with exitCode = 1 }

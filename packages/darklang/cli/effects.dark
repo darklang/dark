@@ -8,8 +8,9 @@ let reasons(hash: String): (Bool * List<(LanguageTools.Permissions.Effect * List
 /// The effects `effects <fn>` finds, by name, and whether every call was followed.
 let namesOf(hash: String): (List<String> * Bool) =
   let (complete, found) = reasons(hash)
-  (found |> Stdlib.List.map(fun((effect, _)) -> LanguageTools.Permissions.effectName(effect)),
-   complete)
+  (
+    found |> Stdlib.List.map(fun((effect, _)) -> LanguageTools.Permissions.effectName(effect)),
+    complete)
 
 
 let without(names: List<String>, others: List<String>): List<String> =
@@ -66,7 +67,10 @@ let saveSummary(previous: Option<String>, hash: String): String =
             else
               [ "no longer " + Stdlib.String.join(lost, ", ") ])
 
-        if Stdlib.List.isEmpty(parts) then "" else " (" + Stdlib.String.join(parts, "; ") + ")"
+        if Stdlib.List.isEmpty(parts) then
+          ""
+        else
+          " (" + Stdlib.String.join(parts, "; ") + ")"
     | _ -> ""
 
   shown + change

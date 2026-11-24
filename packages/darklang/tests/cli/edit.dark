@@ -114,7 +114,10 @@ test failedPatchesLeaveRawSourceUnchanged =
     cases
     |> Stdlib.List.map(fun((patchText, reason)) ->
       let (exitCode, output) =
-        Instance.runWithStdin(instance, [ "edit", name, "--patch", "-" ], patchText)
+        Instance.runWithStdin(
+          instance,
+          [ "edit", name, "--patch", "-" ],
+          patchText)
 
       let after = Instance.said(instance, [ "view", name, "--raw" ])
       Stdlib.Test.all(
@@ -163,9 +166,11 @@ test ambiguousPatchDoesNotSave = Instance.withInstance(fun instance ->
 /// Matched patches save type errors as drafts, just like full-declaration edits.
 test matchedPatchesFollowNormalEditRules = Instance.withInstance(fun instance ->
   let source = "let f(): String =\n  \"kept\"\n"
-  let _ = Instance.runWithStdin(instance, [ "module", "/Me.PatchRules", "-" ], source)
+  let _ =
+    Instance.runWithStdin(instance, [ "module", "/Me.PatchRules", "-" ], source)
 
-  let _ = Instance.runWithStdin(instance, [ "module", "/Me.EditRules", "-" ], source)
+  let _ =
+    Instance.runWithStdin(instance, [ "module", "/Me.EditRules", "-" ], source)
 
   let (patchExitCode, patchOutput) =
     Instance.runWithStdin(
@@ -243,7 +248,10 @@ test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
 
   let retryPatch = "@@\n" + Stdlib.String.join(patchLines, "\n") + "\n"
   let (retryExitCode, retryOutput) =
-    Instance.runWithStdin(instance, [ "edit", name, "--patch", "-" ], retryPatch)
+    Instance.runWithStdin(
+      instance,
+      [ "edit", name, "--patch", "-" ],
+      retryPatch)
 
   let after = Instance.said(instance, [ "view", name, "--raw" ])
   Stdlib.Test.all(
@@ -290,11 +298,21 @@ test moduleSaveNamesWhatItLeftBehind = Instance.withInstance(fun instance ->
       "let kept(): Int64 = 1\nlet dropped(): Int64 = 2\n")
 
   let (_, again) =
-    Instance.runWithStdin(instance, [ "module", "/Me.LeftBehind", "-" ], "let kept(): Int64 = 3\n")
+    Instance.runWithStdin(
+      instance,
+      [ "module", "/Me.LeftBehind", "-" ],
+      "let kept(): Int64 = 3\n")
 
   Stdlib.Test.all(
-    [ Instance.says(again, "still in Me.LeftBehind from an earlier save: dropped", "names it")
-      Instance.says(again, "delete fn Me.LeftBehind.dropped --yes", "says how to take it out") ]))
+    [ Instance.says(
+        again,
+        "still in Me.LeftBehind from an earlier save: dropped",
+        "names it")
+
+      Instance.says(
+        again,
+        "delete fn Me.LeftBehind.dropped --yes",
+        "says how to take it out") ]))
 
 
 /// Editing one declaration does not list the module's other names as left behind.
@@ -313,38 +331,53 @@ test editDoesNotListSiblingsAsLeftBehind = Instance.withInstance(fun instance ->
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "the edit saves")
-      Instance.doesNotSay(out, "from an earlier save", "two is not left behind") ]))
+      Instance.doesNotSay(
+        out,
+        "from an earlier save",
+        "two is not left behind") ]))
 
 
 /// A single-item edit names the updated function before its dependents.
-test editReportsUpdatedFunctionAndDependents = Instance.withInstance(fun instance ->
-  let (_, _) =
-    Instance.runWithStdin(
-      instance,
-      [ "module", "/Me.Follow", "-" ],
-      "let helper(): Int64 = 1\n"
-      + "let b(): Int64 = helper() + 20\n"
-      + "let a(): Int64 = helper() + 10\n")
+test editReportsUpdatedFunctionAndDependents =
+  Instance.withInstance(fun instance ->
+    let (_, _) =
+      Instance.runWithStdin(
+        instance,
+        [ "module", "/Me.Follow", "-" ],
+        "let helper(): Int64 = 1\n"
+        + "let b(): Int64 = helper() + 20\n"
+        + "let a(): Int64 = helper() + 10\n")
 
-  let (code, out) =
-    Instance.runWithStdin(instance, [ "edit", "Me.Follow.helper", "-" ], "let helper(): Int64 = 2\n")
+    let (code, out) =
+      Instance.runWithStdin(
+        instance,
+        [ "edit", "Me.Follow.helper", "-" ],
+        "let helper(): Int64 = 2\n")
 
-  let report =
-    match Stdlib.String.splitOnNewline(out) with
-    | [summary, effects, dependents, ..._] ->
-      Stdlib.Test.all(
-        [ Instance.says(summary, "Updated Me.Follow.helper", "names the update first")
-          Instance.says(effects, "effects: ", "then its effects")
-          Instance.says(
-            dependents,
-            "  Me.Follow.a and Me.Follow.b now use the new version",
-            "names the dependents in order") ])
-    | _ -> Stdlib.Test.fail($"expected three report lines: {out}")
+    let report =
+      match Stdlib.String.splitOnNewline(out) with
+      | [summary, effects, dependents, ...] ->
+        Stdlib.Test.all(
+          [ Instance.says(
+              summary,
+              "Updated Me.Follow.helper",
+              "names the update first")
 
-  Stdlib.Test.all(
-    [ Instance.exitedWith(code, 0, out)
-      report
-      Instance.doesNotSay(out, "from an earlier save", "siblings are expected") ]))
+            Instance.says(effects, "effects: ", "then its effects")
+
+            Instance.says(
+              dependents,
+              "  Me.Follow.a and Me.Follow.b now use the new version",
+              "names the dependents in order") ])
+      | _ -> Stdlib.Test.fail($"expected three report lines: {out}")
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, out)
+        report
+        Instance.doesNotSay(
+          out,
+          "from an earlier save",
+          "siblings are expected") ]))
 
 
 /// A return type change saves the new version and reports each incompatible caller.
@@ -368,12 +401,30 @@ test editReportsBrokenCallers = Instance.withInstance(fun instance ->
   Stdlib.Test.all(
     [ Instance.exitedWith(setupCode, 0, setup)
       Instance.exitedWith(code, 0, out)
-      Instance.says(out, "Updated Me.BrokenCallers.helper", "reports the saved update")
+      Instance.says(
+        out,
+        "Updated Me.BrokenCallers.helper",
+        "reports the saved update")
+
       Instance.says(out, "!", "marks the save with a warning")
       Instance.doesNotSay(out, "✓", "does not mark the save as checked")
-      Instance.says(out, "2 dependents no longer type-check:", "counts the broken callers")
+      Instance.says(
+        out,
+        "2 dependents no longer type-check:",
+        "counts the broken callers")
+
       Instance.says(out, "- Me.BrokenCallers.first", "names the first caller")
+
       Instance.says(out, "- Me.BrokenCallers.second", "names the second caller")
-      Instance.says(out, "expected Int64, got String (return value)", "shows the checker error")
-      Instance.doesNotSay(out, "Me.BrokenCallers.independent", "omits unaffected functions")
+
+      Instance.says(
+        out,
+        "expected Int64, got String (return value)",
+        "shows the checker error")
+
+      Instance.doesNotSay(
+        out,
+        "Me.BrokenCallers.independent",
+        "omits unaffected functions")
+
       Instance.says(saved, "updated", "the new return value is available") ]))

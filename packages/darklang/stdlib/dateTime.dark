@@ -470,7 +470,7 @@ impl Display for FromPartsError =
 
 /// Whether <param year> has a February 29: {{true}} for 2000 and 2024, {{false}} for 1900 and 2023.
 let isLeapYear(year: Int64): Bool =
-  (__mod(year, 4) == 0 && __mod(year, 100) != 0) || __mod(year, 400) == 0
+  __mod(year, 4) == 0 && __mod(year, 100) != 0 || __mod(year, 400) == 0
 
 
 /// The number of days in <param month> ({{1}} to {{12}}) of <param year>, such as {{29}} for
@@ -536,7 +536,6 @@ let addMonths(d: DateTime, months: Int64): DateTime =
   let total = year * 12 + month - 1 + months
   let newYear = __floorDiv(total, 12)
   let newMonth = __mod(total, 12) + 1
-
   let lastDay =
     match daysInMonth(newYear, newMonth) with
     | Ok(days) -> days
@@ -588,10 +587,7 @@ let checkedAddMilliseconds(d: DateTime, milliseconds: Int64): Result<DateTime, M
 
 /// A <type DateTime> <param milliseconds> milliseconds before <param d>, as
 /// <fn DateTime.subtractMilliseconds> returns, or {{Error Overflow}} past the DateTime range
-let checkedSubtractMilliseconds(
-  d: DateTime,
-  milliseconds: Int64)
-  : Result<DateTime, Math.Overflow> =
+let checkedSubtractMilliseconds(d: DateTime, milliseconds: Int64): Result<DateTime, Math.Overflow> =
   __checkedOffset(__ticks(d), 0z - BigInt.fromInt64(milliseconds), __ticksPerMillisecond())
 
 
@@ -806,10 +802,10 @@ let __sleepNanoseconds(seconds: Int64, nanos: Int64): Result<Unit, Cli.Posix.Err
 let __sleepMilliseconds(milliseconds: Float64): Unit =
   let nanos =
     if milliseconds > 0.0 then
-      Int64.fromFloat64(milliseconds * 1000000.0)
-      |> Result.withDefault(9223372036854775807)
+      Int64.fromFloat64(milliseconds * 1000000.0) |> Result.withDefault(9223372036854775807)
     else
       0
+
   if Builtin.runtimeTargetOS() == "browser" then
     Builtin.runtimeDelayTicks(nanos / 100)
   else

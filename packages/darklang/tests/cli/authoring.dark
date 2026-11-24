@@ -5,6 +5,7 @@ test fnTakesACommentedDeclarationAsIs =
   let commented = "// one line about it\nlet f(x: Int64): Int64 = x"
   Stdlib.Test.all(
     [ Cli.Packages.Fn.fnSource("f", commented) |> Stdlib.Test.equal(commented)
+
       Cli.Packages.Fn.fnSource("f", "(x: Int64): Int64 = x")
       |> Stdlib.Test.equal("let f (x: Int64): Int64 = x") ])
 
@@ -27,11 +28,14 @@ test authoringAcceptsAQuotedSeparator = Instance.withInstance(fun i ->
     [ Stdlib.Test.expect(
         quotedHash == splitHash,
         $"one item either way: {quotedHash} / {splitHash}")
+
       Instance.says(
         run([ "eval", "Tests.QuotedEq.quoted(21)" ]),
         "42",
         "the body's own `=` survived")
+
       Instance.says(typed, "Created type", "a type takes a quoted `=`")
+
       Instance.says(valued, "Created value", "and a value") ]))
 
 
@@ -41,6 +45,10 @@ test authoringRefusesALowercaseModule = Instance.withInstance(fun i ->
   let refused = Instance.output(i, [ "fn", "/Tests.lower.f", "() : Int64 = 1" ])
   let listed = Instance.output(i, [ "ls", "Tests.lower" ])
   Stdlib.Test.all(
-    [ Instance.says(refused, "must start with a capital", "the module is refused")
+    [ Instance.says(
+        refused,
+        "must start with a capital",
+        "the module is refused")
+
       Instance.doesNotSay(refused, "Created", "and nothing is saved")
       Instance.says(listed, "Not found", "so nothing is listed") ]))

@@ -3,11 +3,16 @@ module Darklang.Cli.Tests.ModuleParseErrors
 
 test oneBrokenDeclarationCanBeRetriedOnItsOwn = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/mixed.dark"
-  let source = "let ok(): Int64 = 1\nlet bad(): Int64 = (fun (n: Int64) -> n)(1)\n"
+  let source =
+    "let ok(): Int64 = 1\nlet bad(): Int64 = (fun (n: Int64) -> n)(1)\n"
+
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
   let (code, out) = Instance.ran(i, [ "module", "/Me.Mixed", path ])
+
   let (viewCode, _) = Instance.ran(i, [ "view", "Me.Mixed.ok", "--raw" ])
+
   let (brokenCode, _) = Instance.ran(i, [ "view", "Me.Mixed.bad" ])
+
   let (retryCode, _) =
     Instance.ran(i, [ "fn", "/Me.Mixed.bad", "(): Int64 = (fun n -> n)(1)" ])
 
@@ -16,7 +21,9 @@ test oneBrokenDeclarationCanBeRetriedOnItsOwn = Instance.withInstance(fun i ->
       Instance.exitedWith(viewCode, 0, "the valid item was saved")
       Instance.exitedWith(brokenCode, 1, "the broken item was skipped")
       Instance.says(out, "line 2, column 27", "the original diagnostic")
+
       Instance.says(out, "Defined 1 declaration in /Me.Mixed", "the summary")
+
       Instance.says(
         out,
         "Fix and resend only the declarations that failed to parse.",
@@ -32,29 +39,48 @@ test oneBrokenDeclarationCanBeRetriedOnItsOwn = Instance.withInstance(fun i ->
         "Use `edit` only if the item already had a saved version.",
         "the requirement for edit")
 
-      Instance.exitedWith(retryCode, 0, "the corrected declaration saves on its own") ]))
+      Instance.exitedWith(
+        retryCode,
+        0,
+        "the corrected declaration saves on its own") ]))
 
 
-test expressionAtModuleScopeDoesNotPreventSavingDeclarations = Instance.withInstance(fun i ->
-  let path = Instance.home(i) + "/stray.dark"
-  let _ = Stdlib.Cli.File.writeAtomic(path, "let ok(): Int64 = 1\n42\n") |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.Stray", path ])
-  Stdlib.Test.all(
-    [ Instance.exitedWith(code, 1, "the invalid standalone expression")
-      Instance.says(out, "Expressions are not allowed in package files", "the original diagnostic")
-      Instance.says(out, "Defined 1 declaration", "the valid item was saved") ]))
+test expressionAtModuleScopeDoesNotPreventSavingDeclarations =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/stray.dark"
+    let _ =
+      Stdlib.Cli.File.writeAtomic(path, "let ok(): Int64 = 1\n42\n")
+      |> Builtin.unwrap
+
+    let (code, out) = Instance.ran(i, [ "module", "/Me.Stray", path ])
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "the invalid standalone expression")
+        Instance.says(
+          out,
+          "Expressions are not allowed in package files",
+          "the original diagnostic")
+
+        Instance.says(
+          out,
+          "Defined 1 declaration",
+          "the valid item was saved") ]))
 
 
-test missingDelimiterDoesNotRejectTheNextDeclaration = Instance.withInstance(fun i ->
-  let path = Instance.home(i) + "/boundary.dark"
-  let source = "let bad(): Int64 = (1\nlet ok(): Int64 = 2\n"
-  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.Boundary", path ])
-  Stdlib.Test.all(
-    [ Instance.exitedWith(code, 1, "the parse error")
-      Instance.says(out, "line 2, column 1: expected ')'", "the first declaration's diagnostic")
-      Instance.expectExit(i, [ "view", "Me.Boundary.ok", "--raw" ], 0)
-      Instance.expectExit(i, [ "view", "Me.Boundary.bad" ], 1) ]))
+test missingDelimiterDoesNotRejectTheNextDeclaration =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/boundary.dark"
+    let source = "let bad(): Int64 = (1\nlet ok(): Int64 = 2\n"
+    let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+    let (code, out) = Instance.ran(i, [ "module", "/Me.Boundary", path ])
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "the parse error")
+        Instance.says(
+          out,
+          "line 2, column 1: expected ')'",
+          "the first declaration's diagnostic")
+
+        Instance.expectExit(i, [ "view", "Me.Boundary.ok", "--raw" ], 0)
+        Instance.expectExit(i, [ "view", "Me.Boundary.bad" ], 1) ]))
 
 
 test missingBodyDoesNotConsumeTheNextSibling = Instance.withInstance(fun i ->
@@ -64,52 +90,81 @@ test missingBodyDoesNotConsumeTheNextSibling = Instance.withInstance(fun i ->
   let (code, out) = Instance.ran(i, [ "module", "/Me.EmptyBody", path ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "the missing body")
-      Instance.says(out, "line 2, column 3: Incomplete declaration", "the rejected function")
+      Instance.says(
+        out,
+        "line 2, column 3: Incomplete declaration",
+        "the rejected function")
+
       Instance.expectExit(i, [ "view", "Me.EmptyBody.Inner.ok", "--raw" ], 0)
       Instance.expectExit(i, [ "view", "Me.EmptyBody.Inner.bad" ], 1) ]))
 
 
-test damagedDeclarationDoesNotReplaceAnExistingItem = Instance.withInstance(fun i ->
-  let path = Instance.home(i) + "/stray-syntax.dark"
-  let (setupCode, _) = Instance.ran(i, [ "fn", "/Me.StraySyntax.bad", "(): Int64 = 7" ])
-  let source =
-    "#let bad(): Int64 = 1\nlet alsoBad(): Int64 = 1)\nlet ok(): Int64 = 2\n"
+test damagedDeclarationDoesNotReplaceAnExistingItem =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/stray-syntax.dark"
+    let (setupCode, _) =
+      Instance.ran(i, [ "fn", "/Me.StraySyntax.bad", "(): Int64 = 7" ])
 
-  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.StraySyntax", path ])
-  let (evalCode, answer) = Instance.ran(i, [ "eval", "Me.StraySyntax.bad()" ])
-  Stdlib.Test.all(
-    [ Instance.exitedWith(setupCode, 0, "the existing version")
-      Instance.exitedWith(code, 1, "the stray syntax")
-      Instance.says(out, "Defined 1 declaration", "only the clean sibling was saved")
-      Instance.expectExit(i, [ "view", "Me.StraySyntax.ok", "--raw" ], 0)
-      Instance.expectExit(i, [ "view", "Me.StraySyntax.alsoBad" ], 1)
-      Instance.exitedWith(evalCode, 0, "the existing version is still present")
-      Stdlib.Test.equal(Stdlib.String.trim(answer), "7") ]))
+    let source =
+      "#let bad(): Int64 = 1\nlet alsoBad(): Int64 = 1)\nlet ok(): Int64 = 2\n"
+
+    let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+    let (code, out) = Instance.ran(i, [ "module", "/Me.StraySyntax", path ])
+    let (evalCode, answer) = Instance.ran(i, [ "eval", "Me.StraySyntax.bad()" ])
+    Stdlib.Test.all(
+      [ Instance.exitedWith(setupCode, 0, "the existing version")
+        Instance.exitedWith(code, 1, "the stray syntax")
+        Instance.says(
+          out,
+          "Defined 1 declaration",
+          "only the clean sibling was saved")
+
+        Instance.expectExit(i, [ "view", "Me.StraySyntax.ok", "--raw" ], 0)
+        Instance.expectExit(i, [ "view", "Me.StraySyntax.alsoBad" ], 1)
+        Instance.exitedWith(
+          evalCode,
+          0,
+          "the existing version is still present")
+
+        Stdlib.Test.equal(Stdlib.String.trim(answer), "7") ]))
 
 
-test malformedHeaderDoesNotMoveItsChildrenToTheParent = Instance.withInstance(fun i ->
-  let path = Instance.home(i) + "/bad-header.dark"
-  let source = "let ok(): Int64 = 1\nmodule .Inner\nlet misplaced(): Int64 = 2\n"
-  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.BadHeader", path ])
-  Stdlib.Test.all(
-    [ Instance.exitedWith(code, 1, "the malformed module header")
-      Instance.says(out, "expected a module name", "the broken header")
-      Instance.expectExit(i, [ "view", "Me.BadHeader.ok", "--raw" ], 0)
-      Instance.expectExit(i, [ "view", "Me.BadHeader.misplaced" ], 1) ]))
+test malformedHeaderDoesNotMoveItsChildrenToTheParent =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/bad-header.dark"
+    let source =
+      "let ok(): Int64 = 1\nmodule .Inner\nlet misplaced(): Int64 = 2\n"
+
+    let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+    let (code, out) = Instance.ran(i, [ "module", "/Me.BadHeader", path ])
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "the malformed module header")
+        Instance.says(out, "expected a module name", "the broken header")
+        Instance.expectExit(i, [ "view", "Me.BadHeader.ok", "--raw" ], 0)
+        Instance.expectExit(i, [ "view", "Me.BadHeader.misplaced" ], 1) ]))
 
 
-test trailingHeaderTextDoesNotSaveChildrenUnderAnUncertainName = Instance.withInstance(fun i ->
-  let path = Instance.home(i) + "/trailing-header.dark"
-  let source = "let ok(): Int64 = 1\nmodule Inner Extra\nlet misplaced(): Int64 = 2\n"
-  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.TrailingHeader", path ])
-  Stdlib.Test.all(
-    [ Instance.exitedWith(code, 1, "the malformed module header")
-      Instance.says(out, "Defined 1 declaration", "the item before the header was saved")
-      Instance.expectExit(i, [ "view", "Me.TrailingHeader.ok", "--raw" ], 0)
-      Instance.expectExit(i, [ "view", "Me.TrailingHeader.Inner.misplaced" ], 1) ]))
+test trailingHeaderTextDoesNotSaveChildrenUnderAnUncertainName =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/trailing-header.dark"
+    let source =
+      "let ok(): Int64 = 1\nmodule Inner Extra\nlet misplaced(): Int64 = 2\n"
+
+    let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+    let (code, out) = Instance.ran(i, [ "module", "/Me.TrailingHeader", path ])
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "the malformed module header")
+        Instance.says(
+          out,
+          "Defined 1 declaration",
+          "the item before the header was saved")
+
+        Instance.expectExit(i, [ "view", "Me.TrailingHeader.ok", "--raw" ], 0)
+
+        Instance.expectExit(
+          i,
+          [ "view", "Me.TrailingHeader.Inner.misplaced" ],
+          1) ]))
 
 
 test nestedDeclarationsAreStillSavedTogether = Instance.withInstance(fun i ->
@@ -120,13 +175,25 @@ test nestedDeclarationsAreStillSavedTogether = Instance.withInstance(fun i ->
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
   let (code, out) = Instance.ran(i, [ "module", "/Me.NestedDraft", path ])
-  let (evalCode, answer) = Instance.ran(i, [ "eval", "Me.NestedDraft.Nested.caller()" ])
+
+  let (evalCode, answer) =
+    Instance.ran(i, [ "eval", "Me.NestedDraft.Nested.caller()" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "the lexical error")
       Instance.says(out, "unexpected character: '#'", "the lexical diagnostic")
-      Instance.says(out, "Defined 2 declarations", "both valid siblings were saved")
+
+      Instance.says(
+        out,
+        "Defined 2 declarations",
+        "both valid siblings were saved")
+
       Instance.expectExit(i, [ "view", "Me.NestedDraft.Nested.bad" ], 1)
-      Instance.exitedWith(evalCode, 0, "a forward reference between saved siblings")
+      Instance.exitedWith(
+        evalCode,
+        0,
+        "a forward reference between saved siblings")
+
       Stdlib.Test.equal(Stdlib.String.trim(answer), "3") ]))
 
 

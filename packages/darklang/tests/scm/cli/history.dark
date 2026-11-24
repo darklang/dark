@@ -131,35 +131,34 @@ test diffShowsTheDraftOrWhatABranchChanges =
 
 
 /// `diff` and `log` answer in JSON too, and `--json` can go either side of the branch name.
-test diffAndLogAnswerInJsonWithTheFlagOnEitherSide =
-  scenario(fun dark ->
-    [ switch(dark, "feat")
-      saveNumber(dark, "Tests.App.only", "1")
-      same(
-        rows(json(dark, [ "log", "--json" ]))
-        |> Stdlib.List.map(fun op -> number(op, "seq"))
-        |> Stdlib.List.head,
-        Stdlib.Option.Option.Some(0),
-        "on a branch, log --json numbers the ops from the start")
+test diffAndLogAnswerInJsonWithTheFlagOnEitherSide = scenario(fun dark ->
+  [ switch(dark, "feat")
+    saveNumber(dark, "Tests.App.only", "1")
+    same(
+      rows(json(dark, [ "log", "--json" ]))
+      |> Stdlib.List.map(fun op -> number(op, "seq"))
+      |> Stdlib.List.head,
+      Stdlib.Option.Option.Some(0),
+      "on a branch, log --json numbers the ops from the start")
 
-      switch(dark, "main")
-      same(
-        rows(json(dark, [ "log", "--json" ]))
-        |> Stdlib.List.map(fun c -> text(c, "hash")),
-        rows(json(dark, [ "commits", "--json" ]))
-        |> Stdlib.List.map(fun c -> text(c, "hash")),
-        "on main, log --json is the commit history")
+    switch(dark, "main")
+    same(
+      rows(json(dark, [ "log", "--json" ]))
+      |> Stdlib.List.map(fun c -> text(c, "hash")),
+      rows(json(dark, [ "commits", "--json" ]))
+      |> Stdlib.List.map(fun c -> text(c, "hash")),
+      "on main, log --json is the commit history")
 
-      same(
-        rows(json(dark, [ "diff", "feat", "--json" ]))
-        |> Stdlib.List.map(fun e -> $"{text(e, "change")} {text(e, "name")}"),
-        [ "new Tests.App.only" ],
-        "diff --json names and classifies what the branch changed")
+    same(
+      rows(json(dark, [ "diff", "feat", "--json" ]))
+      |> Stdlib.List.map(fun e -> $"{text(e, "change")} {text(e, "name")}"),
+      [ "new Tests.App.only" ],
+      "diff --json names and classifies what the branch changed")
 
-      same(
-        json(dark, [ "diff", "--json", "feat" ]),
-        json(dark, [ "diff", "feat", "--json" ]),
-        "the flag is not positional") ])
+    same(
+      json(dark, [ "diff", "--json", "feat" ]),
+      json(dark, [ "diff", "feat", "--json" ]),
+      "the flag is not positional") ])
 
 
 /// `ops`, `undo` and `deps` answer about the branch you are on: `ops` on a branch off a branch
@@ -207,10 +206,12 @@ test opsUndoAndDepsAnswerAboutTheBranchYouAreOn =
 test depsCountsTheCallersOnTheBranchYouAreOn =
   scenario(fun dark ->
     [ save(dark, "Tests.App.target", "(x: Int64): Int64 = x + 1")
+
       save(
         dark,
         "Tests.App.mainCaller",
         "(x: Int64): Int64 = (Tests.App.target(x)) + 10")
+
       says(
         dark,
         [ "deps", "Tests.App.target" ],
@@ -223,6 +224,7 @@ test depsCountsTheCallersOnTheBranchYouAreOn =
         dark,
         "Tests.App.branchCaller",
         "(x: Int64): Int64 = (Tests.App.target(x)) + 99")
+
       saysAll(
         dark,
         [ "deps", "Tests.App.target" ],

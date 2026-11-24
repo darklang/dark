@@ -274,8 +274,8 @@ module TypeReference =
     | Builtin(b) -> Builtin.toPT(ctx, b)
     | QualifiedName(qn) ->
       // `Stream<T>` in a type argument parses as a custom name, but is the builtin, as in F#
-      match (qn.modules, qn.typ.name, qn.typeArgs) with
-      | ([], "Stream", [ inner ]) ->
+      match qn.modules, qn.typ.name, qn.typeArgs with
+      | [], "Stream", [inner] ->
         let (inner, unresolvedNames) = TypeReference.toPT(ctx, inner)
         (ProgramTypes.TypeReference.TStream(inner), unresolvedNames)
       | _ ->

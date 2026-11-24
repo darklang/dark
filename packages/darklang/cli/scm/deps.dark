@@ -99,6 +99,7 @@ let showDependents(
     |> (fun groups ->
           Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
           |> Stdlib.printLines)
+
     true
 
 
@@ -189,6 +190,7 @@ let showTransitiveDependents(
     |> (fun groups ->
           Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
           |> Stdlib.printLines)
+
     true
 
 
@@ -233,6 +235,7 @@ let showDependencies(
       $"  [{kind}] {fqnOf(loc)}{behind}")
     |> (fun rows ->
           Listing.capped(rows, Listing.defaultLimit, cap, "dependencies") |> Stdlib.printLines)
+
     true
 
 
@@ -382,8 +385,7 @@ let answerOf(
   | Error(e), _ -> Result.Error(e)
   | _, Error(e) -> Result.Error(e)
   | Ok(uses), Ok(usedBy) ->
-    Result.Ok(
-      ScmJson.DepsJson { item = entityName, dependencies = uses, dependents = usedBy })
+    Result.Ok(ScmJson.DepsJson { item = entityName, dependencies = uses, dependents = usedBy })
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -416,7 +418,7 @@ let execute(state: AppState, args: List<String>): AppState =
       | Error(e) ->
         printErr(e)
         failed(state)
-      | Ok(found) -> Output.answer(state, fun () -> state, fun () -> found)
+      | Ok(found) -> Output.answer(state, (fun () -> state), fun () -> found)
 
   // Any OTHER `--flag` is a mistake, not a path. Unrefused it reaches the lookup as though it were a
   // package name and answers "Not found", which reads as "no such package" about a flag.
@@ -450,7 +452,7 @@ let execute(state: AppState, args: List<String>): AppState =
       | Ok(result) ->
         let (hash, loc, name, entityType) = result
         answer(
-          fun () -> showDependencies(branchId, loc, entityType, hash, name, cap),
+          (fun () -> showDependencies(branchId, loc, entityType, hash, name, cap)),
           result,
           Direction.Uses)
     | ["usedby", pathArg] ->
@@ -461,12 +463,11 @@ let execute(state: AppState, args: List<String>): AppState =
         failed(state)
       | Ok(result) ->
         let (_hash, loc, name, entityType) = result
-        let pretty =
-          fun () ->
-            if deep then
-              showTransitiveDependents(branchId, loc, entityType, name, cap)
-            else
-              showDependents(loc, entityType, name, cap)
+        let pretty = fun () ->
+          if deep then
+            showTransitiveDependents(branchId, loc, entityType, name, cap)
+          else
+            showDependents(loc, entityType, name, cap)
 
         answer(pretty, result, Direction.UsedBy)
     | [pathArg] ->
@@ -478,17 +479,16 @@ let execute(state: AppState, args: List<String>): AppState =
         failed(state)
       | Ok(result) ->
         let (hash, loc, name, entityType) = result
-        let pretty =
-          fun () ->
-            let usesOk = showDependencies(branchId, loc, entityType, hash, name, cap)
-            Stdlib.printErrorLine("")
-            let usedByOk =
-              if deep then
-                showTransitiveDependents(branchId, loc, entityType, name, cap)
-              else
-                showDependents(loc, entityType, name, cap)
+        let pretty = fun () ->
+          let usesOk = showDependencies(branchId, loc, entityType, hash, name, cap)
+          Stdlib.printErrorLine("")
+          let usedByOk =
+            if deep then
+              showTransitiveDependents(branchId, loc, entityType, name, cap)
+            else
+              showDependents(loc, entityType, name, cap)
 
-            usesOk && usedByOk
+          usesOk && usedByOk
 
         answer(pretty, result, Direction.Both)
     | _ ->

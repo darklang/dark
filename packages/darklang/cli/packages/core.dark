@@ -561,9 +561,7 @@ let holdsAsWritten(given: String, stored: String): Bool =
   | Some(first) ->
     lines(given)
     |> Stdlib.List.any(fun line ->
-      let indent =
-        Stdlib.String.dropLast(line, Stdlib.String.length(Stdlib.String.trimStart(line)))
-
+      let indent = Stdlib.String.dropLast(line, Stdlib.String.length(Stdlib.String.trimStart(line)))
       Stdlib.String.trimStart(line) == first
       && Stdlib.String.contains(
         givenText,
@@ -593,16 +591,16 @@ let inModules(entries: List<(List<String> * String)>): String =
       else
         Stdlib.List.append(groups, (Option.Some(name), [ (rest, text) ])))
   |> Stdlib.List.map(fun((g, inside)) ->
-    match (g, inside) with
-    | (Some(name), _) ->
+    match g, inside with
+    | Some(name), _ ->
       let body =
         Stdlib.String.split(inModules(inside), "\n")
         |> Stdlib.List.map(fun line -> if line == "" then line else "  " + line)
         |> Stdlib.String.join("\n")
 
       $"module {name} =\n{body}"
-    | (None, [(_, text)]) -> text
-    | (None, _) -> "")
+    | None, [(_, text)] -> text
+    | None, _ -> "")
   |> Stdlib.String.join("\n\n")
 
 
@@ -731,7 +729,6 @@ let saveAuthored(
         | None -> ()
 
         Propagate.printFollowed(followed)
-
         if landed then
           View.moduleDecl(
             state.currentBranchId,

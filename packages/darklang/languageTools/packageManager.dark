@@ -425,7 +425,8 @@ module Test =
   /// The group and check of <param body> when it is `Stdlib.Test.group("name", check)`.
   let __group(body: ProgramTypes.Expr): Option<(String * ProgramTypes.Expr)> =
     match __resultExpr(body) with
-    | EApply(_, EFnName(_, name, _, _), _, [EString(_, [StringText(group)]), check]) when __isTestFn(name, "group") ->
+    | EApply(_, EFnName(_, name, _, _), _, [EString(_, [StringText(group)]), check])
+      when __isTestFn(name, "group") ->
       Option.Some((group, check))
     | _ -> Option.None
 
@@ -476,7 +477,8 @@ module Test =
 
 
   /// Whether <param body> is a `Stdlib.Test.table`, in a group or not.
-  let isTable(body: ProgramTypes.Expr): Bool = Stdlib.Option.isSome(__table(body))
+  let isTable(body: ProgramTypes.Expr): Bool =
+    Stdlib.Option.isSome(__table(body))
 
 
   /// How many tests <param body> holds, read from its code: one per row of a
@@ -629,8 +631,7 @@ module Test =
           __eachOrNone(rows, fun row ->
             match row with
             | DTuple(DString(name), result, []) ->
-              __asResultOfType(expected, result)
-              |> Stdlib.Option.map(fun result -> (name, result))
+              __asResultOfType(expected, result) |> Stdlib.Option.map(fun result -> (name, result))
             | _ -> Option.None)
           |> Stdlib.Option.map(fun rows -> Stdlib.Test.Result.Rows(rows))
         | _ -> Option.None

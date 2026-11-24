@@ -100,7 +100,7 @@ let table(rows: List<'a>, check: 'a -> Result): Result =
   |> List.map(fun row ->
     // A lambda, so the call runs under this test's policies rather than as an approval root.
     let result =
-      match LanguageTools.Live.apply(fun r -> check(r), row) with
+      match LanguageTools.Live.apply((fun r -> check(r)), row) with
       | Ok(result) -> result
       | Error(message) -> Result.Fail([ $"error: {message}" ])
 

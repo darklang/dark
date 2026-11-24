@@ -79,7 +79,7 @@ let begin(): LanguageTools.Live.Watch =
 /// process (a view opened from the CLI) may have been woken for it already.
 let await(watch: LanguageTools.Live.Watch, specs: List<EventSpec>): Awaited =
   let (watch, pending) =
-    if Stdlib.List.contains(specs, EventSpec.StoreChanged) then
+    if List.contains(specs, EventSpec.StoreChanged) then
       LanguageTools.Live.poll(watch)
     else
       (watch, Option.None)

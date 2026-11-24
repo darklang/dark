@@ -80,7 +80,6 @@ let verifyChecksum(download: GitHub.Releases.Download, path: String): Result<Uni
       Stdlib.Cli.File.readText(sumsPath) |> Stdlib.Result.mapError(Stdlib.display))
 
   let _cleaned = Stdlib.Cli.File.delete(sumsPath)
-
   match sums with
   | Error(e) ->
     Result.Error(

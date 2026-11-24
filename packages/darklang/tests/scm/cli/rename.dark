@@ -10,7 +10,8 @@ let hashOf(dark: Cli.Tests.Instance.T, name: String): String =
 
 
 /// `dark view <name> --raw`, which is what `dark edit` and `dark module` round-trip.
-let raw(name: String): List<String> = [ "view", name, "--raw" ]
+let raw(name: String): List<String> =
+  [ "view", name, "--raw" ]
 
 
 test renameMovesANameNotItsContent =
@@ -68,6 +69,7 @@ test deleteStillRefusesAfterARename =
     [ saveNumber(dark, "Tests.RenDep.callee", "7431")
       save(dark, "Tests.RenDep.caller", "(): Int64 = Tests.RenDep.callee()")
       run(dark, [ "type", "Tests.RenDep.Crate", "{ renDepWidth: Int64 }" ])
+
       run(
         dark,
         [ "trait", "Tests.RenDep.Label", "<'a> =\n  let label(v: 'a): String" ])
@@ -79,7 +81,10 @@ test deleteStillRefusesAfterARename =
           "Label for Crate =\n  let label(c: Crate): String = \"crate\"" ])
 
       commit(dark, "rename dependents fixture")
-      run(dark, [ "rename", "Tests.RenDep.callee", "Tests.RenDep.calleeRenamed" ])
+      run(
+        dark,
+        [ "rename", "Tests.RenDep.callee", "Tests.RenDep.calleeRenamed" ])
+
       run(dark, [ "rename", "Tests.RenDep.Label", "Tests.RenDep.Tag" ])
       refuses(
         dark,
@@ -93,7 +98,11 @@ test deleteStillRefusesAfterARename =
         "live dependent",
         "a renamed trait's implementation still blocks delete")
 
-      evals(dark, "Tests.RenDep.caller()", "7431", "and the caller still runs") ])
+      evals(
+        dark,
+        "Tests.RenDep.caller()",
+        "7431",
+        "and the caller still runs") ])
 
 
 /// After renaming fmt to toMoney, callers show toMoney() and follow later edits. Another fmt
@@ -172,11 +181,18 @@ let callersFollowTheNewName(
           $"{p}.toMoney",
           "shared content does not mix caller dependency names")
 
-        run(dark, [ "commit", $"{m} atomic rename", $"--include={p}.toMoney", "-y" ])
-        draftIsEmpty(dark, "a partial commit keeps the entire rename together")
+        run(
+          dark,
+          [ "commit", $"{m} atomic rename", $"--include={p}.toMoney", "-y" ])
 
+        draftIsEmpty(dark, "a partial commit keeps the entire rename together")
         saveNumber(dark, $"{p}.fmt", "7462")
-        evals(dark, $"{p}.caller()", "7461", $"{m}: a new fmt takes nobody over")
+        evals(
+          dark,
+          $"{p}.caller()",
+          "7461",
+          $"{m}: a new fmt takes nobody over")
+
         doesNotSay(
           dark,
           raw($"{p}.caller"),
@@ -216,7 +232,12 @@ let callersFollowTheNewName(
           "7462",
           $"{m}: toMoney leaves fmt's callers alone")
 
-        evals(dark, $"{p}.caller()", "7463", $"{m}: an edit of toMoney reaches it")
+        evals(
+          dark,
+          $"{p}.caller()",
+          "7463",
+          $"{m}: an edit of toMoney reaches it")
+
         doesNotSay(
           dark,
           [ "constraints", "--json" ],
@@ -225,6 +246,7 @@ let callersFollowTheNewName(
 
         commit(dark, $"{m} edits")
         evals(dark, $"{p}.caller()", "7463", $"{m}: and committing keeps that")
+
         evals(
           dark,
           $"{p}.replacementCaller()",
@@ -250,7 +272,12 @@ let restoredContentPropagates(
       "7465",
       $"{m}: restored content propagates again")
 
-    evals(dark, $"{p}.kept()", "7464", $"{m}: the other binding keeps its content")
+    evals(
+      dark,
+      $"{p}.kept()",
+      "7464",
+      $"{m}: the other binding keeps its content")
+
     commit(dark, $"{m} restored edits")
     evals(
       dark,
@@ -267,13 +294,19 @@ let recursiveReferencesFollowTheRename(
   let p = $"Tests.{m}"
   // Saved first so the recursive call can resolve.
   [ save(dark, $"{p}.recursive", "let recursive(n: Int64): Int64 = 0")
+
     save(
       dark,
       $"{p}.recursive",
       $"let recursive(n: Int64): Int64 = if n == 0 then 0 else {p}.recursive(n - 1)")
 
     save(dark, $"{p}.recursiveCaller", $"(): Int64 = {p}.recursive(3)")
-    evals(dark, $"{p}.recursiveCaller()", "0", "the recursive fixture runs before rename")
+    evals(
+      dark,
+      $"{p}.recursiveCaller()",
+      "0",
+      "the recursive fixture runs before rename")
+
     commit(dark, $"{m} recursive fixture")
     run(dark, [ "rename", $"{p}.recursive", $"{p}.renamedRecursive" ])
     says(
@@ -288,7 +321,12 @@ let recursiveReferencesFollowTheRename(
       $"{p}.renamedRecursive",
       $"let renamedRecursive(n: Int64): Int64 = if n == 0 then 7 else {p}.renamedRecursive(n - 1)")
 
-    evals(dark, $"{p}.recursiveCaller()", "7", "recursive callers follow subsequent edits")
+    evals(
+      dark,
+      $"{p}.recursiveCaller()",
+      "7",
+      "recursive callers follow subsequent edits")
+
     commit(dark, $"{m} recursive rename") ]
 
 
@@ -331,10 +369,17 @@ test recursiveReferencesFollowARenameOnABranch =
 test aBranchRenameOfAnInheritedNameLeavesMainAlone =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.RenInherited.leaf", "7471")
-      save(dark, "Tests.RenInherited.caller", "(): Int64 = Tests.RenInherited.leaf()")
+      save(
+        dark,
+        "Tests.RenInherited.caller",
+        "(): Int64 = Tests.RenInherited.leaf()")
+
       commit(dark, "inherited rename fixture")
       switch(dark, "renbr")
-      run(dark, [ "rename", "Tests.RenInherited.leaf", "Tests.RenInherited.moved" ])
+      run(
+        dark,
+        [ "rename", "Tests.RenInherited.leaf", "Tests.RenInherited.moved" ])
+
       says(
         dark,
         raw("Tests.RenInherited.caller"),
@@ -355,44 +400,61 @@ test aBranchRenameOfAnInheritedNameLeavesMainAlone =
         "leaf()",
         "main retains its reference metadata")
 
-      evals(dark, "Tests.RenInherited.caller()", "7471", "main retains its content") ])
-
-
-test branchRenamesAndRemovalsDoNotResurrectCallers =
-  scenario(fun dark ->
-    [ saveNumber(dark, "Tests.CallerLive.foo", "86201")
-      save(dark, "Tests.CallerLive.caller", "(): Int64 = Tests.CallerLive.foo()")
-      commit(dark, "live callers baseline")
-      switch(dark, "caller-live")
-      run(dark, [ "rename", "Tests.CallerLive.caller", "Tests.CallerLive.moved" ])
-      saveNumber(dark, "Tests.CallerLive.foo", "86202")
-      evals(dark, "Tests.CallerLive.moved()", "86202", "the renamed caller follows")
-      notFound(dark, "Tests.CallerLive.caller()", "the old name stays removed")
-      doesNotSay(
-        dark,
-        [ "deps", "usedby", "Tests.CallerLive.foo" ],
-        "Tests.CallerLive.caller",
-        "reverse queries omit the old name")
-
-      // A fresh instance denies guests package-write, which `PackageOps.add` needs.
-      run(dark, [ "permissions", "allow", "package-write" ])
-      run(
-        dark,
-        [ "eval"
-          "Darklang.SCM.PackageOps.add(Darklang.SCM.PackageOps.currentBranch(), [Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"CallerLive\"], name = \"moved\" }, Darklang.Stdlib.Option.Option.None)])" ])
-
-      saveNumber(dark, "Tests.CallerLive.foo", "86203")
-      notFound(dark, "Tests.CallerLive.moved()", "the deleted caller stays deleted")
-      run(dark, [ "val", "Tests.CallerLive.caller", "99" ])
-      saveNumber(dark, "Tests.CallerLive.foo", "86204")
       evals(
         dark,
-        "Tests.CallerLive.caller",
-        "99",
-        "a different kind at the old name is preserved")
+        "Tests.RenInherited.caller()",
+        "7471",
+        "main retains its content") ])
 
-      switch(dark, "main")
-      evals(dark, "Tests.CallerLive.caller()", "86201", "main keeps its own caller") ])
+
+test branchRenamesAndRemovalsDoNotResurrectCallers = scenario(fun dark ->
+  [ saveNumber(dark, "Tests.CallerLive.foo", "86201")
+    save(dark, "Tests.CallerLive.caller", "(): Int64 = Tests.CallerLive.foo()")
+    commit(dark, "live callers baseline")
+    switch(dark, "caller-live")
+    run(dark, [ "rename", "Tests.CallerLive.caller", "Tests.CallerLive.moved" ])
+    saveNumber(dark, "Tests.CallerLive.foo", "86202")
+    evals(
+      dark,
+      "Tests.CallerLive.moved()",
+      "86202",
+      "the renamed caller follows")
+
+    notFound(dark, "Tests.CallerLive.caller()", "the old name stays removed")
+    doesNotSay(
+      dark,
+      [ "deps", "usedby", "Tests.CallerLive.foo" ],
+      "Tests.CallerLive.caller",
+      "reverse queries omit the old name")
+
+    // A fresh instance denies guests package-write, which `PackageOps.add` needs.
+    run(dark, [ "permissions", "allow", "package-write" ])
+
+    run(
+      dark,
+      [ "eval"
+        "Darklang.SCM.PackageOps.add(Darklang.SCM.PackageOps.currentBranch(), [Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"CallerLive\"], name = \"moved\" }, Darklang.Stdlib.Option.Option.None)])" ])
+
+    saveNumber(dark, "Tests.CallerLive.foo", "86203")
+    notFound(
+      dark,
+      "Tests.CallerLive.moved()",
+      "the deleted caller stays deleted")
+
+    run(dark, [ "val", "Tests.CallerLive.caller", "99" ])
+    saveNumber(dark, "Tests.CallerLive.foo", "86204")
+    evals(
+      dark,
+      "Tests.CallerLive.caller",
+      "99",
+      "a different kind at the old name is preserved")
+
+    switch(dark, "main")
+    evals(
+      dark,
+      "Tests.CallerLive.caller()",
+      "86201",
+      "main keeps its own caller") ])
 
 
 test forwardReferenceRefreshFollowsChainedRenames =
@@ -429,8 +491,18 @@ test recursiveForwardReferenceRefreshFollowsChainedRenames =
       run(dark, [ "rename", $"{p}.a", $"{p}.b" ])
       run(dark, [ "rename", $"{p}.b", $"{p}.c" ])
       saveNumber(dark, $"{p}.later", "86531")
-      evals(dark, $"{p}.c(0)", "86531", "the forward reference resolves at the final name")
-      evals(dark, $"{p}.c(2)", "86531", "recursive calls use the refreshed declaration too")
+      evals(
+        dark,
+        $"{p}.c(0)",
+        "86531",
+        "the forward reference resolves at the final name")
+
+      evals(
+        dark,
+        $"{p}.c(2)",
+        "86531",
+        "recursive calls use the refreshed declaration too")
+
       says(
         dark,
         [ "deps", "uses", $"{p}.c" ],
@@ -438,25 +510,32 @@ test recursiveForwardReferenceRefreshFollowsChainedRenames =
         "the recursive reference uses the final name")
 
       commit(dark, "resolved recursive renames")
-      evals(dark, $"{p}.c(2)", "86531", "recursive calls still work after committing") ])
-
-
-test refreshKeepsLaterEditsAfterChainedRenames =
-  scenario(fun dark ->
-    let p = "Tests.RenameLatest"
-    [ save(dark, $"{p}.a", $"(): Int64 = {p}.later()")
-      run(dark, [ "rename", $"{p}.a", $"{p}.b" ])
-      run(dark, [ "rename", $"{p}.b", $"{p}.c" ])
-      save(dark, $"{p}.a", $"(): Int64 = {p}.later() + 10")
-      save(dark, $"{p}.c", $"(): Int64 = {p}.later() + 1")
-      saveNumber(dark, $"{p}.later", "86541")
       evals(
         dark,
-        $"{p}.c()",
-        "86542",
-        "refresh preserves the newer body at the renamed location")
+        $"{p}.c(2)",
+        "86531",
+        "recursive calls still work after committing") ])
 
-      evals(dark, $"{p}.a()", "86551", "reusing the old name keeps its own declaration") ])
+
+test refreshKeepsLaterEditsAfterChainedRenames = scenario(fun dark ->
+  let p = "Tests.RenameLatest"
+  [ save(dark, $"{p}.a", $"(): Int64 = {p}.later()")
+    run(dark, [ "rename", $"{p}.a", $"{p}.b" ])
+    run(dark, [ "rename", $"{p}.b", $"{p}.c" ])
+    save(dark, $"{p}.a", $"(): Int64 = {p}.later() + 10")
+    save(dark, $"{p}.c", $"(): Int64 = {p}.later() + 1")
+    saveNumber(dark, $"{p}.later", "86541")
+    evals(
+      dark,
+      $"{p}.c()",
+      "86542",
+      "refresh preserves the newer body at the renamed location")
+
+    evals(
+      dark,
+      $"{p}.a()",
+      "86551",
+      "reusing the old name keeps its own declaration") ])
 
 
 /// Rename `old` to `moved` and discard the rename by <param discardName>, which is one of the two.
@@ -487,42 +566,45 @@ let discardEitherName(
   Stdlib.List.flatten([ setup, byNew, byOld ])
 
 
-test aRenameCanBeDiscardedByEitherName =
-  scenario(fun dark ->
-    let mainSide = discardEitherName(dark, "Tests.RenameDiscardMain")
-    let toBranch = switch(dark, "rename-discard-branch")
-    let branchSide = discardEitherName(dark, "Tests.RenameDiscardBranch")
-    Stdlib.List.flatten([ mainSide, [ toBranch ], branchSide ]))
+test aRenameCanBeDiscardedByEitherName = scenario(fun dark ->
+  let mainSide = discardEitherName(dark, "Tests.RenameDiscardMain")
+  let toBranch = switch(dark, "rename-discard-branch")
+  let branchSide = discardEitherName(dark, "Tests.RenameDiscardBranch")
+  Stdlib.List.flatten([ mainSide, [ toBranch ], branchSide ]))
 
 
-test renameIntoAReusedLocationKeepsSourceReferences =
-  scenario(fun dark ->
-    let p = "Tests.ReusedRename"
-    [ saveNumber(dark, $"{p}.original", "582771")
-      saveNumber(dark, $"{p}.alias", "582771")
-      save(dark, $"{p}.destination", $"(): Int64 = {p}.original()")
-      save(dark, $"{p}.source", $"(): Int64 = {p}.alias()")
-      commit(dark, "reused destination baseline")
-      run(dark, [ "rename", $"{p}.original", $"{p}.moved" ])
-      commit(dark, "record destination metadata")
-      run(dark, [ "rename", $"{p}.destination", $"{p}.retired" ])
-      run(dark, [ "rename", $"{p}.source", $"{p}.destination" ])
-      says(
-        dark,
-        raw($"{p}.destination"),
-        "alias()",
-        "the source metadata replaces the vacant destination history")
+test renameIntoAReusedLocationKeepsSourceReferences = scenario(fun dark ->
+  let p = "Tests.ReusedRename"
+  [ saveNumber(dark, $"{p}.original", "582771")
+    saveNumber(dark, $"{p}.alias", "582771")
+    save(dark, $"{p}.destination", $"(): Int64 = {p}.original()")
+    save(dark, $"{p}.source", $"(): Int64 = {p}.alias()")
+    commit(dark, "reused destination baseline")
+    run(dark, [ "rename", $"{p}.original", $"{p}.moved" ])
+    commit(dark, "record destination metadata")
+    run(dark, [ "rename", $"{p}.destination", $"{p}.retired" ])
+    run(dark, [ "rename", $"{p}.source", $"{p}.destination" ])
+    says(
+      dark,
+      raw($"{p}.destination"),
+      "alias()",
+      "the source metadata replaces the vacant destination history")
 
-      saveNumber(dark, $"{p}.moved", "582772")
-      evals(
-        dark,
-        $"{p}.destination()",
-        "582771",
-        "the old destination dependency no longer controls it")
+    saveNumber(dark, $"{p}.moved", "582772")
+    evals(
+      dark,
+      $"{p}.destination()",
+      "582771",
+      "the old destination dependency no longer controls it")
 
-      saveNumber(dark, $"{p}.alias", "582773")
-      evals(dark, $"{p}.destination()", "582773", "the transferred dependency propagates")
-      commit(dark, "reused destination rename") ])
+    saveNumber(dark, $"{p}.alias", "582773")
+    evals(
+      dark,
+      $"{p}.destination()",
+      "582773",
+      "the transferred dependency propagates")
+
+    commit(dark, "reused destination rename") ])
 
 
 /// One rename on a branch and another on main, merged: the caller keeps both edges.
@@ -553,183 +635,214 @@ let renamesCompose(
     says(dark, raw($"{p}.caller"), "bMoved()", "merge retains the second edge")
     saveNumber(dark, $"{p}.aMoved", "10")
     saveNumber(dark, $"{p}.bMoved", "20")
-    evals(dark, $"{p}.caller()", "30", "both renamed dependencies still propagate")
+    evals(
+      dark,
+      $"{p}.caller()",
+      "30",
+      "both renamed dependencies still propagate")
+
     commit(dark, "updated renamed dependencies") ]
 
 
-test independentRenamesComposeInEitherMergeOrder =
-  scenario(fun dark ->
-    let forward = renamesCompose(dark, "Tests.RenameCompose", "rename-compose", "a", "b")
+test independentRenamesComposeInEitherMergeOrder = scenario(fun dark ->
+  let forward =
+    renamesCompose(dark, "Tests.RenameCompose", "rename-compose", "a", "b")
 
-    let reverse =
-      renamesCompose(
-        dark,
-        "Tests.RenameComposeReverse",
-        "rename-compose-reverse",
-        "b",
-        "a")
+  let reverse =
+    renamesCompose(
+      dark,
+      "Tests.RenameComposeReverse",
+      "rename-compose-reverse",
+      "b",
+      "a")
 
-    Stdlib.List.flatten([ forward, reverse ]))
+  Stdlib.List.flatten([ forward, reverse ]))
 
 
 /// A caller written on a branch against an older version arrives through merge already moved to
 /// the parent's newer version; a rename afterwards still has to find it.
-test aRenameIncludesACallerArrivingThroughMerge =
-  scenario(fun dark ->
-    let p = "Tests.RenameOlder"
-    let setup =
-      [ saveNumber(dark, $"{p}.foo", "582741")
-        commit(dark, "older caller base")
-        switch(dark, "rename-older-caller")
-        save(dark, $"{p}.caller", $"(): Int64 = {p}.foo()")
-        commit(dark, "caller on branch")
-        switch(dark, "main")
-        saveNumber(dark, $"{p}.foo", "582742")
-        commit(dark, "main moved on")
-        merge(dark, "rename-older-caller") ]
+test aRenameIncludesACallerArrivingThroughMerge = scenario(fun dark ->
+  let p = "Tests.RenameOlder"
+  let setup =
+    [ saveNumber(dark, $"{p}.foo", "582741")
+      commit(dark, "older caller base")
+      switch(dark, "rename-older-caller")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.foo()")
+      commit(dark, "caller on branch")
+      switch(dark, "main")
+      saveNumber(dark, $"{p}.foo", "582742")
+      commit(dark, "main moved on")
+      merge(dark, "rename-older-caller") ]
 
-    let hash = hashOf(dark, $"{p}.caller")
+  let hash = hashOf(dark, $"{p}.caller")
+  let merged =
+    [ evals(
+        dark,
+        $"{p}.caller()",
+        "582742",
+        "the merge moves the branch's caller to main's newer version")
 
-    let merged =
-      [ evals(
+      run(dark, [ "rename", $"{p}.foo", $"{p}.bar" ]) ]
+
+  let after = hashOf(dark, $"{p}.caller")
+  Stdlib.List.flatten(
+    [ setup
+      merged
+      [ same(after, hash, "rename preserves the caller's version")
+        says(
+          dark,
+          [ "deps", "uses", $"{p}.caller" ],
+          $"{p}.bar",
+          "the merged caller's reference follows the name")
+
+        saveNumber(dark, $"{p}.foo", "582743")
+        evals(
           dark,
           $"{p}.caller()",
           "582742",
-          "the merge moves the branch's caller to main's newer version")
+          "reusing the old name does not redirect the caller")
 
-        run(dark, [ "rename", $"{p}.foo", $"{p}.bar" ]) ]
+        saveNumber(dark, $"{p}.bar", "582744")
+        evals(
+          dark,
+          $"{p}.caller()",
+          "582744",
+          "subsequent edits find the caller")
 
-    let after = hashOf(dark, $"{p}.caller")
-
-    Stdlib.List.flatten(
-      [ setup
-        merged
-        [ same(after, hash, "rename preserves the caller's version")
-          says(
-            dark,
-            [ "deps", "uses", $"{p}.caller" ],
-            $"{p}.bar",
-            "the merged caller's reference follows the name")
-
-          saveNumber(dark, $"{p}.foo", "582743")
-          evals(
-            dark,
-            $"{p}.caller()",
-            "582742",
-            "reusing the old name does not redirect the caller")
-
-          saveNumber(dark, $"{p}.bar", "582744")
-          evals(dark, $"{p}.caller()", "582744", "subsequent edits find the caller")
-          commit(dark, "renamed merged caller") ] ]))
+        commit(dark, "renamed merged caller") ] ]))
 
 
 /// A caller that reuses this code keeps its own reference names, without picking up names used by
 /// earlier callers.
-test aReusedCallerKeepsItsOwnReferenceNames =
-  scenario(fun dark ->
-    let p = "Tests.RefNames"
-    [ saveNumber(dark, $"{p}.old", "9734822")
-      save(dark, $"{p}.a", $"(): Int64 = {p}.old()")
-      commit(dark, "reference name fixture")
-      run(dark, [ "rename", $"{p}.old", $"{p}.moved" ])
-      save(dark, $"{p}.b", $"(): Int64 = {p}.moved()")
-      saveNumber(dark, $"{p}.a", "9734823")
-      saveNumber(dark, $"{p}.b", "9734824")
-      saveNumber(dark, $"{p}.old", "9734822")
-      save(dark, $"{p}.c", $"(): Int64 = {p}.old()")
-      saveNumber(dark, $"{p}.moved", "9734825")
-      evals(dark, $"{p}.c()", "9734822", "the new caller follows only the restored name")
-      doesNotSay(
+test aReusedCallerKeepsItsOwnReferenceNames = scenario(fun dark ->
+  let p = "Tests.RefNames"
+  [ saveNumber(dark, $"{p}.old", "9734822")
+    save(dark, $"{p}.a", $"(): Int64 = {p}.old()")
+    commit(dark, "reference name fixture")
+    run(dark, [ "rename", $"{p}.old", $"{p}.moved" ])
+    save(dark, $"{p}.b", $"(): Int64 = {p}.moved()")
+    saveNumber(dark, $"{p}.a", "9734823")
+    saveNumber(dark, $"{p}.b", "9734824")
+    saveNumber(dark, $"{p}.old", "9734822")
+    save(dark, $"{p}.c", $"(): Int64 = {p}.old()")
+    saveNumber(dark, $"{p}.moved", "9734825")
+    evals(
+      dark,
+      $"{p}.c()",
+      "9734822",
+      "the new caller follows only the restored name")
+
+    doesNotSay(
+      dark,
+      [ "constraints", "--json" ],
+      $"{p}.c",
+      "historical alias edges do not report a false stale usage")
+
+    commit(dark, "reference name reuse")
+    evals(
+      dark,
+      $"{p}.c()",
+      "9734822",
+      "committing retains that reference choice") ])
+
+
+test aRepeatedBranchBodyRevertKeepsItsNewAlias = scenario(fun dark ->
+  let p = "Tests.RevertAlias"
+  let revise(body: String): List<Stdlib.Test.Result> =
+    [ save(dark, $"{p}.caller", $"(): Int64 = {p}.{body}")
+      commit(dark, "caller revision") ]
+
+  let undoTo(body: String): List<Stdlib.Test.Result> =
+    [ run(dark, [ "undo", $"{p}.caller" ])
+      says(
         dark,
-        [ "constraints", "--json" ],
-        $"{p}.c",
-        "historical alias edges do not report a false stale usage")
+        raw($"{p}.caller"),
+        body,
+        "undo steps through complete authored revisions") ]
 
-      commit(dark, "reference name reuse")
-      evals(dark, $"{p}.c()", "9734822", "committing retains that reference choice") ])
+  let setup =
+    [ switch(dark, "revert-alias")
+      saveNumber(dark, $"{p}.a", "910001")
+      saveNumber(dark, $"{p}.b", "910001") ]
 
+  // The final revision repeats a stored SetName but changes the alias inside the shared body.
+  // Restating the binding must not lose that edit.
+  let revisions =
+    [ "a() + 1", "a() + 2", "a() + 1", "b() + 2" ]
+    |> Stdlib.List.map(revise)
+    |> Stdlib.List.flatten
 
-test aRepeatedBranchBodyRevertKeepsItsNewAlias =
-  scenario(fun dark ->
-    let p = "Tests.RevertAlias"
-    let revise(body: String): List<Stdlib.Test.Result> =
-      [ save(dark, $"{p}.caller", $"(): Int64 = {p}.{body}")
-        commit(dark, "caller revision") ]
+  let kept =
+    says(
+      dark,
+      raw($"{p}.caller"),
+      "b() + 2",
+      "the reverted body keeps the newly chosen alias")
 
-    let undoTo(body: String): List<Stdlib.Test.Result> =
-      [ run(dark, [ "undo", $"{p}.caller" ])
-        says(
-          dark,
-          raw($"{p}.caller"),
-          body,
-          "undo steps through complete authored revisions") ]
+  let undos =
+    [ "a() + 1", "a() + 2", "a() + 1" ]
+    |> Stdlib.List.map(undoTo)
+    |> Stdlib.List.flatten
 
-    let setup =
-      [ switch(dark, "revert-alias")
-        saveNumber(dark, $"{p}.a", "910001")
-        saveNumber(dark, $"{p}.b", "910001") ]
-
-    // The final revision repeats a stored SetName but changes the alias inside the shared body.
-    // Restating the binding must not lose that edit.
-    let revisions =
-      [ "a() + 1", "a() + 2", "a() + 1", "b() + 2" ]
-      |> Stdlib.List.map(revise)
-      |> Stdlib.List.flatten
-
-    let kept =
+  // A later alias-only edit must not be folded into the earlier override.
+  let aliasEdit =
+    [ run(dark, [ "discard", "-y" ])
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.a() + 2")
+      run(dark, [ "undo", $"{p}.caller" ])
       says(
         dark,
         raw($"{p}.caller"),
         "b() + 2",
-        "the reverted body keeps the newly chosen alias")
+        "a subsequent alias edit has its own undo revision")
 
-    let undos =
-      [ "a() + 1", "a() + 2", "a() + 1" ]
-      |> Stdlib.List.map(undoTo)
-      |> Stdlib.List.flatten
-
-    // A later alias-only edit must not be folded into the earlier override.
-    let aliasEdit =
-      [ run(dark, [ "discard", "-y" ])
-        save(dark, $"{p}.caller", $"(): Int64 = {p}.a() + 2")
-        run(dark, [ "undo", $"{p}.caller" ])
-        says(
-          dark,
-          raw($"{p}.caller"),
-          "b() + 2",
-          "a subsequent alias edit has its own undo revision")
-
-        run(dark, [ "discard", "-y" ])
-        saveNumber(dark, $"{p}.a", "910010")
-        evals(dark, $"{p}.caller()", "910003", "the old alias no longer controls the caller")
-        saveNumber(dark, $"{p}.b", "910020")
-        evals(dark, $"{p}.caller()", "910022", "the newly chosen alias propagates") ]
-
-    Stdlib.List.flatten([ setup, revisions, [ kept ], undos, aliasEdit ]))
-
-
-test mainPromotionKeepsABranchCallersOriginalAlias =
-  scenario(fun dark ->
-    let p = "Tests.PromoteAlias"
-    [ saveNumber(dark, $"{p}.a", "91837261")
-      saveNumber(dark, $"{p}.b", "91837261")
-      commit(dark, "shared helpers")
-      switch(dark, "promote-alias")
-      save(dark, $"{p}.branchCaller", $"(): Int64 = {p}.b()")
-      switch(dark, "main")
-      save(dark, $"{p}.mainCaller", $"(): Int64 = {p}.a()")
-      commit(dark, "promote shared content")
-      switch(dark, "promote-alias")
-      says(
+      run(dark, [ "discard", "-y" ])
+      saveNumber(dark, $"{p}.a", "910010")
+      evals(
         dark,
-        raw($"{p}.branchCaller"),
-        "b()",
-        "main cannot replace the branch's canonical reference names")
+        $"{p}.caller()",
+        "910003",
+        "the old alias no longer controls the caller")
 
-      saveNumber(dark, $"{p}.a", "91837262")
-      evals(dark, $"{p}.branchCaller()", "91837261", "the branch caller still ignores a")
-      saveNumber(dark, $"{p}.b", "91837263")
-      evals(dark, $"{p}.branchCaller()", "91837263", "the branch caller still follows b") ])
+      saveNumber(dark, $"{p}.b", "910020")
+      evals(
+        dark,
+        $"{p}.caller()",
+        "910022",
+        "the newly chosen alias propagates") ]
+
+  Stdlib.List.flatten([ setup, revisions, [ kept ], undos, aliasEdit ]))
+
+
+test mainPromotionKeepsABranchCallersOriginalAlias = scenario(fun dark ->
+  let p = "Tests.PromoteAlias"
+  [ saveNumber(dark, $"{p}.a", "91837261")
+    saveNumber(dark, $"{p}.b", "91837261")
+    commit(dark, "shared helpers")
+    switch(dark, "promote-alias")
+    save(dark, $"{p}.branchCaller", $"(): Int64 = {p}.b()")
+    switch(dark, "main")
+    save(dark, $"{p}.mainCaller", $"(): Int64 = {p}.a()")
+    commit(dark, "promote shared content")
+    switch(dark, "promote-alias")
+    says(
+      dark,
+      raw($"{p}.branchCaller"),
+      "b()",
+      "main cannot replace the branch's canonical reference names")
+
+    saveNumber(dark, $"{p}.a", "91837262")
+    evals(
+      dark,
+      $"{p}.branchCaller()",
+      "91837261",
+      "the branch caller still ignores a")
+
+    saveNumber(dark, $"{p}.b", "91837263")
+    evals(
+      dark,
+      $"{p}.branchCaller()",
+      "91837263",
+      "the branch caller still follows b") ])
 
 
 test aliasOnlyBranchEditsShowInPreviewAndResolveToTheParent =

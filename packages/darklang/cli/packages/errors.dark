@@ -122,7 +122,9 @@ let stdlibSuggestionCandidates(
           walkUp([ "Stdlib" ], modules)
           renamed([ "Stdlib" ], modules) ])
     | _ ->
-      Stdlib.List.prepend(renamed([ "Stdlib" ], modules), stdlibCandidate([ "Stdlib" ], modules, name))
+      Stdlib.List.prepend(
+        renamed([ "Stdlib" ], modules),
+        stdlibCandidate([ "Stdlib" ], modules, name))
 
 
 /// Names other languages give a job Stdlib does under another name, or with two calls: each
@@ -352,8 +354,7 @@ let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
   | Some(name) -> [ name ]
   | None ->
     match operatorSuggestion(branchId, originalName) with
-    | Some(written) ->
-      Stdlib.List.concat([ written ], checkedSibling(branchId, originalName))
+    | Some(written) -> Stdlib.List.concat([ written ], checkedSibling(branchId, originalName))
     | None ->
       match namesOneModuleDown(branchId, originalName) with
       | [] -> closestNames(branchId, originalName)

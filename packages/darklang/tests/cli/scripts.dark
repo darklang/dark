@@ -164,10 +164,17 @@ test scriptTestsSeeDeclarationsOnly = Instance.withInstance(fun i ->
     [ Instance.exitedWith(testCode, 1, $"a test failed: {tested}")
       Instance.says(tested, "PASS Script.doubles", "the passing test")
       Instance.says(tested, "FAIL Script.wrong", "the failing test")
-      Instance.doesNotSay(tested, "statement ran", "no statement runs under test")
+      Instance.doesNotSay(
+        tested,
+        "statement ran",
+        "no statement runs under test")
+
       Instance.exitedWith(runCode, 0, $"run skips the tests: {ran}")
       Instance.says(ran, "statement ran", "run runs the statements")
-      Instance.doesNotSay(status, "draft:", "nothing the run saved is left in the draft") ]))
+      Instance.doesNotSay(
+        status,
+        "draft:",
+        "nothing the run saved is left in the draft") ]))
 
 
 /// A script test that reaches a top-level `let` through a function below it, directly or through
@@ -195,14 +202,17 @@ test scriptTestUsesLet = Instance.withInstance(fun i ->
         out,
         "error[SCRIPT-TEST-USES-LET] at 1:39: `totalForEast` calls `total`, which uses the top-level `let rows` on line 4.\n  hint: make it a `val` if it's a constant, or pass it to `total` as an argument",
         "the direct call")
+
       Instance.says(
         out,
         "error[SCRIPT-TEST-USES-LET] at 2:37: `countsRows` calls `count`, which calls `size`, which uses the top-level `let rows` on line 4.\n  hint: make it a `val` if it's a constant, or pass it to `size` as an argument",
         "the call through another function")
+
       Instance.says(
         out,
         "error[SCRIPT-TEST-BELOW-LET] at 3:33: `greets` calls `greet`, which is defined below the top-level `let rows` on line 4.\n  hint: move `greet` above line 4",
         "the call to a function below the let that doesn't use it")
+
       Instance.doesNotSay(out, "PASS", "no test runs")
       Instance.doesNotSay(out, "statement ran", "no statement runs") ]))
 

@@ -70,7 +70,9 @@ let refuseUnknownFlags(args: List<String>): Bool =
 let parseArgs(args: List<String>): Args =
   // Every word after `--` is message.
   let afterDashes =
-    args |> Stdlib.List.dropWhile(fun a -> a != "--") |> Stdlib.List.drop(1)
+    args
+    |> Stdlib.List.dropWhile(fun a -> a != "--")
+    |> Stdlib.List.drop(1)
 
   let args = args |> Stdlib.List.takeWhile(fun a -> a != "--")
   let autoConfirm = Stdlib.List.contains(args, "-y") || Stdlib.List.contains(args, "--yes")
@@ -85,6 +87,7 @@ let parseArgs(args: List<String>): Args =
     args
     |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
     |> Stdlib.List.concat(afterDashes)
+
   Args
     { message = Stdlib.String.trim(Stdlib.String.join(words, " "))
       autoConfirm = autoConfirm

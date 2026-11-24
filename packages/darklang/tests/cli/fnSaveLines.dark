@@ -15,9 +15,16 @@ test theDescriptionFlagKeepsTheColumns = Instance.withInstance(fun i ->
   let (_, out) =
     Instance.ran(
       i,
-      [ "fn", "Me.Lines.add", "(n: Int64): Int64 = n + \"x\"", "--description", "Adds." ])
+      [ "fn"
+        "Me.Lines.add"
+        "(n: Int64): Int64 = n + \"x\""
+        "--description"
+        "Adds." ])
 
-  Instance.says(out, "(line 1, column 25)", "the flag adds no line to the source"))
+  Instance.says(
+    out,
+    "(line 1, column 25)",
+    "the flag adds no line to the source"))
 
 
 test aFullDeclarationCountsItsLines = Instance.withInstance(fun i ->

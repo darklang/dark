@@ -147,11 +147,7 @@ type Call =
 
 /// `args` with nothing piped in, no extra environment and no terminal.
 let command(args: List<String>): Call =
-  Call
-    { args = args
-      stdin = Stdlib.Option.Option.None
-      env = []
-      tty = false }
+  Call { args = args, stdin = Stdlib.Option.Option.None, env = [], tty = false }
 
 
 /// Run one command in this instance. `call` is the same with a failure to start folded in.
@@ -164,13 +160,11 @@ let tryCall(
   c: Call)
   : Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
   let terminal = if c.tty then [ ("TERM", "xterm-256color") ] else []
-
   let envArgs =
     Stdlib.List.flatten([ terminal, env(i), c.env ])
     |> Stdlib.List.map(fun((k, v)) -> $"{k}={v}")
 
   let direct = Stdlib.List.flatten([ envArgs, [ i.cli ], c.args ])
-
   let line =
     Stdlib.List.prepend(direct, "/usr/bin/env")
     |> Stdlib.List.map(Stdlib.Cli.Process.shellQuote)
@@ -207,9 +201,7 @@ let call(i: T, c: Call): Stdlib.Cli.Process.Output =
   | Ok(out) -> out
   | Error(e) ->
     Stdlib.Cli.Process.Output
-      { exitCode = -1
-        stdout = ""
-        stderr = $"could not run: {e}" }
+      { exitCode = -1, stdout = "", stderr = $"could not run: {e}" }
 
 
 let run(
@@ -301,7 +293,10 @@ let streams(i: T, args: List<String>): (Int64 * String * String) =
   match run(i, args) with
   | Error(e) -> (-1, "", $"could not run: {e}")
   | Ok(out) ->
-    (out.exitCode, Stdlib.String.trim(out.stdout), Stdlib.String.trim(out.stderr))
+    (
+      out.exitCode,
+      Stdlib.String.trim(out.stdout),
+      Stdlib.String.trim(out.stderr))
 
 
 /// Everything a command printed, both streams. See `ran`.
@@ -365,7 +360,10 @@ let stderrSays(
 
 
 /// Nothing at all on stdout, not even a newline: `| jq` meets an empty input.
-let stdoutIsEmpty(out: Stdlib.Cli.Process.Output, why: String): Stdlib.Test.Result =
+let stdoutIsEmpty(
+  out: Stdlib.Cli.Process.Output,
+  why: String)
+  : Stdlib.Test.Result =
   if out.stdout == "" then
     Stdlib.Test.Result.Pass
   else
@@ -373,7 +371,11 @@ let stdoutIsEmpty(out: Stdlib.Cli.Process.Output, why: String): Stdlib.Test.Resu
 
 
 /// stdout is one JSON value and nothing else.
-let stdoutIsJson(out: Stdlib.Cli.Process.Output, why: String): Stdlib.Test.Result =
+let stdoutIsJson(
+  out: Stdlib.Cli.Process.Output,
+  why: String)
+  : Stdlib.Test.Result =
   match Stdlib.AltJson.parse(Stdlib.String.trim(out.stdout)) with
   | Ok(_) -> Stdlib.Test.Result.Pass
-  | Error(_) -> Stdlib.Test.fail($"{why}: expected JSON on stdout. {shown(out)}")
+  | Error(_) ->
+    Stdlib.Test.fail($"{why}: expected JSON on stdout. {shown(out)}")

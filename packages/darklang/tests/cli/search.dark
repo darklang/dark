@@ -69,14 +69,17 @@ test searchLeavesTestsOutUnlessAsked = Instance.withInstance(fun i ->
         seen([ "search", "ceiling" ]),
         "Float64.Tests.ceiling",
         "a plain search lists no tests")
+
       Instance.says(
         seen([ "search", "ceilingRejectsNan" ]),
         "1 test matched; --include-tests shows them",
         "and says what it left out")
+
       Instance.says(
         seen([ "search", "ceiling", "--include-tests" ]),
         nanTest,
         "--include-tests lists them")
+
       Instance.says(
         seen([ "search", "ceiling", "--test" ]),
         nanTest,

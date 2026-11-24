@@ -209,7 +209,12 @@ test aCascadeOnABranchLeavesWhatTheBranchReboundAlone =
       saveNumber(dark, "Tests.App.caller", "777")
       commit(dark, "branch caller")
       saveNumber(dark, "Tests.App.base", "30")
-      evals(dark, "Tests.App.caller()", "777", "the branch keeps its own caller")
+      evals(
+        dark,
+        "Tests.App.caller()",
+        "777",
+        "the branch keeps its own caller")
+
       evalsOn(
         dark,
         "main",
@@ -229,8 +234,18 @@ test callersInEveryOwnerFollowAnEditAndItsUndo =
       save(dark, "Other.Auto.top", "(): Int64 = Tests.Auto.x() + 1000")
       saveNumber(dark, "Vendor.Auto.dep", "2")
       evals(dark, "Tests.Auto.x()", "102", "the first caller follows")
-      evals(dark, "Tests.Auto.y()", "102", "and so does a name holding the same code")
-      evals(dark, "Other.Auto.top()", "1102", "and a caller of the caller, in another owner")
+
+      evals(
+        dark,
+        "Tests.Auto.y()",
+        "102",
+        "and so does a name holding the same code")
+
+      evals(
+        dark,
+        "Other.Auto.top()",
+        "1102",
+        "and a caller of the caller, in another owner")
 
       says(
         dark,
@@ -254,9 +269,25 @@ test aCallerInAnotherOwnerFollowsABranchEditOnlyOnTheBranch =
       commit(dark, "base")
       switch(dark, "feat")
       saveNumber(dark, "Vendor.App.dep", "51")
-      evals(dark, "Tests.App.caller()", "52", "on the branch the caller follows")
-      evalsOn(dark, "main", "Tests.App.caller()", "42", "main's caller does not")
-      evalsOn(dark, "main", "Vendor.App.dep()", "41", "nor main's dependency") ])
+      evals(
+        dark,
+        "Tests.App.caller()",
+        "52",
+        "on the branch the caller follows")
+
+      evalsOn(
+        dark,
+        "main",
+        "Tests.App.caller()",
+        "42",
+        "main's caller does not")
+
+      evalsOn(
+        dark,
+        "main",
+        "Vendor.App.dep()",
+        "41",
+        "nor main's dependency") ])
 
 
 /// Going back to a version committed earlier is a change of its own: it takes effect, sits in the
@@ -270,11 +301,17 @@ test goingBackToAnEarlierCommittedVersionTakesEffect =
       commit(dark, "622")
       evals(dark, "Tests.App.b()", "622", "the second version runs")
       saveNumber(dark, "Tests.App.b", "611")
-      evals(dark, "Tests.App.b()", "611", "going back to the first takes effect")
+      evals(
+        dark,
+        "Tests.App.b()",
+        "611",
+        "going back to the first takes effect")
+
       same(
         draft(dark),
         [ "updated Tests.App.b" ],
         "the draft holds it as a change")
+
       commit(dark, "back to 611")
       evals(dark, "Tests.App.b()", "611", "and it survives the commit") ])
 

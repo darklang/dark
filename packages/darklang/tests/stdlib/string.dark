@@ -1528,37 +1528,49 @@ test contains =
 test slice =
   Stdlib.Test.all(
     [ Stdlib.String.slice("abcd", -2, 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("a\r\nb", 1, 2) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("\r\n"))
+      Stdlib.String.slice("a\r\nb", 1, 2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("\r\n"))
 
       Stdlib.String.last("a\r\n", 1) |> Stdlib.Test.equal("\r\n")
 
       Stdlib.String.slice("abcd", -5, -6)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", -5, 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", 0, -1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("abcd", 2, 3) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("c"))
+      Stdlib.String.slice("abcd", 2, 3)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("c"))
 
-      Stdlib.String.slice("abcd", 0, 4) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcd"))
+      Stdlib.String.slice("abcd", 0, 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcd"))
 
-      Stdlib.String.slice("abcd", 4, 4) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      Stdlib.String.slice("abcd", 4, 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
 
-      Stdlib.String.slice("", 0, 0) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      Stdlib.String.slice("", 0, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
 
       Stdlib.String.slice("abcd", 2, 6)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", 3, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", 5, 6)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", 2, 5)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("✋✋🏻✋🏿"))
@@ -1573,13 +1585,16 @@ test slice =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("👱🏼👱🏽👱🏾👱🏿"))
 
       Stdlib.String.slice("🧟‍♀️🧟‍♂️", 2, 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", 2, 4)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("🏳️‍⚧️‍️🇵🇷"))
 
       Stdlib.String.slice("abc", 0, 4503599627370498)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.String.IndexError.IndexOutOfBounds)) ])
 
 
 test first =
@@ -2038,8 +2053,8 @@ test getByteAtMatchesToBytes =
   // Match the full UTF-8 encoding.
   Stdlib.String.getByteAt("héllo", 2)
   |> Stdlib.Test.equal(
-    Stdlib.Bytes.getAt(Stdlib.Utf8.encode("héllo"), 2) |> Stdlib.Result.toOption
-  )
+    Stdlib.Bytes.getAt(Stdlib.Utf8.encode("héllo"), 2)
+    |> Stdlib.Result.toOption)
 
 
 test slugify =

@@ -256,7 +256,6 @@ let executeFiltered(
   : AppState =
   let rootName = Stdlib.String.join(rootPath, ".")
   let branchId = state.currentBranchId
-
   let searchAt = fun path ->
     LanguageTools.PackageManager.Search.search(
       branchId,
@@ -275,14 +274,14 @@ let executeFiltered(
       let segments = Stdlib.String.split(needle, ".")
       let path =
         match segments with
-        | ["Stdlib", ...rest] -> ["Darklang", "Stdlib", ...rest]
+        | ["Stdlib", ...rest] -> [ "Darklang", "Stdlib", ...rest ]
         | _ -> segments
+
       match Stdlib.List.last(path) |> Stdlib.Option.andThen(Stdlib.String.head) with
-      | Some(c) when Stdlib.Char.isUppercase(c)
-                     && path != rootPath
-                     && Stdlib.List.take(path, Stdlib.List.length(rootPath)) == rootPath ->
-        Some(path)
-      | _ -> None)
+      | Some(c)
+        when Stdlib.Char.isUppercase(c) && path != rootPath && Stdlib.List.take(path, Stdlib.List.length(rootPath)) == rootPath ->
+        Option.Some(path)
+      | _ -> Option.None)
 
   let searchResults =
     match qualifiedModulePath with

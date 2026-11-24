@@ -459,14 +459,13 @@ let isUsefulFirst(
     // a wildcard is useful if any constructor is, but only the constructors the rows
     // name need checking; when one is left out, the rows' catch-alls decide
     if Stdlib.Bool.not(Stdlib.List.isEmpty(cases)) && headsCoverAllConstructors(cases, rows) then
-      Stdlib.List.any(cases, fun((constructor, fieldTypes)) -> byConstructor(constructor, fieldTypes))
+      Stdlib.List.any(cases, fun((constructor, fieldTypes)) ->
+        byConstructor(constructor, fieldTypes))
     else
       isUseful(env, subst, rest, catchAllRows(rows), others)
   | _ ->
-    match
-      Stdlib.List.findFirst(cases, fun((constructor, fieldTypes)) ->
-        namesConstructor(constructor, Stdlib.List.length(fieldTypes), pattern))
-    with
+    match Stdlib.List.findFirst(cases, fun((constructor, fieldTypes)) ->
+            namesConstructor(constructor, Stdlib.List.length(fieldTypes), pattern)) with
     | Some((constructor, fieldTypes)) -> byConstructor(constructor, fieldTypes)
     | None ->
       // a literal, or a type whose constructors are unknown: only catch-alls and the
@@ -477,7 +476,10 @@ let isUsefulFirst(
           match row with
           | [] -> []
           | [head, ...tail] ->
-            if Stdlib.List.any(alternatives(head), fun p -> isIrrefutable(p) || sameLiteral(p, pattern)) then
+            if
+              Stdlib.List.any(alternatives(head), fun p ->
+                isIrrefutable(p) || sameLiteral(p, pattern))
+            then
               [ tail ]
             else
               [])
@@ -494,19 +496,18 @@ let unreachable(
   scrutinee: Model.Ty,
   cases: List<ProgramTypes.MatchCase>)
   : List<ProgramTypes.MatchCase> =
-  let (_, found) =
-    Stdlib.List.fold(cases, ([], []), fun((rows, found), case) ->
-      let found =
-        if isUseful(env, subst, [ scrutinee ], rows, [ case.pat ]) then
-          found
-        else
-          Stdlib.List.prepend(found, case)
+  let (_, found) = Stdlib.List.fold(cases, ([], []), fun((rows, found), case) ->
+    let found =
+      if isUseful(env, subst, [ scrutinee ], rows, [ case.pat ]) then
+        found
+      else
+        Stdlib.List.prepend(found, case)
 
-      let rows =
-        match case.whenCondition with
-        | Some(_) -> rows
-        | None -> Stdlib.List.concat(rows, Stdlib.List.map(alternatives(case.pat), fun p -> [ p ]))
+    let rows =
+      match case.whenCondition with
+      | Some(_) -> rows
+      | None -> Stdlib.List.concat(rows, Stdlib.List.map(alternatives(case.pat), fun p -> [ p ]))
 
-      (rows, found))
+    (rows, found))
 
   Stdlib.List.reverse(found)

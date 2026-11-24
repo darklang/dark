@@ -2,7 +2,12 @@
 module Darklang.Cli.Tests.ConfigList
 
 /// Run in the instance with one more environment variable.
-let ranWithEnv(i: Instance.T, name: String, value: String, args: List<String>): String =
+let ranWithEnv(
+  i: Instance.T,
+  name: String,
+  value: String,
+  args: List<String>)
+  : String =
   let envArgs =
     Stdlib.List.append(Instance.env(i), (name, value))
     |> Stdlib.List.map(fun pair ->
@@ -24,7 +29,8 @@ let ranWithEnv(i: Instance.T, name: String, value: String, args: List<String>): 
 let rowOf(out: String, key: String): List<String> =
   out
   |> Stdlib.String.split("\n")
-  |> Stdlib.List.findFirst(fun line -> Stdlib.String.startsWith(line, $"  {key} "))
+  |> Stdlib.List.findFirst(fun line ->
+    Stdlib.String.startsWith(line, $"  {key} "))
   |> Stdlib.Option.map(fun line ->
     line
     |> Stdlib.String.split(" ")
@@ -45,12 +51,16 @@ test listShowsValueAndSource = Instance.withInstance(fun i ->
   let before = Instance.said(i, [ "config", "list" ])
   let _ = Instance.ran(i, [ "config", "set", "trace.keep", "50" ])
   let after = Instance.said(i, [ "config", "list" ])
-  let fromEnv = ranWithEnv(i, "DARK_CONFIG_HTTP_PRIVATE", "on", [ "config", "list" ])
+  let fromEnv =
+    ranWithEnv(i, "DARK_CONFIG_HTTP_PRIVATE", "on", [ "config", "list" ])
+
   Stdlib.Test.all(
     [ Stdlib.List.take(rowOf(before, "trace.keep"), 3)
       |> Stdlib.Test.equal([ "trace.keep", "200", "default" ])
+
       Stdlib.List.take(rowOf(after, "trace.keep"), 3)
       |> Stdlib.Test.equal([ "trace.keep", "50", "set" ])
+
       Stdlib.List.take(rowOf(fromEnv, "http.private"), 3)
       |> Stdlib.Test.equal([ "http.private", "on", "env" ]) ]))
 

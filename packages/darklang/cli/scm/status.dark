@@ -160,7 +160,7 @@ let executePretty(state: AppState): AppState =
 
 
 let execute(state: AppState, _args: List<String>): AppState =
-  Output.answer(state, fun () -> executePretty(state), fun () -> statusJson(state))
+  Output.answer(state, (fun () -> executePretty(state)), fun () -> statusJson(state))
 
 
 let help(_state: AppState): String =

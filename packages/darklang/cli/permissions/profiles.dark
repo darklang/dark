@@ -36,8 +36,7 @@ val readEffects =
 
 
 /// Kept aligned with the host's defaultInstance by the CLI integration test.
-val defaultEffects =
-  Stdlib.List.append(readEffects, LanguageTools.Permissions.Effect.TraceWrite)
+val defaultEffects = Stdlib.List.append(readEffects, LanguageTools.Permissions.Effect.TraceWrite)
 
 
 val httpsGet =

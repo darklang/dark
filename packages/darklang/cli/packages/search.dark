@@ -155,9 +155,7 @@ let phraseSynonyms(words: List<String>): List<String> =
 /// Search for `dict.remove` when someone asks to remove a key from a dictionary.
 /// For JSON queries, also look for `Json.serialize` when someone says `encode`.
 let moduleQueries(tokens: List<String>): List<String> =
-  let words =
-    tokens |> Stdlib.List.filter(fun word -> word != "a" && word != "an" && word != "the")
-
+  let words = tokens |> Stdlib.List.filter(fun word -> word != "a" && word != "an" && word != "the")
   let moduleHint =
     match words, Stdlib.List.reverse(words) with
     | [operation, _, _, ...], [moduleWord, relation, ...]
@@ -689,7 +687,7 @@ type NothingFound =
     fallback: Option<FallbackSuggestions> }
 
 
-val nothingToTry = NothingFound { wordCounts = [], didYouMean = [], fallback = None }
+val nothingToTry = NothingFound { wordCounts = [], didYouMean = [], fallback = Option.None }
 
 
 // What to try when <param query> found nothing. Each word of a several-word query
@@ -726,7 +724,8 @@ let nothingFound(
         | [] -> Option.None
         | near -> Option.Some((w, near)))
 
-  NothingFound { wordCounts = if several then counts else [], didYouMean = didYouMean, fallback = None }
+  NothingFound
+    { wordCounts = if several then counts else [], didYouMean = didYouMean, fallback = Option.None }
 
 
 // <type NothingFound> as hint lines.
@@ -756,7 +755,11 @@ let nothingFoundLines(found: NothingFound): List<String> =
 
   match found.fallback with
   | Some(matches) ->
-    let names = matches.names |> Stdlib.List.map(fun name -> $"`{name}`") |> Stdlib.String.join(", ")
+    let names =
+      matches.names
+      |> Stdlib.List.map(fun name -> $"`{name}`")
+      |> Stdlib.String.join(", ")
+
     [ $"  Without `{matches.dropped}`: {names}" ]
   | None -> Stdlib.List.concat(alone, typos)
 
@@ -829,6 +832,7 @@ let renderSection(
   else
     if mode == DisplayMode.Detailed then
       Stdlib.printLine(Display.getSectionHeader(header))
+
     let shown = Stdlib.List.take(items, cap)
     shown |> Stdlib.List.iter(fun item -> Stdlib.printLine(renderItem(item)))
     if mode == DisplayMode.Detailed then
@@ -901,7 +905,11 @@ let parseArgs(args: List<String>): ParsedArgs =
       batch = FlagParser.hasFlag(p, "--batch")
       exactMatch = FlagParser.hasFlag(p, "--exact")
       withDocs = FlagParser.hasFlag(p, "--with-docs")
-      mode = if FlagParser.hasFlag(p, "--brief") then DisplayMode.Brief else DisplayMode.Detailed
+      mode =
+        if FlagParser.hasFlag(p, "--brief") then
+          DisplayMode.Brief
+        else
+          DisplayMode.Detailed
       shallow = FlagParser.hasFlag(p, "--shallow")
       deprecated = Query.Deprecated.showIf(FlagParser.hasFlag(p, "--include-deprecated"))
       internal = Query.Internal.showIf(FlagParser.hasFlag(p, "--include-internal"))
@@ -1013,10 +1021,11 @@ let jsonOutput(
     | None -> []
     | Some(matches) ->
       let names = matches.names |> Stdlib.List.map(fun name -> Stdlib.AltJson.Json.String(name))
-      [ ("relaxed",
-         Stdlib.AltJson.Json.Object(
-           [ ("dropped", Stdlib.AltJson.Json.String(matches.dropped))
-             ("names", Stdlib.AltJson.Json.Array(names)) ])) ]
+      [ (
+          "relaxed",
+          Stdlib.AltJson.Json.Object(
+            [ ("dropped", Stdlib.AltJson.Json.String(matches.dropped))
+              ("names", Stdlib.AltJson.Json.Array(names)) ])) ]
 
   let fields =
     [ ("query", Stdlib.AltJson.Json.String(queryText))
@@ -1201,7 +1210,9 @@ let suggestionWithSortKey(
   item: LanguageTools.ProgramTypes.LocatedItem<'a>)
   : (String * String) =
   let loc = item.location
-  (tier(loc.owner, loc.modules) + rankKey(ranker, loc.owner, loc.modules, loc.name), fullPathOf(item))
+  (
+    tier(loc.owner, loc.modules) + rankKey(ranker, loc.owner, loc.modules, loc.name),
+    fullPathOf(item))
 
 
 /// For a phrase with no matches, try dropping each of its first three search terms in order.
@@ -1212,8 +1223,10 @@ let fallbackSuggestions(
   search: String -> LanguageTools.ProgramTypes.Search.SearchResults)
   : Option<FallbackSuggestions> =
   let words = queryWords(query.text) |> Stdlib.List.unique
-  if query.exactMatch || Stdlib.String.contains(query.text, ".") || Stdlib.List.length(words) < 3 then
-    None
+  if
+    query.exactMatch || Stdlib.String.contains(query.text, ".") || Stdlib.List.length(words) < 3
+  then
+    Option.None
   else
     words
     |> Stdlib.List.take(3)
@@ -1222,7 +1235,10 @@ let fallbackSuggestions(
       | Some(_) -> found
       | None ->
         let shorterQuery =
-          words |> Stdlib.List.filter(fun word -> word != droppedWord) |> Stdlib.String.join(" ")
+          words
+          |> Stdlib.List.filter(fun word -> word != droppedWord)
+          |> Stdlib.String.join(" ")
+
         let results = search(shorterQuery)
         let ranker = rankerFor(shorterQuery)
         let names =
@@ -1237,9 +1253,10 @@ let fallbackSuggestions(
           |> Stdlib.List.map(Stdlib.Tuple2.second)
           |> Stdlib.List.unique
           |> Stdlib.List.take(Stdlib.min(3, cap))
+
         match names with
-        | [] -> None
-        | _ -> Some(FallbackSuggestions { dropped = droppedWord, names = names }))
+        | [] -> Option.None
+        | _ -> Option.Some(FallbackSuggestions { dropped = droppedWord, names = names }))
 
 
 let executeQuery(state: AppState, args: List<String>): AppState =
@@ -1366,15 +1383,19 @@ let executeQuery(state: AppState, args: List<String>): AppState =
               (results, 0)
             else
               withoutTestHelpers(results)
+
           (results, hiddenTests, hiddenHelpers)
 
         let (results, hiddenTests, hiddenHelpers) = visibleResults(rawResults)
-
         let (visibleModules, hiddenModules) =
           if parsed.deprecated == Query.Deprecated.Hide && parsed.entityTypes == [] then
             Stdlib.List.partition(results.submodules, fun path ->
               Query.moduleHasVisibleItems(
-                state.currentBranchId, path, depSets, parsed.deprecated, parsed.internal))
+                state.currentBranchId,
+                path,
+                depSets,
+                parsed.deprecated,
+                parsed.internal))
           else
             (results.submodules, [])
 
@@ -1382,11 +1403,16 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           Stdlib.Bool.not(parsed.asJson)
           && Stdlib.List.any(hiddenModules, fun path ->
             Query.moduleHasVisibleItems(
-              state.currentBranchId, path, depSets, Query.Deprecated.Show, parsed.internal))
+              state.currentBranchId,
+              path,
+              depSets,
+              Query.Deprecated.Show,
+              parsed.internal))
 
         let printHiddenModulesHint(): Unit =
           if hiddenDeprecatedModules then
-            Stderr.line("Matching deprecated modules are hidden. Use --include-deprecated to show them.")
+            Stderr.line(
+              "Matching deprecated modules are hidden. Use --include-deprecated to show them.")
 
         let results = { results with submodules = visibleModules }
 
@@ -1484,14 +1510,15 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           if totalResults > 0 then
             nothingToTry
           else
-            let fallback =
-              fallbackSuggestions(query, resultCap, fun text ->
-                let (visible, _, _) =
-                  visibleResults(
-                    LanguageTools.PackageManager.Search.search(
-                      state.currentBranchId,
-                      { query with text = text }))
-                visible)
+            let fallback = fallbackSuggestions(query, resultCap, fun text ->
+              let (visible, _, _) =
+                visibleResults(
+                  LanguageTools.PackageManager.Search.search(
+                    state.currentBranchId,
+                    { query with text = text }))
+
+              visible)
+
             match fallback with
             | Some(_) -> { nothingToTry with fallback = fallback }
             | None -> nothingFound(state.currentBranchId, query)
@@ -1578,7 +1605,9 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                 results.impls |> Stdlib.List.map(fun i -> i.location)
                 results.tests |> Stdlib.List.map(fun i -> i.location) ])
 
-          if typed == [] && submodulesCount == 0 && named != [] && onlyDocMatches(ranker, named) then
+          if
+            typed == [] && submodulesCount == 0 && named != [] && onlyDocMatches(ranker, named)
+          then
             let hint =
               if hiddenDeprecatedModules then
                 $"  (the results below mention `{queryText}` in their docs)"
@@ -1652,15 +1681,18 @@ let executeQuery(state: AppState, args: List<String>): AppState =
               if Stdlib.Bool.not(Stdlib.List.isEmpty(results.submodules)) then
                 if parsed.mode == DisplayMode.Detailed then
                   Stdlib.printLine(Display.getSectionHeader("module"))
+
                 let sortedMods = results.submodules
                 let shownMods = Stdlib.List.take(sortedMods, resultCap)
                 shownMods
                 |> Stdlib.List.iter(fun modulePath ->
                   let moduleStr = Stdlib.String.join(modulePath, ".")
                   let mark =
-                    if parsed.deprecated == Query.Deprecated.Show
-                       && Stdlib.Bool.not(
-                         Query.moduleHasActiveItems(state.currentBranchId, modulePath, depSets)) then
+                    if
+                      parsed.deprecated == Query.Deprecated.Show
+                      && Stdlib.Bool.not(
+                        Query.moduleHasActiveItems(state.currentBranchId, modulePath, depSets))
+                    then
                       " (deprecated)"
                     else
                       ""

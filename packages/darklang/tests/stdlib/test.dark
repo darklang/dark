@@ -67,7 +67,8 @@ test all =
 test emptyFailureIsPreserved =
   Stdlib.Test.all(
     [ Stdlib.Test.all([ Stdlib.Test.Result.Fail([]) ])
-      |> is(Stdlib.Test.Result.FailedChecks([ (1, Stdlib.Test.Result.Fail([])) ]))
+      |> is(
+        Stdlib.Test.Result.FailedChecks([ (1, Stdlib.Test.Result.Fail([])) ]))
 
       Stdlib.Test.all(
         [ Stdlib.Test.pass()
@@ -82,14 +83,15 @@ test emptyFailureIsPreserved =
 test table =
   Stdlib.Test.all(
     [ // Every row is kept, named by its arguments, passing or not.
-      Stdlib.Test.table([ (1, 1), (1, 2) ], fun((a, b)) -> a |> Stdlib.Test.equal(b))
+      Stdlib.Test.table([ (1, 1), (1, 2) ], fun((a, b)) ->
+        a |> Stdlib.Test.equal(b))
       |> is(
         Stdlib.Test.Result.Rows(
           [ ("(1, 1)", Stdlib.Test.Result.Pass)
             ("(1, 2)", Stdlib.Test.Result.Fail([ "expected 2, got 1" ])) ]))
 
       // A row that raises fails only itself; the rows after it still run.
-      Stdlib.Test.table([ 0, 3 ], fun n -> (6 / n) |> Stdlib.Test.equal(2))
+      Stdlib.Test.table([ 0, 3 ], fun n -> 6 / n |> Stdlib.Test.equal(2))
       |> is(
         Stdlib.Test.Result.Rows(
           [ ("(0)", Stdlib.Test.Result.Fail([ "error: Cannot divide by 0" ]))
@@ -134,12 +136,15 @@ test shownFixture =
 test groupedFixture =
   Stdlib.Test.group(
     "parsing",
-    Stdlib.Test.all([ Stdlib.Test.pass(), Stdlib.String.length("ab") |> Stdlib.Test.equal(2) ]))
+    Stdlib.Test.all(
+      [ Stdlib.Test.pass()
+        Stdlib.String.length("ab") |> Stdlib.Test.equal(2) ]))
 
 
 test tableFixture =
   [ ("a", 1), ("abc", 3) ]
-  |> Stdlib.Test.table(fun((s, n)) -> Stdlib.String.length(s) |> Stdlib.Test.equal(n))
+  |> Stdlib.Test.table(fun((s, n)) ->
+    Stdlib.String.length(s) |> Stdlib.Test.equal(n))
 
 
 test groupedTableFixture =
@@ -154,7 +159,9 @@ let fixtureBody(name: String): Option<LanguageTools.ProgramTypes.Expr> =
   LanguageTools.PackageManager.Test.find(
     SCM.Branch.mainBranchId,
     LanguageTools.ProgramTypes.PackageLocation
-      { owner = "Darklang", modules = [ "Stdlib", "Test", "Tests" ], name = name })
+      { owner = "Darklang"
+        modules = [ "Stdlib", "Test", "Tests" ]
+        name = name })
   |> Stdlib.Option.andThen(LanguageTools.PackageManager.Test.get)
   |> Stdlib.Option.map(fun test -> test.body)
 
@@ -180,20 +187,22 @@ test failureLines =
           [ "2: Stdlib.String.length(\"ab\") |> Stdlib.Test.equal(2)"
             "   expected 3, got 2" ])
 
-        lines(Stdlib.Test.Result.FailedChecks([ (1, Stdlib.Test.Result.Fail([])) ]))
-        |> Stdlib.Test.equal([ "1: Stdlib.Test.pass()", "   failed without a message" ])
+        lines(
+          Stdlib.Test.Result.FailedChecks([ (1, Stdlib.Test.Result.Fail([])) ]))
+        |> Stdlib.Test.equal(
+          [ "1: Stdlib.Test.pass()", "   failed without a message" ])
 
         // A nested `all` adds its positions to the path.
         lines(
           Stdlib.Test.Result.FailedChecks(
-            [ (3,
-               Stdlib.Test.Result.FailedChecks(
-                 [ (2, Stdlib.Test.Result.Fail([ "no" ])) ])) ]))
+            [ (
+                3,
+                Stdlib.Test.Result.FailedChecks(
+                  [ (2, Stdlib.Test.Result.Fail([ "no" ])) ])) ]))
         |> Stdlib.Test.equal([ "3 > 2: Stdlib.Test.pass()", "       no" ])
 
         // A test that is not an `all` shows its messages alone.
         lines(Stdlib.Test.Result.Fail([ "a" ])) |> Stdlib.Test.equal([ "a" ]) ])
-
 
 
 test group =
@@ -223,7 +232,8 @@ test groupedFailureLines =
     LanguageTools.PackageManager.Test.failureLines(
       ctx,
       body,
-      Stdlib.Test.Result.FailedChecks([ (2, Stdlib.Test.Result.Fail([ "no" ])) ]))
+      Stdlib.Test.Result.FailedChecks(
+        [ (2, Stdlib.Test.Result.Fail([ "no" ])) ]))
     |> Stdlib.Test.equal(
       [ "2: Stdlib.String.length(\"ab\") |> Stdlib.Test.equal(2)", "   no" ])
 
@@ -244,10 +254,13 @@ test rowFailureLines =
           body,
           Stdlib.Test.Result.Fail([ "expected 3, got 2" ]))
         |> Stdlib.Test.equal(
-          [ "Stdlib.String.length(s) |> Stdlib.Test.equal(n)", "expected 3, got 2" ])
+          [ "Stdlib.String.length(s) |> Stdlib.Test.equal(n)"
+            "expected 3, got 2" ])
 
         // One test per row written out in place.
-        LanguageTools.PackageManager.Test.testCount(body) |> Stdlib.Test.equal(2)
+        LanguageTools.PackageManager.Test.testCount(body)
+        |> Stdlib.Test.equal(2)
+
         fixtureBody("shownFixture")
         |> Stdlib.Option.map(LanguageTools.PackageManager.Test.testCount)
         |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1)) ])

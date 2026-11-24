@@ -253,10 +253,7 @@ test docsAndDeprecationsMadeOnABranchArriveWithTheMerge =
         "Tests.App.f",
         "/// Documented on the branch.\nlet f(): Int64 = 1")
 
-      run(
-        dark,
-        [ "deprecate", "fn", "Tests.App.old", "-y" ])
-
+      run(dark, [ "deprecate", "fn", "Tests.App.old", "-y" ])
       says(
         dark,
         [ "view", "Tests.App.f" ],

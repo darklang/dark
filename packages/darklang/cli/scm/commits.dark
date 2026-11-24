@@ -150,12 +150,11 @@ let execute(state: AppState, args: List<String>): AppState =
     failed(state)
   | _, _ ->
     let limit = limit |> Stdlib.Option.withDefault(20)
-    let pretty =
-      fun () ->
-        if detailed then
-          executeDetailed(state, limit, housekeeping)
-        else
-          executeList(state, limit, housekeeping)
+    let pretty = fun () ->
+      if detailed then
+        executeDetailed(state, limit, housekeeping)
+      else
+        executeList(state, limit, housekeeping)
 
     Output.answer(state, pretty, fun () -> commitRows(limit))
 

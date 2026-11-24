@@ -448,7 +448,7 @@ let executeBranchesCmd(state: AppState, args: List<String>): AppState =
   // A program wants the whole set rather than the readable subset.
   Output.answer(
     state,
-    fun () -> executeList(state, Merged.showIf(Stdlib.List.contains(args, "--all"))),
+    (fun () -> executeList(state, Merged.showIf(Stdlib.List.contains(args, "--all")))),
     fun () -> branchRows())
 
 
@@ -488,7 +488,9 @@ let executeSwitchCmd(state: AppState, args: List<String>): AppState =
   | [id], false -> executeSwitch(state, id)
   | [id], true -> executeCreate(state, id)
   | _, _ ->
-    printErr("usage: dark switch <branch>, or dark switch -c <new branch>   (`dark switch main` returns to main)")
+    printErr(
+      "usage: dark switch <branch>, or dark switch -c <new branch>   (`dark switch main` returns to main)")
+
     failed(state)
 
 
@@ -497,7 +499,9 @@ let executeSwitchCmd(state: AppState, args: List<String>): AppState =
 /// subcommands and let the prefix filter sort it out.
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchTakingSubcommands = [ "switch", "archive", "diff", "log", "merge", "rebase", "resolve" ]
-  let subcommands = Stdlib.List.concat(branchTakingSubcommands, [ "list", "current", "create", "new", "rename" ])
+  let subcommands =
+    Stdlib.List.concat(branchTakingSubcommands, [ "list", "current", "create", "new", "rename" ])
+
   let branchNames =
     SCM.Branches.list()
     |> Stdlib.List.map(fun b -> b.name)

@@ -284,7 +284,8 @@ module ReleaseErrors =
   test messages =
     Stdlib.Test.all(
       [ GitHub.releaseErrorMessage(
-          GitHub.ReleaseError.RequestFailed(Stdlib.HttpClient.RequestError.Timeout))
+          GitHub.ReleaseError.RequestFailed(
+            Stdlib.HttpClient.RequestError.Timeout))
         |> Stdlib.Test.equal("Couldn't reach the GitHub API: Timeout")
 
         GitHub.releaseErrorMessage(GitHub.ReleaseError.BadStatus(500))
@@ -296,13 +297,15 @@ module ReleaseErrors =
         GitHub.releaseErrorMessage(GitHub.ReleaseError.NoReleases)
         |> Stdlib.Test.equal("No releases found")
 
-        GitHub.releaseErrorMessage(GitHub.ReleaseError.ReleaseNotFound("v0.0.1"))
+        GitHub.releaseErrorMessage(
+          GitHub.ReleaseError.ReleaseNotFound("v0.0.1"))
         |> Stdlib.Test.equal("No release is tagged v0.0.1")
 
         GitHub.releaseErrorMessage(GitHub.ReleaseError.UnsupportedHost)
         |> Stdlib.Test.equal("No Darklang build for this OS and architecture")
 
-        GitHub.releaseErrorMessage(GitHub.ReleaseError.NoAssetForPlatform("linux-x64"))
+        GitHub.releaseErrorMessage(
+          GitHub.ReleaseError.NoAssetForPlatform("linux-x64"))
         |> Stdlib.Test.equal("No asset named `-linux-x64.gz` in this release")
 
         GitHub.releaseErrorMessage(GitHub.ReleaseError.NoChecksums("v0.0.1"))

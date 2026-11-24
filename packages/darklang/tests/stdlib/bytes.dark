@@ -50,11 +50,13 @@ let hex(s: String): Bytes =
   Stdlib.Base16.decode(s) |> Stdlib.Result.withDefault(Stdlib.Bytes.empty)
 
 
-let outOfRange(width: Int64, value: Int64, max: Int64): Stdlib.Bytes.ReadOutOfRange =
+let outOfRange(
+  width: Int64,
+  value: Int64,
+  max: Int64)
+  : Stdlib.Bytes.ReadOutOfRange =
   Stdlib.Bytes.ReadOutOfRange
-    { offset = value
-      width = width
-      length = max + width }
+    { offset = value, width = width, length = max + width }
 
 
 test readUInt8AndInt8 =

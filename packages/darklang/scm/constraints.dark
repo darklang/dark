@@ -311,8 +311,7 @@ let detectWithOutdated(outdated: Result<List<Finding>, String>): Detection =
 
   Detection
     { findings =
-        Stdlib.List.flatten(
-          [ outdated, detectRivalImplementations(PackageOps.currentBranch()) ])
+        Stdlib.List.flatten([ outdated, detectRivalImplementations(PackageOps.currentBranch()) ])
       blocked = outdatedBlocked }
 
 

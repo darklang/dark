@@ -32,7 +32,8 @@ test parseNegative =
     Stdlib.Test.all(
       [ seconds("-30s") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-30))
         seconds("-5m") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-300))
-        seconds("-2d") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-172800)) ]))
+        seconds("-2d")
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-172800)) ]))
 
 
 // A duration is an Int64 of seconds; past that it is refused, not wrapped.
@@ -49,7 +50,8 @@ test parseBeyondInt64 =
 
         seconds("106751991167301d")
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.InvalidNumber)) ]))
+          Stdlib.Result.Result.Error(
+            Stdlib.Duration.ParseError.InvalidNumber)) ]))
 
 
 test parseRejectsMissingUnit =
@@ -66,7 +68,8 @@ test parseRejectsMissingUnit =
 
         Stdlib.Duration.parse("")
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.MissingUnit)) ]))
+          Stdlib.Result.Result.Error(
+            Stdlib.Duration.ParseError.MissingUnit)) ]))
 
 
 test parseRejectsInvalidNumber =
@@ -83,7 +86,8 @@ test parseRejectsInvalidNumber =
 
         Stdlib.Duration.parse("1.5h")
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.InvalidNumber)) ]))
+          Stdlib.Result.Result.Error(
+            Stdlib.Duration.ParseError.InvalidNumber)) ]))
 
 
 test parseRejectsUnknownUnit =
@@ -100,7 +104,8 @@ test parseRejectsUnknownUnit =
 
         Stdlib.Duration.parse("5s5")
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.UnknownUnit)) ]))
+          Stdlib.Result.Result.Error(
+            Stdlib.Duration.ParseError.UnknownUnit)) ]))
 
 
 test display =

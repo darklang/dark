@@ -93,10 +93,21 @@ test discardPreservesCallerEditsAndUpdatesTransitiveCallers =
       saveNumber(dark, "Tests.App.helper", "2")
       saveNumber(dark, "Tests.App.helper", "3")
       save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 20")
-      evals(dark, "Tests.App.outer()", "46", "the edited caller uses the latest draft")
+      evals(
+        dark,
+        "Tests.App.outer()",
+        "46",
+        "the edited caller uses the latest draft")
+
       run(dark, [ "discard", "Tests.App.helper", "-y" ])
       evals(dark, "Tests.App.caller()", "21", "the caller keeps its own edit")
-      evals(dark, "Tests.App.outer()", "42", "the transitive caller updates too")
+
+      evals(
+        dark,
+        "Tests.App.outer()",
+        "42",
+        "the transitive caller updates too")
+
       same(staleCallers(dark), 0, "the callers are current") ])
 
 
@@ -126,7 +137,6 @@ test discardOnABranchThenArchiveLeavesMainUntouched =
         "the branch caller runs the restored version")
 
       same(staleCallers(dark), 0, "the branch caller is current")
-
       saveNumber(dark, "Tests.App.helper", "3")
       commit(dark, "feat work")
       switch(dark, "main")

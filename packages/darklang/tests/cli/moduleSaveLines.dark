@@ -70,7 +70,11 @@ test valOfSiblingTypeIsChecked = Instance.withInstance(fun i ->
   let (_, userOut) = Instance.ran(i, [ "module", "/Me.StoreUser", user ])
   Stdlib.Test.all(
     [ Instance.doesNotSay(out, "incomplete", "the value's type is known")
-      Instance.doesNotSay(userOut, "incomplete", "a use from another module too") ]))
+
+      Instance.doesNotSay(
+        userOut,
+        "incomplete",
+        "a use from another module too") ]))
 
 
 /// A `val`'s declared type is something it uses, so the type has a live dependent.
@@ -79,7 +83,10 @@ test valTypeIsADependency = Instance.withInstance(fun i ->
   let source = "type Names = List<String>\nval none: Names = []\n"
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
   let _ = Instance.ran(i, [ "module", "/Me.Names", path ])
-  let (code, out) = Instance.ran(i, [ "delete", "type", "Me.Names.Names", "--dry-run" ])
+
+  let (code, out) =
+    Instance.ran(i, [ "delete", "type", "Me.Names.Names", "--dry-run" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "refused")
       Instance.says(out, "1 live dependent", "the val depends on its type") ]))

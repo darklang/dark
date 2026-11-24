@@ -2,25 +2,44 @@ module Darklang.Cli.Tests.DeprecationKinds
 
 test blockExecutionIsFunctionOnly = Instance.withInstance(fun i ->
   let _ = Instance.ran(i, [ "type", "Tests.Dep.T", "= { n: Int64 }" ])
-  let (code, out) =
-    Instance.ran(i, [ "deprecate", "Tests.Dep.T", "--block-execution", "--yes" ])
 
-  let (defaultCode, _) = Instance.ran(i, [ "deprecate", "Tests.Dep.T", "--yes" ])
+  let (code, out) =
+    Instance.ran(
+      i,
+      [ "deprecate", "Tests.Dep.T", "--block-execution", "--yes" ])
+
+  let (defaultCode, _) =
+    Instance.ran(i, [ "deprecate", "Tests.Dep.T", "--yes" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "execution block refused for a type")
-      Instance.says(out, "--block-execution only applies to functions", "explains the refusal")
-      Instance.exitedWith(defaultCode, 0, "plain deprecation works for a type") ]))
+      Instance.says(
+        out,
+        "--block-execution only applies to functions",
+        "explains the refusal")
+
+      Instance.exitedWith(
+        defaultCode,
+        0,
+        "plain deprecation works for a type") ]))
 
 
 test refusesConflictingEffects = Instance.withInstance(fun i ->
   let (code, out) =
     Instance.ran(
       i,
-      [ "deprecate", "Tests.Dep.f", "--replacement", "Tests.Dep.g", "--block-execution" ])
+      [ "deprecate"
+        "Tests.Dep.f"
+        "--replacement"
+        "Tests.Dep.g"
+        "--block-execution" ])
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "conflicting flags refused")
-      Instance.says(out, "Use either --replacement or --block-execution", "names the conflict") ]))
+      Instance.says(
+        out,
+        "Use either --replacement or --block-execution",
+        "names the conflict") ]))
 
 
 test oldKindFlagIsRejected = Instance.withInstance(fun i ->
@@ -29,19 +48,37 @@ test oldKindFlagIsRejected = Instance.withInstance(fun i ->
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "old kind flag refused")
-      Instance.says(out, "does not take `--kind`", "refusal names the old kind flag") ]))
+      Instance.says(
+        out,
+        "does not take `--kind`",
+        "refusal names the old kind flag") ]))
 
 
 test replacementShowsInRunWarning = Instance.withInstance(fun i ->
   let _ = Instance.ran(i, [ "fn", "Tests.Replace.old", "(): Int64 = 0" ])
+
   let _ = Instance.ran(i, [ "fn", "Tests.Replace.newer", "(): Int64 = 1" ])
+
   let (deprecateCode, _) =
-    Instance.ran(i, [ "deprecate", "Tests.Replace.old", "--replacement", "Tests.Replace.newer", "--yes" ])
+    Instance.ran(
+      i,
+      [ "deprecate"
+        "Tests.Replace.old"
+        "--replacement"
+        "Tests.Replace.newer"
+        "--yes" ])
 
   let (runCode, runOut) = Instance.ran(i, [ "run", "Tests.Replace.old" ])
   let saved = Instance.said(i, [ "fn", "Tests.Replace.old", "(): Int64 = 0" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(deprecateCode, 0, "registered the replacement")
       Instance.exitedWith(runCode, 0, "the original function still runs")
-      Instance.says(runOut, "Use Tests.Replace.newer instead.", "the warning names the replacement")
-      Instance.says(saved, "is unchanged and still deprecated", "saving identical code explains the status") ]))
+      Instance.says(
+        runOut,
+        "Use Tests.Replace.newer instead.",
+        "the warning names the replacement")
+
+      Instance.says(
+        saved,
+        "is unchanged and still deprecated",
+        "saving identical code explains the status") ]))

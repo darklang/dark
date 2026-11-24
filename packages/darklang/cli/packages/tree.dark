@@ -158,18 +158,17 @@ let execute(state: AppState, args: List<String>): AppState =
         // Load deprecation sets once for the whole tree render.
         let depSets = Query.loadDeprecationSets(branchId)
         let entries = walk(branchId, startLocation, maxDepth, "", depSets, deprecated, internal)
-        let pretty =
-          fun () ->
-            let locationStr = formatLocation(startLocation)
-            Stdlib.printLine($"Package tree from {locationStr}:")
-            Stdlib.printLine("")
-            entries |> Stdlib.List.iter(fun e -> Stdlib.printLine(prettyLine(depSets, e)))
-            state
+        let pretty = fun () ->
+          let locationStr = formatLocation(startLocation)
+          Stdlib.printLine($"Package tree from {locationStr}:")
+          Stdlib.printLine("")
+          entries |> Stdlib.List.iter(fun e -> Stdlib.printLine(prettyLine(depSets, e)))
+          state
 
         Output.answerWithRows(
           state,
           pretty,
-          fun () -> entries |> Stdlib.List.map(fun e -> item(depSets, e)),
+          (fun () -> entries |> Stdlib.List.map(fun e -> item(depSets, e))),
           fun items -> Listing.rows(items))
 
 
@@ -283,14 +282,7 @@ let walk(
         let newModulePath = Stdlib.List.append(modulePath, name)
         let newLocation = PackageLocation.Module(newModulePath)
         Stdlib.List.prepend(
-          walk(
-            branchId,
-            newLocation,
-            remainingDepth - 1,
-            newPrefix,
-            depSets,
-            deprecated,
-            internal),
+          walk(branchId, newLocation, remainingDepth - 1, newPrefix, depSets, deprecated, internal),
           here)
       else
         [ here ])

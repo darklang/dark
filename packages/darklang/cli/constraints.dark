@@ -98,8 +98,7 @@ let kindArgChecked(args: List<String>): Result<Unit, String> =
   | Some(i) ->
     match Stdlib.List.getAt(args, i + 1) with
     | None ->
-      Result.Error(
-        "--kind needs a value: stale-usage, kind-changed, or rival-implementations.")
+      Result.Error("--kind needs a value: stale-usage, kind-changed, or rival-implementations.")
     | Some(wanted) ->
       match SCM.Constraints.kindFromString(wanted) with
       | Some(_) -> Result.Ok()

@@ -31,9 +31,12 @@ let execute(state: AppState, args: List<String>): AppState =
 
         failed(state)
       else if docBeforeParams(inlineDefinition) then
-        printErr("A `///` before the parameters would document the first parameter, not the function.")
+        printErr(
+          "A `///` before the parameters would document the first parameter, not the function.")
+
         printHint(
           $"Document the function with `--description`: dark fn {location} '(x: Int64): Int64 = ...' --description \"...\"")
+
         failed(state)
       else
         createFnInline(state, location, inlineDefinition, description)

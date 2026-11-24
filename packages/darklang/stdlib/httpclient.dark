@@ -67,8 +67,10 @@ let toString(e: RequestError): String =
     match details with
     | UnsupportedProtocol -> "Unsupported protocol"
     | InvalidHost -> "Invalid host"
-    | Loopback -> "This machine (loopback) is blocked; `dark config set http.loopback on` lets code reach it"
-    | PrivateNetwork -> "Private network addresses are blocked; `dark config set http.private on` lets code reach them"
+    | Loopback ->
+      "This machine (loopback) is blocked; `dark config set http.loopback on` lets code reach it"
+    | PrivateNetwork ->
+      "Private network addresses are blocked; `dark config set http.private on` lets code reach them"
     | InvalidUri -> "Invalid URI"
     | InvalidRequest -> "Invalid request"
   | Timeout -> "Timeout"
@@ -789,7 +791,6 @@ module Sse =
     | Some(at) ->
       let line = __decodeLine(Bytes.take(state.pending, at))
       let pending = Bytes.drop(state.pending, at + 1)
-
       if String.isEmpty(line) then
         // Blank line terminates the block. Try to emit an Event.
         match __tryEmitBlock(state.currentLines, state.lastId) with
@@ -828,6 +829,7 @@ module Sse =
           | Some(event) ->
             let nextState =
               ParseState { lastId = event.id, currentLines = [], pending = Bytes.empty }
+
             Option.Some((event, (chunks, nextState)))
           | None -> Option.None
 

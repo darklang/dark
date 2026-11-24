@@ -136,7 +136,6 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
   let (parsed, diagnostics) = LanguageTools.Parser.Parse.parse(kind, source)
   let parseFailed = Errors.reportParseErrors(diagnostics)
   let state = if parseFailed then failed(state) else state
-
   match parsed with
   | Some(SourceFile(sourceFile)) when moduleCommand || Stdlib.Bool.not(parseFailed) ->
     let declarations =
@@ -151,6 +150,7 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
         printErr("Nothing was saved. No declarations could be recovered.")
       else
         printErr("Package source contains no declarations")
+
       { state with exitCode = 1 }
     else if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicateNames)) then
       printErr("Package source contains duplicate declaration names:")
@@ -224,7 +224,6 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                 state
 
             let docsUpdated = landDocEdits(branchId, ops)
-
             let deprecationNotes =
               previouslyDeprecated
               |> Stdlib.List.filterMap(fun((location, kind, hash)) ->
@@ -271,8 +270,8 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                 $"Updated {comments}."
 
             let updatedName =
-              match (mode, definedNames, updates) with
-              | (Edit, [_], [item]) ->
+              match mode, definedNames, updates with
+              | Edit, [_], [item] ->
                 let loc = item.location
                 let parts = Stdlib.List.prepend(loc.modules, loc.owner)
                 Option.Some(Stdlib.String.join(Stdlib.List.append(parts, loc.name), "."))
@@ -288,9 +287,7 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
             else if docNote != "" then
               Stdlib.printLine($"{glyph} {docNote}")
 
-            deprecationNotes
-            |> Stdlib.List.iter(fun((_, message)) -> Stdlib.printLine(message))
-
+            deprecationNotes |> Stdlib.List.iter(fun((_, message)) -> Stdlib.printLine(message))
             let savedFns =
               if bundled then
                 []
@@ -317,8 +314,8 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                   previous |> Stdlib.Option.map(LanguageTools.ProgramTypes.hashToString),
                   LanguageTools.ProgramTypes.hashToString(now))
 
-              match (updatedName, savedFns) with
-              | (Some(_), [_]) -> Stdlib.printLine($"  effects: {summary}")
+              match updatedName, savedFns with
+              | Some(_), [_] -> Stdlib.printLine($"  effects: {summary}")
               | _ ->
                 // named below the module just saved, which the line above names
                 let below =
@@ -341,9 +338,8 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.
             AtRestCheck.printSaveReport(branchId, report)
-
-            match (updatedName, report.verdict) with
-            | (Some(_), Checked) -> Propagate.printEditPropagation(followed)
+            match updatedName, report.verdict with
+            | Some(_), Checked -> Propagate.printEditPropagation(followed)
             | _ -> Propagate.printFollowed(followed)
 
             // Save the code so it can be fixed, and signal errors through the exit code.
@@ -373,10 +369,15 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                 leftOver(branchId, home, definedNames)
               else
                 []
+
             match left with
             | [] -> ()
             | [(kind, name), ...] ->
-              let names = left |> Stdlib.List.map(fun((_, n)) -> n) |> Stdlib.String.join(", ")
+              let names =
+                left
+                |> Stdlib.List.map(fun((_, n)) -> n)
+                |> Stdlib.String.join(", ")
+
               Stdlib.printErrorLine(
                 Stdlib.Cli.UI.Colors.hint(
                   $"  still in {shown} from an earlier save: {names}\n"

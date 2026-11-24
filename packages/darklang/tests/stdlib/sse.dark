@@ -11,7 +11,8 @@ let parseChunks(chunks: List<String>): List<Stdlib.HttpClient.Sse.Event> =
   |> Stdlib.Stream.toList
 
 
-let parse(source: String): List<Stdlib.HttpClient.Sse.Event> = parseChunks([ source ])
+let parse(source: String): List<Stdlib.HttpClient.Sse.Event> =
+  parseChunks([ source ])
 
 
 // single event with just a data field
@@ -76,7 +77,8 @@ test blocksWithoutDataSkipped =
 
 // lines and events split across chunks parse as if sent whole
 test eventsSplitAcrossChunks =
-  parseChunks([ "da", "ta: hel", "lo\n", "\ndata: a\nda", "ta: b\n\n", "data: tail" ])
+  parseChunks(
+    [ "da", "ta: hel", "lo\n", "\ndata: a\nda", "ta: b\n\n", "data: tail" ])
   |> Stdlib.Test.equal(
     [ Stdlib.HttpClient.Sse.Event { data = "hello", eventType = "", id = "" }
       Stdlib.HttpClient.Sse.Event { data = "a\nb", eventType = "", id = "" }

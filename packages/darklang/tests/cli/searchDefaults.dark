@@ -18,11 +18,7 @@ test searchListsNoImplMethodAsAFunction = Instance.withInstance(fun i ->
 
 // `docs signatures` leaves out test helpers the same way.
 test signaturesHideTestModules = Instance.withInstance(fun i ->
-  let plain =
-    Instance.said(
-      i,
-      [ "docs", "signatures", "Stdlib.DateTime" ])
-
+  let plain = Instance.said(i, [ "docs", "signatures", "Stdlib.DateTime" ])
   let included =
     Instance.output(
       i,

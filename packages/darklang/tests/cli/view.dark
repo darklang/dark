@@ -59,7 +59,6 @@ test viewInstructionsShowsLambdas = Instance.withInstance(fun i ->
         "(xs: List<Int64>) : List<Int64> = Stdlib.List.filter(xs, fun x -> if x > 2 then true else false)" ])
 
   let output = Instance.output(i, [ "view", name, "--instructions" ])
-
   if
     Stdlib.String.contains(output, "CreateLambda")
     && Stdlib.String.contains(output, "lambda#")
@@ -73,8 +72,12 @@ test viewInstructionsShowsLambdas = Instance.withInstance(fun i ->
 
 test viewCompilerViewsRejectNonFunctions = Instance.withInstance(fun i ->
   // Both views are function-only, and saying which kind of thing you pointed at beats "not found".
-  let typeOutput = Instance.output(i, [ "view", "Stdlib.Option.Option", "--ast" ])
-  let moduleOutput = Instance.output(i, [ "view", "Stdlib.List", "--instructions" ])
+  let typeOutput =
+    Instance.output(i, [ "view", "Stdlib.Option.Option", "--ast" ])
+
+  let moduleOutput =
+    Instance.output(i, [ "view", "Stdlib.List", "--instructions" ])
+
   if
     Stdlib.String.contains(typeOutput, "type")
     && Stdlib.String.contains(moduleOutput, "module")
@@ -163,7 +166,6 @@ test viewHeadsWithTheNameYouAskedFor = Instance.withInstance(fun i ->
   let shownAlpha = Instance.output(i, [ "--branch", branchName, "view", alpha ])
 
   let shownBeta = Instance.output(i, [ "--branch", branchName, "view", beta ])
-
   if
     Stdlib.String.contains(rawAlpha, "let alpha")
     && Stdlib.Bool.not(Stdlib.String.contains(rawAlpha, "let beta"))
@@ -196,60 +198,80 @@ test implListingsSayWhereTheMethodsAreCalled = Instance.withInstance(fun i ->
 
 
 /// An unannotated test inherits its access, so `view --raw` prints no effect row for it.
-test viewPrintsNoEffectRowOnAnUnannotatedTest = Instance.withInstance(fun i ->
-  Instance.says(
-    Instance.output(
-      i,
-      [ "view", "Darklang.Stdlib.Bool.Tests.andTruthTable", "--raw" ]),
-    "test andTruthTable =",
-    "the test's header has nothing between its name and `=`"))
+test viewPrintsNoEffectRowOnAnUnannotatedTest =
+  Instance.withInstance(fun i ->
+    Instance.says(
+      Instance.output(
+        i,
+        [ "view", "Darklang.Stdlib.Bool.Tests.andTruthTable", "--raw" ]),
+      "test andTruthTable =",
+      "the test's header has nothing between its name and `=`"))
 
 
 /// `view --include-tests` ends a function's view with the tests that call it, read from the result
 /// cache and never run. A fresh instance has never run `dark test run`, so this is also the path
 /// where the cache table does not exist yet, which `view` must answer without creating. Without the
 /// flag there is no section.
-test viewIncludeTestsListsTheTestsThatCallAFunction = Instance.withInstance(fun i ->
-  let seen(args: List<String>): String =
-    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, args))
+test viewIncludeTestsListsTheTestsThatCallAFunction =
+  Instance.withInstance(fun i ->
+    let seen(args: List<String>): String =
+      Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, args))
 
-  let sqrt = seen([ "view", "Darklang.Stdlib.Float64.sqrt", "--include-tests" ])
-  let head = seen([ "view", "Darklang.Stdlib.List.head", "--include-tests" ])
-  // A stdlib function can gain tests at any time, so the untested one is authored here, with a
-  // body no tested function shares.
-  let _ =
-    Instance.said(
-      i,
-      [ "fn"
-        "/Tests.ViewTests.unreferenced"
-        "() : String = \"view --include-tests unreferenced fixture\"" ])
+    let sqrt =
+      seen([ "view", "Darklang.Stdlib.Float64.sqrt", "--include-tests" ])
 
-  let untested =
-    seen([ "view", "Tests.ViewTests.unreferenced", "--include-tests" ])
+    let head = seen([ "view", "Darklang.Stdlib.List.head", "--include-tests" ])
+    // A stdlib function can gain tests at any time, so the untested one is authored here, with a
+    // body no tested function shares.
+    let _ =
+      Instance.said(
+        i,
+        [ "fn"
+          "/Tests.ViewTests.unreferenced"
+          "() : String = \"view --include-tests unreferenced fixture\"" ])
 
-  Stdlib.Test.all(
-    [ Instance.says(sqrt, "Tests:", "view lists the function's tests")
-      Instance.says(sqrt, "Darklang.Stdlib.Float64.Tests.sqrt", "by name")
-      Instance.says(sqrt, "no result for this build", "with no result before any run")
-      Instance.says(sqrt, "`dark test run` runs them", "and says how to get one")
-      Instance.doesNotSay(
-        seen([ "view", "Darklang.Stdlib.Float64.sqrt" ]),
-        "Tests:",
-        "without the flag, view shows no tests")
-      Instance.says(head, "Darklang.Stdlib.List.Tests.head", "List.head's tests are listed")
-      Instance.says(untested, "let unreferenced", "the fixture exists")
-      Instance.doesNotSay(
-        untested,
-        "Tests:",
-        "a function no test calls has no tests section") ]))
+    let untested =
+      seen([ "view", "Tests.ViewTests.unreferenced", "--include-tests" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(sqrt, "Tests:", "view lists the function's tests")
+
+        Instance.says(sqrt, "Darklang.Stdlib.Float64.Tests.sqrt", "by name")
+
+        Instance.says(
+          sqrt,
+          "no result for this build",
+          "with no result before any run")
+
+        Instance.says(
+          sqrt,
+          "`dark test run` runs them",
+          "and says how to get one")
+
+        Instance.doesNotSay(
+          seen([ "view", "Darklang.Stdlib.Float64.sqrt" ]),
+          "Tests:",
+          "without the flag, view shows no tests")
+
+        Instance.says(
+          head,
+          "Darklang.Stdlib.List.Tests.head",
+          "List.head's tests are listed")
+
+        Instance.says(untested, "let unreferenced", "the fixture exists")
+        Instance.doesNotSay(
+          untested,
+          "Tests:",
+          "a function no test calls has no tests section") ]))
 
 
 /// `deps` names what an item uses.
-test depsNamesWhatAnItemUses = Instance.withInstance(fun i ->
-  Instance.says(
-    Instance.said(i, [ "deps", "Darklang.Stdlib.List.head" ]),
-    "Option",
-    "head returns an Option, so it depends on one"))
+test depsNamesWhatAnItemUses =
+  Instance.withInstance(fun i ->
+    Instance.says(
+      Instance.said(i, [ "deps", "Darklang.Stdlib.List.head" ]),
+      "Option",
+      "head returns an Option, so it depends on one"))
 
 
 /// `hash` resolves a name by traversal, like `view`: `hash Stdlib.List.head` must not read the
@@ -266,6 +288,7 @@ test hashTakesTheNamesViewTakes = Instance.withInstance(fun i ->
         Instance.output(i, [ "view", "Stdlib.List.head", "--raw" ]),
         "let head",
         "view takes the name without its owner")
+
       Instance.says(short, "fn ", "and so does hash")
       Instance.doesNotSay(short, "Not found", "the name resolves")
       Instance.says(full, "fn ", "the fully qualified name too")
@@ -275,16 +298,18 @@ test hashTakesTheNamesViewTakes = Instance.withInstance(fun i ->
         $"the short hash starts the long one: short={short} long={long}") ]))
 
 
-test hashOfAModuleSaysItIsAModule = Instance.withInstance(fun i ->
-  Stdlib.Test.all(
-    [ Instance.says(
-        Instance.said(i, [ "hash", "Stdlib.Option" ]),
-        "module",
-        "a module is a path, not content")
-      Instance.says(
-        Instance.said(i, [ "hash", "Darklang.Nope.nope" ]),
-        "Not found",
-        "and a missing name is missing") ]))
+test hashOfAModuleSaysItIsAModule =
+  Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ Instance.says(
+          Instance.said(i, [ "hash", "Stdlib.Option" ]),
+          "module",
+          "a module is a path, not content")
+
+        Instance.says(
+          Instance.said(i, [ "hash", "Darklang.Nope.nope" ]),
+          "Not found",
+          "and a missing name is missing") ]))
 
 
 /// Same family as `hash`: `find-values` resolves the type name like `view` does.
@@ -292,12 +317,21 @@ test findValuesTakesTheNamesViewTakes = Instance.withInstance(fun i ->
   let short = Instance.ran(i, [ "find-values", "Stdlib.Option.Option" ])
   let full = Instance.ran(i, [ "find-values", "Darklang.Stdlib.Option.Option" ])
   Stdlib.Test.all(
-    [ Instance.exitedWith(Stdlib.Tuple2.first(short), 0, Stdlib.Tuple2.second(short))
+    [ Instance.exitedWith(
+        Stdlib.Tuple2.first(short),
+        0,
+        Stdlib.Tuple2.second(short))
+
       Instance.doesNotSay(
         Stdlib.Tuple2.second(short),
         "Type not found",
         "the type resolves without its owner")
-      Instance.exitedWith(Stdlib.Tuple2.first(full), 0, Stdlib.Tuple2.second(full))
+
+      Instance.exitedWith(
+        Stdlib.Tuple2.first(full),
+        0,
+        Stdlib.Tuple2.second(full))
+
       Instance.doesNotSay(
         Stdlib.Tuple2.second(full),
         "Type not found",

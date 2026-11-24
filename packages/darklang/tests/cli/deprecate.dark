@@ -19,6 +19,7 @@ test harmfulGate = Instance.withInstance(fun i ->
         halted,
         "Harmful",
         "a fn marked harmful refuses to run without the flag")
+
       // The halt message names `--allow-harmful`, so the flag has to do what the message promises.
       Instance.says(allowed, "31", "--allow-harmful runs it anyway") ]))
 
@@ -32,9 +33,7 @@ test deprecateLeavesATwinAlone = Instance.withInstance(fun i ->
   let hashOf = fun name -> Stdlib.String.trim(said([ "hash", name ]))
   let _ = said([ "val", "Tests.Twins.kept", "= 770031" ])
   let _ = said([ "val", "Tests.Twins.probe", "= 770031" ])
-  let deprecated =
-    said([ "deprecate", "Tests.Twins.probe", "--yes" ])
-
+  let deprecated = said([ "deprecate", "Tests.Twins.probe", "--yes" ])
   if hashOf("Tests.Twins.kept") != hashOf("Tests.Twins.probe") then
     Stdlib.Test.fail(
       "the two names should hold one item, or this tests nothing")
@@ -120,50 +119,92 @@ test lsDropsADeletedTwin = Instance.withInstance(fun i ->
 test executionBlocksFollowTheSelectedBranch = Instance.withInstance(fun i ->
   let name = "Tests.BranchExecutionBlock.entry"
   let _ = Instance.ran(i, [ "fn", name, "(): Int64 = 1414 - 1414" ])
+
   let (blockedOnMain, _) =
     Instance.ran(i, [ "deprecate", name, "--block-execution", "--yes" ])
 
-  let (committed, _) = Instance.ran(i, [ "commit", "-m", "Block entry on main", "--yes" ])
+  let (committed, _) =
+    Instance.ran(i, [ "commit", "-m", "Block entry on main", "--yes" ])
+
   let (created, _) = Instance.ran(i, [ "branch", "create", "block-child" ])
-  let onChild = fun args -> Instance.ran(i, ["--branch", "block-child", ...args])
-  let onMain = fun args -> Instance.ran(i, ["--branch", "main", ...args])
+  let onChild = fun args ->
+    Instance.ran(i, [ "--branch", "block-child", ...args ])
+
+  let onMain = fun args -> Instance.ran(i, [ "--branch", "main", ...args ])
   let (inherited, inheritedOut) = onChild([ "run", name ])
   let (restored, _) = onChild([ "restore", name ])
   let (restoredRun, _) = onChild([ "run", name ])
   let (deleted, deletion) = onChild([ "delete", name, "--yes" ])
   let (deprecatedRun, _) = onChild([ "run", name ])
   let (mainRun, mainOut) = onMain([ "run", name ])
-
   Stdlib.Test.all(
     [ Instance.exitedWith(blockedOnMain, 0, "block on main")
       Instance.exitedWith(committed, 0, "commit the block")
       Instance.exitedWith(created, 0, "create a child branch")
       Instance.exitedWith(inherited, 1, "the committed block is inherited")
-      Instance.says(inheritedOut, "--allow-harmful", "run reports the inherited block")
+      Instance.says(
+        inheritedOut,
+        "--allow-harmful",
+        "run reports the inherited block")
+
       Instance.exitedWith(restored, 0, "restore on the child")
       Instance.exitedWith(restoredRun, 0, "the child can now run it")
       Instance.exitedWith(deleted, 0, "delete on the child")
-      Instance.says(deletion, "(still callable)", "explains the effect on the child")
-      Instance.exitedWith(deprecatedRun, 0, "the child can still run it after plain deprecation")
+      Instance.says(
+        deletion,
+        "(still callable)",
+        "explains the effect on the child")
+
+      Instance.exitedWith(
+        deprecatedRun,
+        0,
+        "the child can still run it after plain deprecation")
+
       Instance.exitedWith(mainRun, 1, "main is still blocked")
-      Instance.says(mainOut, "--allow-harmful", "run on main still reports the block") ]))
+      Instance.says(
+        mainOut,
+        "--allow-harmful",
+        "run on main still reports the block") ]))
 
 
 test executionBlockOnChildLeavesMainCallable = Instance.withInstance(fun i ->
   let name = "Tests.ChildExecutionBlock.entry"
   let _ = Instance.ran(i, [ "fn", name, "(): Int64 = 1726 - 1726" ])
-  let (committed, _) = Instance.ran(i, [ "commit", "-m", "Add callable entry", "--yes" ])
+
+  let (committed, _) =
+    Instance.ran(i, [ "commit", "-m", "Add callable entry", "--yes" ])
+
   let (created, _) = Instance.ran(i, [ "branch", "create", "local-block" ])
+
   let (blocked, _) =
-    Instance.ran(i, [ "--branch", "local-block", "deprecate", name, "--block-execution", "--yes" ])
+    Instance.ran(
+      i,
+      [ "--branch"
+        "local-block"
+        "deprecate"
+        name
+        "--block-execution"
+        "--yes" ])
 
-  let (childRun, childOut) = Instance.ran(i, [ "--branch", "local-block", "run", name ])
+  let (childRun, childOut) =
+    Instance.ran(i, [ "--branch", "local-block", "run", name ])
+
   let (mainRun, _) = Instance.ran(i, [ "--branch", "main", "run", name ])
-
   Stdlib.Test.all(
     [ Instance.exitedWith(committed, 0, "commit the callable entry")
+
       Instance.exitedWith(created, 0, "create a child branch")
+
       Instance.exitedWith(blocked, 0, "block execution on the child")
-      Instance.exitedWith(childRun, 1, "a draft block takes effect on the child")
-      Instance.says(childOut, "--allow-harmful", "run reports the child's block")
+
+      Instance.exitedWith(
+        childRun,
+        1,
+        "a draft block takes effect on the child")
+
+      Instance.says(
+        childOut,
+        "--allow-harmful",
+        "run reports the child's block")
+
       Instance.exitedWith(mainRun, 0, "main can still run it") ]))

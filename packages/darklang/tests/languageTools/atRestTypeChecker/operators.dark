@@ -327,22 +327,28 @@ module Builtins =
       | Ok(ops) ->
         let report = LanguageTools.AtRestTypeChecker.checkPackageOps(ops)
         report.items
-        |> Stdlib.List.filter(fun i -> Option.Some(i.item) == itemNamed(ops, "f"))
+        |> Stdlib.List.filter(fun i ->
+          Option.Some(i.item) == itemNamed(ops, "f"))
         |> Stdlib.List.map(fun i -> i.diagnostics)
         |> Stdlib.List.flatten
         |> Stdlib.List.map(fun issue ->
           LanguageTools.AtRestTypeChecker.issueToStringWith(
-            (fun h -> Cli.Packages.AtRestCheck.customTypeName(SCM.Branch.mainBranchId, h)),
+            (fun h ->
+               Cli.Packages.AtRestCheck.customTypeName(
+                 SCM.Branch.mainBranchId,
+                 h)),
             issue))
 
     Stdlib.Test.all(
-      [ named("let f(xs: List<Int64>): List<Int64> = Stdlib.List.reverse(Stdlib.List.zip(xs, xs))")
+      [ named(
+          "let f(xs: List<Int64>): List<Int64> = Stdlib.List.reverse(Stdlib.List.zip(xs, xs))")
         |> Stdlib.Test.equal(
           [ "In `Stdlib.List.reverse`, argument 1: expected List<Int64>, got "
             + "Darklang.Stdlib.Result.Result<List<(Int64 * Int64)>, Darklang.Stdlib.List.LengthMismatch>"
             + " (that is a Result: match `Ok(x)` and `Error(e)` to get at the value)" ])
 
-        named("let f(xs: List<Int64>): List<Int64> = Stdlib.List.append(xs, Stdlib.List.head(xs))")
+        named(
+          "let f(xs: List<Int64>): List<Int64> = Stdlib.List.append(xs, Stdlib.List.head(xs))")
         |> Stdlib.Test.equal(
           [ "In `Stdlib.List.append`, argument 2: expected Int64, got Darklang.Stdlib.Option.Option<Int64>"
             + " (that is an Option: match `Some(x)` and `None` to get at the value)" ])

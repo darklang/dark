@@ -22,9 +22,10 @@ let readConfig(key: String): Stdlib.Option.Option<String> =
 test snapshotScopeKeepsTestCounter =
   let _ = Stdlib.Test.incrementCounter()
   let branch = SCM.PackageOps.currentBranch()
-  let _ = LanguageTools.PackageManager.Test.withStoreSnapshot(branch, 0, fun _ ->
-    Stdlib.Cli.Posix.sleep(25.0)
-    Stdlib.Test.incrementCounter())
+  let _ =
+    LanguageTools.PackageManager.Test.withStoreSnapshot(branch, 0, fun _ ->
+      Stdlib.Cli.Posix.sleep(25.0)
+      Stdlib.Test.incrementCounter())
 
   Stdlib.Test.counterValue() |> Stdlib.Test.equal(2)
 
@@ -134,7 +135,9 @@ test assertionFailureIsPreserved =
 
 /// Start a branch and move onto it, as `dark branch create` does.
 let createBranch(): Uuid =
-  match SCM.Branch.create("isolated-child-branch", SCM.PackageOps.currentBranch()) with
+  match SCM.Branch.create(
+          "isolated-child-branch",
+          SCM.PackageOps.currentBranch()) with
   | Some(b) -> SCM.PackageOps.selectBranch(b.id)
   | None -> SCM.PackageOps.currentBranch()
 
@@ -151,6 +154,7 @@ test branchChangesStayIsolated =
       [ output.exitCode |> Stdlib.Test.equal(0)
         output.result
         |> Stdlib.Test.notEqual(Stdlib.Result.Result.Ok(parentBranch))
+
         SCM.PackageOps.currentBranch() |> Stdlib.Test.equal(parentBranch) ])
 
 

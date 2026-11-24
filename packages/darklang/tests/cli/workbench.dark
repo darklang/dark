@@ -867,7 +867,6 @@ test workbenchHomeOverview =
 
 
 // ── Navigation regressions that need real key dispatch and populated views ──
-
 // A move with History.Record leaves a way back and one with History.Skip (back's own) does
 // not; the reader highlights what it is given only for Reader.Code.
 test workbenchNavigationEnums =
@@ -1066,8 +1065,8 @@ let frameAt(
   height: Int64)
   : List<String> =
   (Cli.Workbench.viewAtSize(
-    state,
-    Stdlib.Cli.Tui.Size { width = width, height = height })).rows
+     state,
+     Stdlib.Cli.Tui.Size { width = width, height = height })).rows
   |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
 
 
@@ -1084,9 +1083,16 @@ test hintRowDropsSecondaryKeysBeforeHelpAndQuit =
   let tiny = shown(56)
   Stdlib.Test.all(
     [ Instance.says(wide, "views", "the full row has the secondary keys too")
+
       Instance.says(narrow, "help", "the keymap key survives")
+
       Instance.says(narrow, "quit", "and so does the way out")
-      Instance.says(narrow, "move", "the pane's own actions outlive the globals")
+
+      Instance.says(
+        narrow,
+        "move",
+        "the pane's own actions outlive the globals")
+
       Instance.doesNotSay(narrow, "views", "a secondary global gave way first")
       Instance.says(tiny, "help", "narrower still, help survives")
       Instance.says(tiny, "quit", "and the way out") ])
@@ -1098,7 +1104,9 @@ test headerDropsTheInstanceBeforeTheBranch =
   let name = "inst-with-a-deliberately-long-name-for-this-test"
   let s = scmViewState(name)
   let header(width: Int64): String =
-    frameAt(s, width, 4) |> Stdlib.List.head |> Stdlib.Option.withDefault("")
+    frameAt(s, width, 4)
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault("")
 
   let wide = header(150)
   // Two columns under what the instance and the branch need; under about 50 the too-small guard
@@ -1107,7 +1115,11 @@ test headerDropsTheInstanceBeforeTheBranch =
   Stdlib.Test.all(
     [ Instance.says(wide, name, "the full row shows the instance")
       Instance.says(wide, "main", "and the branch")
-      Instance.doesNotSay(narrow, "inst-with-a-deliberately", "the instance gives way")
+      Instance.doesNotSay(
+        narrow,
+        "inst-with-a-deliberately",
+        "the instance gives way")
+
       Instance.says(narrow, "main", "and the branch survives") ])
 
 
@@ -1142,23 +1154,22 @@ test workbenchFramesATinyTerminal =
 
 /// No row is wider than its frame, in any view, with wide glyphs in a name and a commit message.
 /// Widths are terminal columns: a row past the last one wraps and shifts every row under it.
-test noWorkbenchRowOverflowsItsFrame =
-  Instance.withInstance(fun i ->
-    let overflowing(width: Int64): String =
-      let code =
-        "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", Darklang.Cli.Workbench.Updates.Manual) in\n"
-        + "let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in\n"
-        + $"let over = fun v -> (Darklang.Cli.Workbench.viewAtSize({{ s with activeView = v }}, Darklang.Stdlib.Cli.Tui.Size {{ width = {Stdlib.display(width)}, height = 24 }})).rows |> Stdlib.List.filter(fun r -> Darklang.Stdlib.Cli.Tui.Text.styledWidth(r) > {Stdlib.display(width)}) |> Stdlib.List.length in\n"
-        + "[ over(0), over(1), over(3), over(4), over(6), over(7), over(8), over(9) ]"
+test noWorkbenchRowOverflowsItsFrame = Instance.withInstance(fun i ->
+  let overflowing(width: Int64): String =
+    let code =
+      "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", Darklang.Cli.Workbench.Updates.Manual) in\n"
+      + "let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in\n"
+      + $"let over = fun v -> (Darklang.Cli.Workbench.viewAtSize({{ s with activeView = v }}, Darklang.Stdlib.Cli.Tui.Size {{ width = {Stdlib.display(width)}, height = 24 }})).rows |> Stdlib.List.filter(fun r -> Darklang.Stdlib.Cli.Tui.Text.styledWidth(r) > {Stdlib.display(width)}) |> Stdlib.List.length in\n"
+      + "[ over(0), over(1), over(3), over(4), over(6), over(7), over(8), over(9) ]"
 
-      Instance.output(i, [ "eval", code ])
+    Instance.output(i, [ "eval", code ])
 
-    Stdlib.Test.all(
-      [ Instance.expectExit(i, [ "fn", "Tests.Wide.世界", "() : Int64 = 1" ], 0)
-        Instance.expectExit(i, [ "commit", "コミット 🎉 wide", "-y" ], 0)
-        Stdlib.Test.equal(overflowing(56), "[0, 0, 0, 0, 0, 0, 0, 0]")
-        Stdlib.Test.equal(overflowing(80), "[0, 0, 0, 0, 0, 0, 0, 0]")
-        Stdlib.Test.equal(overflowing(120), "[0, 0, 0, 0, 0, 0, 0, 0]") ]))
+  Stdlib.Test.all(
+    [ Instance.expectExit(i, [ "fn", "Tests.Wide.世界", "() : Int64 = 1" ], 0)
+      Instance.expectExit(i, [ "commit", "コミット 🎉 wide", "-y" ], 0)
+      Stdlib.Test.equal(overflowing(56), "[0, 0, 0, 0, 0, 0, 0, 0]")
+      Stdlib.Test.equal(overflowing(80), "[0, 0, 0, 0, 0, 0, 0, 0]")
+      Stdlib.Test.equal(overflowing(120), "[0, 0, 0, 0, 0, 0, 0, 0]") ]))
 
 
 // ── Workbench: actions and edits ──
@@ -1190,16 +1201,22 @@ test workbenchBranchActionsAndTheirRefusalsOnMain =
         inputActionSays(s, "branch-create", "wbTestBranch"),
         "on branch wbTestBranch",
         "starting a branch lands you on it")
+
       Instance.says(
         inputActionSays(s, "branch-switch", "wbTestBranch"),
         "switched to",
         "and it can be switched to")
+
       Instance.says(
         inputActionSays(s, "merge", "y"),
         "main is the trunk",
         "merge on main names the gate")
+
       Instance.says(rebased, "main is the trunk", "and so does rebase")
-      Instance.doesNotSay(rebased, "rebased onto parent", "without claiming it ran") ])
+      Instance.doesNotSay(
+        rebased,
+        "rebased onto parent",
+        "without claiming it ran") ])
 
 
 /// A refusal is marked as one in the footer, not with a success tick. The mark used to be picked by
@@ -1224,12 +1241,17 @@ test workbenchMarksARefusalAsARefusal =
         field = Stdlib.Cli.UI.TextField.fromText(text)
         action = action }
 
-  [ (kindOf(Cli.Workbench.performInputAction(s, input("author-fn", " "))),
-     "need an owner")
-    (kindOf(
-      Cli.Workbench.performInputAction(s, input("search", "zzzWbNothingIsCalledThis"))
-     ),
-     "no matches for")
+  [ (
+      kindOf(Cli.Workbench.performInputAction(s, input("author-fn", " "))),
+      "need an owner")
+
+    (
+      kindOf(
+        Cli.Workbench.performInputAction(
+          s,
+          input("search", "zzzWbNothingIsCalledThis"))),
+      "no matches for")
+
     (kindOf(Cli.Workbench.resolveConflict(s, "ok")), "no conflict selected") ]
   |> Stdlib.Test.table(fun row ->
     let (said, meant) = row
@@ -1250,7 +1272,9 @@ let darkLiteral(s: String): String =
 
 
 let modulePathLiteral(modules: List<String>): String =
-  modules |> Stdlib.List.map(darkLiteral) |> Stdlib.String.join(", ")
+  modules
+  |> Stdlib.List.map(darkLiteral)
+  |> Stdlib.String.join(", ")
 
 
 /// A workbench on main, in Matter at <param modules>, as code for `dark eval`.
@@ -1332,32 +1356,37 @@ let setUp(i: Instance.T, args: List<String>): Stdlib.Test.Result =
 
 
 /// The workbench's refusals say what is wrong, as the CLI's do.
-test workbenchRefusalsNameTheProblem =
-  Instance.withInstance(fun i ->
-    let unresolved =
-      newInWorkbench(
-        i,
-        [ "Tests", "WbRefuse" ],
-        "fn",
-        [ "Tests", "WbRefuse" ],
-        "let wbQ(x: Int64): Int64 = Nope.wbZzz(x)")
+test workbenchRefusalsNameTheProblem = Instance.withInstance(fun i ->
+  let unresolved =
+    newInWorkbench(
+      i,
+      [ "Tests", "WbRefuse" ],
+      "fn",
+      [ "Tests", "WbRefuse" ],
+      "let wbQ(x: Int64): Int64 = Nope.wbZzz(x)")
 
-    let noTrait =
-      newInWorkbench(
-        i,
-        [ "Tests", "WbRefuse" ],
-        "impl",
-        [ "Tests", "WbRefuse" ],
-        "impl WbNoSuchTrait for Int64 =\n  let m(x: Int64): String = \"\"")
+  let noTrait =
+    newInWorkbench(
+      i,
+      [ "Tests", "WbRefuse" ],
+      "impl",
+      [ "Tests", "WbRefuse" ],
+      "impl WbNoSuchTrait for Int64 =\n  let m(x: Int64): String = \"\"")
 
-    Stdlib.Test.all(
-      [ Instance.says(unresolved, "save refused", "an unresolved name refuses")
-        Instance.says(unresolved, "Nope.wbZzz", "and names the name")
-        Instance.says(noTrait, "save refused", "an impl of a missing trait refuses")
-        Instance.says(
-          noTrait,
-          "no trait called WbNoSuchTrait",
-          "and says it is the trait that is missing") ]))
+  Stdlib.Test.all(
+    [ Instance.says(unresolved, "save refused", "an unresolved name refuses")
+
+      Instance.says(unresolved, "Nope.wbZzz", "and names the name")
+
+      Instance.says(
+        noTrait,
+        "save refused",
+        "an impl of a missing trait refuses")
+
+      Instance.says(
+        noTrait,
+        "no trait called WbNoSuchTrait",
+        "and says it is the trait that is missing") ]))
 
 
 /// An implementation written in a module named for its type lands on `<module>.<Trait>`, where a
@@ -1367,7 +1396,10 @@ test workbenchRefusesAnImplementationOverATraitsName =
   Instance.withInstance(fun i ->
     let setup =
       [ setUp(i, [ "type", "/Tests.WbPt.WbPt", "{ wbPtMark: Int64 }" ])
-        setUp(i, [ "trait", "/Tests.WbPt.WbSh", "<'a> = let sh(v: 'a): String" ]) ]
+
+        setUp(
+          i,
+          [ "trait", "/Tests.WbPt.WbSh", "<'a> = let sh(v: 'a): String" ]) ]
 
     let answer =
       newInWorkbench(
@@ -1381,10 +1413,12 @@ test workbenchRefusesAnImplementationOverATraitsName =
       Stdlib.List.concat(
         setup,
         [ Instance.says(answer, "save refused", "the save is refused")
+
           Instance.says(
             answer,
             "already called Tests.WbPt.WbSh",
             "naming the name that is taken")
+
           Instance.says(
             Instance.output(i, [ "view", "Tests.WbPt.WbSh" ]),
             "trait",
@@ -1411,8 +1445,16 @@ test workbenchSaysUnchangedAndLandsOnWhatItSaved =
     Stdlib.Test.all(
       [ setup
         Instance.says(same, "unchanged", "an edit that changes nothing says so")
-        Instance.says(landed, "at: Tests.WbLand", "the view moves to the module saved into")
-        Instance.says(landed, "on: landedHere", "with the new item selected") ]))
+
+        Instance.says(
+          landed,
+          "at: Tests.WbLand",
+          "the view moves to the module saved into")
+
+        Instance.says(
+          landed,
+          "on: landedHere",
+          "with the new item selected") ]))
 
 
 /// A doc comment written above a declaration documents it. The save took the name from the
@@ -1433,10 +1475,12 @@ test workbenchDocCommentDocumentsTheItemItSitsOn =
     Stdlib.Test.all(
       [ setup
         Instance.says(saved, "saved docme", "the save is of docme")
+
         Instance.says(
           Instance.output(i, [ "view", "Tests.WbDoc.docme" ]),
           "nobody else uses",
           "and docme carries the doc")
+
         Instance.doesNotSay(
           Instance.said(i, [ "view", "Tests.WbDoc.Adds" ]),
           "9137",
@@ -1448,10 +1492,16 @@ test workbenchDocCommentDocumentsTheItemItSitsOn =
 test workbenchImplementationEditLeavesExactlyOne =
   Instance.withInstance(fun i ->
     let setup =
-      [ setUp(i, [ "type", "/Tests.WbImplEdit.Box", "{ wbImplEditMark: Int64 }" ])
+      [ setUp(
+          i,
+          [ "type", "/Tests.WbImplEdit.Box", "{ wbImplEditMark: Int64 }" ])
+
         setUp(
           i,
-          [ "trait", "/Tests.WbImplEdit.WbShout", "<'a> = let shout(v: 'a): String" ])
+          [ "trait"
+            "/Tests.WbImplEdit.WbShout"
+            "<'a> = let shout(v: 'a): String" ])
+
         setUp(
           i,
           [ "impl"
@@ -1470,7 +1520,8 @@ test workbenchImplementationEditLeavesExactlyOne =
     let boxRows =
       impls
       |> Stdlib.String.split("\n")
-      |> Stdlib.List.filter(fun l -> Stdlib.String.contains(l, "Tests.WbImplEdit.Box"))
+      |> Stdlib.List.filter(fun l ->
+        Stdlib.String.contains(l, "Tests.WbImplEdit.Box"))
       |> Stdlib.List.length
 
     Stdlib.Test.all(
@@ -1480,7 +1531,12 @@ test workbenchImplementationEditLeavesExactlyOne =
           Stdlib.Test.expect(
             boxRows == 1,
             $"one implementation after the edit, not a rival beside it: {impls}")
-          Instance.doesNotSay(impls, "not used", "nothing left behind is unused")
+
+          Instance.doesNotSay(
+            impls,
+            "not used",
+            "nothing left behind is unused")
+
           Instance.says(
             Instance.output(
               i,
@@ -1492,62 +1548,77 @@ test workbenchImplementationEditLeavesExactlyOne =
 
 /// Editing a trait carries its implementations along, as `dark trait` does. A new method leaves
 /// the implementation incomplete, and both the footer and the call say so.
-test workbenchTraitEditKeepsItsImplementations =
-  Instance.withInstance(fun i ->
-    let setup =
-      [ setUp(i, [ "type", "/Tests.WbTraitEdit.Box", "{ wbTraitEditMark: Int64 }" ])
-        setUp(
-          i,
-          [ "trait", "/Tests.WbTraitEdit.WbWave", "<'a> = let shout(v: 'a): String" ])
-        setUp(
-          i,
-          [ "impl"
-            "/Tests.WbTraitEdit"
-            "WbWave for Box = let shout(b: Box): String = \"box\"" ]) ]
-
-    let saved =
-      editInWorkbench(
+test workbenchTraitEditKeepsItsImplementations = Instance.withInstance(fun i ->
+  let setup =
+    [ setUp(
         i,
-        [ "Tests", "WbTraitEdit" ],
-        "WbWave",
-        "let shout(v: 'a): String",
-        "let shout(v: 'a): String\n  let wave(v: 'a): String")
+        [ "type", "/Tests.WbTraitEdit.Box", "{ wbTraitEditMark: Int64 }" ])
 
-    let box = "Tests.WbTraitEdit.Box { wbTraitEditMark = 1 }"
-    Stdlib.Test.all(
-      Stdlib.List.concat(
-        setup,
-        [ Instance.says(saved, "footer: saved", "the edit saved")
-          Instance.says(
-            saved,
-            "no longer type-checks",
-            "the footer names the implementation the new method left incomplete")
-          Instance.says(
-            Instance.output(i, [ "eval", $"Tests.WbTraitEdit.WbWave.shout({box})" ]),
-            "box",
-            "the implementation still answers the method it has")
-          Instance.says(
-            Instance.output(i, [ "impls", "Tests.WbTraitEdit.WbWave" ]),
-            "Tests.WbTraitEdit.Box",
-            "and is still listed against the trait")
-          Instance.says(
-            Instance.said(i, [ "eval", $"Tests.WbTraitEdit.WbWave.wave({box})" ]),
-            "chosen here has no `wave`",
-            "calling the new method blames the implementation") ])))
+      setUp(
+        i,
+        [ "trait"
+          "/Tests.WbTraitEdit.WbWave"
+          "<'a> = let shout(v: 'a): String" ])
+
+      setUp(
+        i,
+        [ "impl"
+          "/Tests.WbTraitEdit"
+          "WbWave for Box = let shout(b: Box): String = \"box\"" ]) ]
+
+  let saved =
+    editInWorkbench(
+      i,
+      [ "Tests", "WbTraitEdit" ],
+      "WbWave",
+      "let shout(v: 'a): String",
+      "let shout(v: 'a): String\n  let wave(v: 'a): String")
+
+  let box = "Tests.WbTraitEdit.Box { wbTraitEditMark = 1 }"
+  Stdlib.Test.all(
+    Stdlib.List.concat(
+      setup,
+      [ Instance.says(saved, "footer: saved", "the edit saved")
+
+        Instance.says(
+          saved,
+          "no longer type-checks",
+          "the footer names the implementation the new method left incomplete")
+
+        Instance.says(
+          Instance.output(
+            i,
+            [ "eval", $"Tests.WbTraitEdit.WbWave.shout({box})" ]),
+          "box",
+          "the implementation still answers the method it has")
+
+        Instance.says(
+          Instance.output(i, [ "impls", "Tests.WbTraitEdit.WbWave" ]),
+          "Tests.WbTraitEdit.Box",
+          "and is still listed against the trait")
+
+        Instance.says(
+          Instance.said(i, [ "eval", $"Tests.WbTraitEdit.WbWave.wave({box})" ]),
+          "chosen here has no `wave`",
+          "calling the new method blames the implementation") ])))
 
 
 /// Editing a function in the workbench carries its callers to the new version.
-test workbenchFunctionEditCarriesItsCallers =
-  Instance.withInstance(fun i ->
-    let setup =
-      [ setUp(i, [ "fn", "/Tests.WbFnEdit.g", "(x: Int64) : Int64 = x + 1" ])
-        setUp(i, [ "fn", "/Tests.WbFnEdit.f", "(x: Int64): Int64 = Tests.WbFnEdit.g(x)" ]) ]
+test workbenchFunctionEditCarriesItsCallers = Instance.withInstance(fun i ->
+  let setup =
+    [ setUp(i, [ "fn", "/Tests.WbFnEdit.g", "(x: Int64) : Int64 = x + 1" ])
 
-    let saved = editInWorkbench(i, [ "Tests", "WbFnEdit" ], "g", "x + 1", "x + 5")
-    Stdlib.Test.all(
-      Stdlib.List.concat(
-        setup,
-        [ Instance.says(saved, "footer: saved", "the edit saved")
-          Stdlib.Test.equal(
-            Instance.output(i, [ "eval", "Tests.WbFnEdit.f(1)" ]),
-            "6") ])))
+      setUp(
+        i,
+        [ "fn"
+          "/Tests.WbFnEdit.f"
+          "(x: Int64): Int64 = Tests.WbFnEdit.g(x)" ]) ]
+
+  let saved = editInWorkbench(i, [ "Tests", "WbFnEdit" ], "g", "x + 1", "x + 5")
+  Stdlib.Test.all(
+    Stdlib.List.concat(
+      setup,
+      [ Instance.says(saved, "footer: saved", "the edit saved")
+        Stdlib.Test.equal(
+          Instance.output(i, [ "eval", "Tests.WbFnEdit.f(1)" ]),
+          "6") ])))

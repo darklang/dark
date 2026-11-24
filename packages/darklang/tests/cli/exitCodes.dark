@@ -12,8 +12,16 @@ test fnWithATypeErrorSavesTheDraftAndExitsOne = Instance.withInstance(fun i ->
   let view = Instance.call(i, Instance.command([ "view", "Me.ExitCodes.bad" ]))
   Stdlib.Test.all(
     [ Instance.exitedWith(out.exitCode, 1, "a save with a type error")
-      Instance.stdoutSays(out, "Created function", "the answer is what it saved")
-      Instance.stderrSays(out, "saved as a draft", "the type error says the draft was kept")
+      Instance.stdoutSays(
+        out,
+        "Created function",
+        "the answer is what it saved")
+
+      Instance.stderrSays(
+        out,
+        "saved as a draft",
+        "the type error says the draft was kept")
+
       Instance.exitedWith(view.exitCode, 0, "and the draft is there") ]))
 
 
