@@ -75,6 +75,15 @@ module Nested =
         r(10, g(doc())) |> Stdlib.Test.equal("outer\n  inner1\n  inner2") ])
 
 
+  test indentPastWhatAStringHoldsIsLeftOut =
+    r(
+      80,
+      Stdlib.Pretty.nest(
+        3000000000,
+        Stdlib.Pretty.concat(Stdlib.Pretty.hardLine, t("x"))))
+    |> Stdlib.Test.equal("\nx")
+
+
 // Lists and records: the shapes the value printer actually needs
 module Structures =
   let rec_(): Stdlib.Pretty.Doc =

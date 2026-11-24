@@ -439,7 +439,7 @@ let referenceSegmentsWorkedOut(
       [ if alwaysBare then [ (len, true) ] else []
         [ (shared, false) ]
         if fallbackOwner then [ (1, true) ] else []
-        Stdlib.List.range(0, shared - 1)
+        (Stdlib.List.checkedRange(0, shared - 1) |> Stdlib.Result.withDefault([]))
         |> Stdlib.List.reverse
         |> Stdlib.List.map(fun d -> (d, false)) ])
     |> Stdlib.List.filter(fun c ->
@@ -466,7 +466,7 @@ let referenceSegmentsWorkedOut(
     let segments = Stdlib.List.drop(fullPath, dropped)
     let firstK = if viaFallback then 0 else dropped + 1
     let nearer =
-      Stdlib.List.range(firstK, depth)
+      (Stdlib.List.checkedRange(firstK, depth) |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.any(fun k ->
         match atPath(
                 Stdlib.List.concat(Stdlib.List.take(currentModule, k), segments),
@@ -479,7 +479,7 @@ let referenceSegmentsWorkedOut(
     let traitFirst =
       kind == LanguageTools.ProgramTypes.ItemKind.Fn
       && Stdlib.Bool.not(Stdlib.List.isEmpty(segments))
-      && (Stdlib.List.range(0, depth)
+      && ((Stdlib.List.checkedRange(0, depth) |> Stdlib.Result.withDefault([]))
           |> Stdlib.List.any(fun k ->
             let path = Stdlib.List.concat(Stdlib.List.take(currentModule, k), segments)
             match Stdlib.List.last(path) with
