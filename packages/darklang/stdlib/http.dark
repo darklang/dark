@@ -91,6 +91,13 @@ let urlDecode(s: String): String =
 
 
 module Request =
+  /// A request as a server hands one to a handler, so a test can call a router without a
+  /// server: {{router(Request.make("GET", "/hello", [], Bytes.empty))}}. <param url> may
+  /// be just the path and query.
+  let make(method: String, url: String, headers: List<(String * String)>, body: Bytes): Request =
+    Request { method = method, url = url, headers = headers, body = body }
+
+
   /// The query string, decoded: <fn Stdlib.Url.queryParams> of the request's
   /// target (<fn Stdlib.Http.requestTarget>), so a bad Host header cannot hide it.
   let queryParams(req: Request): List<(String * String)> =

@@ -97,6 +97,8 @@ Your edits are LIVE as soon as you write them. There is no build step.
                               an HTTP server backed by a Darklang router
                               (alias: http-server; --bind defaults to 127.0.0.1; --port to 8080;
                               --live follows your edits)
+  request <router> <METHOD> <path> [--header name:value] [--body TEXT|-]
+                              call the router once, in-process, and print the response
 
 ## The full-screen experience (`dark` with no args opens it)
   workbench         the framed, navigable workbench (alias: wb)

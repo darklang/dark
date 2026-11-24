@@ -1,0 +1,69 @@
+/// `dark request`: a router called once, in-process, with no server.
+/// Its refusals (unknown router, bad method, path or header) are in refusals.dark.
+module Darklang.Cli.Tests.RequestCommand
+
+val router = "Darklang.DemoData.HttpServerTest.router"
+
+
+test aGetPrintsStatusHeadersAndBody = Instance.withInstance(fun i ->
+  let (code, out, err) =
+    Instance.streams(i, [ "request", router, "GET", "/hello" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "a 200")
+      Stdlib.Test.equal(
+        out,
+        "200 OK\nServer: darklang\nContent-Type: text/plain; charset=utf-8\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\n\nHello, World!")
+
+      Instance.says(
+        err,
+        "[HttpServer] GET /hello 200 ",
+        "the log line, on stderr") ]))
+
+
+/// The handler sees the url and Host header a default `serve` would hand it.
+test theHandlerSeesWhatServeHandsIt = Instance.withInstance(fun i ->
+  let source =
+    "let router(req: Stdlib.Http.Request): Stdlib.Http.Response =\n"
+    + "  let host = Stdlib.Http.Request.header(req, \"Host\") |> Stdlib.Option.withDefault(\"\")\n"
+    + "  Stdlib.Http.responseWithText(200, req.url + \" \" + host)\n"
+
+  let _ = Instance.runWithStdin(i, [ "import", "-", "/Me.Seen" ], source)
+  let (code, out, _) =
+    Instance.streams(i, [ "request", "Me.Seen.router", "GET", "/a?b=1" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "a 200")
+      Instance.says(
+        out,
+        "\n\nhttp://127.0.0.1:8080/a?b=1 127.0.0.1:8080",
+        "the url and Host as serve builds them") ]))
+
+
+test aPostTakesItsBodyFromStdin = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.runWithStdin(
+      i,
+      [ "request"
+        router
+        "post"
+        "/echo"
+        "--header"
+        "x-note: hi"
+        "--body"
+        "-" ],
+      "ping \"quoted\" {x}")
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the echo")
+      Instance.says(out, "200 OK", "the status")
+      Instance.says(out, "\n\nping \"quoted\" {x}", "the body, as sent") ]))
+
+
+test aRouteTheRouterDoesNotHaveIsItsAnswer = Instance.withInstance(fun i ->
+  let (code, out, _) =
+    Instance.streams(i, [ "request", router, "GET", "/nope" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "a 404 is an answer, not a failure")
+      Instance.says(out, "404 Not Found", "the status") ]))

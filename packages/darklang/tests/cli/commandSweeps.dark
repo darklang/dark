@@ -445,6 +445,7 @@ let knownGood(
     ("nav", [ "Darklang.Stdlib.List" ])
     ("ls", [ "Darklang.Stdlib.List" ])
     ("eval", [ "1 + 1" ])
+    ("request", [ "Darklang.DemoData.HttpServerTest.router", "GET", "/hello" ])
     ("view", [ fnName ])
     ("tree", [ "Darklang.Stdlib", "--depth", "1" ])
     ("search", [ "mergeFavoring" ])

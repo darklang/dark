@@ -248,6 +248,10 @@ module Registry =
       Accepts.between(1, 1, [ "--live", "--no-live", "--dev" ]))
 
 
+  let acceptsRequest(): Accepts.Accepts =
+    Accepts.withValues([ "--header", "--body", "--allow" ], Accepts.between(3, 3, []))
+
+
   let acceptsDocs(): Accepts.Accepts =
     Accepts.subcommands(
       [ (
@@ -868,6 +872,15 @@ module Registry =
         Http.Serve.complete)
 
       (
+        "request",
+        "Call a router once, without a server",
+        [],
+        acceptsRequest,
+        Http.Request.execute,
+        Http.Request.help,
+        Http.Request.complete)
+
+      (
         "docs",
         "Browse in-CLI documentation",
         [ "doc", "man" ],
@@ -1160,7 +1173,7 @@ module Registry =
           "ops" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
-      ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])
+      ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "request", "format" ])
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "effects", "permissions" ])
       (

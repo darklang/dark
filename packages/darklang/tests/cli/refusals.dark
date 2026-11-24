@@ -289,6 +289,27 @@ val refusals: List<(List<String> * String)> =
       "No function named Tests.NoSuch.router -- is it defined and committed on this branch?")
 
     (
+      [ "request", "Tests.NoSuch.router", "GET", "/" ],
+      "No function named Tests.NoSuch.router -- is it defined and committed on this branch?")
+
+    (
+      [ "request", "Darklang.DemoData.HttpServerTest.router", "FETCH", "/" ],
+      "Unknown method: FETCH (one of GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS)")
+
+    (
+      [ "request", "Darklang.DemoData.HttpServerTest.router", "GET", "hello" ],
+      "The path must start with /: hello")
+
+    (
+      [ "request"
+        "Darklang.DemoData.HttpServerTest.router"
+        "GET"
+        "/"
+        "--header"
+        "nocolon" ],
+      "Invalid --header: nocolon (use name:value)")
+
+    (
       [ "merge", "no-such-branch-here" ],
       "no branch \"no-such-branch-here\".\n  `dark branches` lists them.")
 
