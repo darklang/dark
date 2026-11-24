@@ -88,6 +88,7 @@ let inShell(i: Instance.T, script: String): String =
 
   let prelude =
     $"darkcmd='env {env} {i.cli}'; dark() {{ $darkcmd \"$@\"; }}; db={i.dir}/data.db; err={i.dir}/run.err; "
+
   (Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", prelude + script)).stdout
 
 
@@ -1038,7 +1039,6 @@ test findListsARunStillGoing = withTraces(fun i ->
 
 
 // ─── the trace id, long runs, fields, tests ─────────────────────────────────
-
 // While recording, a run names its trace on stderr as it starts, and stdout keeps only the
 // answer.
 test aRecordedRunNamesItsTraceAsItStarts = withTraces(fun i ->
@@ -1047,8 +1047,13 @@ test aRecordedRunNamesItsTraceAsItStarts = withTraces(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "the eval ran")
       Stdlib.Test.equal(out, "3")
-      Stdlib.Test.expect(Stdlib.String.length(id) == 8, $"it printed an 8-digit id: {err}")
-      Stdlib.Test.expect(short(latestId(i)) == id, "the id of the trace it left") ]))
+      Stdlib.Test.expect(
+        Stdlib.String.length(id) == 8,
+        $"it printed an 8-digit id: {err}")
+
+      Stdlib.Test.expect(
+        short(latestId(i)) == id,
+        "the id of the trace it left") ]))
 
 
 test anUnrecordedRunNamesNoTrace = Instance.withInstance(fun i ->
@@ -1059,7 +1064,9 @@ test anUnrecordedRunNamesNoTrace = Instance.withInstance(fun i ->
 // With recording off, a failed run at a terminal says how to record, once a day. Redirected, it
 // says nothing.
 test aFailedRunSaysHowToRecordOnce = Instance.withInstance(fun i ->
-  let (_, _, redirected) = Instance.streams(i, [ "--no-trace", "eval", "1 / 0" ])
+  let (_, _, redirected) =
+    Instance.streams(i, [ "--no-trace", "eval", "1 / 0" ])
+
   let atATerminal = "script -qec \"$darkcmd --no-trace eval '1 / 0'\" /dev/null"
   let out = inShell(i, $"{atATerminal}; echo '== second'; {atATerminal}")
   let (first, second) =
@@ -1068,20 +1075,38 @@ test aFailedRunSaysHowToRecordOnce = Instance.withInstance(fun i ->
     | _ -> (out, "")
 
   Stdlib.Test.all(
-    [ Instance.doesNotSay(redirected, "dark traces record on", "redirected, nothing")
-      Instance.says(first, "dark traces record on", $"the first failure says how: {out}")
-      Instance.doesNotSay(second, "dark traces record on", "the second does not") ]))
+    [ Instance.doesNotSay(
+        redirected,
+        "dark traces record on",
+        "redirected, nothing")
+
+      Instance.says(
+        first,
+        "dark traces record on",
+        $"the first failure says how: {out}")
+
+      Instance.doesNotSay(
+        second,
+        "dark traces record on",
+        "the second does not") ]))
 
 
 // `traces show <fn>` without a trace says which one it took.
 test showSaysWhichTraceItTook = withTraces(fun i ->
-  let made = step(i, [ "fn", "Tests.Picked.double", "(n: Int64): Int64 = n * 2" ])
+  let made =
+    step(i, [ "fn", "Tests.Picked.double", "(n: Int64): Int64 = n * 2" ])
+
   let (ran, id) = ranTrace(i, [ "eval", "Tests.Picked.double(4)" ])
-  let (_, _, err) = Instance.streams(i, [ "traces", "show", "Tests.Picked.double" ])
+  let (_, _, err) =
+    Instance.streams(i, [ "traces", "show", "Tests.Picked.double" ])
+
   Stdlib.Test.all(
     [ made
       ran
-      Instance.says(err, $"the newest trace through Tests.Picked.double, {id}", "it names it") ]))
+      Instance.says(
+        err,
+        $"the newest trace through Tests.Picked.double, {id}",
+        "it names it") ]))
 
 
 // A run's log is written as it goes: while it runs, `inspect` reads the calls it has made so far,
@@ -1112,14 +1137,36 @@ test aLongRunCanBeReadWhileItGoes = withTraces(fun i ->
 
   Stdlib.Test.all(
     [ made
-      Instance.says(part("inspect"), "status    running", $"inspect reads it running: {out}")
-      Instance.says(part("inspect"), "printLine(\"first\")", "with the calls made so far")
+      Instance.says(
+        part("inspect"),
+        "status    running",
+        $"inspect reads it running: {out}")
+
+      Instance.says(
+        part("inspect"),
+        "printLine(\"first\")",
+        "with the calls made so far")
+
       Instance.doesNotSay(part("inspect"), "second", "and none it has not made")
-      Instance.says(part("show"), "let a = n + 1 // = 5", "show has the values that far")
-      Instance.says(part("show"), "the run is still going", "and says why it stops")
+      Instance.says(
+        part("show"),
+        "let a = n + 1 // = 5",
+        "show has the values that far")
+
+      Instance.says(
+        part("show"),
+        "the run is still going",
+        "and says why it stops")
+
       Instance.says(part("show"), "show exit 0", "which is not a failure")
-      Instance.says(part("follow"), "printLine(\"second\")", "follow prints the calls to the end")
+
+      Instance.says(
+        part("follow"),
+        "printLine(\"second\")",
+        "follow prints the calls to the end")
+
       Instance.says(part("follow"), "done: 10", "and how it ended")
+
       Instance.says(part("follow"), "follow exit 0", "and exits 0") ]))
 
 
@@ -1137,7 +1184,8 @@ test tracingLogAddsAFieldToTheTrace = withTraces(fun i ->
   let (ran, id) =
     ranTrace(
       i,
-      [ "eval", "Stdlib.Tracing.log(\"user\", 42)\nStdlib.Tracing.log(\"plan\", \"pro\")\n7" ])
+      [ "eval"
+        "Stdlib.Tracing.log(\"user\", 42)\nStdlib.Tracing.log(\"plan\", \"pro\")\n7" ])
 
   let inspected = Instance.output(i, [ "traces", "inspect", id ])
   let json = Instance.output(i, [ "traces", "inspect", id, "--json" ])
@@ -1145,8 +1193,14 @@ test tracingLogAddsAFieldToTheTrace = withTraces(fun i ->
   Stdlib.Test.all(
     [ ran
       Instance.says(inspected, "logged    user = 42", "the first field")
+
       Instance.says(inspected, "plan = \"pro\"", "and the second")
-      Instance.says(json, "\"logged\":[{\"field\":\"user\",\"value\":\"42\"}", "in --json")
+
+      Instance.says(
+        json,
+        "\"logged\":[{\"field\":\"user\",\"value\":\"42\"}",
+        "in --json")
+
       Instance.says(found, id, "find searches the fields") ]))
 
 
@@ -1156,29 +1210,45 @@ test listPlainLeadsWithTheWholeId = withTraces(fun i ->
   let out = Instance.output(i, [ "traces", "list", "--plain" ])
   Stdlib.Test.all(
     [ ran
-      Instance.says(out, latestId(i) + "  done  eval  1 + 1", "one line, whole id first") ]))
+      Instance.says(
+        out,
+        latestId(i) + "  done  eval  1 + 1",
+        "one line, whole id first") ]))
 
 
 // A recorded eval of one pure call becomes a test expecting the same answer.
 test testFromTraceWritesAPassingTest = withTraces(fun i ->
-  let made = step(i, [ "fn", "Tests.FromTrace.triple", "(n: Int64): Int64 = n * 3003" ])
+  let made =
+    step(i, [ "fn", "Tests.FromTrace.triple", "(n: Int64): Int64 = n * 3003" ])
+
   let (ran, id) = ranTrace(i, [ "eval", "Tests.FromTrace.triple(5)" ])
   let created = Instance.said(i, [ "test", "from-trace", id ])
   let tests = Instance.said(i, [ "test", "run", "Tests.FromTrace" ])
   Stdlib.Test.all(
     [ made
       ran
-      Instance.says(created, $"Tests.FromTrace.tripleTrace{id}", $"it names the test: {created}")
+      Instance.says(
+        created,
+        $"Tests.FromTrace.tripleTrace{id}",
+        $"it names the test: {created}")
+
       Instance.says(tests, "1 passed", $"and the test passes: {tests}") ]))
 
 
 test testFromTraceReadsIdsFromAPipe = withTraces(fun i ->
-  let made = step(i, [ "fn", "Tests.Piped.inc", "(n: Int64): Int64 = n + 1001" ])
+  let made =
+    step(i, [ "fn", "Tests.Piped.inc", "(n: Int64): Int64 = n + 1001" ])
+
   let ran =
     Stdlib.Test.all(
-      [ step(i, [ "eval", "Tests.Piped.inc(1)" ]), step(i, [ "eval", "Tests.Piped.inc(2)" ]) ])
+      [ step(i, [ "eval", "Tests.Piped.inc(1)" ])
+        step(i, [ "eval", "Tests.Piped.inc(2)" ]) ])
 
-  let out = inShell(i, "dark traces list --plain 2 | dark test from-trace - 2>&1; echo \"exit $?\"")
+  let out =
+    inShell(
+      i,
+      "dark traces list --plain 2 | dark test from-trace - 2>&1; echo \"exit $?\"")
+
   let tests = Instance.said(i, [ "test", "run", "Tests.Piped" ])
   Stdlib.Test.all(
     [ made

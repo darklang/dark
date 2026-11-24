@@ -260,8 +260,7 @@ let rootFn(branchId: Uuid, trace: Tracing.Trace): Option<String> =
       | None -> false)
   | None ->
     named
-    |> Stdlib.List.findFirst(fun fn ->
-      Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
+    |> Stdlib.List.findFirst(fun fn -> Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
 
 
 /// At the start of an `eval` or `run` that is being recorded: the trace it is writing, so a
@@ -286,8 +285,7 @@ let printFailedTrace(branchId: Uuid, traceId: Uuid): Unit =
     then
       let _ = LanguageTools.LocalStore.configSet("trace.offHintShown", today)
       Stdlib.printErrorLine(
-        Stdlib.Cli.UI.Colors.dimText(
-          "record traces to see what happened: dark traces record on"))
+        Stdlib.Cli.UI.Colors.dimText("record traces to see what happened: dark traces record on"))
   | Some(trace) ->
     let short = Text.shortIdText(id)
     let command =
@@ -754,7 +752,8 @@ let execute(state: AppState, args: List<String>): AppState =
       | ["find"] -> refuse(state, "Usage: traces find <pattern> [limit] [--inspect] [--json]")
       // Catch any other malformed follow invocation — anything not matched
       // by the earlier specific arms (e.g. `traces follow --fake-arg`).
-      | ["follow", ...] -> refuse(state, "Usage: traces follow [<trace> | --route <substring>] [--json]")
+      | ["follow", ...] ->
+        refuse(state, "Usage: traces follow [<trace> | --route <substring>] [--json]")
       // Catch malformed arity-1 invocations (e.g. `traces rerun <id> --fake-arg`)
       // that the strict-length arms above missed.
       | ["rerun", ...] -> refuse(state, "Usage: traces rerun <trace-id>")
@@ -1321,9 +1320,7 @@ let followTrace(branchId: Uuid, traceId: String, after: Int64, jsonMode: Bool): 
       else
         Stdlib.printLine(callLine(branchId, "", call)))
 
-    let last =
-      fresh |> Stdlib.List.fold(after, fun(acc, c) -> if c.seq > acc then c.seq else acc)
-
+    let last = fresh |> Stdlib.List.fold(after, fun(acc, c) -> if c.seq > acc then c.seq else acc)
     match data.trace.status with
     | Running ->
       Stdlib.Cli.Posix.sleep(500.0)

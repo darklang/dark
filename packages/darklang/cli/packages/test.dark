@@ -427,8 +427,8 @@ let testFromTrace(branchId: Uuid, trace: Tracing.Trace): Result<(String * String
       |> Stdlib.List.filter(fun c -> c.ord >= 0 && c.fnName != TraceVerbs.logBuiltin)
     | None -> []
 
-  match (trace.scriptOrEvalInput, trace.status, trace.result) with
-  | (Some(Eval(source, _)), Done, Some(answer)) ->
+  match trace.scriptOrEvalInput, trace.status, trace.result with
+  | Some(Eval(source, _)), Done, Some(answer) ->
     match effects with
     | [first, ...] ->
       Result.Error(
@@ -449,14 +449,15 @@ let testFromTrace(branchId: Uuid, trace: Tracing.Trace): Result<(String * String
                 expr)
 
             Result.Ok(
-              ($"/{fn}Trace{short}",
-               $"({Stdlib.String.trim(source)}) |> Stdlib.Test.equal({expected})"))
-  | (Some(Eval(_, _)), Done, None) -> Result.Error($"{short} answered nothing to check")
-  | (Some(Eval(_, _)), status, _) ->
+              (
+                $"/{fn}Trace{short}",
+                $"({Stdlib.String.trim(source)}) |> Stdlib.Test.equal({expected})"))
+  | Some(Eval(_, _)), Done, None -> Result.Error($"{short} answered nothing to check")
+  | Some(Eval(_, _)), status, _ ->
     Result.Error($"{short} is {TraceVerbs.statusText(status)}; only a finished run becomes a test")
-  | (Some(Script(_, _, _, _)), _, _) ->
+  | Some(Script(_, _, _, _)), _, _ ->
     Result.Error($"{short} ran a script; a test is made from an `eval` of one call")
-  | (None, _, _) -> Result.Error($"{short} was a served request; a test is made from an `eval`")
+  | None, _, _ -> Result.Error($"{short} was a served request; a test is made from an `eval`")
 
 
 /// `test from-trace <id>`: one trace, as a test.
@@ -487,13 +488,13 @@ let execute(state: AppState, args: List<String>): AppState =
         addFailed(state, "test add needs a body after the location")
       else
         addTest(state, location, definition, description)
-  | ["from-trace"] -> addFailed(state, "test from-trace needs a trace id, or - to read them from stdin")
+  | ["from-trace"] ->
+    addFailed(state, "test from-trace needs a trace id, or - to read them from stdin")
   | ["from-trace", ...refs] ->
     match References.read(refs) with
     | Error(e) -> addFailed(state, e)
     | Ok([]) -> addFailed(state, "test from-trace was handed no trace ids")
-    | Ok(ids) ->
-      ids |> Stdlib.List.fold(state, fun(st, id) -> addFromTrace(st, id))
+    | Ok(ids) -> ids |> Stdlib.List.fold(state, fun(st, id) -> addFromTrace(st, id))
   | ["run", ...runArgs] -> runTests(state, runArgs)
   | ["count", ...countArgs] -> countTests(state, countArgs)
   | [] ->

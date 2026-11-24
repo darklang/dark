@@ -184,8 +184,8 @@ val logBuiltin = "tracingLog"
 let loggedFields(branchId: Uuid, calls: List<Darklang.Tracing.FnCall>): List<LoggedJson> =
   calls
   |> Stdlib.List.filterMap(fun c ->
-    match (c.fnName == logBuiltin, c.args) with
-    | (true, [ DString(field), value ]) ->
+    match c.fnName == logBuiltin, c.args with
+    | true, [DString(field), value] ->
       Option.Some(LoggedJson { field = field, value = Tracing.Format.compactDval(branchId, value) })
     | _ -> Option.None)
 

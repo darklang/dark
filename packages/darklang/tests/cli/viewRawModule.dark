@@ -24,7 +24,9 @@ test aModuleRoundTrips = Instance.withInstance(fun i ->
   let again = Instance.said(i, [ "view", "Me.RawB", "--raw" ])
 
   let shifted =
-    Instance.said(i, [ "--no-trace", "eval", "Me.RawB.shift(Me.RawB.origin, 3).count" ])
+    Instance.said(
+      i,
+      [ "--no-trace", "eval", "Me.RawB.shift(Me.RawB.origin, 3).count" ])
 
   Stdlib.Test.all(
     [ Instance.exitedWith(defined, 0, "the first module")

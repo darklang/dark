@@ -121,17 +121,28 @@ test damagedDeclarationDoesNotReplaceAnExistingItem =
     let (setupCode, _) =
       Instance.ran(i, [ "fn", "/Me.StraySyntax.bad", "(): Int64 = 7" ])
 
-  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.StraySyntax", path ])
-  let (evalCode, answer) = Instance.ran(i, [ "--no-trace", "eval", "Me.StraySyntax.bad()" ])
-  Stdlib.Test.all(
-    [ Instance.exitedWith(setupCode, 0, "the existing version")
-      Instance.exitedWith(code, 1, "the stray syntax")
-      Instance.says(out, "Defined 1 declaration", "only the clean sibling was saved")
-      Instance.expectExit(i, [ "view", "Me.StraySyntax.ok", "--raw" ], 0)
-      Instance.expectExit(i, [ "view", "Me.StraySyntax.alsoBad" ], 1)
-      Instance.exitedWith(evalCode, 0, "the existing version is still present")
-      Stdlib.Test.equal(Stdlib.String.trim(answer), "7") ]))
+    let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+    let (code, out) = Instance.ran(i, [ "module", "/Me.StraySyntax", path ])
+
+    let (evalCode, answer) =
+      Instance.ran(i, [ "--no-trace", "eval", "Me.StraySyntax.bad()" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(setupCode, 0, "the existing version")
+        Instance.exitedWith(code, 1, "the stray syntax")
+        Instance.says(
+          out,
+          "Defined 1 declaration",
+          "only the clean sibling was saved")
+
+        Instance.expectExit(i, [ "view", "Me.StraySyntax.ok", "--raw" ], 0)
+        Instance.expectExit(i, [ "view", "Me.StraySyntax.alsoBad" ], 1)
+        Instance.exitedWith(
+          evalCode,
+          0,
+          "the existing version is still present")
+
+        Stdlib.Test.equal(Stdlib.String.trim(answer), "7") ]))
 
 
 test malformedHeaderDoesNotMoveItsChildrenToTheParent =
@@ -180,7 +191,10 @@ test nestedDeclarationsAreStillSavedTogether = Instance.withInstance(fun i ->
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
   let (code, out) = Instance.ran(i, [ "module", "/Me.NestedDraft", path ])
-  let (evalCode, answer) = Instance.ran(i, [ "--no-trace", "eval", "Me.NestedDraft.Nested.caller()" ])
+
+  let (evalCode, answer) =
+    Instance.ran(i, [ "--no-trace", "eval", "Me.NestedDraft.Nested.caller()" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "the lexical error")
       Instance.says(out, "unexpected character: '#'", "the lexical diagnostic")

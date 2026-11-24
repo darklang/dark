@@ -222,8 +222,18 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Silent)
 
     ([ "status" ], 0, Stream.Says("draft:"), Stream.Says("`dark commit`"))
-    ([ "status", "--json" ], 0, Stream.Says("\"branch\":\"main\""), Stream.Silent)
-    ([ "--no-trace", "eval", "Tests.Rows.f(1)" ], 0, Stream.Says("2"), Stream.Silent)
+    (
+      [ "status", "--json" ],
+      0,
+      Stream.Says("\"branch\":\"main\""),
+      Stream.Silent)
+
+    (
+      [ "--no-trace", "eval", "Tests.Rows.f(1)" ],
+      0,
+      Stream.Says("2"),
+      Stream.Silent)
+
     ([ "eval", "1 / 0" ], 1, Stream.Silent, Stream.Says("Cannot divide by 0"))
     (
       [ "test", "run", "--verbose", "Tests.Rows.t" ],

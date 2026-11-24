@@ -48,14 +48,7 @@ let evaluateRaw(
   currentModule: List<String>,
   harmful: Harmful)
   : Result<Option<String>, ExecutionError.ExecutionError> =
-  evaluateRawUnder(
-    accountID,
-    branchId,
-    expr,
-    currentModule,
-    harmful,
-    noGrants(),
-    Option.None)
+  evaluateRawUnder(accountID, branchId, expr, currentModule, harmful, noGrants(), Option.None)
 
 
 /// <fn evaluateRaw> with <param grants> allowed for this evaluation only.
