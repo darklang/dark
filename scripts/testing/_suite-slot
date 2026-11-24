@@ -4,8 +4,9 @@
 #   . scripts/testing/_suite-slot
 #   suite_slot_take "run-fsharp-tests"     returns once this process holds a slot
 #
-# Every clone's container mounts the same host directory at /home/dark/.suite-slots
-# (devcontainer.json), so the slots are counted across clones, not per clone.
+# The slots live in ~/.cache/darklang/suite-slots on the host, and every clone's container
+# mounts that directory at /home/dark/.suite-slots (devcontainer.json), so the slots are counted
+# across clones, and a job started from the host waits in the same queue.
 #
 #   DARK_SUITE_SLOTS=<n>   how many heavy suites may run at once on the machine; 0 turns the
 #                          slot off. The default is one per 16 hardware threads, at least 1
@@ -27,7 +28,11 @@
 # Not taken in CI, which has a machine per job, or when the directory is not mounted (a
 # container made before the mount; `scripts/dev/start --recreate` adds it).
 
-SUITE_SLOT_DIR="${SUITE_SLOT_DIR:-/home/dark/.suite-slots}"
+if [[ -n "${IN_DEV_CONTAINER:-}" ]]; then
+  SUITE_SLOT_DIR="${SUITE_SLOT_DIR:-/home/dark/.suite-slots}"
+else
+  SUITE_SLOT_DIR="${SUITE_SLOT_DIR:-$HOME/.cache/darklang/suite-slots}"
+fi
 # Longer than a busy day's normal wait, which has reached two hours; any shorter and nearly every
 # waiter counts as final.
 SUITE_SLOT_PROMOTE_MINUTES=180
@@ -64,7 +69,7 @@ suite_slot_take() {
   fi
   if [[ ! -d "$SUITE_SLOT_DIR" || ! -w "$SUITE_SLOT_DIR" ]] || ! command -v flock >/dev/null; then
     echo "No shared test-slot directory at $SUITE_SLOT_DIR, so not waiting for a slot." >&2
-    echo "  On the host: scripts/dev/start --recreate" >&2
+    [[ -z "${IN_DEV_CONTAINER:-}" ]] || echo "  On the host: scripts/dev/start --recreate" >&2
     # Said once: the suites this one starts go ahead without saying it again.
     export DARK_SUITE_SLOT_HELD=none
     return 0
@@ -72,7 +77,7 @@ suite_slot_take() {
 
   local dir="$SUITE_SLOT_DIR" owner=$$
   local me
-  me="${DARK_CLONE:-$(hostname)} ($what)"
+  me="${DARK_CLONE:-$(basename "$(git rev-parse --show-toplevel 2>/dev/null || hostname)")} ($what)"
   mkdir -p "$dir/queue"
 
   # A ticket: the next number, and a queue file named after it that a watcher holds locked for as
