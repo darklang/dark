@@ -328,7 +328,7 @@ let completePartialPath(
   | [Into(fuzzyPart), ...exactSegmentsReversed] ->
     // Navigate to exact path, then fuzzy search
     let exactSegments = Stdlib.List.reverse(exactSegmentsReversed)
-    match applyPath(branchId, start, exactSegments) with
+    match applyPathFrom(branchId, start, exactSegments) with
     | Error(_) -> []
     | Ok(contextLocation) ->
       let completionItems = getAvailableItems(branchId, contextLocation, fuzzyPart)
@@ -363,11 +363,51 @@ let completePartialPath(
     []
 
 
+/// Whether <param name> is an owner: something at the root, or `Stdlib`, which stands for
+/// `Darklang.Stdlib`.
+let isOwner(branchId: Uuid, name: String): Bool =
+  if name == "Stdlib" then
+    true
+  else
+    let (owners, _, _, _, _, _, _) = Query.allDirectDescendantNames(branchId, [])
+    Stdlib.List.contains(owners, name)
+
+
+/// `applyPath`, except that a path starting with an owner is a full name wherever you are.
+/// Relative is the fallback, for a module that happens to share an owner's name.
+let applyPathFrom(
+  branchId: Uuid,
+  start: PackageLocation,
+  segments: List<PathSegment>)
+  : Result<PackageLocation, String> =
+  match start, segments with
+  | Module([]), _ -> applyPath(branchId, start, segments)
+  | _, [Into(first), ...] when isOwner(branchId, first) ->
+    // `Stdlib` from under `Darklang`, so the place found has its full name.
+    let base =
+      if first == "Stdlib" then
+        PackageLocation.Module([ "Darklang" ])
+      else
+        PackageLocation.Module([])
+
+    match applyPath(branchId, base, segments) with
+    | Ok(loc) -> Result.Ok(loc)
+    | Error(e) ->
+      match applyPath(branchId, start, segments) with
+      | Ok(loc) -> Result.Ok(loc)
+      // The miss as typed: from the root, `Stdlib` is not spelled out.
+      | Error(_) ->
+        if first == "Stdlib" then
+          applyPath(branchId, PackageLocation.Module([]), segments)
+        else
+          Result.Error(e)
+  | _ -> applyPath(branchId, start, segments)
+
+
 // Main traverse function
 let traverse(
   branchId: Uuid,
   start: PackageLocation,
   path: String)
   : Result<PackageLocation, String> =
-  let segments = parsePath(path)
-  applyPath(branchId, start, segments)
+  applyPathFrom(branchId, start, parsePath(path))
