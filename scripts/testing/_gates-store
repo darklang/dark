@@ -72,7 +72,8 @@ gate_first_day() {
   failures=0
 
   # HOME decides the store (`<home>/.darklang`), so a fresh HOME is a fresh install.
-  dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" "$ARTIFACT" "$@" 2>&1 ); }
+  # pretty: this is the walk-through a person at a terminal reads, though stdout is a pipe here
+  dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" DARK_OUTPUT=pretty "$ARTIFACT" "$@" 2>&1 ); }
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A failure prints its first four lines through a process substitution: `| head` here dies on
@@ -204,7 +205,7 @@ gate_first_day() {
   mkdir -p "$INSTALLED/.darklang/bin"
   cp "$ARTIFACT" "$INSTALLED/.darklang/bin/dark"
   # shellcheck disable=SC2317  # reached through want, which calls `dark`
-  dark() { ( cd "$INSTALLED" && HOME="$INSTALLED" "$INSTALLED/.darklang/bin/dark" "$@" 2>&1 ); }
+  dark() { ( cd "$INSTALLED" && HOME="$INSTALLED" DARK_OUTPUT=pretty "$INSTALLED/.darklang/bin/dark" "$@" 2>&1 ); }
   want "installed: first run seeds the store" "^2$"  eval '1 + 1'
   want "installed: and it stays seeded"       "^(clean:|draft:)" status
 
