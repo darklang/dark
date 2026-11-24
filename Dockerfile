@@ -173,6 +173,25 @@ RUN \
   --extract-file=shellcheck-${VERSION}/shellcheck \
   --target=/usr/bin/shellcheck
 
+############################
+# Node
+# The vscode-extension gate builds the extension with npm, and CI runs the gates here.
+############################
+
+RUN \
+  VERSION=v20.18.1 \
+  && case ${TARGETARCH} in \
+       arm64) ARCH=arm64; SHA256=44d1ffc5905c005ace4515ca6f8c090c4c7cfce3a9a67df0dba35c727590b8f6;; \
+       amd64) ARCH=x64; SHA256=c6fa75c841cbffac851678a472f2a5bd612fff8308ef39236190e1f8dbb0e567;; \
+       *) exit 1;; \
+     esac \
+  && FILENAME=node-$VERSION-linux-$ARCH.tar.xz \
+  && wget -q -P /tmp https://nodejs.org/dist/$VERSION/$FILENAME \
+  && echo "$SHA256 /tmp/$FILENAME" | sha256sum -c - \
+  && sudo tar xJf /tmp/$FILENAME -C /usr/local --strip-components=1 \
+       node-$VERSION-linux-$ARCH/bin node-$VERSION-linux-$ARCH/lib \
+  && rm /tmp/$FILENAME
+
 ####################################
 # dotnet / F#
 ####################################
@@ -242,23 +261,11 @@ FROM dark-ci AS dark-base
 
 USER root
 
-# Latest NPM (taken from https://deb.nodesource.com)
-#
-# Node is here for one reason: `scripts/perf/crosslang` runs the reference workload in node and
-# python to compare allocation per iteration. Nothing in the tree needs a global npm package any
-# more, so there are none; node itself is still a dependency of that perf tool, so it stays.
-#
 # Deps:
-# - gpg for the nodesource key
 # - net-tools for netstat
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
-    apt install -y --no-install-recommends gpg gpg-agent \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
-    && apt update \
-    && DEBIAN_FRONTEND=noninteractive \
     apt install \
       --no-install-recommends \
       -y \
@@ -266,7 +273,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       lsb-release \
       less \
       git-restore-mtime \
-      nodejs \
       parallel \
       vim \
       python3-pip \
