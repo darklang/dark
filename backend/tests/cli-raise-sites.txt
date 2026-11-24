@@ -7,8 +7,6 @@
 1 Darklang.Cli.Format.formatFiles Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Format.formatFiles Darklang.Stdlib.List.parallelMap
 1 Darklang.Cli.Format.settle Darklang.Stdlib.Cli.File.writeText
-1 Darklang.Cli.Http.Serve.execute Darklang.Stdlib.HttpServer.serve
-1 Darklang.Cli.Http.Serve.execute Darklang.Stdlib.HttpServer.serveLive
 1 Darklang.Cli.Installation.Config.getDarklangHomeDir Darklang.Stdlib.Cli.Unix.getHomeDirectory
 1 Darklang.Cli.Installation.Download.installRelease Darklang.Stdlib.Cli.Unix.addToPath
 1 Darklang.Cli.Installation.Download.replaceBinary Darklang.Stdlib.Cli.Curl.downloadFileToPath
@@ -18,7 +16,6 @@
 1 Darklang.Cli.Installation.Download.verifyChecksum Darklang.Stdlib.Cli.File.delete
 1 Darklang.Cli.Installation.Download.verifyChecksum Darklang.Stdlib.Cli.File.readBytes
 1 Darklang.Cli.Installation.Download.verifyChecksum Darklang.Stdlib.Cli.File.readText
-1 Darklang.Cli.Installation.Helpers.runtimeHash Builtin.getRuntimeHash
 1 Darklang.Cli.Installation.System.installFromCurrentBinary Darklang.Stdlib.Cli.Unix.addToPath
 1 Darklang.Cli.Installation.System.installFromCurrentBinary Darklang.Stdlib.Cli.Unix.copyFile
 1 Darklang.Cli.Installation.System.installFromCurrentBinary Darklang.Stdlib.Cli.Unix.ensureDirectoryExists
@@ -54,7 +51,6 @@
 1 Darklang.Cli.Workbench.execute Darklang.Stdlib.Cli.Sys.hostname
 1 Darklang.Cli.Workbench.loadBuiltinItems Darklang.Stdlib.List.sort
 1 Darklang.Cli.runInteractiveLoop Darklang.Stdlib.Host.await
-1 Darklang.GitHub.__fetchString Darklang.Stdlib.HttpClient.get
 1 Darklang.LanguageTools.AtRestTypeChecker.Run.checkQuery Darklang.Stdlib.List.parallelMap
 1 Darklang.LanguageTools.PackageManager.Test.Worker.main Darklang.Stdlib.Cli.FileSystem.overwriteFile
 1 Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot Builtin.pmTestWithStoreSnapshot
