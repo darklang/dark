@@ -42,7 +42,7 @@ mkdir "$home/.darklang"
 db="$home/.darklang/data.db"
 sqlite3 -cmd ".timeout 10000" "$STORE" ".backup '$db'"
 
-changed=$(sqlite3 "$db" "ATTACH '$BASE' AS base;
+changed=$(sqlite3 -cmd ".timeout 10000" "$db" "ATTACH '$BASE' AS base;
   SELECT count(*) FROM base.package_ops b
   WHERE NOT EXISTS (SELECT 1 FROM package_ops p
     WHERE p.seq = b.seq AND p.id = b.id AND p.branch_id = b.branch_id AND p.commit_hash IS b.commit_hash
@@ -62,7 +62,7 @@ changed=$(sqlite3 "$db" "ATTACH '$BASE' AS base;
     done
     echo "DELETE FROM package_ops_unapplied; UPDATE package_ops_applied_through SET seq = 0;"
   fi
-} | sqlite3 "$db"
+} | sqlite3 -cmd ".timeout 10000" "$db"
 
 if ! out=$(HOME="$home" USERPROFILE="$home" DARK_CONFIG_DB_NAME=data.db \
   DARK_CONFIG_TELEMETRY_EXPORTER=none "$CLI" branches 2>&1); then
