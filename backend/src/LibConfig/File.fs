@@ -57,3 +57,20 @@ let readfile (root : Dirs.Root) (f : string) : string =
 
 let readfileBytes (root : Dirs.Root) (f : string) : byte[] =
   f |> checkFilename root Read |> System.IO.File.ReadAllBytes
+
+let rec writefileBytes (root : Dirs.Root) (f : string) (contents : byte[]) : unit =
+  let f = checkFilename root Write f
+
+  // First write to a temp file, then copy atomically. Do this as we've lost our data
+  // a few times.
+  let tempFilename = System.IO.Path.GetTempFileName()
+  System.IO.File.WriteAllBytes(tempFilename, contents)
+
+  // We might not be the only one trying to copy here, and .NET won't let us
+  // overwrite it if something else is. So try again.
+  let rec move (attempt : int) : unit =
+    try
+      System.IO.File.Move(tempFilename, f, true)
+    with _ when attempt < 10 ->
+      move (attempt + 1)
+  move 1

@@ -339,6 +339,9 @@ let namedApprovalsInStore accountID (store : Store) : Map<string, Approval> =
 let namedApprovals accountID : Map<string, Approval> =
   namedApprovalsInStore accountID (get ())
 
+let packagePolicies accountID : Map<string, P.Policy> =
+  namedApprovals accountID |> Map.map (fun approval -> approval.policy)
+
 let approvedVersion accountID location : Option<string> =
   namedApprovals accountID |> Map.tryFind location |> Option.map _.hash
 

@@ -7005,3 +7005,13 @@ module TypeReference =
     | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
     | TCustomType(typeName, typeArgs) -> TCustomType(typeName, List.map r typeArgs)
     | TFn(args, ret) -> TFn(NEList.map r args, r ret)
+
+
+
+let consoleReporter : ExceptionReporter =
+  fun _state _vm (metadata : Metadata) (exn : exn) ->
+    printException "runtime-error" metadata exn
+
+let consoleNotifier : Notifier =
+  fun _state _vm msg tags ->
+    printErr $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"

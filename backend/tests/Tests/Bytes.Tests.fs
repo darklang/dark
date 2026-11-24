@@ -69,6 +69,18 @@ let private binaryRoundtrip
   let r = new System.IO.BinaryReader(new System.IO.MemoryStream(ms.ToArray()))
   read r
 
+let private expectThrows (label : string) (f : unit -> Task<'a>) : Task<unit> =
+  task {
+    let mutable raised = false
+    try
+      let! _ = f ()
+      ()
+    with _ ->
+      raised <- true
+    Expect.isTrue raised label
+  }
+
+
 // ─────────────────────────────────────────────────────────────────────
 // Ephemeral blobs — inline bytes
 // ─────────────────────────────────────────────────────────────────────

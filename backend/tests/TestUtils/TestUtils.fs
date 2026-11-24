@@ -295,6 +295,22 @@ let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>
         })
       values)
 
+let testListUsingPropertyAsync
+  (name : string)
+  (prop : 'a -> Task<bool>)
+  (list : (string * 'a) list)
+  =
+  testList
+    name
+    (List.map
+      (fun (doc, testCase) ->
+        let doc = if doc = "" then testCase.ToString() else doc
+        testTask $"{name} {doc}" {
+          let! result = prop testCase
+          return (Expect.isTrue result "")
+        })
+      list)
+
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   // Nothing interesting right now
@@ -563,6 +579,11 @@ module Expect =
       | DStream _, _
       | DPromise _, _ -> check path actual expected
 
+
+    let dvalEquality (left : Dval) (right : Dval) : bool =
+      let mutable success = true
+      dvalEqualityBaseFn [] left right (fun _ _ _ -> success <- false)
+      success
 
     let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
       dvalEqualityBaseFn [] actual expected (fun path a e ->
