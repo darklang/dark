@@ -6,6 +6,20 @@
 # gate's `set -e`, traps and exits stay its own.
 # shellcheck disable=SC2329  # the functions are invoked by the runner, not from this file
 
+# a setup step: quiet when it works; when it fails, what it said and how it ended
+quietly() {
+  local out rc=0
+  out=$("$@" 2>&1) || rc=$?
+  ((rc == 0)) && return 0
+  printf '%s\n' "$out"
+  if ((rc > 128)); then
+    echo "setup step killed by signal $((rc - 128)) (exit $rc): $*"
+  else
+    echo "setup step failed (exit $rc): $*"
+  fi
+  exit "$rc"
+}
+
 # --- first-day: a new user's first day, on a PUBLISHED binary and a store that does not exist ---
 # Every other gate copies rundir/data.db, a developer's store, which skips the whole bootstrap
 # path (the embedded seed, the package-DB grow, the first commit against an empty history); when
@@ -529,14 +543,13 @@ gate_trait_checker_vs_dispatch() {
 
   # A field name nobody else would write: a record's hash IS its identity, so a shared shape
   # would hand us somebody's leftover implementations. See docs/internals.md, Traits.
-  $CLI type Stachu.Dep.Dt "= { gateDeprecatedOnly: Int64 }" >/dev/null
-  $CLI impl Stachu.Dep \
-    "Stdlib.Add for Dt = let add(a: Dt, b: Dt): Dt = Stachu.Dep.Dt { gateDeprecatedOnly = a.gateDeprecatedOnly + b.gateDeprecatedOnly }" \
-    >/dev/null
+  quietly $CLI type Stachu.Dep.Dt "= { gateDeprecatedOnly: Int64 }"
+  quietly $CLI impl Stachu.Dep \
+    "Stdlib.Add for Dt = let add(a: Dt, b: Dt): Dt = Stachu.Dep.Dt { gateDeprecatedOnly = a.gateDeprecatedOnly + b.gateDeprecatedOnly }"
 
   # While it is live, the save is fine and so is the call. Both halves matter: a gate that only
   # checked the refusal would pass against a checker that refused everything.
-  $CLI fn Stachu.Dep.sumLive - >/dev/null <<'DARK'
+  quietly $CLI fn Stachu.Dep.sumLive - <<'DARK'
 (a: Stachu.Dep.Dt, b: Stachu.Dep.Dt): Int64 =
   (a + b).gateDeprecatedOnly
 DARK
@@ -546,7 +559,7 @@ DARK
     exit 1
   fi
 
-  $CLI deprecate impl Stachu.Dep.Dt.Add --reason 'gate' --yes >/dev/null
+  quietly $CLI deprecate impl Stachu.Dep.Dt.Add --reason 'gate' --yes
 
   # Dispatch's answer, first, so the rest of the gate is measuring a real retirement and not a
   # deprecate that did nothing.
@@ -599,16 +612,16 @@ DARK
     scripts/testing/_copy-store "$W2/data.db"
     sqlite3 "$W2/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
-    $CLI trait Stachu.Fit.Show "<'a> = let show(v: 'a): String" >/dev/null
+    quietly $CLI trait Stachu.Fit.Show "<'a> = let show(v: 'a): String"
 
     intImpl() {
-      $CLI impl Stachu.FitInt - >/dev/null <<'DARK'
+      quietly $CLI impl Stachu.FitInt - <<'DARK'
 Stachu.Fit.Show for Stdlib.Option.Option<Int64> =
   let show(v: Stdlib.Option.Option<Int64>): String = "INT"
 DARK
     }
     strImpl() {
-      $CLI impl Stachu.FitStr - >/dev/null <<'DARK'
+      quietly $CLI impl Stachu.FitStr - <<'DARK'
 Stachu.Fit.Show for Stdlib.Option.Option<String> =
   let show(v: Stdlib.Option.Option<String>): String = "STR"
 DARK
@@ -690,10 +703,10 @@ gate_trait_choice_survives_rival() {
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
-  $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
+  quietly $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }"
   $CLI impl Stachu.Rival \
     "Display for Pt = let display(p: Pt): String = Stdlib.display(p.gateRivalOnly)" >/dev/null
-  $CLI module Stachu.Rival - >/dev/null <<'DARK'
+  quietly $CLI module Stachu.Rival - <<'DARK'
 let display<'a: Stdlib.Display>(v: 'a): String =
   Stdlib.Display.display(v)
 
@@ -710,9 +723,8 @@ DARK
 
   # A NEWER implementation for the same type: it wins any run-time dispatch, which is
   # exactly why the saved call must not be asking.
-  $CLI impl Stachu.RivalNewer \
-    "Stdlib.Display for Stachu.Rival.Pt = let display(p: Stachu.Rival.Pt): String = \"RIVAL\"" \
-    >/dev/null
+  quietly $CLI impl Stachu.RivalNewer \
+    "Stdlib.Display for Stachu.Rival.Pt = let display(p: Stachu.Rival.Pt): String = \"RIVAL\""
 
   after=$($CLI eval 'Stachu.Rival.callIt()' | clean)
   if [[ "$after" == *RIVAL* ]]; then
@@ -896,11 +908,11 @@ gate_trait_deprecation_is_per_branch() {
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity. See docs/internals.md, Traits.
-  $CLI type Stachu.BDep.Pt "= { gateBranchDepOnly: Int64 }" >/dev/null
-  $CLI trait Stachu.BDep.Show "<'a> = let show(v: 'a): String" >/dev/null
+  quietly $CLI type Stachu.BDep.Pt "= { gateBranchDepOnly: Int64 }"
+  quietly $CLI trait Stachu.BDep.Show "<'a> = let show(v: 'a): String"
   $CLI impl Stachu.BDep \
     "Stachu.BDep.Show for Pt = let show(p: Pt): String = \"FIRST\"" >/dev/null
-  $CLI impl Stachu.BDepRival - >/dev/null <<'DARK'
+  quietly $CLI impl Stachu.BDepRival - <<'DARK'
 Stachu.BDep.Show for Stachu.BDep.Pt =
   let show(p: Stachu.BDep.Pt): String = "RIVAL"
 DARK
@@ -915,10 +927,10 @@ DARK
   fi
 
   # A branch sees main's items only once they are committed.
-  $CLI commit -m 'gate: the pair' --yes >/dev/null
-  $CLI branch create gate-dep >/dev/null
+  quietly $CLI commit -m 'gate: the pair' --yes
+  quietly $CLI branch create gate-dep
 
-  $CLI deprecate impl Stachu.BDepRival.Pt.Show --reason 'gate' --yes >/dev/null
+  quietly $CLI deprecate impl Stachu.BDepRival.Pt.Show --reason 'gate' --yes
 
   # The display half, which was right all along.
   viewed=$($CLI view Stachu.BDepRival.Pt.Show 2>&1 | clean || true)
@@ -941,7 +953,7 @@ DARK
   fi
 
   # And main is untouched by a deprecation authored on a branch.
-  $CLI switch main >/dev/null
+  quietly $CLI switch main
   after_main=$($CLI eval 'Stachu.BDep.Show.show(Stachu.BDep.Pt { gateBranchDepOnly = 1 })' | clean)
   if [[ "$after_main" != RIVAL ]]; then
     echo "trait-deprecation-is-per-branch: a deprecation authored on a branch reached MAIN."
@@ -978,19 +990,19 @@ gate_trait_pin_across_branches() {
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity. See docs/internals.md, Traits.
-  $CLI type Stachu.Pin.Thing "= { gatePinOnly: Int64 }" >/dev/null
-  $CLI trait Stachu.Pin.Tr "<'a> = let go(v: 'a): Int64" >/dev/null
-  $CLI impl Stachu.PinA - >/dev/null <<'DARK'
+  quietly $CLI type Stachu.Pin.Thing "= { gatePinOnly: Int64 }"
+  quietly $CLI trait Stachu.Pin.Tr "<'a> = let go(v: 'a): Int64"
+  quietly $CLI impl Stachu.PinA - <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Thing =
   let go(v: Stachu.Pin.Thing): Int64 = 1
 DARK
-  $CLI impl Stachu.PinB - >/dev/null <<'DARK'
+  quietly $CLI impl Stachu.PinB - <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Thing =
   let go(v: Stachu.Pin.Thing): Int64 = 2
 DARK
 
   # B is newer, so a call saved on main pins B.
-  $CLI fn Stachu.Pin.callIt - >/dev/null <<'DARK'
+  quietly $CLI fn Stachu.Pin.callIt - <<'DARK'
 (): Int64 =
   Stachu.Pin.Tr.go(Stachu.Pin.Thing { gatePinOnly = 0 })
 DARK
@@ -1002,11 +1014,11 @@ DARK
   fi
 
   # A branch sees main's items only once they are committed.
-  $CLI commit -m 'gate: the pin fixture' --yes >/dev/null
-  $CLI branch create gate-pin >/dev/null
+  quietly $CLI commit -m 'gate: the pin fixture' --yes
+  quietly $CLI branch create gate-pin
 
   # The rival arrives on the branch, newer than both.
-  $CLI impl Stachu.PinC - >/dev/null <<'DARK'
+  quietly $CLI impl Stachu.PinC - <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Thing =
   let go(v: Stachu.Pin.Thing): Int64 = 3
 DARK
@@ -1030,17 +1042,17 @@ DARK
   fi
 
   # --- fixture 2: deprecation inherits down and can be overridden up ---
-  $CLI switch main >/dev/null
-  $CLI type Stachu.Pin.Other "= { gatePinOtherOnly: Int64 }" >/dev/null
-  $CLI impl Stachu.PinD - >/dev/null <<'DARK'
+  quietly $CLI switch main
+  quietly $CLI type Stachu.Pin.Other "= { gatePinOtherOnly: Int64 }"
+  quietly $CLI impl Stachu.PinD - <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Other =
   let go(v: Stachu.Pin.Other): Int64 = 10
 DARK
-  $CLI impl Stachu.PinE - >/dev/null <<'DARK'
+  quietly $CLI impl Stachu.PinE - <<'DARK'
 Stachu.Pin.Tr for Stachu.Pin.Other =
   let go(v: Stachu.Pin.Other): Int64 = 20
 DARK
-  $CLI commit -m 'gate: the deprecation fixture' --yes >/dev/null
+  quietly $CLI commit -m 'gate: the deprecation fixture' --yes
 
   other() { $CLI eval 'Stachu.Pin.Tr.go(Stachu.Pin.Other { gatePinOtherOnly = 0 })' | clean; }
 
@@ -1050,15 +1062,15 @@ DARK
     exit 1
   fi
 
-  $CLI deprecate impl Stachu.PinE.Other.Tr --reason 'gate' --yes >/dev/null
+  quietly $CLI deprecate impl Stachu.PinE.Other.Tr --reason 'gate' --yes
   if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: deprecating on main did not retire the implementation there."
     exit 1
   fi
 
   # Down: a branch forked after that deprecation is committed sees it.
-  $CLI commit -m 'gate: the deprecation' --yes >/dev/null
-  $CLI branch create gate-pin-dep >/dev/null
+  quietly $CLI commit -m 'gate: the deprecation' --yes
+  quietly $CLI branch create gate-pin-dep
   if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: a branch does not inherit a deprecation made on main."
     echo "  Expected 10, got: $(other)"
@@ -1066,14 +1078,14 @@ DARK
   fi
 
   # Up: the branch says "not here", and main is untouched by it.
-  $CLI undeprecate Stachu.PinE.Other.Tr >/dev/null
+  quietly $CLI undeprecate Stachu.PinE.Other.Tr
   if [[ "$(other)" != 20 ]]; then
     echo "trait-pin-across-branches: a branch cannot undeprecate what main deprecated."
     echo "  Expected 20 on the branch, got: $(other)"
     exit 1
   fi
 
-  $CLI switch main >/dev/null
+  quietly $CLI switch main
   if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: a branch's undeprecate reached MAIN."
     echo "  Expected 10 on main, got: $(other)"
@@ -1266,7 +1278,7 @@ gate_dark_format() {
   scripts/testing/_copy-store "$WORK/data.db"
   CLI=${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}
   [[ $CLI = /* ]] || CLI=$PWD/$CLI
-  "$CLI" permissions allow file read "$PWD/packages" </dev/null >/dev/null
+  quietly "$CLI" permissions allow file read "$PWD/packages" </dev/null
 
   local all=${DARK_FORMAT_ALL:-}
   local files=()
@@ -1301,7 +1313,7 @@ gate_dark_format() {
     [[ -e "$entry" && "$(basename "$entry")" != packages ]] && ln -s "$entry" "$ROOT/"
   done
   cp -r packages "$ROOT/packages"
-  "$CLI" permissions allow file read+write "$ROOT" </dev/null >/dev/null
+  quietly "$CLI" permissions allow file read+write "$ROOT" </dev/null
   local all_files=()
   while IFS= read -r f; do
     all_files+=("$ROOT/$f")
