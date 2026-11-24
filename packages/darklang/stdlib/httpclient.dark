@@ -787,7 +787,7 @@ module Sse =
     state: ParseState)
     : Option<(Event * (Stream<Bytes> * ParseState))> =
     // 10u8 = '\n'
-    match Bytes.indexOf(state.pending, 10u8) with
+    match Bytes.indexOf(state.pending, 10) with
     | Some(at) ->
       let line = __decodeLine(Bytes.take(state.pending, at))
       let pending = Bytes.drop(state.pending, at + 1)

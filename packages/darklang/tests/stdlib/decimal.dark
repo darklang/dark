@@ -600,28 +600,28 @@ test int64Conversions =
 test float32Conversions =
   Stdlib.Test.all(
     [ // the Float32 nearest a tenth prints as 0.1, so that is the decimal it becomes
-      Stdlib.Decimal.fromFloat32(0.1f32)
+      Stdlib.Decimal.fromFloat32(0.1)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.1dec))
 
-      Stdlib.Decimal.fromFloat32(-2.5f32)
+      Stdlib.Decimal.fromFloat32(-2.5)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2.5dec))
 
-      Stdlib.Decimal.fromFloat32(0.0f32 / 0.0f32)
+      Stdlib.Decimal.fromFloat32(0.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Decimal.fromFloat32(1.0f32 / 0.0f32)
+      Stdlib.Decimal.fromFloat32(1.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
       // past 96 bits
-      Stdlib.Decimal.fromFloat32(3.4028235e38f32)
+      Stdlib.Decimal.fromFloat32(3.4028235e38)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Decimal.toFloat32(0.1dec) |> Stdlib.Test.equal(0.1f32)
+      Stdlib.Decimal.toFloat32(0.1dec) |> Stdlib.Test.equal(0.1)
 
-      Stdlib.Decimal.toFloat32(16777217dec) |> Stdlib.Test.equal(16777216.0f32)
+      Stdlib.Decimal.toFloat32(16777217dec) |> Stdlib.Test.equal(16777216.0)
 
       Stdlib.Decimal.toFloat32(79228162514264337593543950335dec)
-      |> Stdlib.Test.equal(7.9228163e28f32) ])
+      |> Stdlib.Test.equal(7.9228163e28) ])
 
 
 test floatConversionEdges =

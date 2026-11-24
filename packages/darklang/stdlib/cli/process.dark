@@ -143,8 +143,7 @@ let run(program: String, args: List<String>): Result<Output, Posix.Error> =
 /// and reads keys from nowhere. Use `run` when you want the output, this when you
 /// want the program to be usable.
 let runInteractive(program: String, args: List<String>): Result<UInt8, Posix.Error> =
-  __childInteractive(program, args)
-  |> Result.map(fun code -> __exitCode(code))
+  __childInteractive(program, args) |> Result.map(fun code -> __exitCode(code))
 
 
 /// Run a program and return stdout as text, or stderr as error.
@@ -509,7 +508,7 @@ let __childInteractive(program: String, args: List<String>): Result<Int64, Posix
 
 let __childNewline(bytes: Bytes): Bool =
   // An empty Bytes asks for index -1, which is an Error.
-  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Result.Ok(10u8)
+  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Result.Ok(10)
 
 
 /// Empty-input communication is immediately nonblocking. Input-driven calls

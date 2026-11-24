@@ -545,7 +545,7 @@ test responseText =
         Stdlib.HttpClient.Response
           { statusCode = 200
             headers = []
-            body = Stdlib.Bytes.fromList([ 255u8 ])
+            body = Stdlib.Bytes.fromList([ 255 ])
             url = "https://a.test/" })
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(

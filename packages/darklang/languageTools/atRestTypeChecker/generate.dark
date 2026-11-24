@@ -185,7 +185,7 @@ let resolvedFn(
 /// string for package functions or other versions, so they do not match these rules.
 let builtinName(fn: ProgramTypes.FQFnName.FQFnName): String =
   match fn with
-  | Builtin(b) -> if b.version == 0s32 then b.name else ""
+  | Builtin(b) -> if b.version == 0 then b.name else ""
   | Package(_) -> ""
   // Not a builtin, so it has no builtin name. Callers use this to recognise the operator
   // builtins and a trait method is never one of those.
@@ -1170,7 +1170,7 @@ let constantDictKey(expr: ProgramTypes.Expr): Option<String> =
 
     match Stdlib.Float32.parse(sign + whole + "." + fraction) with
     | Ok(f) ->
-      if f == 0.0f32 then
+      if f == 0.0 then
         Option.Some("0.0f32")
       else
         Option.Some(Stdlib.display(f) + "f32")

@@ -741,7 +741,7 @@ module Ambiguity =
              [],
              [ LanguageTools.ProgramTypes.Expr.EList(100, []) ])))
      Stdlib.List.map(outcome.diagnostics, fun i -> i.nodeId))
-    |> Stdlib.Test.equal([ Stdlib.Option.Option.Some(3u64) ])
+    |> Stdlib.Test.equal([ Stdlib.Option.Option.Some(3) ])
 
 
   // y y would require y's function type to contain itself. With the unused local

@@ -533,7 +533,7 @@ module RestoredArchive =
         |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551614u64))
 
         Stdlib.Json.parse<UInt64>("9007199254740993e0")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9007199254740993u64)) ])
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9007199254740993)) ])
 
 
   test uint64RejectsOverflowAndRoundedFractions =

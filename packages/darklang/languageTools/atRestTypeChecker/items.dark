@@ -60,7 +60,7 @@ let guardItem(
 let toUInt64(id: Int64): UInt64 =
   let n = Stdlib.BigInt.fromInt64(id)
   let unsigned = if n < 0z then n + 18446744073709551616z else n
-  Stdlib.BigInt.toUInt64(unsigned) |> Stdlib.Option.withDefault(0u64)
+  Stdlib.BigInt.toUInt64(unsigned) |> Stdlib.Option.withDefault(0)
 
 
 /// Convert a finding to the public report format, replacing type unknowns with

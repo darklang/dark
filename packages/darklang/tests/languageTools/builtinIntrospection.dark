@@ -29,16 +29,16 @@ module Lookup =
   // Named lookups preserve the metadata exposed by the full registry.
   test namedLookups =
     Stdlib.Test.all(
-      [ LanguageTools.findBuiltinFn("listMap", 0s32)
+      [ LanguageTools.findBuiltinFn("listMap", 0)
         |> Stdlib.Test.equal(
           LanguageTools.allBuiltinFns()
           |> Stdlib.List.findFirst(fun f ->
-            f.name.name == "listMap" && f.name.version == 0s32))
+            f.name.name == "listMap" && f.name.version == 0))
 
-        LanguageTools.findBuiltinFn("int64ToFloat64", 999s32)
+        LanguageTools.findBuiltinFn("int64ToFloat64", 999)
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-        LanguageTools.findBuiltinFn("notARegisteredBuiltin", 0s32)
+        LanguageTools.findBuiltinFn("notARegisteredBuiltin", 0)
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
         Stdlib.List.all(LanguageTools.allBuiltinValues(), fun value ->
@@ -46,7 +46,7 @@ module Lookup =
           == Stdlib.Option.Option.Some(value))
         |> Stdlib.Test.equal(true)
 
-        LanguageTools.findBuiltinValue("notARegisteredBuiltin", 0s32)
+        LanguageTools.findBuiltinValue("notARegisteredBuiltin", 0)
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
@@ -63,5 +63,5 @@ module Resolution =
   // A builtin resolves by its name and version, not by its name alone.
   test builtinResolvesOnlyAtItsVersion =
     Stdlib.Test.all(
-      [ resolves("int64ToFloat64", 0s32) |> Stdlib.Test.equal(true)
-        resolves("int64ToFloat64", 999s32) |> Stdlib.Test.equal(false) ])
+      [ resolves("int64ToFloat64", 0) |> Stdlib.Test.equal(true)
+        resolves("int64ToFloat64", 999) |> Stdlib.Test.equal(false) ])

@@ -38,7 +38,7 @@ let gidAt(range: Parser.Range): Int64 =
 
 
 let gtlid(): UInt64 =
-  Stdlib.UInt64.random(0u64, 9223372036854775807u64)
+  Stdlib.UInt64.random(0, 9223372036854775807)
 
 
 /// Compute a unique location-based placeholder hash for parsed items.

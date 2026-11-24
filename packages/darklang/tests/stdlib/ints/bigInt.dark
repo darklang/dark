@@ -117,13 +117,13 @@ test int64Conversions =
 // --- conversions from the fixed-width types (always succeed) ---
 test fromFixedWidth =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.fromInt8(127s8) |> Stdlib.Test.equal(127z)
+    [ Stdlib.BigInt.fromInt8(127) |> Stdlib.Test.equal(127z)
 
-      Stdlib.BigInt.fromUInt8(255u8) |> Stdlib.Test.equal(255z)
+      Stdlib.BigInt.fromUInt8(255) |> Stdlib.Test.equal(255z)
 
-      Stdlib.BigInt.fromInt16(32767s16) |> Stdlib.Test.equal(32767z)
+      Stdlib.BigInt.fromInt16(32767) |> Stdlib.Test.equal(32767z)
 
-      Stdlib.BigInt.fromUInt32(4294967295u32) |> Stdlib.Test.equal(4294967295z)
+      Stdlib.BigInt.fromUInt32(4294967295) |> Stdlib.Test.equal(4294967295z)
 
       // values past Int64 still convert exactly
       Stdlib.BigInt.fromUInt64(18446744073709551615u64)
@@ -137,7 +137,7 @@ test fromFixedWidth =
 test toFixedWidth =
   Stdlib.Test.all(
     [ Stdlib.BigInt.toInt8(100z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(100s8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(100))
 
       Stdlib.BigInt.toInt8(200z) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
@@ -342,41 +342,38 @@ test randomFullRangeEveryWidth =
       "Int8",
       -128z,
       127z,
-      (fun _ -> Stdlib.BigInt.fromInt8(Stdlib.Int8.random(-128s8, 127s8))))
+      (fun _ -> Stdlib.BigInt.fromInt8(Stdlib.Int8.random(-128, 127))))
 
     (
       "UInt8",
       0z,
       255z,
-      (fun _ -> Stdlib.BigInt.fromUInt8(Stdlib.UInt8.random(0u8, 255u8))))
+      (fun _ -> Stdlib.BigInt.fromUInt8(Stdlib.UInt8.random(0, 255))))
 
     (
       "Int16",
       -32768z,
       32767z,
-      (fun _ ->
-         Stdlib.BigInt.fromInt16(Stdlib.Int16.random(-32768s16, 32767s16))))
+      (fun _ -> Stdlib.BigInt.fromInt16(Stdlib.Int16.random(-32768, 32767))))
 
     (
       "UInt16",
       0z,
       65535z,
-      (fun _ -> Stdlib.BigInt.fromUInt16(Stdlib.UInt16.random(0u16, 65535u16))))
+      (fun _ -> Stdlib.BigInt.fromUInt16(Stdlib.UInt16.random(0, 65535))))
 
     (
       "Int32",
       -2147483648z,
       2147483647z,
       (fun _ ->
-         Stdlib.BigInt.fromInt32(
-           Stdlib.Int32.random(-2147483648s32, 2147483647s32))))
+         Stdlib.BigInt.fromInt32(Stdlib.Int32.random(-2147483648, 2147483647))))
 
     (
       "UInt32",
       0z,
       4294967295z,
-      (fun _ ->
-         Stdlib.BigInt.fromUInt32(Stdlib.UInt32.random(0u32, 4294967295u32))))
+      (fun _ -> Stdlib.BigInt.fromUInt32(Stdlib.UInt32.random(0, 4294967295))))
 
     (
       "Int64",
@@ -391,7 +388,7 @@ test randomFullRangeEveryWidth =
       0z,
       18446744073709551615z,
       (fun _ ->
-         Stdlib.UInt64.random(0u64, 18446744073709551615u64)
+         Stdlib.UInt64.random(0, 18446744073709551615u64)
          |> Stdlib.BigInt.fromUInt64)) ]
   |> Stdlib.List.filter(fun((_, lo, hi, draw)) ->
     let draws = Stdlib.List.range(1, 20) |> Stdlib.List.map(fun _ -> draw())

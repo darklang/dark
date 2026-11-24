@@ -89,7 +89,7 @@ let dvalToExpr(branchId: Uuid, dval: RuntimeTypes.Dval): Result<ProgramTypes.Exp
     match floatParts(f) with
     | Some(parts) ->
       let (whole, frac) = parts
-      let sign = if f < 0.0f32 then Sign.Negative else Sign.Positive
+      let sign = if f < 0.0 then Sign.Negative else Sign.Positive
       Result.Ok(ProgramTypes.Expr.EFloat32(gid(), sign, whole, frac))
     | None ->
       Result.Error("this float has no literal form (NaN, an infinity, or exponent notation)")
