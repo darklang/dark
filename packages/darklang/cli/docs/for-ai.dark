@@ -6,8 +6,8 @@ let content(): String =
 """
   + SyntaxAtAGlance.content()
   + """
-Saved code lives in a persistent package tree, not in files. Put your code in your own
-namespace; `Darklang` is reserved.
+Saved code lives in a persistent package tree, not in files. Use your own namespace;
+`Darklang` is reserved.
 
 ## Build, run, test
 
@@ -24,7 +24,7 @@ namespace; `Darklang` is reserved.
   EOF
   run MyApp.Greet.main Ada               # args = ["Ada"]; stdin is piped in as usual
   test run --brief MyApp.Greet
-  edit MyApp.Greet.greeting --patch - <<'PATCH'   # lines copied exactly from `view <name> --raw`
+  edit MyApp.Greet.greeting --patch - <<'PATCH'   # lines exactly as `view <name> --raw` shows
   @@
    let greeting(name: String): String =
   -  "Hello, " + name
@@ -35,35 +35,35 @@ namespace; `Darklang` is reserved.
   search --fn --limit 3 "get a value from a dictionary"
   docs signatures Stdlib.String          # every function in a module
 
-For a one-off, write a script: plain statements, no module and no `main`. It saves
-nothing, gets the command-line words as `args`, and its last value is the exit code
-(Unit is 0). `docs scripts` has more.
+For a one-off, write a script: plain statements, no module or `main`. It saves
+nothing, gets its arguments as `args`, and its last value is the exit code (Unit is
+0); see `docs scripts`.
 
-  run - Ada <<'EOF'                      # `-`: the script comes from stdin
+  run - Ada <<'EOF'                      # `-`: script on stdin
   Stdlib.printLine("Hello, " + Stdlib.String.join(args, " "))
   EOF
 
-Use a module when the code will be run again, tested, edited or served.
+Use a module for code you will rerun, test, edit or serve.
 
 ## Permissions
 
 Printing, reading stdin, the clock and random numbers need no permission. Anything else
-needs `--allow <rule>` on `run`, placed before the function name:
+needs `--allow <rule>` on `run`, before the function name:
 
   run --allow "file read $PWD" --allow "file write $PWD" MyApp.Report.main sales.csv
-                                         # $PWD: this folder and everything in it
+                                         # $PWD: this folder and below
   run --allow 'http GET https://api.example.com/*' MyApp.Fetch.main
                                          # any path on that host; `*` only after a `/`
 
-`serve` takes no `--allow`, so allow what it needs first: `permissions allow http-server
+`serve` takes no `--allow`; allow what it needs first: `permissions allow http-server
 127.0.0.1 <port>`, and `permissions allow file read <dir>` / `file write <dir>`.
 
-Effects are inferred, never declared; a save says what they are (`effects: none`). Keep pure
-code pure: pass what reads, writes or fetches in as an argument instead of calling it inside.
+Effects are inferred, never declared; a save lists them (`effects: none`). Keep pure
+code pure: pass in what reads, writes or fetches as an argument instead of calling it.
 
 ## Functions most programs need
 
-Anything that can fail returns a Result or an Option: unwrap it with `match`,
+Anything that can fail returns a Result or an Option: unwrap with `match`,
 `Stdlib.Result.withDefault(r, x)`, or `r?` in a function that returns a Result.
 
 Can fail:
@@ -75,7 +75,7 @@ Can fail:
   Stdlib.HttpClient.get(url, [("user-agent", "me")])             // Result; then r.statusCode, r.body
   Stdlib.List.getAt(xs, i)   Stdlib.List.randomElement(xs)       // Option
   Stdlib.Dict.get(d, k)                                          // Option; Stdlib.Dict.set(d, k, v) adds
-  Stdlib.Cli.Stdin.readLineOrEnd()                               // Option; None at the end of input
+  Stdlib.Cli.Stdin.readLineOrEnd()                               // Option; None at end of input
 
 Always give a value:
   Stdlib.String.split(s, ",")   Stdlib.String.join(xs, ",")   Stdlib.String.trim(s)
@@ -83,12 +83,12 @@ Always give a value:
   Stdlib.Int64.toFloat64(n)   Stdlib.Float64.round(x)            // round gives an Int64
   Stdlib.List.parallelMap(xs, f)                                 // runs f concurrently
   Stdlib.Int64.random(1, 6)                                      // both ends included
-  Stdlib.DateTime.now()   Stdlib.DateTime.subtractMs(later, earlier)    // the gap in ms, an Int64
+  Stdlib.DateTime.now()   Stdlib.DateTime.subtractMs(later, earlier)    // gap in ms, an Int64
   Stdlib.Cli.Posix.sleep(1000.0)                                 // ms, as a Float64
   Stdlib.Decimal.round(19.999dec, 2)      // Ok(20.00dec). To round, use Decimal
   Stdlib.List.indexedMap(xs, fun(i, x) -> $"{i}: {x}")   Stdlib.max(a, b)   Stdlib.abs(n)
 
-Less often, and easy to miss:
+Easy to miss:
   Stdlib.Cli.Process.run("git", ["status"])      // Result; out.exitCode, out.stdout, no shell
   Stdlib.Csv.parse(text)   Stdlib.Crypto.sha256(bytes)   Stdlib.Html.escapeHtml(s)
   Stdlib.Cli.Dir.createRecursive(path)   Stdlib.Cli.FileSystem.listDirectory(dir)  // full paths
@@ -101,10 +101,10 @@ Less often, and easy to miss:
 - A Dict type names both key and value: `Dict<String, Float64>`; an empty one is `Dict {}`.
 - `{ s with count = 1 }` updates a record. `Some((a, b))` keeps the tuple's parentheses.
 - `|>` passes the first argument; an `if` or `match` on its left needs parentheses.
-- An HTTP request runs in the background until its result is used. To time one, wrap it in
-  `Stdlib.await(...)` before reading the clock again, or the time comes out near zero.
+- An HTTP request runs in the background until used. To time one, `Stdlib.await(...)` it
+  before reading the clock again.
 
-Output read by a program (your shell, a pipe) is plain: one record per line, fields split by tabs.
+Output read by a program (shell, pipe) is plain: one record per line, tab-separated fields.
 
 Logs in ~/.darklang/logs/: cli.log (errors that ended a command), host-audit.jsonl
 (every file, network, env and process access), telemetry.jsonl (DARK_TELEMETRY=1).
