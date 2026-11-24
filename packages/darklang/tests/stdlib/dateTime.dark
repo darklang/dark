@@ -1775,3 +1775,168 @@ test addMonths =
 
       Stdlib.DateTime.addMonths(d("2024-05-10T00:00:00Z"), 0)
       |> Stdlib.Test.equal(d("2024-05-10T00:00:00Z")) ])
+
+
+let pw(
+  text: String,
+  pattern: String)
+  : Stdlib.Result.Result<DateTime, Stdlib.DateTime.PatternParseError> =
+  Stdlib.DateTime.parseWith(text, pattern)
+
+
+let parsedAs(
+  datestr: String)
+  : Stdlib.Result.Result<DateTime, Stdlib.DateTime.PatternParseError> =
+  Stdlib.Result.Result.Ok(d(datestr))
+
+
+let mismatchAt(
+  position: Int64)
+  : Stdlib.Result.Result<DateTime, Stdlib.DateTime.PatternParseError> =
+  Stdlib.Result.Result.Error(
+    Stdlib.DateTime.PatternParseError.Mismatch(position))
+
+
+let invalidDate()
+  : Stdlib.Result.Result<DateTime, Stdlib.DateTime.PatternParseError> =
+  Stdlib.Result.Result.Error(Stdlib.DateTime.PatternParseError.InvalidDate)
+
+
+test parseWith =
+  Stdlib.Test.all(
+    [ pw("2019-07-28T22:42:36Z", "%Y-%m-%dT%H:%M:%SZ")
+      |> Stdlib.Test.equal(parsedAs("2019-07-28T22:42:36Z"))
+
+      pw("28/07/2019 at 2242", "%d/%m/%Y at %H%M")
+      |> Stdlib.Test.equal(parsedAs("2019-07-28T22:42:00Z"))
+
+      pw("2019-7-8", "%Y-%m-%d") |> Stdlib.Test.equal(parsedAs("2019-07-08"))
+
+      pw("100% 2019", "100%% %Y") |> Stdlib.Test.equal(parsedAs("2019-01-01"))
+
+      // fields the pattern does not name come from the epoch
+      pw("22:42", "%H:%M")
+      |> Stdlib.Test.equal(parsedAs("1970-01-01T22:42:00Z"))
+
+      pw("", "") |> Stdlib.Test.equal(parsedAs("1970-01-01T00:00:00Z")) ])
+
+
+test parseWithOffset =
+  Stdlib.Test.all(
+    [ pw("2019-07-28T22:42:36+0200", "%Y-%m-%dT%H:%M:%S%z")
+      |> Stdlib.Test.equal(parsedAs("2019-07-28T20:42:36Z"))
+
+      pw("2019-07-28T22:42:36-05:30", "%Y-%m-%dT%H:%M:%S%z")
+      |> Stdlib.Test.equal(parsedAs("2019-07-29T04:12:36Z"))
+
+      pw("2019-07-28T22:42:36Z", "%Y-%m-%dT%H:%M:%S%z")
+      |> Stdlib.Test.equal(parsedAs("2019-07-28T22:42:36Z"))
+
+      // an offset can move the date across midnight and a year end
+      pw("2020-01-01T01:00:00+0200", "%Y-%m-%dT%H:%M:%S%z")
+      |> Stdlib.Test.equal(parsedAs("2019-12-31T23:00:00Z"))
+
+      pw("2019-07-28T22:42:36+2", "%Y-%m-%dT%H:%M:%S%z")
+      |> Stdlib.Test.equal(mismatchAt(19))
+
+      pw("2019-07-28T22:42:36+2500", "%Y-%m-%dT%H:%M:%S%z")
+      |> Stdlib.Test.equal(invalidDate()) ])
+
+
+test parseWithFraction =
+  Stdlib.Test.all(
+    [ pw("2019-07-28T22:42:36.5Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+      |> Stdlib.Test.equal(parsedAs("2019-07-28T22:42:36.500Z"))
+
+      pw("22:42:36.123456789", "%H:%M:%S.%f")
+      |> Stdlib.Result.map(fun date ->
+        Stdlib.DateTime.__mod(
+          Stdlib.DateTime.__ticks(date),
+          Stdlib.DateTime.__ticksPerSecond()))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1234567)) ])
+
+
+test parseWithRoundTripsFormat =
+  Stdlib.Test.all(
+    [ pw(f(d("2019-07-28T22:42:36.250Z")), "%Y-%m-%d %H:%M:%S.%f")
+      |> Stdlib.Test.equal(parsedAs("2019-07-28T22:42:36.250Z"))
+
+      // format writes years before 1 with a leading -
+      pw(
+        Stdlib.DateTime.format(civil(-5, 3, 1), "%Y-%m-%d") |> Builtin.unwrap,
+        "%Y-%m-%d")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(civil(-5, 3, 1))) ])
+
+
+test parseWithErrors =
+  Stdlib.Test.all(
+    [ pw("2019", "%Y-%q")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.DateTime.PatternParseError.UnknownDirective("%q")))
+
+      pw("2019", "%Y%")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.DateTime.PatternParseError.UnknownDirective("%")))
+
+      // the pattern is checked before the text, so its error wins
+      pw("nope", "%Y-%q")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.DateTime.PatternParseError.UnknownDirective("%q")))
+
+      // a second %d could hide an impossible first one
+      pw("2024-02-30/28", "%Y-%m-%d/%d")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.DateTime.PatternParseError.RepeatedDirective("%d")))
+
+      pw("2024-02-28/28", "%Y-%m-%d/%d")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.DateTime.PatternParseError.RepeatedDirective("%d")))
+
+      // %% is a literal, not a field, so it may repeat
+      pw("%2019%", "%%%Y%%")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(civil(2019, 1, 1)))
+
+      // fields read as many digits as they can: %d takes "21", leaving nothing for the 1
+      pw("04-21", "%m-%d1") |> Stdlib.Test.equal(mismatchAt(5))
+
+      pw("0415", "%m%d")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(civil(1970, 4, 15)))
+
+      // whatever their value: %H takes "91", not "9"
+      pw("915", "%H%M") |> Stdlib.Test.equal(invalidDate())
+
+      pw("2019/07/28", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(4))
+
+      pw("2019--28", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(5))
+
+      pw("2019-07-28x", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(10))
+
+      pw("2019-07", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(7))
+
+      pw("2019-02-30", "%Y-%m-%d") |> Stdlib.Test.equal(invalidDate())
+
+      pw("2019-13-01", "%Y-%m-%d") |> Stdlib.Test.equal(invalidDate())
+
+      pw("2019-07-28 24:00", "%Y-%m-%d %H:%M")
+      |> Stdlib.Test.equal(invalidDate())
+
+      pw("2019-07-28 23:60", "%Y-%m-%d %H:%M")
+      |> Stdlib.Test.equal(invalidDate())
+
+      // in range as written, past 9999-12-31 once the offset is applied
+      pw("9999-12-31T23:00:00-0200", "%Y-%m-%dT%H:%M:%S%z")
+      |> Stdlib.Test.equal(invalidDate())
+
+      pw("-9999-12-31", "%Y-%m-%d") |> Stdlib.Test.equal(invalidDate())
+
+      Stdlib.display(Stdlib.DateTime.PatternParseError.RepeatedDirective("%d"))
+      |> Stdlib.Test.equal("The pattern uses %d more than once")
+
+      Stdlib.display(Stdlib.DateTime.PatternParseError.Mismatch(4))
+      |> Stdlib.Test.equal(
+        "The text does not match the pattern at character 4") ])
