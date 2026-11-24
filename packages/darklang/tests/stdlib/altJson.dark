@@ -464,6 +464,17 @@ test escapes =
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Ok(Json.String("\b\f\x1F\u2028/\\\"")))
 
+      // a CRLF is one character to the string functions; both halves are escaped
+      format(Json.String("a\r\nb\rc")) |> Stdlib.Test.equal("\"a\\r\\nb\\rc\"")
+
+      // a quote with a combining mark after it is one character to the string functions
+      format(Json.String("x,\"\u0301z\r\n\x01é"))
+      |> Stdlib.Test.equal("\"x,\\\"\u0301z\\r\\n\\u0001é\"")
+
+      parse(format(Json.String("q\"\u0301\\\u0301\u2028")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Json.String("q\"\u0301\\\u0301\u2028")))
+
       parse("\"\\x41\"") |> Stdlib.Test.equal(parseError(ParseError.NotJson))
 
       parse("\"\u0301\"")

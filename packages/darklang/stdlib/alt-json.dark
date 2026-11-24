@@ -64,11 +64,16 @@ module Format =
       // The patterns in this module are fixed and valid, and none can stop inside a
       // character, so only input far too large to match in time can fail them.
       if Regex.isMatch(s, needsEscape) |> Result.withDefault(true) then
-        let named = List.fold(namedEscapes, s, fun(acc, (c, e)) -> String.replaceAll(acc, c, e))
-        Regex.findAll(named, control)
-        |> Result.withDefault([])
-        |> List.unique
-        |> List.fold(named, fun(acc, c) -> String.replaceAll(acc, c, controlEscape(c)))
+        if Regex.isMatch(s, nonAscii) |> Result.withDefault(true) then
+          // String.replaceAll works on characters, and a character can be `"` with
+          // a combining mark after it, so outside ASCII escape byte by byte
+          escapeBytes(s)
+        else
+          let named = List.fold(namedEscapes, s, fun(acc, (c, e)) -> String.replaceAll(acc, c, e))
+          Regex.findAll(named, control)
+          |> Result.withDefault([])
+          |> List.unique
+          |> List.fold(named, fun(acc, c) -> String.replaceAll(acc, c, controlEscape(c)))
       else
         s
 
@@ -83,11 +88,57 @@ module Format =
   val control = "[\\x00-\\x1F]"
 
 
+  val nonAscii = "[^\\x00-\\x7F]"
+
+
+  /// <param s>'s escapes made on its UTF-8 bytes: `"`, `\` and the C0 controls are
+  /// single bytes that never occur inside a longer character's encoding.
+  let escapeBytes(s: String): String =
+    let escaped =
+      Utf8.encode(s)
+      |> Bytes.toList
+      |> List.map(fun b ->
+        if b == 34u8 then
+          [ 92u8, 34u8 ]
+        else if b == 92u8 then
+          [ 92u8, 92u8 ]
+        else if b < 32u8 then
+          Bytes.toList(Utf8.encode(byteEscape(b)))
+        else
+          [ b ])
+      |> List.flatten
+      |> Bytes.fromList
+      |> Utf8.decodeWithReplacement
+
+    escaped
+    |> String.replaceAll("\u2028", "\\u2028")
+    |> String.replaceAll("\u2029", "\\u2029")
+
+
+  /// The escape of one C0 control byte: its short form where JSON has one.
+  let byteEscape(b: UInt8): String =
+    if b == 8u8 then
+      "\\b"
+    else if b == 12u8 then
+      "\\f"
+    else if b == 10u8 then
+      "\\n"
+    else if b == 13u8 then
+      "\\r"
+    else if b == 9u8 then
+      "\\t"
+    else
+      "\\u00" + String.toUppercase(Base16.encode(Bytes.fromList([ b ])))
+
+
   /// Each character with an escape of its own, and that escape. The backslash
   /// is first, so the backslashes the others write are not escaped again.
+  /// `\r\n` is one character to `String.replaceAll`, so it has a row of its own,
+  /// ahead of `\r` and `\n`.
   val namedEscapes =
     [ ("\\", "\\\\")
       ("\"", "\\\"")
+      ("\r\n", "\\r\\n")
       ("\b", "\\b")
       ("\f", "\\f")
       ("\n", "\\n")
