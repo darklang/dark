@@ -143,10 +143,14 @@ module CallStack =
       [ whereLines([ source(), builtin() ], Cli.ExecutionError.Entry.Script)
         |> Stdlib.Test.equal([])
 
-        whereLines([ source(), scriptLambda, builtin() ], Cli.ExecutionError.Entry.Call)
+        whereLines(
+          [ source(), scriptLambda, builtin() ],
+          Cli.ExecutionError.Entry.Call)
         |> Stdlib.Test.equal([])
 
-        whereLines([ source(), scriptLambda, builtin() ], Cli.ExecutionError.Entry.Script)
+        whereLines(
+          [ source(), scriptLambda, builtin() ],
+          Cli.ExecutionError.Entry.Script)
         |> Stdlib.Test.equal([ "  in line 4 of the script" ])
 
         whereLines(

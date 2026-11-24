@@ -97,9 +97,7 @@ let evaluateUnder(
   | Ok(result) -> Result.Ok(result)
   | Error(err) ->
     let message = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err)
-    let lines =
-      ExecutionError.whereLines(state.currentBranchId, err, ExecutionError.Entry.Call)
-
+    let lines = ExecutionError.whereLines(state.currentBranchId, err, ExecutionError.Entry.Call)
     Result.Error(Stdlib.String.join(Stdlib.List.prepend(lines, message), "\n"))
 
 
