@@ -24,22 +24,22 @@ let buildHash : string =
   | _, Some hash when hash <> "" -> hash.Substring(0, min 7 hash.Length)
   | _ -> "dev"
 
-/// The directory the CLI chose for its store, if it chose one. Read once, here.
-let private chosenRunDir = StoreLocation.take ()
+/// A published CLI carries its own seed store, which `Cli.EmbeddedResources.extract` keeps up to date.
+let private publishedStore : bool =
+  match System.Reflection.Assembly.GetEntryAssembly() with
+  | null -> false
+  | entry -> entry.GetManifestResourceNames() |> Array.contains "data.db.br"
 
 // runDir is for runtime data (DB, logs, etc.) - separate from source code paths
-let runDir =
-  match chosenRunDir with
-  | Some dir -> $"{dir}/"
-  | None -> $"{StoreLocation.defaultDirectory ()}/"
+let runDir = $"{StoreLocation.defaultDirectory ()}/"
 
 let logDir = $"{runDir}logs/"
 
-/// A store the CLI chose is always `data.db`: that is the file `extract` seeds
+/// A published CLI's store is always `data.db`: that is the file `extract` seeds
 /// and upgrades, so a name from the environment would open an empty one beside it.
 let dbName =
-  match chosenRunDir, getEnv "DARK_CONFIG_DB_NAME" with
-  | None, Some s -> s
+  match publishedStore, getEnv "DARK_CONFIG_DB_NAME" with
+  | false, Some s -> s
   | _ -> "data.db"
 
 // `runDir` already ends in a separator, so no slash here. This path gets printed.

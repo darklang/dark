@@ -468,15 +468,14 @@ let private runCli (args : string[]) : int =
       else
         0L
 
-    // Extract embedded resources FIRST: this chooses the store directory, which
-    // LibConfig.Config fixes the first time anything reads it.
+    // Extract embedded resources FIRST: a published CLI seeds or upgrades its store here,
+    // before anything opens it.
     let extractStart = System.Diagnostics.Stopwatch.GetTimestamp()
     let extracted = EmbeddedResources.extract ()
     let extractTicks = System.Diagnostics.Stopwatch.GetTimestamp() - extractStart
     initSerializers ()
 
-    // Extraction established the rundir, so policy paths are safe to use. The policy belongs to
-    // the INSTANCE (see `setPolicyDirectory`), which is what the rundir is; for an ordinary
+    // The policy belongs to the INSTANCE (see `setPolicyDirectory`), which is what the rundir is; for an ordinary
     // install that is `~/.darklang`, so this is the same file it always was.
     LibExecution.HostSecurity.setPolicyDirectory (
       System.IO.Path.Combine(LibConfig.Config.runDir, "policy")
