@@ -1,0 +1,85 @@
+/// Parse files with both parsers and compare: the tree, and the diagnostics.
+module Darklang.LanguageTools.Parser.Dark.Parity
+
+type Outcome =
+  | Same
+  | TreeDiffers
+  | DiagnosticsDiffer
+
+
+type FileResult =
+  { path: String
+    outcome: Outcome
+    darkMs: Int64
+    builtinMs: Int64 }
+
+
+/// Package files declare; anything else is a script.
+let kindFor(path: String): LanguageTools.Parser.FileKind =
+  if Stdlib.String.contains(path, "packages/") then
+    LanguageTools.Parser.FileKind.Package
+  else
+    LanguageTools.Parser.FileKind.Script
+
+
+let compare(path: String, source: String): FileResult =
+  let kind = kindFor(path)
+  let t0 = Stdlib.DateTime.now()
+  let (darkTree, darkDiagnostics) = Dark.parse(kind, source)
+  let t1 = Stdlib.DateTime.now()
+  let (builtinTree, builtinDiagnostics) = Builtin.parse(kind, source)
+  let t2 = Stdlib.DateTime.now()
+  let outcome =
+    if darkTree != builtinTree then Outcome.TreeDiffers
+    else if darkDiagnostics != builtinDiagnostics then Outcome.DiagnosticsDiffer
+    else Outcome.Same
+  FileResult
+    { path = path
+      outcome = outcome
+      darkMs = Stdlib.DateTime.subtractMs(t1, t0)
+      builtinMs = Stdlib.DateTime.subtractMs(t2, t1) }
+
+
+let percent(n: Int64, total: Int64): String =
+  if total == 0 then "0%"
+  else
+    let tenths = n * 1000 / total
+    $"{tenths / 10}.{tenths % 10}%"
+
+
+/// Compare each file named in <param args> (or listed, one per line, in a file named with
+/// `--list`), printing a line per file and a summary.
+let main(args: List<String>): Int64 =
+  let paths =
+    match args with
+    | [ "--list", listFile ] ->
+      Stdlib.Cli.FileSystem.readFileAsString(listFile)
+      |> Stdlib.Result.withDefault("")
+      |> Stdlib.String.splitOnNewline
+      |> Stdlib.List.filter(fun p -> p != "")
+    | _ -> args
+  let results =
+    Stdlib.List.map(paths, fun path ->
+      match Stdlib.Cli.FileSystem.readFileAsString(path) with
+      | Ok(source) ->
+        let r = compare(path, source)
+        let mark =
+          match r.outcome with
+          | Same -> "same "
+          | TreeDiffers -> "TREE "
+          | DiagnosticsDiffer -> "DIAG "
+        Stdlib.printLine($"{mark} {r.darkMs}ms {r.builtinMs}ms {path}")
+        Stdlib.Option.Option.Some(r)
+      | Error(_) ->
+        Stdlib.printLine($"unreadable {path}")
+        Stdlib.Option.Option.None)
+    |> Stdlib.List.filterMap(fun r -> r)
+  let total = Stdlib.List.length(results)
+  let count = fun o -> Stdlib.List.length(Stdlib.List.filter(results, fun r -> r.outcome == o))
+  let same = count(Outcome.Same)
+  let treeSame = same + count(Outcome.DiagnosticsDiffer)
+  let darkMs = Stdlib.List.fold(results, 0, fun(acc, r) -> acc + r.darkMs)
+  let builtinMs = Stdlib.List.fold(results, 0, fun(acc, r) -> acc + r.builtinMs)
+  Stdlib.printLine($"files {total}: same tree {treeSame} ({percent(treeSame, total)}), same tree and diagnostics {same} ({percent(same, total)})")
+  Stdlib.printLine($"time: Dark parser {darkMs}ms, builtin {builtinMs}ms")
+  0

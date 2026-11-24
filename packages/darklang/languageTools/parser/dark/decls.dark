@@ -1,0 +1,836 @@
+/// Declarations and files: `let` fns, `val`, `type`, `trait`, `impl`, `test`, modules, and
+/// the items of a file or module body.
+module Darklang.LanguageTools.Parser.Dark.Decls
+
+type Range = LanguageTools.Parser.Range
+type Point = LanguageTools.Parser.Point
+type Input = Core.Input
+type St = Core.St
+type TokenKind = Lexer.TokenKind
+type Expr = WrittenTypes.Expr
+
+
+type ItemScope =
+  | Script
+  | Module
+
+
+type TestExpected =
+  | Value(Expr)
+  | Error(String)
+
+
+/// What a file or module body holds, before it becomes WrittenTypes: as the F# parser's
+/// declarations, with expressions and test assertions among them.
+type Item =
+  | Fn(WrittenTypes.FnDeclaration.FnDeclaration)
+  | Val(WrittenTypes.ValueDeclaration.ValueDeclaration)
+  | Type(WrittenTypes.TypeDeclaration.TypeDeclaration)
+  | Trait(WrittenTypes.TraitDeclaration.TraitDeclaration)
+  | Impl(WrittenTypes.ImplDeclaration.ImplDeclaration)
+  | Test(WrittenTypes.TestDeclaration.TestDeclaration)
+  | Module(range: Range, name: (Range * String), items: List<Item>, keywordModule: Range)
+  | Expr(Expr)
+  | Assertion(actual: Expr, expected: TestExpected)
+
+
+let typeName(inp: Input, st: St, i: Int64, what: String): (WrittenTypes.TypeIdentifier * St) =
+  match Core.tok(inp, i) with
+  | TIdent(nm) -> (WrittenTypes.TypeIdentifier { range = Core.rng(inp, i), name = nm }, st)
+  | _ -> (WrittenTypes.TypeIdentifier { range = Core.rng(inp, i), name = "_" }, Core.errExpectedName(inp, st, i, what))
+
+
+// --- let and val ---
+
+/// A declaration-scope `let f(p: T): R = body`, or a value `val x = body` (and a module-level
+/// `let x = body`, kept for recovery).
+let decl(inp: Input, st: St): (Item * St) =
+  let i = st.index
+  let keywordLet = Core.rng(inp, i)
+  let st0 = Exprs.skipRec(inp, Core.at(st, i + 1))
+  let nameIdx = st0.index
+  let (nameR, name, st1) =
+    match Core.tok(inp, nameIdx) with
+    | TIdent(nm) -> (Core.rng(inp, nameIdx), nm, st0)
+    | _ -> (Core.rng(inp, nameIdx), "_", Core.errExpectedName(inp, st0, nameIdx, "a declaration name"))
+  let (tps, st2) = Types.typeParams(inp, Core.at(st1, nameIdx + 1))
+  let afterName = st2.index
+  if Core.tok(inp, afterName) == TokenKind.TLParen then
+    let (ps, st3) = Exprs.params(inp, st2)
+    let (colon, st4) =
+      let kk = st3.index
+      if Core.tok(inp, kk) == TokenKind.TColon then
+        (Core.rng(inp, kk), Core.at(st3, kk + 1))
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp, kk)), Core.errExpected(inp, st3, kk, "':' before the return type"))
+    let (returnType, st5) = Types.typeRef(inp, st4)
+    let (eq, st6) = Core.expect(inp, st5, TokenKind.TEquals, "'='")
+    let (body, st7) = Exprs.block(inp, st6)
+    (Item.Fn(
+      WrittenTypes.FnDeclaration.FnDeclaration
+        { range = Core.span(keywordLet, Exprs.exprRange(body))
+          name = WrittenTypes.FnIdentifier { range = nameR, name = name }
+          typeParams = tps.names
+          bounds = tps.bounds
+          parameters = ps
+          effects = Stdlib.Option.Option.None
+          returnType = returnType
+          body = body
+          description = Core.docOf(inp, i)
+          keywordLet = keywordLet
+          symbolColon = colon
+          symbolEquals = eq }),
+     st7)
+  else
+    let (typ, st3) =
+      if Core.tok(inp, afterName) == TokenKind.TColon then
+        let (t, s) = Types.typeRef(inp, Core.at(st2, afterName + 1))
+        (Stdlib.Option.Option.Some(t), s)
+      else
+        (Stdlib.Option.Option.None, st2)
+    let (eq, st4) = Core.expect(inp, st3, TokenKind.TEquals, "'='")
+    let (body, st5) = Exprs.block(inp, st4)
+    (Item.Val(
+      WrittenTypes.ValueDeclaration.ValueDeclaration
+        { range = Core.span(keywordLet, Exprs.exprRange(body))
+          name = WrittenTypes.ValueIdentifier { range = nameR, name = name }
+          typ = typ
+          body = body
+          description = Core.docOf(inp, i)
+          keywordVal = keywordLet
+          symbolEquals = eq }),
+     st5)
+
+
+// --- tests ---
+
+let testDecl(inp: Input, st: St): (Item * St) =
+  let i = st.index
+  let keywordTest = Core.rng(inp, i)
+  let (nameId, st1) =
+    match Core.tok(inp, i + 1) with
+    | TIdent(name) -> (WrittenTypes.ValueIdentifier { range = Core.rng(inp, i + 1), name = name }, st)
+    | _ ->
+      (WrittenTypes.ValueIdentifier { range = Core.rng(inp, i + 1), name = "_" },
+       Core.errExpectedName(inp, st, i + 1, "a test name"))
+  let (beforeEq, st2) =
+    if Core.tok(inp, i + 2) == TokenKind.TColon then
+      (i + 3, Core.errExpected(inp, st1, i + 2, "'='; tests use instance and called-function permissions"))
+    else
+      (i + 2, st1)
+  let (eq, st3) = Core.expect(inp, Core.at(st2, beforeEq), TokenKind.TEquals, "'='")
+  let (body, st4) = Exprs.block(inp, st3)
+  let afterBody = st4.index
+  let isOutcome = Exprs.isOutcomeArrow(inp, afterBody)
+  let none = Stdlib.Option.Option.None
+  let (symbolOutcome, errorKindRange, expectedError, endRange, st5) =
+    if isOutcome then
+      let outcome = Core.span(Core.rng(inp, afterBody), Core.rng(inp, afterBody + 1))
+      match (Core.tok(inp, afterBody + 2), Core.tok(inp, afterBody + 3)) with
+      | (TIdent("raises"), TStringLit(message)) ->
+        let messageRange = Core.rng(inp, afterBody + 3)
+        (Stdlib.Option.Option.Some(outcome),
+         Stdlib.Option.Option.Some(Core.rng(inp, afterBody + 2)),
+         Stdlib.Option.Option.Some((messageRange, WrittenTypes.TestDeclaration.ExpectedError.RuntimeError(message))),
+         messageRange,
+         Core.at(st4, afterBody + 4))
+      | (TIdent("raises"), _) ->
+        (Stdlib.Option.Option.Some(outcome),
+         Stdlib.Option.Option.Some(Core.rng(inp, afterBody + 2)),
+         none,
+         outcome,
+         Core.at(Core.errExpected(inp, st4, afterBody + 3, "an expected error string"), afterBody + 3))
+      | _ ->
+        (Stdlib.Option.Option.Some(outcome),
+         none,
+         none,
+         outcome,
+         Core.at(Core.errExpected(inp, st4, afterBody + 2, "'raises' after '=>'"), afterBody + 2))
+    else
+      (none, none, none, Exprs.exprRange(body), st4)
+  (Item.Test(
+    WrittenTypes.TestDeclaration.TestDeclaration
+      { range = Core.span(keywordTest, endRange)
+        name = nameId
+        body = body
+        expectedError = expectedError
+        description = Core.docOf(inp, i)
+        keywordTest = keywordTest
+        errorKindRange = errorKindRange
+        symbolOutcome = symbolOutcome
+        symbolEquals = eq }),
+   st5)
+
+
+// --- types ---
+
+let typeDecl(inp: Input, st: St): (Item * St) =
+  let i = st.index
+  let kwType = Core.rng(inp, i)
+  let (nameId, st1) = typeName(inp, st, i + 1, "a type name")
+  let (tps, st2) = Types.typeParams(inp, Core.at(st1, i + 2))
+  let (eq, st3) = Core.expect(inp, st2, TokenKind.TEquals, "'=' in type definition")
+  let (def, st4) = typeDefinition(inp, st3)
+  let afterDef = st4.index
+  let endR = if afterDef > 0 then Core.rng(inp, afterDef - 1) else eq
+  (Item.Type(
+    WrittenTypes.TypeDeclaration.TypeDeclaration
+      { range = Core.span(kwType, endR)
+        name = nameId
+        typeParams = tps.names
+        bounds = tps.bounds
+        definition = def
+        description = Core.docOf(inp, i)
+        keywordType = kwType
+        symbolEquals = eq }),
+   st4)
+
+
+let typeDefinition(inp: Input, st: St): (WrittenTypes.TypeDeclaration.Definition * St) =
+  let i = st.index
+  let isEnumStart =
+    Core.tok(inp, i) == TokenKind.TBar
+    || (match Core.tok(inp, i) with
+        | TIdent(nm) ->
+          let t2 = Core.tok(inp, i + 1)
+          Core.startsUpper(nm) && (t2 == TokenKind.TLParen || t2 == TokenKind.TOf || t2 == TokenKind.TBar)
+        | _ -> false)
+  if Core.tok(inp, i) == TokenKind.TLBrace then
+    recordDef(inp, st)
+  else if isEnumStart then
+    enumDef(inp, st)
+  else
+    let (t, st1) = Types.typeRef(inp, st)
+    (WrittenTypes.TypeDeclaration.Definition.Alias(t), st1)
+
+
+type RecordField = (WrittenTypes.TypeDeclaration.RecordField * Option<Range>)
+
+
+let recordDef(inp: Input, st: St): (WrittenTypes.TypeDeclaration.Definition * St) =
+  let i = st.index
+  let (fieldsRev, st1) = recordDefFields(inp, Core.at(st, i + 1), [])
+  let k = st1.index
+  let st2 =
+    if Stdlib.List.isEmpty(fieldsRev) && Core.tok(inp, k) == TokenKind.TRBrace then
+      Core.err(inp, st1, Core.Code.Expected, k, "a record type needs at least one field")
+    else
+      st1
+  let st3 =
+    if Core.tok(inp, k) == TokenKind.TRBrace then
+      Core.at(st2, k + 1)
+    else
+      Core.errUnclosed(inp, st2, k, "}", "{", Core.rng(inp, i))
+  (WrittenTypes.TypeDeclaration.Definition.Record(Stdlib.List.reverse(fieldsRev)), st3)
+
+
+let recordDefFields(inp: Input, st: St, fieldsRev: List<RecordField>): (List<RecordField> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRBrace || Core.tok(inp, k) == TokenKind.TEOF then
+    (fieldsRev, st)
+  else
+    match Core.fieldName(inp, k, TokenKind.TColon) with
+    | Some(fname) ->
+      let fnameR = Core.rng(inp, k)
+      let colon = Core.rng(inp, k + 1)
+      let (typ, st1) = Types.typeRef(inp, Core.at(st, k + 2))
+      let field =
+        WrittenTypes.TypeDeclaration.RecordField
+          { range = Core.span(fnameR, Types.typeRange(typ))
+            name = (fnameR, fname)
+            typ = typ
+            description = Core.docOf(inp, k)
+            symbolColon = colon }
+      let k2 = st1.index
+      if Core.tok(inp, k2) == TokenKind.TComma then
+        recordDefFields(inp, Core.at(st1, k2 + 1), [ (field, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...fieldsRev ])
+      else if Core.tok(inp, k2) == TokenKind.TSemicolon then
+        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ x: Int64, y: Int64 }`")
+        recordDefFields(inp, Core.at(st2, k2 + 1), [ (field, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...fieldsRev ])
+      else if k2 > k then
+        let st2 =
+          if Core.tok(inp, k2) != TokenKind.TRBrace then
+            Patterns.requireSeparator(inp, st1, Types.typeRange(typ), k2, "a comma or newline between record-type fields")
+          else
+            st1
+        recordDefFields(inp, st2, [ (field, Stdlib.Option.Option.None), ...fieldsRev ])
+      else
+        (fieldsRev, Core.at(st1, k))
+    | None -> (fieldsRev, Core.errExpectedName(inp, st, k, "a record field 'name : Type'"))
+
+
+let enumField(inp: Input, st: St, p: Core.Parser<Types.TypeReference>): (WrittenTypes.TypeDeclaration.EnumField * St) =
+  let i = st.index
+  match (Core.tok(inp, i), Core.tok(inp, i + 1)) with
+  | (TIdent(lbl), TColon) ->
+    let lblR = Core.rng(inp, i)
+    let (typ, st1) = p(inp, Core.at(st, i + 2))
+    (WrittenTypes.TypeDeclaration.EnumField
+      { range = Core.span(lblR, Types.typeRange(typ))
+        typ = typ
+        label = Stdlib.Option.Option.Some((lblR, lbl))
+        description = ""
+        symbolColon = Stdlib.Option.Option.Some(Core.rng(inp, i + 1)) },
+     st1)
+  | _ ->
+    let (typ, st1) = p(inp, st)
+    (WrittenTypes.TypeDeclaration.EnumField
+      { range = Types.typeRange(typ)
+        typ = typ
+        label = Stdlib.Option.Option.None
+        description = ""
+        symbolColon = Stdlib.Option.Option.None },
+     st1)
+
+
+let endsEnumCase(inp: Input, k: Int64): Bool =
+  Core.tok(inp, k) == TokenKind.TBar || Core.tok(inp, k) == TokenKind.TEOF
+
+
+let skipToEnumFieldsEnd(inp: Input, k: Int64): Int64 =
+  if Core.tok(inp, k) == TokenKind.TRParen || endsEnumCase(inp, k) then k else skipToEnumFieldsEnd(inp, k + 1)
+
+
+let enumFields(inp: Input, st: St): (List<WrittenTypes.TypeDeclaration.EnumField> * St) =
+  let i = st.index
+  let openP = Core.rng(inp, i)
+  let (fieldsRev, st1) = enumFieldsFrom(inp, Core.at(st, i + 1), [])
+  let k = st1.index
+  let st2 =
+    if Stdlib.List.isEmpty(fieldsRev) && Core.tok(inp, k) == TokenKind.TRParen then
+      Core.err(inp, st1, Core.Code.Expected, k, "a case with no fields is written without parentheses")
+    else
+      st1
+  if Core.tok(inp, k) == TokenKind.TRParen then
+    (Stdlib.List.reverse(fieldsRev), Core.at(st2, k + 1))
+  else
+    (Stdlib.List.reverse(fieldsRev), Core.errUnclosed(inp, st2, k, ")", "(", openP))
+
+
+let enumFieldsFrom(inp: Input, st: St, fieldsRev: List<WrittenTypes.TypeDeclaration.EnumField>): (List<WrittenTypes.TypeDeclaration.EnumField> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRParen || endsEnumCase(inp, k) then
+    (fieldsRev, st)
+  else
+    let (f, st1) = enumField(inp, st, Types.fnType)
+    let fieldsRev = [ f, ...fieldsRev ]
+    let k2 = st1.index
+    if Core.tok(inp, k2) == TokenKind.TComma then
+      enumFieldsFrom(inp, Core.at(st1, k2 + 1), fieldsRev)
+    else if Core.tok(inp, k2) == TokenKind.TRParen || endsEnumCase(inp, k2) then
+      (fieldsRev, st1)
+    else
+      (fieldsRev, Core.at(Core.errExpected(inp, st1, k2, "',' or ')' between a case's fields"), skipToEnumFieldsEnd(inp, k2)))
+
+
+/// `| Seg of Point * Point`: not Dark, but read for recovery.
+let ofFields(inp: Input, st: St, caseIdx: Int64): (List<WrittenTypes.TypeDeclaration.EnumField> * St) =
+  let i = st.index
+  let (f0, st1) = enumField(inp, Core.at(st, i + 1), Types.atomType)
+  let (fieldsRev, st2) = starFields(inp, st1, [ f0 ])
+  let caseName = Core.txt(inp, caseIdx)
+  let typed = Stdlib.List.map(Core.placeholders(Stdlib.List.length(fieldsRev)), fun p -> Stdlib.String.toUppercase(p))
+  let lastR =
+    match fieldsRev with
+    | [ f, ... ] -> f.range
+    | [] -> Core.rng(inp, caseIdx)
+  let st3 =
+    Core.errAt(
+      st2,
+      Core.Code.Unexpected,
+      Core.span(Core.rng(inp, caseIdx), lastR),
+      "an enum case's fields go in parentheses, separated by commas",
+      Stdlib.Option.Option.Some(
+        $"write `{caseName}({Stdlib.String.join(typed, ", ")})` rather than `{caseName} of {Stdlib.String.join(typed, " * ")}`"))
+  (Stdlib.List.reverse(fieldsRev), st3)
+
+
+let starFields(inp: Input, st: St, fieldsRev: List<WrittenTypes.TypeDeclaration.EnumField>): (List<WrittenTypes.TypeDeclaration.EnumField> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TStar then
+    let (f, st1) = enumField(inp, Core.at(st, k + 1), Types.atomType)
+    starFields(inp, st1, [ f, ...fieldsRev ])
+  else
+    (fieldsRev, st)
+
+
+let enumDef(inp: Input, st: St): (WrittenTypes.TypeDeclaration.Definition * St) =
+  let i = st.index
+  let (casesRev, st1) = enumCases(inp, st, [], true)
+  let k = st1.index
+  let st2 =
+    if Stdlib.List.isEmpty(casesRev) then
+      let lowerNameHere =
+        k > i
+        && (Core.rng(inp, k)).start.row == (Core.rng(inp, k - 1)).end_.row
+        && (match Core.tok(inp, k) with
+            | TIdent(name) -> name != ""
+            | t -> Core.isKeyword(t))
+      if lowerNameHere then
+        Core.err(inp, st1, Core.Code.Expected, k, $"an enum case name starts with an uppercase letter, found {Core.foundDesc(inp, k)}")
+      else
+        Core.err(inp, st1, Core.Code.Expected, k, "an enum type needs at least one case")
+    else
+      st1
+  (WrittenTypes.TypeDeclaration.Definition.Enum(Stdlib.List.reverse(casesRev)), st2)
+
+
+let enumCases(
+  inp: Input,
+  st: St,
+  casesRev: List<(Range * WrittenTypes.TypeDeclaration.EnumCase)>,
+  first: Bool)
+  : (List<(Range * WrittenTypes.TypeDeclaration.EnumCase)> * St) =
+  let k0 = st.index
+  let hasBar = Core.tok(inp, k0) == TokenKind.TBar
+  if Stdlib.Bool.not(hasBar) && Stdlib.Bool.not(first) then
+    (casesRev, st)
+  else
+    let barDoc = Core.docOf(inp, k0)
+    let barRange = if hasBar then Core.rng(inp, k0) else Core.zeroWidthAtEnd(Core.rng(inp, k0))
+    let k = if hasBar then k0 + 1 else k0
+    match Core.tok(inp, k) with
+    | TIdent(cname) ->
+      if Core.startsUpper(cname) then
+        let cnameR = Core.rng(inp, k)
+        let cnameIdx = k
+        let k1 = k + 1
+        let st1 = Core.at(st, k1)
+        let (fields, st2) =
+          if Core.tok(inp, k1) == TokenKind.TLParen && (Core.rng(inp, k1)).start.row == cnameR.end_.row then
+            enumFields(inp, st1)
+          else if Core.tok(inp, k1) == TokenKind.TLParen && (Core.rng(inp, k1)).start.column >= barRange.start.column then
+            enumFields(inp, Core.err(inp, st1, Core.Code.Unexpected, k1, "a case's fields start on the same line as its name"))
+          else if Core.tok(inp, k1) == TokenKind.TOf then
+            ofFields(inp, st1, cnameIdx)
+          else
+            ([], st1)
+        let k2 = st2.index
+        let lastR = if k2 > cnameIdx + 1 then Core.rng(inp, k2 - 1) else cnameR
+        let case =
+          WrittenTypes.TypeDeclaration.EnumCase
+            { range = Core.span(cnameR, lastR)
+              name = (cnameR, cname)
+              fields = fields
+              description = if barDoc != "" then barDoc else Core.docOf(inp, cnameIdx) }
+        enumCases(inp, st2, [ (barRange, case), ...casesRev ], false)
+      else
+        (casesRev, Core.at(st, k))
+    | _ -> (casesRev, Core.at(st, k))
+
+
+// --- traits and impls ---
+
+let traitDecl(inp: Input, st: St): (Item * St) =
+  let i = st.index
+  let kwTrait = Core.rng(inp, i)
+  let (nameId, st1) = typeName(inp, st, i + 1, "a trait name")
+  let (tps, st2) = Types.typeParams(inp, Core.at(st1, i + 2))
+  let st3 =
+    if Stdlib.List.isEmpty(tps.names) then
+      Core.errAt(
+        st2,
+        Core.Code.Bound,
+        nameId.range,
+        "A trait needs a type parameter for the type it is implemented for",
+        Stdlib.Option.Option.Some("write `trait Show<'a> = ...`; `'a` is the self type"))
+    else
+      st2
+  let (eq, st4) = Core.expect(inp, st3, TokenKind.TEquals, "'=' after the trait name")
+  let afterEq = st4.index
+  let (methodsRev, st5) = traitMethods(inp, st4, kwTrait.start.column, [])
+  let st6 =
+    if Stdlib.List.isEmpty(methodsRev) then
+      Core.errExpected(inp, st5, afterEq, "at least one method signature, indented under the trait")
+    else
+      st5
+  let k = st6.index
+  let endR = if k > 0 then Core.rng(inp, k - 1) else eq
+  (Item.Trait(
+    WrittenTypes.TraitDeclaration.TraitDeclaration
+      { range = Core.span(kwTrait, endR)
+        name = nameId
+        typeParams = tps.names
+        bounds = tps.bounds
+        methods = Stdlib.List.reverse(methodsRev)
+        description = Core.docOf(inp, i)
+        keywordTrait = kwTrait
+        symbolEquals = eq }),
+   st6)
+
+
+let traitMethods(inp: Input, st: St, kwCol: Int64, methodsRev: List<WrittenTypes.TraitDeclaration.Method>): (List<WrittenTypes.TraitDeclaration.Method> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TLet && (Core.rng(inp, k)).start.column > kwCol then
+    let kwLet = Core.rng(inp, k)
+    let (mNameR, mName, st1) =
+      match Core.tok(inp, k + 1) with
+      | TIdent(nm) -> (Core.rng(inp, k + 1), nm, st)
+      | _ -> (Core.rng(inp, k + 1), "_", Core.errExpectedName(inp, st, k + 1, "a method name"))
+    let (tps, st2) = Types.typeParams(inp, Core.at(st1, k + 2))
+    let (ps, st3) = Exprs.params(inp, st2)
+    let (colon, st4) =
+      let kk = st3.index
+      if Core.tok(inp, kk) == TokenKind.TColon then
+        (Core.rng(inp, kk), Core.at(st3, kk + 1))
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp, kk)), Core.errExpected(inp, st3, kk, "':' before the method's return type"))
+    let (returnType, st5) = Types.typeRef(inp, st4)
+    let afterRet = st5.index
+    let (endR, st6) =
+      if Core.tok(inp, afterRet) == TokenKind.TEquals then
+        let (b, s) = Exprs.block(inp, Core.at(st5, afterRet + 1))
+        (Exprs.exprRange(b),
+         Core.errAt(
+           s,
+           Core.Code.Bound,
+           Exprs.exprRange(b),
+           "Default method bodies are not supported yet; a trait lists signatures only",
+           Stdlib.Option.Option.Some("remove the `= …` and implement the method in each `impl`")))
+      else
+        (Types.typeRange(returnType), st5)
+    let method =
+      WrittenTypes.TraitDeclaration.Method
+        { range = Core.span(kwLet, endR)
+          name = WrittenTypes.FnIdentifier { range = mNameR, name = mName }
+          typeParams = tps.names
+          bounds = tps.bounds
+          parameters = ps
+          effects = Stdlib.Option.Option.None
+          returnType = returnType
+          description = Core.docOf(inp, k)
+          keywordLet = kwLet
+          symbolColon = colon }
+    if st6.index > k then
+      traitMethods(inp, st6, kwCol, [ method, ...methodsRev ])
+    else
+      ([ method, ...methodsRev ], Core.at(st6, k))
+  else
+    (methodsRev, st)
+
+
+let implDecl(inp: Input, st: St): (Item * St) =
+  let i = st.index
+  let kwImpl = Core.rng(inp, i)
+  let (tps, st1) = Types.typeParams(inp, Core.at(st, i + 1))
+  let afterParams = st1.index
+  let (traitId, st2) =
+    match Types.boundTrait(inp, st1) with
+    | (Some(t), s) -> (t, s)
+    | (None, s) ->
+      let r = Core.rng(inp, afterParams)
+      (WrittenTypes.QualifiedTypeIdentifier
+        { range = r
+          modules = []
+          typ = WrittenTypes.TypeIdentifier { range = r, name = "_" }
+          typeArgs = [] },
+       Core.at(s, if s.index > afterParams then s.index else afterParams + 1))
+  let afterTrait = st2.index
+  let (kwFor, st3) =
+    if Core.isIdentNamed(Core.tok(inp, afterTrait), "for") then
+      (Core.rng(inp, afterTrait), Core.at(st2, afterTrait + 1))
+    else
+      (Core.zeroWidthAtEnd(Core.rng(inp, afterTrait)), Core.errExpected(inp, st2, afterTrait, "'for' between the trait and the type"))
+  let (forType, st4) = Types.typeRef(inp, st3)
+  let (eq, st5) = Core.expect(inp, st4, TokenKind.TEquals, "'=' after the type")
+  let afterEq = st5.index
+  let (membersRev, st6) = implMembers(inp, st5, kwImpl.start.column, [])
+  let st7 =
+    if Stdlib.List.isEmpty(membersRev) then
+      Core.errExpected(inp, st6, afterEq, "at least one method, indented under the impl")
+    else
+      st6
+  let k = st7.index
+  let endR = if k > 0 then Core.rng(inp, k - 1) else eq
+  (Item.Impl(
+    WrittenTypes.ImplDeclaration.ImplDeclaration
+      { range = Core.span(kwImpl, endR)
+        typeParams = tps.names
+        bounds = tps.bounds
+        trait_ = traitId
+        forType = forType
+        members = Stdlib.List.reverse(membersRev)
+        description = Core.docOf(inp, i)
+        keywordImpl = kwImpl
+        keywordFor = kwFor
+        symbolEquals = eq }),
+   st7)
+
+
+let implMembers(inp: Input, st: St, kwCol: Int64, membersRev: List<WrittenTypes.ImplDeclaration.Member>): (List<WrittenTypes.ImplDeclaration.Member> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TLet && (Core.rng(inp, k)).start.column > kwCol then
+    let (d, st1) = decl(inp, st)
+    let bad =
+      fun s ->
+        Core.errAt(
+          s,
+          Core.Code.Bound,
+          Core.rng(inp, k),
+          "An impl body holds method functions (`let name (p: T) : R = …`) or aliases of existing ones (`let name = Module.fn`)",
+          Stdlib.Option.Option.None)
+    let (membersRev, st2) =
+      match d with
+      | Fn(fn) -> ([ WrittenTypes.ImplDeclaration.Member.Method(fn), ...membersRev ], st1)
+      | Val(v) ->
+        match (v.typ, v.body) with
+        | (None, EVariable(_, _)) -> ([ WrittenTypes.ImplDeclaration.Member.Alias(v), ...membersRev ], st1)
+        | (None, EFnName(_, _)) -> ([ WrittenTypes.ImplDeclaration.Member.Alias(v), ...membersRev ], st1)
+        | _ -> (membersRev, bad(st1))
+      | _ -> (membersRev, bad(st1))
+    if st2.index > k then implMembers(inp, st2, kwCol, membersRev) else (membersRev, Core.at(st2, k))
+  else
+    (membersRev, st)
+
+
+// --- items ---
+
+/// A test assertion's expected side: `error="msg"`, `error "msg"`, or a value.
+let testExpected(inp: Input, st: St): (TestExpected * St) =
+  let i = st.index
+  match (Core.tok(inp, i), Core.tok(inp, i + 1), Core.tok(inp, i + 2)) with
+  | (TIdent("error"), TEquals, TStringLit(s)) -> (TestExpected.Error(s), Core.at(st, i + 3))
+  | (TIdent("error"), TStringLit(s), _) -> (TestExpected.Error(s), Core.at(st, i + 2))
+  | _ ->
+    let (e, st1) = Exprs.expr(inp, st)
+    (TestExpected.Value(e), st1)
+
+
+let startsPackageItem(inp: Input, index: Int64): Bool =
+  match (Core.tok(inp, index), Core.tok(inp, index + 1)) with
+  | (TLet, TIdent(_)) -> true
+  | (TVal, TIdent(_)) -> true
+  | (TType, TIdent(_)) -> true
+  | (TTrait, TIdent(_)) -> true
+  | (TImpl, _) -> true
+  | (TIdent("module"), _) -> true
+  | (TIdent("test"), TIdent(_)) -> true
+  | _ -> false
+
+
+/// The items from the current token whose start column is at least <param minCol>.
+let items(inp: Input, st: St, scope: ItemScope, minCol: Int64): (List<Item> * List<Expr> * St) =
+  let savedDecl = st.declAnchor
+  let ((declsRev, exprsRev), st1) =
+    Core.withElementScope(inp, st, fun(inp2, st2) ->
+      let (d, e, s) = itemsFrom(inp2, st2, scope, minCol, [], [])
+      ((d, e), s))
+  (Stdlib.List.reverse(declsRev), Stdlib.List.reverse(exprsRev), { st1 with declAnchor = savedDecl })
+
+
+let itemsFrom(
+  inp: Input,
+  st: St,
+  scope: ItemScope,
+  minCol: Int64,
+  declsRev: List<Item>,
+  exprsRev: List<Expr>)
+  : (List<Item> * List<Expr> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TEOF || (Core.rng(inp, k)).start.column < minCol then
+    (declsRev, exprsRev, st)
+  else
+    let col = (Core.rng(inp, k)).start.column
+    let st0 = { (Core.setStmtCol(st, col)) with declAnchor = col }
+    let (declsRev2, exprsRev2, st1, scopeEnds) = item(inp, st0, scope, minCol, declsRev, exprsRev)
+    if scopeEnds then
+      (declsRev2, exprsRev2, st1)
+    else if st1.index == k then
+      if Core.tok(inp, k) == TokenKind.TEOF then
+        (declsRev2, exprsRev2, st1)
+      else
+        itemsFrom(inp, Core.at(st1, k + 1), scope, minCol, declsRev2, exprsRev2)
+    else
+      itemsFrom(inp, st1, scope, minCol, declsRev2, exprsRev2)
+
+
+/// The item at the current token: the lists with it added, the state after it, and whether
+/// it ends the scope (a `module A.B` header takes the rest).
+let item(
+  inp: Input,
+  st: St,
+  scope: ItemScope,
+  minCol: Int64,
+  declsRev: List<Item>,
+  exprsRev: List<Expr>)
+  : (List<Item> * List<Expr> * St * Bool) =
+  let k = st.index
+  match (Core.tok(inp, k), Core.tok(inp, k + 1)) with
+  | (TVal, TIdent(_)) ->
+    let (d, st1) = decl(inp, st)
+    let st2 =
+      match d with
+      | Fn(_) -> Core.err(inp, st1, Core.Code.Expected, k, "'val' declares a value and cannot have function parameters")
+      | _ -> st1
+    ([ d, ...declsRev ], exprsRev, st2, false)
+  | (TLet, TIdent(_)) ->
+    let (d, st1) = decl(inp, st)
+    let asExpr =
+      match d with
+      | Val(_) -> Core.tok(inp, st1.index) == TokenKind.TIn || scope == ItemScope.Script
+      | _ -> false
+    if asExpr then
+      // the declaration parse was speculative: its diagnostics go with it
+      let (e, st2) = Exprs.expr(inp, st)
+      (declsRev, [ e, ...exprsRev ], st2, false)
+    else
+      let st2 =
+        match d with
+        | Val(_) ->
+          if scope == ItemScope.Module then
+            Core.errAt(
+              st1,
+              Core.Code.Unexpected,
+              Core.rng(inp, k),
+              "Module value declarations must use 'val'; 'let' is reserved for functions and local bindings",
+              Stdlib.Option.Option.Some("replace 'let' with 'val'"))
+          else
+            st1
+        | _ -> st1
+      ([ d, ...declsRev ], exprsRev, st2, false)
+  | (TType, TIdent(_)) ->
+    let (d, st1) = typeDecl(inp, st)
+    ([ d, ...declsRev ], exprsRev, st1, false)
+  | (TTrait, TIdent(_)) ->
+    let (d, st1) = traitDecl(inp, st)
+    ([ d, ...declsRev ], exprsRev, st1, false)
+  | (TImpl, _) ->
+    let (d, st1) = implDecl(inp, st)
+    ([ d, ...declsRev ], exprsRev, st1, false)
+  | (TIdent("test"), TIdent(_)) ->
+    let t2 = Core.tok(inp, k + 2)
+    if t2 == TokenKind.TEquals || t2 == TokenKind.TColon || Core.isIdentNamed(t2, "raises") then
+      let (d, st1) = testDecl(inp, st)
+      ([ d, ...declsRev ], exprsRev, st1, false)
+    else
+      exprItem(inp, st, declsRev, exprsRev)
+  | (TIdent("module"), TIdent(first)) -> moduleItem(inp, st, minCol, declsRev, exprsRev, first)
+  | (TSemicolon, _) ->
+    (declsRev, exprsRev, Core.at(Exprs.statementSemicolon(inp, st, k), k + 1), false)
+  | _ -> exprItem(inp, st, declsRev, exprsRev)
+
+
+let exprItem(inp: Input, st: St, declsRev: List<Item>, exprsRev: List<Expr>): (List<Item> * List<Expr> * St * Bool) =
+  let (e, st1) = Exprs.expr(inp, st)
+  let k2 = st1.index
+  if Core.tok(inp, k2) == TokenKind.TEquals then
+    let (expected, st2) = testExpected(inp, Core.at(st1, k2 + 1))
+    ([ Item.Assertion(e, expected), ...declsRev ], exprsRev, st2, false)
+  else
+    (declsRev, [ e, ...exprsRev ], st1, false)
+
+
+let moduleNameParts(inp: Input, partsRev: List<String>, nk: Int64): (List<String> * Int64) =
+  match (Core.tok(inp, nk), Core.tok(inp, nk + 1)) with
+  | (TDot, TIdent(s)) -> moduleNameParts(inp, [ s, ...partsRev ], nk + 2)
+  | _ -> (partsRev, nk)
+
+
+let moduleItem(
+  inp: Input,
+  st: St,
+  minCol: Int64,
+  declsRev: List<Item>,
+  exprsRev: List<Expr>,
+  first: String)
+  : (List<Item> * List<Expr> * St * Bool) =
+  let k = st.index
+  let kwModule = Core.rng(inp, k)
+  let moduleCol = kwModule.start.column
+  let (partsRev, nk) = moduleNameParts(inp, [ first ], k + 2)
+  let nameRange = Core.span(Core.rng(inp, k + 1), Core.rng(inp, nk - 1))
+  let nameStr = Stdlib.String.join(Stdlib.List.reverse(partsRev), ".")
+  let isBlock = Core.tok(inp, nk) == TokenKind.TEquals
+  let bodyStart = if isBlock then nk + 1 else nk
+  let (mdecls, mexprs, st1) =
+    items(inp, Core.at(st, bodyStart), ItemScope.Module, if isBlock then moduleCol + 1 else minCol)
+  let k2 = st1.index
+  let st2 =
+    if isBlock && Stdlib.List.isEmpty(mdecls) && Stdlib.List.isEmpty(mexprs) then
+      Core.errExpected(inp, st1, bodyStart, "an indented module body")
+    else
+      st1
+  let moduleEndR = if k2 > 0 then Core.rng(inp, k2 - 1) else nameRange
+  let d =
+    Item.Module(
+      Core.span(kwModule, moduleEndR),
+      (nameRange, nameStr),
+      Stdlib.List.concat(mdecls, Stdlib.List.map(mexprs, fun e -> Item.Expr(e))),
+      kwModule)
+  ([ d, ...declsRev ], exprsRev, st2, Stdlib.Bool.not(isBlock))
+
+
+// --- files ---
+
+let initialState(): St =
+  let p = Point { row = 0, column = 0 }
+  Core.St
+    { index = 0
+      scopes = [ Core.Scope { stmtCol = -1, stmtExact = false } ]
+      matchArms = []
+      pendingGt = 0
+      pendingGtRange = Range { start = p, end_ = p }
+      declAnchor = -1
+      diagnosticsRev = [] }
+
+
+/// Parse lexed tokens: the declarations and the expressions at the top, and the parser's
+/// diagnostics in the order they were found.
+let parseTokens(tokens: List<Lexer.Token>, scope: ItemScope): (List<Item> * List<Expr> * List<Core.Diagnostic>) =
+  let inp = Core.Input { tokens = tokens, count = Stdlib.List.length(tokens) }
+  let (decls, exprs, st) = items(inp, initialState(), scope, 0)
+  (decls, exprs, Stdlib.List.reverse(st.diagnosticsRev))
+
+
+/// The WrittenTypes module declarations for <param items>.
+let moduleDeclarations(items: List<Item>): List<WrittenTypes.ModuleDeclaration.Declaration> =
+  Stdlib.List.flatten(Stdlib.List.map(items, fun d -> moduleDeclaration(d)))
+
+
+let moduleDeclaration(d: Item): List<WrittenTypes.ModuleDeclaration.Declaration> =
+  match d with
+  | Fn(f) -> [ WrittenTypes.ModuleDeclaration.Declaration.Function(f) ]
+  | Val(v) -> [ WrittenTypes.ModuleDeclaration.Declaration.Value(v) ]
+  | Type(t) -> [ WrittenTypes.ModuleDeclaration.Declaration.Type(t) ]
+  | Trait(t) -> [ WrittenTypes.ModuleDeclaration.Declaration.Trait(t) ]
+  | Impl(i) -> [ WrittenTypes.ModuleDeclaration.Declaration.Impl(i) ]
+  | Test(t) -> [ WrittenTypes.ModuleDeclaration.Declaration.Test(t) ]
+  | Module(range, name, items, kw) -> [ WrittenTypes.ModuleDeclaration.Declaration.SubModule(moduleOf(range, name, items, kw)) ]
+  | Expr(e) -> [ WrittenTypes.ModuleDeclaration.Declaration.Expr(e) ]
+  | Assertion(actual, expected) ->
+    match expected with
+    | Value(e) -> [ WrittenTypes.ModuleDeclaration.Declaration.Expr(actual), WrittenTypes.ModuleDeclaration.Declaration.Expr(e) ]
+    | Error(_) -> [ WrittenTypes.ModuleDeclaration.Declaration.Expr(actual) ]
+
+
+let moduleOf(range: Range, name: (Range * String), items: List<Item>, kw: Range): WrittenTypes.ModuleDeclaration.ModuleDeclaration =
+  WrittenTypes.ModuleDeclaration.ModuleDeclaration
+    { range = range
+      name = name
+      declarations = moduleDeclarations(items)
+      keywordModule = kw }
+
+
+let sourceFileDeclaration(d: Item): Option<WrittenTypes.SourceFile.SourceFileDeclaration> =
+  match d with
+  | Fn(f) -> Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Function(f))
+  | Val(v) -> Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Value(v))
+  | Type(t) -> Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Type(t))
+  | Trait(t) -> Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Trait(t))
+  | Impl(i) -> Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Impl(i))
+  | Test(t) -> Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Test(t))
+  | Module(range, name, items, kw) ->
+    Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Module(moduleOf(range, name, items, kw)))
+  | Expr(_) -> Stdlib.Option.Option.None
+  | Assertion(_, _) -> Stdlib.Option.Option.None
+
+
+/// An assertion at the top of a file shows up as its expressions.
+let assertionExprs(d: Item): List<Expr> =
+  match d with
+  | Expr(e) -> [ e ]
+  | Assertion(actual, expected) ->
+    match expected with
+    | Value(e) -> [ actual, e ]
+    | Error(_) -> [ actual ]
+  | _ -> []

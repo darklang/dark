@@ -1,0 +1,746 @@
+/// Patterns: `let` patterns (`x`, `_`, `()`, `(a, b)`) and match patterns, with `|`, `as`,
+/// tuples, lists with a rest, records and constructors.
+module Darklang.LanguageTools.Parser.Dark.Patterns
+
+type Range = LanguageTools.Parser.Range
+type Point = LanguageTools.Parser.Point
+type Input = Core.Input
+type St = Core.St
+type TokenKind = Lexer.TokenKind
+type LetPattern = WrittenTypes.LetPattern
+type MatchPattern = WrittenTypes.MatchPattern
+
+
+let letPatternRange(p: LetPattern): Range =
+  match p with
+  | LPUnit(r) -> r
+  | LPVariable(r, _) -> r
+  | LPWildcard(r) -> r
+  | LPTuple(r, _, _, _, _, _, _) -> r
+
+
+let mpRange(p: MatchPattern): Range =
+  match p with
+  | MPUnit(r) -> r
+  | MPBool(r, _) -> r
+  | MPInt8(r, _, _) -> r
+  | MPUInt8(r, _, _) -> r
+  | MPInt16(r, _, _) -> r
+  | MPUInt16(r, _, _) -> r
+  | MPInt32(r, _, _) -> r
+  | MPUInt32(r, _, _) -> r
+  | MPInt64(r, _, _) -> r
+  | MPUInt64(r, _, _) -> r
+  | MPInt128(r, _, _) -> r
+  | MPUInt128(r, _, _) -> r
+  | MPBigInt(r, _) -> r
+  | MPFloat64(r, _, _, _) -> r
+  | MPFloat32(r, _, _, _) -> r
+  | MPDecimal(r, _) -> r
+  | MPChar(r, _, _, _) -> r
+  | MPString(r, _, _, _) -> r
+  | MPList(r, _, _, _) -> r
+  | MPListCons(r, _, _, _) -> r
+  | MPTuple(r, _, _, _, _, _, _) -> r
+  | MPVariable(r, _) -> r
+  | MPEnum(r, _, _) -> r
+  | MPOr(r, _) -> r
+  | MPAs(r, _, _, _) -> r
+  | MPRecord(r, _, _, _) -> r
+  | MPError(r) -> r
+
+
+// --- literals, shared with expressions ---
+
+/// The digits and the suffix of an int literal token: `5` and `s8` in `5s8`.
+let splitIntSuffix(inp: Input, i: Int64): (Range * Range) =
+  let r = Core.rng(inp, i)
+  let digits =
+    Stdlib.String.toList(Core.txt(inp, i))
+    |> Stdlib.List.takeWhile(fun c -> Stdlib.Char.isDigit(c))
+    |> Stdlib.List.length
+  let mid = Point { row = r.start.row, column = r.start.column + digits }
+  (Range { start = r.start, end_ = mid }, Range { start = mid, end_ = r.end_ })
+
+
+/// A float literal's whole and fraction digits, with no exponent: `1.5e2` is ("150", "0").
+let floatParts(text: String): (String * String) =
+  let lower = Stdlib.String.toLowercase(text)
+  let (mantissa, powerText) =
+    match Stdlib.String.splitFirst(lower, "e") with
+    | Some((m, p)) -> (m, p)
+    | None -> (lower, "0")
+  let (whole, fraction) =
+    match Stdlib.String.splitFirst(mantissa, ".") with
+    | Some((w, f)) -> (w, f)
+    | None -> (mantissa, "")
+  let power =
+    Stdlib.Int64.parse(Stdlib.String.trimStart(Stdlib.String.replaceAll(powerText, "+", "")))
+    |> Stdlib.Result.withDefault(0)
+  let allDigits = whole + fraction
+  let point = Stdlib.String.length(whole) + power
+  let total = Stdlib.String.length(allDigits)
+  let (w, f) =
+    if point <= 0 then
+      ("0", Stdlib.String.repeat("0", 0 - point) + allDigits)
+    else if point >= total then
+      (allDigits + Stdlib.String.repeat("0", point - total), "0")
+    else
+      (Stdlib.String.first(allDigits, point), Stdlib.String.dropFirst(allDigits, point))
+  let w = trimLeadingZeros(w)
+  let isZero = trimLeadingZeros(allDigits) == "0"
+  if isZero then ("0", "0") else (w, if f == "" then "0" else f)
+
+
+let trimLeadingZeros(s: String): String =
+  let t = dropZeros(s)
+  if t == "" then "0" else t
+
+
+let dropZeros(s: String): String =
+  if Stdlib.String.startsWith(s, "0") then dropZeros(Stdlib.String.dropFirst(s, 1)) else s
+
+
+let floatText(inp: Input, i: Int64, suffix: String): String =
+  let t = Core.txt(inp, i)
+  if Stdlib.String.endsWith(t, suffix) then Stdlib.String.dropLast(t, Stdlib.String.length(suffix)) else t
+
+
+/// The open-quote, contents and close-quote ranges of a string or char literal token.
+let literalTextRanges(inp: Input, i: Int64, delimiter: String): (Range * Range * Range) =
+  let whole = Core.rng(inp, i)
+  let text = Core.txt(inp, i)
+  let src = Lexer.source(text)
+  let dl = Stdlib.String.length(delimiter)
+  let hasClose = src.length >= dl * 2 && Stdlib.String.endsWith(text, delimiter)
+  let openEnd = Lexer.advance(src, whole.start, 0, Core.minI(dl, src.length))
+  let contentEndIndex = if hasClose then src.length - dl else src.length
+  let contentEnd = Lexer.advance(src, whole.start, 0, contentEndIndex)
+  let closeEnd = if hasClose then whole.end_ else contentEnd
+  (Range { start = whole.start, end_ = openEnd },
+   Range { start = openEnd, end_ = contentEnd },
+   Range { start = contentEnd, end_ = closeEnd })
+
+
+/// `128s8` and the like are only valid negated.
+let checkBareMinMagnitude(inp: Input, st: St, i: Int64): St =
+  let isMin =
+    match Core.tok(inp, i) with
+    | TInt8(v) -> v == Stdlib.Int8.minValue
+    | TInt16(v) -> v == Stdlib.Int16.minValue
+    | TInt32(v) -> v == Stdlib.Int32.minValue
+    | TInt64(v) -> v == Stdlib.Int64.minValue
+    | TInt128(v) -> v == Stdlib.Int128.minValue
+    | _ -> false
+  if isMin then
+    let t = Core.txt(inp, i)
+    Core.errFull(
+      inp,
+      st,
+      Core.Code.IntRange,
+      i,
+      $"integer literal {t} is out of range (this magnitude is only valid negated: -{t})",
+      [],
+      Stdlib.Option.Option.Some($"write it negated: -{t}"))
+  else
+    st
+
+
+let negInt8(v: Int8): Int8 =
+  if v == Stdlib.Int8.minValue then v else 0s8 - v
+
+
+let negInt16(v: Int16): Int16 =
+  if v == Stdlib.Int16.minValue then v else 0s16 - v
+
+
+let negInt32(v: Int32): Int32 =
+  if v == Stdlib.Int32.minValue then v else 0s32 - v
+
+
+let negInt64(v: Int64): Int64 =
+  if v == Stdlib.Int64.minValue then v else 0 - v
+
+
+let negInt128(v: Int128): Int128 =
+  if v == Stdlib.Int128.minValue then v else 0s128 - v
+
+
+// --- let patterns ---
+
+let letPattern(inp: Input, st: St): (LetPattern * St) =
+  let i = st.index
+  match Core.tok(inp, i) with
+  | TUnderscore -> (WrittenTypes.LetPattern.LPWildcard(Core.rng(inp, i)), Core.at(st, i + 1))
+  | TIdent(s) -> (WrittenTypes.LetPattern.LPVariable(Core.rng(inp, i), s), Core.at(st, i + 1))
+  | TLParen ->
+    if Core.tok(inp, i + 1) == TokenKind.TRParen then
+      (WrittenTypes.LetPattern.LPUnit(Core.span(Core.rng(inp, i), Core.rng(inp, i + 1))), Core.at(st, i + 2))
+    else
+      let openP = Core.rng(inp, i)
+      let (first, st1) = letPattern(inp, Core.at(st, i + 1))
+      let j = st1.index
+      if Core.tok(inp, j) == TokenKind.TComma then
+        let comma = Core.rng(inp, j)
+        let (second, st2) = letPattern(inp, Core.at(st1, j + 1))
+        let (rest, st3) = Core.separatedSkipping(inp, st2, TokenKind.TComma, false, letPattern)
+        let m = st3.index
+        let (closeP, st4) =
+          if Core.tok(inp, m) == TokenKind.TRParen then
+            (Core.rng(inp, m), Core.at(st3, m + 1))
+          else
+            (Core.zeroWidthAtEnd(Core.rng(inp, m)), Core.errUnclosed(inp, st3, m, ")", "(", openP))
+        (WrittenTypes.LetPattern.LPTuple(Core.span(openP, closeP), first, comma, second, rest, openP, closeP), st4)
+      else if Core.tok(inp, j) == TokenKind.TRParen then
+        (first, Core.at(st1, j + 1))
+      else
+        (first, Core.errUnclosed(inp, st1, j, ")", "(", openP))
+  | _ ->
+    if Core.keywordHint(inp, i) != "" then
+      (WrittenTypes.LetPattern.LPVariable(Core.rng(inp, i), Core.txt(inp, i)),
+       Core.at(Core.errExpectedName(inp, st, i, "a pattern"), i + 1))
+    else
+      (WrittenTypes.LetPattern.LPVariable(Core.rng(inp, i), "_"),
+       Core.at(Core.errExpectedName(inp, st, i, "a pattern"), Core.recoverPast(inp, i)))
+
+
+// --- match patterns ---
+
+/// A full match-arm pattern. `as` is loosest, then `|`, then `,`.
+let matchPattern(inp: Input, st: St): (MatchPattern * St) =
+  let (p, st1) = patternAs(inp, matchPatternOr(inp, st))
+  let j = st1.index
+  match p with
+  | MPAs(_, MPTuple(_, _, _, _, _, openP, closeP), _, _) ->
+    if openP == closeP then
+      (p,
+       Core.errFull(
+         inp,
+         st1,
+         Core.Code.Unexpected,
+         j - 2,
+         "'as' after a tuple's last element is ambiguous",
+         [],
+         Stdlib.Option.Option.Some("write `((a, b) as t)` to name the tuple, or `(a, (b as t))` to name one element")))
+    else
+      asFollowedBy(inp, st1, p)
+  | MPAs(_, _, _, _) -> asFollowedBy(inp, st1, p)
+  | _ -> (p, st1)
+
+
+let asFollowedBy(inp: Input, st: St, p: MatchPattern): (MatchPattern * St) =
+  let j = st.index
+  if Core.tok(inp, j) == TokenKind.TComma then
+    let st1 =
+      Core.errFull(
+        inp,
+        st,
+        Core.Code.Unexpected,
+        j,
+        "'as' names the whole pattern before it, so a ',' cannot follow it here",
+        [],
+        Stdlib.Option.Option.Some("to name one element of a tuple, wrap it in parentheses: `((p as x), y)`"))
+    match afterAs(inp, st1, j, []) with
+    | ([ second, ...rest ], st2) ->
+      let z = Core.zeroWidthAtEnd(mpRange(p))
+      let last = Stdlib.List.last(rest) |> Stdlib.Option.withDefault(second)
+      (WrittenTypes.MatchPattern.MPTuple(
+        Core.span(mpRange(p), mpRange(last)),
+        p,
+        Core.rng(inp, j),
+        second,
+        Stdlib.List.map(rest, fun r -> (Core.rng(inp, j), r)),
+        z,
+        z),
+       st2)
+    | ([], st2) -> (p, st2)
+  else if Core.tok(inp, j) == TokenKind.TBar then
+    let st1 =
+      Core.errFull(
+        inp,
+        st,
+        Core.Code.Unexpected,
+        j,
+        "'as' names the whole or-pattern before it, so a '|' cannot follow it",
+        [],
+        Stdlib.Option.Option.Some("to name one alternative, wrap it in parentheses: `(p as x) | q`"))
+    match afterAs(inp, st1, j, []) with
+    | ([], st2) -> (p, st2)
+    | (alts, st2) ->
+      let last = Stdlib.List.last(alts) |> Stdlib.Option.withDefault(p)
+      (WrittenTypes.MatchPattern.MPOr(Core.span(mpRange(p), mpRange(last)), [ p, ...alts ]), st2)
+  else
+    (p, st)
+
+
+/// After a misplaced `,` or `|` following an `as`: read on as if the named part were
+/// parenthesized.
+let afterAs(inp: Input, st: St, j: Int64, partsRev: List<MatchPattern>): (List<MatchPattern> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == Core.tok(inp, j) then
+    let (q, st2) = patternAs(inp, patternTuple(inp, Core.at(st, k + 1)))
+    if st2.index > k + 1 then
+      afterAs(inp, st2, j, [ q, ...partsRev ])
+    else
+      (Stdlib.List.reverse(partsRev), st2)
+  else
+    (Stdlib.List.reverse(partsRev), st)
+
+
+/// `p as name`; `as` is only read this way straight after a pattern.
+let patternAs(inp: Input, parsed: (MatchPattern * St)): (MatchPattern * St) =
+  let (p, st) = parsed
+  let j = st.index
+  if Core.isIdentNamed(Core.tok(inp, j), "as") then
+    let asR = Core.rng(inp, j)
+    match Core.tok(inp, j + 1) with
+    | TIdent(name) ->
+      if Core.startsLowerOrUnderscore(name) then
+        let nameR = Core.rng(inp, j + 1)
+        patternAs(inp, (WrittenTypes.MatchPattern.MPAs(Core.span(mpRange(p), nameR), p, asR, (nameR, name)), Core.at(st, j + 2)))
+      else
+        (p, Core.at(Core.errExpectedName(inp, st, j + 1, "a lowercase name after 'as'"), j + 1))
+    | _ -> (p, Core.at(Core.errExpectedName(inp, st, j + 1, "a lowercase name after 'as'"), j + 1))
+  else
+    (p, st)
+
+
+let matchPatternOr(inp: Input, st: St): (MatchPattern * St) =
+  let (first, st1) = patternTuple(inp, st)
+  if Core.tok(inp, st1.index) != TokenKind.TBar then
+    (first, st1)
+  else
+    orOf(inp, first, Core.separatedSkipping(inp, st1, TokenKind.TBar, false, patternTuple))
+
+
+let orOf(inp: Input, first: MatchPattern, alts: (List<(Range * MatchPattern)> * St)): (MatchPattern * St) =
+  let (items, st) = alts
+  let pats = [ first, ...Stdlib.List.map(items, fun((_, p)) -> p) ]
+  let last = Stdlib.List.last(pats) |> Stdlib.Option.withDefault(first)
+  (WrittenTypes.MatchPattern.MPOr(Core.span(mpRange(first), mpRange(last)), pats), st)
+
+
+/// A bare tuple `p1, p2`, without parentheses.
+let patternTuple(inp: Input, st: St): (MatchPattern * St) =
+  let (first, st1) = patternBase(inp, st)
+  let j = st1.index
+  if Core.tok(inp, j) != TokenKind.TComma then
+    (first, st1)
+  else
+    let comma = Core.rng(inp, j)
+    let (second, st2) = patternBase(inp, Core.at(st1, j + 1))
+    let (rest, st3) = Core.separated(inp, st2, TokenKind.TComma, patternBase)
+    let z = Core.zeroWidthAtEnd(mpRange(first))
+    let endP =
+      match Stdlib.List.last(rest) with
+      | Some((_, p)) -> p
+      | None -> second
+    (WrittenTypes.MatchPattern.MPTuple(Core.span(mpRange(first), mpRange(endP)), first, comma, second, rest, z, z), st3)
+
+
+/// An or of base patterns and no bare tuple, for constructor fields and list elements.
+let patternOr(inp: Input, st: St): (MatchPattern * St) =
+  patternAs(inp, patternOrNoAs(inp, st))
+
+
+let patternOrNoAs(inp: Input, st: St): (MatchPattern * St) =
+  let (first, st1) = patternBase(inp, st)
+  if Core.tok(inp, st1.index) == TokenKind.TBar then
+    orOf(inp, first, Core.separatedSkipping(inp, st1, TokenKind.TBar, false, patternBase))
+  else
+    (first, st1)
+
+
+let patternBase(inp: Input, st: St): (MatchPattern * St) =
+  let (p, st1) = patternBaseInner(inp, st)
+  let j = st1.index
+  // `head :: tail`: the lexer reported the `::`, so skip it and the tail
+  if j < inp.count && (Core.token(inp, j)).lexError && Core.txt(inp, j) == "::" then
+    let (_, st2) = patternBase(inp, Core.at(st1, j + 1))
+    (p, st2)
+  else
+    (p, st1)
+
+
+let intPattern(inp: Input, st: St, i: Int64): Option<(MatchPattern * St)> =
+  let r = Core.rng(inp, i)
+  let (digits, suffix) = splitIntSuffix(inp, i)
+  let some = fun p -> Stdlib.Option.Option.Some((p, Core.at(st, i + 1)))
+  match Core.tok(inp, i) with
+  | TBigInt(v) -> some(WrittenTypes.MatchPattern.MPBigInt(r, (r, v)))
+  | TInt64(v) -> some(WrittenTypes.MatchPattern.MPInt64(r, (digits, v), suffix))
+  | TInt32(v) -> some(WrittenTypes.MatchPattern.MPInt32(r, (digits, v), suffix))
+  | TInt8(v) -> some(WrittenTypes.MatchPattern.MPInt8(r, (digits, v), suffix))
+  | TUInt8(v) -> some(WrittenTypes.MatchPattern.MPUInt8(r, (digits, v), suffix))
+  | TInt16(v) -> some(WrittenTypes.MatchPattern.MPInt16(r, (digits, v), suffix))
+  | TUInt16(v) -> some(WrittenTypes.MatchPattern.MPUInt16(r, (digits, v), suffix))
+  | TUInt32(v) -> some(WrittenTypes.MatchPattern.MPUInt32(r, (digits, v), suffix))
+  | TUInt64(v) -> some(WrittenTypes.MatchPattern.MPUInt64(r, (digits, v), suffix))
+  | TInt128(v) -> some(WrittenTypes.MatchPattern.MPInt128(r, (digits, v), suffix))
+  | TUInt128(v) -> some(WrittenTypes.MatchPattern.MPUInt128(r, (digits, v), suffix))
+  | _ -> Stdlib.Option.Option.None
+
+
+let negativePattern(inp: Input, st: St, i: Int64): (MatchPattern * St) =
+  let r = Core.span(Core.rng(inp, i), Core.rng(inp, i + 1))
+  let (digits, suffix) = splitIntSuffix(inp, i + 1)
+  let d = Core.span(Core.rng(inp, i), digits)
+  let next = Core.at(st, i + 2)
+  match Core.tok(inp, i + 1) with
+  | TBigInt(v) -> (WrittenTypes.MatchPattern.MPBigInt(r, (r, -v)), next)
+  | TInt64(v) -> (WrittenTypes.MatchPattern.MPInt64(r, (d, negInt64(v)), suffix), next)
+  | TInt32(v) -> (WrittenTypes.MatchPattern.MPInt32(r, (d, negInt32(v)), suffix), next)
+  | TInt8(v) -> (WrittenTypes.MatchPattern.MPInt8(r, (d, negInt8(v)), suffix), next)
+  | TInt16(v) -> (WrittenTypes.MatchPattern.MPInt16(r, (d, negInt16(v)), suffix), next)
+  | TInt128(v) -> (WrittenTypes.MatchPattern.MPInt128(r, (d, negInt128(v)), suffix), next)
+  | TFloat64 ->
+    let (w, f) = floatParts(floatText(inp, i + 1, "f64"))
+    (WrittenTypes.MatchPattern.MPFloat64(r, LanguageTools.Sign.Negative, w, f), next)
+  | TFloat32 ->
+    let (w, f) = floatParts(floatText(inp, i + 1, "f32"))
+    (WrittenTypes.MatchPattern.MPFloat32(r, LanguageTools.Sign.Negative, w, f), next)
+  | TDecimal(v) -> (WrittenTypes.MatchPattern.MPDecimal(r, -v), next)
+  | _ ->
+    (WrittenTypes.MatchPattern.MPError(Core.rng(inp, i)), Core.at(Core.errExpected(inp, st, i, "a pattern"), i + 1))
+
+
+let patternBaseInner(inp: Input, st0: St): (MatchPattern * St) =
+  let i = st0.index
+  let st = checkBareMinMagnitude(inp, st0, i)
+  let r = Core.rng(inp, i)
+  match intPattern(inp, st, i) with
+  | Some(result) -> result
+  | None ->
+    match Core.tok(inp, i) with
+    | TUnderscore -> (WrittenTypes.MatchPattern.MPVariable(r, "_"), Core.at(st, i + 1))
+    | TMinus -> negativePattern(inp, st, i)
+    | TFloat64 ->
+      let (w, f) = floatParts(floatText(inp, i, "f64"))
+      (WrittenTypes.MatchPattern.MPFloat64(r, LanguageTools.Sign.Positive, w, f), Core.at(st, i + 1))
+    | TFloat32 ->
+      let (w, f) = floatParts(floatText(inp, i, "f32"))
+      (WrittenTypes.MatchPattern.MPFloat32(r, LanguageTools.Sign.Positive, w, f), Core.at(st, i + 1))
+    | TDecimal(v) -> (WrittenTypes.MatchPattern.MPDecimal(r, v), Core.at(st, i + 1))
+    | TTrue -> (WrittenTypes.MatchPattern.MPBool(r, true), Core.at(st, i + 1))
+    | TFalse -> (WrittenTypes.MatchPattern.MPBool(r, false), Core.at(st, i + 1))
+    | TStringLit(s) ->
+      let delimiter = if Stdlib.String.startsWith(Core.txt(inp, i), "\"\"\"") then "\"\"\"" else "\""
+      let (openQ, contents, closeQ) = literalTextRanges(inp, i, delimiter)
+      (WrittenTypes.MatchPattern.MPString(r, Stdlib.Option.Option.Some((contents, s)), openQ, closeQ), Core.at(st, i + 1))
+    | TCharLit(c) ->
+      let (openQ, contents, closeQ) = literalTextRanges(inp, i, "'")
+      (WrittenTypes.MatchPattern.MPChar(r, Stdlib.Option.Option.Some((contents, c)), openQ, closeQ), Core.at(st, i + 1))
+    | TLParen -> parenPattern(inp, st)
+    | TLBracket -> listPattern(inp, st)
+    | TLBrace -> recordPattern(inp, st)
+    | TIdent(name) ->
+      if Core.startsUpper(name) then enumPattern(inp, st)
+      else (WrittenTypes.MatchPattern.MPVariable(r, name), Core.at(st, i + 1))
+    | TDotDotDot ->
+      (WrittenTypes.MatchPattern.MPError(r),
+       Core.at(
+         Core.err(inp, st, Core.Code.Unexpected, i, "'...' only goes last inside a list pattern, as in `[head, ...tail]`"),
+         i + 1))
+    | _ ->
+      if Core.keywordHint(inp, i) != "" then
+        (WrittenTypes.MatchPattern.MPVariable(r, Core.txt(inp, i)),
+         Core.at(Core.errExpectedName(inp, st, i, "a pattern"), i + 1))
+      else
+        (WrittenTypes.MatchPattern.MPError(Core.zeroWidthAtStart(r)),
+         Core.at(Core.errExpectedName(inp, st, i, "a pattern"), Core.recoverPast(inp, i)))
+
+
+let parenPattern(inp: Input, st: St): (MatchPattern * St) =
+  let i = st.index
+  if Core.tok(inp, i + 1) == TokenKind.TRParen then
+    (WrittenTypes.MatchPattern.MPUnit(Core.span(Core.rng(inp, i), Core.rng(inp, i + 1))), Core.at(st, i + 2))
+  else
+    let openP = Core.rng(inp, i)
+    let (inner, st1) = matchPattern(inp, Core.at(st, i + 1))
+    let j = st1.index
+    let (closeP, st2) =
+      if Core.tok(inp, j) == TokenKind.TRParen then
+        (Core.rng(inp, j), Core.at(st1, j + 1))
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp, j)), Core.errUnclosed(inp, st1, j, ")", "(", openP))
+    match inner with
+    | MPTuple(_, first, comma, second, rest, _, _) ->
+      (WrittenTypes.MatchPattern.MPTuple(Core.span(openP, closeP), first, comma, second, rest, openP, closeP), st2)
+    | MPAs(r, MPTuple(tr, first, comma, second, rest, o, c), asR, name) ->
+      if o == c then
+        (WrittenTypes.MatchPattern.MPAs(
+          r,
+          WrittenTypes.MatchPattern.MPTuple(tr, first, comma, second, rest, openP, closeP),
+          asR,
+          name),
+         st2)
+      else
+        (inner, st2)
+    | _ -> (inner, st2)
+
+
+let listPattern(inp: Input, st: St): (MatchPattern * St) =
+  let i = st.index
+  let openB = Core.rng(inp, i)
+  let (elemsRev, rest, st1) = listPatternElems(inp, Core.at(st, i + 1), [], Stdlib.Option.Option.None, -1)
+  let k = st1.index
+  let (closeB, st2) =
+    if Core.tok(inp, k) == TokenKind.TRBracket then
+      (Core.rng(inp, k), Core.at(st1, k + 1))
+    else
+      (Core.zeroWidthAtEnd(Core.rng(inp, k)), Core.errUnclosed(inp, st1, k, "]", "[", openB))
+  match rest with
+  | None ->
+    (WrittenTypes.MatchPattern.MPList(Core.span(openB, closeB), Stdlib.List.reverse(elemsRev), openB, closeB), st2)
+  | Some((dotsR, tailPat)) ->
+    let heads =
+      match elemsRev with
+      | [ _, ...earlier ] -> earlier |> Stdlib.List.reverse |> Stdlib.List.map(fun((p, _)) -> p)
+      | [] -> []
+    let st3 =
+      if Stdlib.List.isEmpty(heads) then
+        Core.err(inp, st2, Core.Code.Unexpected, i, "`[...t]` matches the same lists as `t`; write `t`")
+      else
+        st2
+    let pat =
+      Stdlib.List.fold(Stdlib.List.reverse(heads), tailPat, fun(tail, head) ->
+        WrittenTypes.MatchPattern.MPListCons(Core.span(mpRange(head), mpRange(tail)), head, tail, dotsR))
+    match pat with
+    | MPListCons(_, head, tail, consR) ->
+      (WrittenTypes.MatchPattern.MPListCons(Core.span(openB, closeB), head, tail, consR), st3)
+    | _ -> (pat, st3)
+
+
+let listPatternElems(
+  inp: Input,
+  st: St,
+  elemsRev: List<(MatchPattern * Option<Range>)>,
+  rest: Option<(Range * MatchPattern)>,
+  restAt: Int64)
+  : (List<(MatchPattern * Option<Range>)> * Option<(Range * MatchPattern)> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRBracket || Core.tok(inp, k) == TokenKind.TEOF then
+    (elemsRev, rest, st)
+  else
+    let isRest = Core.tok(inp, k) == TokenKind.TDotDotDot
+    let st0 =
+      if restAt >= 0 then
+        Core.err(inp, st, Core.Code.Unexpected, restAt, "'...' must be the last element of a list pattern")
+      else
+        st
+    let bareRest =
+      isRest && (Core.tok(inp, k + 1) == TokenKind.TRBracket || Core.tok(inp, k + 1) == TokenKind.TComma)
+    let (p, st1) =
+      if bareRest then (WrittenTypes.MatchPattern.MPVariable(Core.rng(inp, k), "_"), Core.at(st0, k + 1))
+      else if isRest then patternBase(inp, Core.at(st0, k + 1))
+      else patternOr(inp, st0)
+    let (rest, restAt, st2) =
+      if isRest then
+        let st2 =
+          match p with
+          | MPVariable(_, _) -> st1
+          | _ ->
+            Core.err(inp, st1, Core.Code.Unexpected, k + 1, "'...' takes a name for the rest of the list, or nothing to ignore it")
+        (Stdlib.Option.Option.Some((Core.rng(inp, k), p)),
+         (match rest with
+          | None -> k
+          | Some(_) -> -1),
+         st2)
+      else
+        (rest, -1, st1)
+    let k2 = st2.index
+    if k2 == k then
+      (elemsRev, rest, Core.at(Core.err(inp, st2, Core.Code.Unexpected, k, $"unexpected {Core.foundDesc(inp, k)} in list pattern"), k))
+    else if Core.tok(inp, k2) == TokenKind.TComma then
+      listPatternElems(inp, Core.at(st2, k2 + 1), [ (p, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], rest, restAt)
+    else if Core.tok(inp, k2) == TokenKind.TSemicolon then
+      let st3 = Core.err(inp, st2, Core.Code.Expected, k2, "Dark separates list items with commas: `[a, b]`")
+      listPatternElems(inp, Core.at(st3, k2 + 1), [ (p, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], rest, restAt)
+    else
+      let st3 =
+        if Core.tok(inp, k2) != TokenKind.TRBracket then
+          requireSeparator(inp, st2, mpRange(p), k2, "a comma or newline between list-pattern elements")
+        else
+          st2
+      listPatternElems(inp, st3, [ (p, Stdlib.Option.Option.None), ...elemsRev ], rest, restAt)
+
+
+let requireSeparator(inp: Input, st: St, previous: Range, next: Int64, what: String): St =
+  if Core.tok(inp, next) != TokenKind.TEOF && (Core.rng(inp, next)).start.row <= previous.end_.row then
+    Core.errExpected(inp, st, next, what)
+  else
+    st
+
+
+type RecordPatternField = ((Range * String) * Option<(Range * MatchPattern)>)
+
+
+let recordPattern(inp: Input, st: St): (MatchPattern * St) =
+  let i = st.index
+  let openB = Core.rng(inp, i)
+  let (fieldsRev, st1) = recordPatternFields(inp, Core.at(st, i + 1), [])
+  let k = st1.index
+  let (closeB, st2) =
+    if Core.tok(inp, k) == TokenKind.TRBrace then
+      (Core.rng(inp, k), Core.at(st1, k + 1))
+    else
+      (Core.zeroWidthAtEnd(Core.rng(inp, k)), Core.errUnclosed(inp, st1, k, "}", "{", openB))
+  let st3 =
+    if Stdlib.List.isEmpty(fieldsRev) && Core.tok(inp, i + 1) == TokenKind.TRBrace then
+      Core.errFull(
+        inp,
+        st2,
+        Core.Code.Pattern,
+        i,
+        "a record pattern names at least one field",
+        [],
+        Stdlib.Option.Option.Some("to match any value, use a variable or `_`"))
+    else
+      st2
+  (WrittenTypes.MatchPattern.MPRecord(Core.span(openB, closeB), Stdlib.List.reverse(fieldsRev), openB, closeB), st3)
+
+
+let recordPatternFields(inp: Input, st: St, fieldsRev: List<RecordPatternField>): (List<RecordPatternField> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRBrace || Core.tok(inp, k) == TokenKind.TEOF then
+    (fieldsRev, st)
+  else
+    let named =
+      match Core.tok(inp, k) with
+      | TIdent(fname) -> Stdlib.Option.Option.Some(fname)
+      | t ->
+        if Core.isKeyword(t) && Core.tok(inp, k + 1) == TokenKind.TEquals then
+          Stdlib.Option.Option.Some(Core.txt(inp, k))
+        else
+          Stdlib.Option.Option.None
+    match named with
+    | Some(fname) ->
+      let fnameR = Core.rng(inp, k)
+      let st0 =
+        if Stdlib.List.any(fieldsRev, fun(((_, n), _)) -> n == fname) then
+          Core.err(inp, st, Core.Code.Pattern, k, $"the field '{fname}' appears twice in this record pattern")
+        else
+          st
+      let (field, st1) =
+        if Core.tok(inp, k + 1) == TokenKind.TEquals then
+          let (p, st1) = patternOr(inp, Core.at(st0, k + 2))
+          (((fnameR, fname), Stdlib.Option.Option.Some((Core.rng(inp, k + 1), p))), st1)
+        else
+          let st1 =
+            if Core.startsLowerOrUnderscore(fname) && Stdlib.Bool.not(Stdlib.String.startsWith(fname, "_")) then
+              st0
+            else
+              Core.errFull(
+                inp,
+                st0,
+                Core.Code.Pattern,
+                k,
+                $"a field with no '= pattern' binds a variable named after it, and '{fname}' cannot name a variable",
+                [],
+                Stdlib.Option.Option.Some($"write `{fname} = p` to match the field against a pattern"))
+          (((fnameR, fname), Stdlib.Option.Option.None), Core.at(st1, k + 1))
+      let fieldsRev = [ field, ...fieldsRev ]
+      let lastR =
+        match field with
+        | (_, Some((_, p))) -> mpRange(p)
+        | ((r, _), None) -> r
+      let k2 = st1.index
+      if Core.tok(inp, k2) == TokenKind.TComma then
+        recordPatternFields(inp, Core.at(st1, k2 + 1), fieldsRev)
+      else if Core.tok(inp, k2) == TokenKind.TSemicolon then
+        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ x = a, y = b }`")
+        recordPatternFields(inp, Core.at(st2, k2 + 1), fieldsRev)
+      else if k2 > k then
+        let st2 =
+          if Core.tok(inp, k2) != TokenKind.TRBrace then
+            requireSeparator(inp, st1, lastR, k2, "a comma or newline between record-pattern fields")
+          else
+            st1
+        recordPatternFields(inp, st2, fieldsRev)
+      else
+        (fieldsRev, Core.at(st1, k))
+    | None ->
+      if Core.tok(inp, k) == TokenKind.TDotDotDot then
+        let st1 =
+          Core.errFull(
+            inp,
+            st,
+            Core.Code.Unexpected,
+            k,
+            "a record pattern needs no '...': the fields it leaves out are ignored",
+            [],
+            Stdlib.Option.Option.Some("remove the '...'"))
+        recordPatternFields(inp, Core.at(st1, if Core.tok(inp, k + 1) == TokenKind.TComma then k + 2 else k + 1), fieldsRev)
+      else
+        (fieldsRev, Core.errExpectedName(inp, st, k, "a record field, as in `name` or `name = pattern`"))
+
+
+let enumPattern(inp: Input, st: St): (MatchPattern * St) =
+  let i = st.index
+  let (_mods, final, st1) = Types.qualified(inp, st)
+  let j = st1.index
+  if Core.tok(inp, j) == TokenKind.TLParen then
+    let openParen = Core.rng(inp, j)
+    let (fieldPatsRev, st2) = ctorPatternFields(inp, Core.at(st1, j + 1), [])
+    let k = st2.index
+    let (k3, st3) =
+      if Core.tok(inp, k) == TokenKind.TRParen then
+        (k + 1, Core.at(st2, k + 1))
+      else
+        (k, Core.errUnclosed(inp, st2, k, ")", "(", openParen))
+    let lastR = Core.rng(inp, Core.maxI(j, k3 - 1))
+    let fieldPats =
+      match fieldPatsRev with
+      | [] -> [ WrittenTypes.MatchPattern.MPUnit(Core.span(openParen, lastR)) ]
+      | _ -> Stdlib.List.reverse(fieldPatsRev)
+    (WrittenTypes.MatchPattern.MPEnum(Core.span(Core.rng(inp, i), lastR), (final.range, final.name), fieldPats), st3)
+  else
+    let (fieldPatsRev, st2) = spacedPatternFields(inp, st1, i, [])
+    match fieldPatsRev with
+    | [ last, ... ] ->
+      let endR = mpRange(last)
+      let shown = Core.writtenOrPlaceholders(inp, Stdlib.List.map(Stdlib.List.reverse(fieldPatsRev), mpRange))
+      let st3 =
+        Core.errAt(
+          st2,
+          Core.Code.Pattern,
+          Core.span(Core.rng(inp, i), endR),
+          "a constructor pattern's fields go in parentheses, separated by commas",
+          Stdlib.Option.Option.Some(Core.spacedHint(final.name, shown)))
+      (WrittenTypes.MatchPattern.MPEnum(Core.span(Core.rng(inp, i), endR), (final.range, final.name), Stdlib.List.reverse(fieldPatsRev)),
+       st3)
+    | [] ->
+      (WrittenTypes.MatchPattern.MPEnum(Core.span(Core.rng(inp, i), final.range), (final.range, final.name), []), st2)
+
+
+let ctorPatternFields(inp: Input, st: St, fieldPatsRev: List<MatchPattern>): (List<MatchPattern> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRParen || Core.tok(inp, k) == TokenKind.TEOF then
+    (fieldPatsRev, st)
+  else
+    let (p, st1) = patternOr(inp, st)
+    let fieldPatsRev = [ p, ...fieldPatsRev ]
+    let k2 = st1.index
+    if Core.tok(inp, k2) == TokenKind.TComma then
+      ctorPatternFields(inp, Core.at(st1, k2 + 1), fieldPatsRev)
+    else if k2 > k then
+      let st2 =
+        if Core.tok(inp, k2) != TokenKind.TRParen then
+          requireSeparator(inp, st1, mpRange(p), k2, "a comma or newline between constructor-pattern fields")
+        else
+          st1
+      ctorPatternFields(inp, st2, fieldPatsRev)
+    else
+      (fieldPatsRev, Core.at(st1, k))
+
+
+let spacedPatternFields(inp: Input, st: St, i: Int64, fieldPatsRev: List<MatchPattern>): (List<MatchPattern> * St) =
+  let k = st.index
+  if Core.canStartPattern(Core.tok(inp, k))
+     && Stdlib.Bool.not(Core.isIdentNamed(Core.tok(inp, k), "as"))
+     && Core.offsideContinues(inp, st, i, k) then
+    let (p, st1) = patternBase(inp, st)
+    let next = if st1.index > k then st1.index else k + 1
+    spacedPatternFields(inp, Core.at(st1, next), i, [ p, ...fieldPatsRev ])
+  else
+    (fieldPatsRev, st)

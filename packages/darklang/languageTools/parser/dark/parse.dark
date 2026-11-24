@@ -1,0 +1,52 @@
+/// The Dark parser's entry points. `parse` answers what `Builtin.parse` answers, from the
+/// same source, so either can stand in for the other.
+module Darklang.LanguageTools.Parser.Dark
+
+type Range = LanguageTools.Parser.Range
+
+
+type Parsed =
+  { parsed: Option<WrittenTypes.ParsedFile>
+    diagnostics: List<Core.Diagnostic> }
+
+
+let lexDiagnostic(d: Lexer.Diagnostic): Core.Diagnostic =
+  Core.Diagnostic
+    { code = Core.Code.Lex
+      range = d.range
+      message = Lexer.problemMessage(d.problem)
+      related = []
+      hint = Stdlib.Option.Option.None }
+
+
+let parseWith(kind: LanguageTools.Parser.FileKind, code: String): Parsed =
+  let scope =
+    match kind with
+    | Script -> Decls.ItemScope.Script
+    | Package -> Decls.ItemScope.Module
+    | PackagePartialSave -> Decls.ItemScope.Module
+  let lexed = Lexer.lex(code)
+  let inp = Core.Input { tokens = lexed.tokens, count = Stdlib.List.length(lexed.tokens) }
+  let (items, exprs, parseDiagnostics) = Decls.parseTokens(lexed.tokens, scope)
+  let fileRange =
+    if inp.count > 1 then Core.span(Core.rng(inp, 0), Core.rng(inp, inp.count - 2)) else Core.rng(inp, 0)
+  let file =
+    WrittenTypes.SourceFile.SourceFile
+      { range = fileRange
+        declarations = Stdlib.List.filterMap(items, fun d -> Decls.sourceFileDeclaration(d))
+        exprsToEval = Stdlib.List.concat(exprs, Stdlib.List.flatten(Stdlib.List.map(items, fun d -> Decls.assertionExprs(d)))) }
+  let diagnostics =
+    Stdlib.List.concat(Stdlib.List.map(lexed.diagnostics, fun d -> lexDiagnostic(d)), parseDiagnostics)
+    |> Stdlib.List.sortBy(fun d -> (d.range.start.row, d.range.start.column))
+  Parsed
+    { parsed = Stdlib.Option.Option.Some(WrittenTypes.ParsedFile.SourceFile(file))
+      diagnostics = diagnostics }
+
+
+/// What `Builtin.parse` returns: the tree, and the diagnostics as (range, message).
+let parse(
+  kind: LanguageTools.Parser.FileKind,
+  code: String)
+  : (Option<WrittenTypes.ParsedFile> * List<(Range * String)>) =
+  let r = parseWith(kind, code)
+  (r.parsed, Stdlib.List.map(r.diagnostics, fun d -> (d.range, d.message)))

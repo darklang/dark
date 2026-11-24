@@ -1,0 +1,516 @@
+/// Type references, names and type parameters: `List<'a>`, `Dict<K, V>`, `A * B`,
+/// `(A, B) -> C`, `Mod.Type<T>`, and `<'a: Show>` on declarations.
+module Darklang.LanguageTools.Parser.Dark.Types
+
+type Range = LanguageTools.Parser.Range
+type Point = LanguageTools.Parser.Point
+type Input = Core.Input
+type St = Core.St
+type TokenKind = Lexer.TokenKind
+type TypeReference = WrittenTypes.TypeReference.TypeReference
+type Builtin = WrittenTypes.TypeReference.Builtin
+
+
+let typeRange(t: TypeReference): Range =
+  match t with
+  | QualifiedName(q) -> q.range
+  | Builtin(b) ->
+    match b with
+    | TUnit(r) -> r
+    | TBool(r) -> r
+    | TInt8(r) -> r
+    | TUInt8(r) -> r
+    | TInt16(r) -> r
+    | TUInt16(r) -> r
+    | TInt32(r) -> r
+    | TUInt32(r) -> r
+    | TInt64(r) -> r
+    | TUInt64(r) -> r
+    | TInt128(r) -> r
+    | TUInt128(r) -> r
+    | TBigInt(r) -> r
+    | TFloat64(r) -> r
+    | TFloat32(r) -> r
+    | TDecimal(r) -> r
+    | TChar(r) -> r
+    | TString(r) -> r
+    | TDateTime(r) -> r
+    | TUuid(r) -> r
+    | TBytes(r) -> r
+    | TStream(r, _, _, _, _) -> r
+    | TList(r, _, _, _, _) -> r
+    | TDict(r, _, _, _, _, _, _) -> r
+    | TTuple(r, _, _, _, _, _, _) -> r
+    | TFn(r, _, _) -> r
+    | TVariable(r, _, _) -> r
+
+
+let builtin(b: Builtin): TypeReference =
+  TypeReference.Builtin(b)
+
+
+let primType(name: String, r: Range): Option<TypeReference> =
+  let b =
+    match name with
+    | "Unit" -> Stdlib.Option.Option.Some(Builtin.TUnit(r))
+    | "Bool" -> Stdlib.Option.Option.Some(Builtin.TBool(r))
+    | "BigInt" -> Stdlib.Option.Option.Some(Builtin.TBigInt(r))
+    | "Int8" -> Stdlib.Option.Option.Some(Builtin.TInt8(r))
+    | "UInt8" -> Stdlib.Option.Option.Some(Builtin.TUInt8(r))
+    | "Int16" -> Stdlib.Option.Option.Some(Builtin.TInt16(r))
+    | "UInt16" -> Stdlib.Option.Option.Some(Builtin.TUInt16(r))
+    | "Int32" -> Stdlib.Option.Option.Some(Builtin.TInt32(r))
+    | "UInt32" -> Stdlib.Option.Option.Some(Builtin.TUInt32(r))
+    | "Int64" -> Stdlib.Option.Option.Some(Builtin.TInt64(r))
+    | "UInt64" -> Stdlib.Option.Option.Some(Builtin.TUInt64(r))
+    | "Int128" -> Stdlib.Option.Option.Some(Builtin.TInt128(r))
+    | "UInt128" -> Stdlib.Option.Option.Some(Builtin.TUInt128(r))
+    | "Float64" -> Stdlib.Option.Option.Some(Builtin.TFloat64(r))
+    | "Float32" -> Stdlib.Option.Option.Some(Builtin.TFloat32(r))
+    | "Decimal" -> Stdlib.Option.Option.Some(Builtin.TDecimal(r))
+    | "Char" -> Stdlib.Option.Option.Some(Builtin.TChar(r))
+    | "String" -> Stdlib.Option.Option.Some(Builtin.TString(r))
+    | "DateTime" -> Stdlib.Option.Option.Some(Builtin.TDateTime(r))
+    | "Uuid" -> Stdlib.Option.Option.Some(Builtin.TUuid(r))
+    | "Bytes" -> Stdlib.Option.Option.Some(Builtin.TBytes(r))
+    | "Int" -> Stdlib.Option.Option.Some(Builtin.TInt64(r))
+    | "Float" -> Stdlib.Option.Option.Some(Builtin.TFloat64(r))
+    | _ -> Stdlib.Option.Option.None
+
+  b |> Stdlib.Option.map(fun b -> TypeReference.Builtin(b))
+
+
+// --- qualified names ---
+
+type Identifier =
+  { range: Range
+    name: String }
+
+
+/// `A.B.c` from the current token: the module segments with the `.` after each, the final
+/// segment, and the state past it. A lowercase segment's `.x` is a field access, so the
+/// path only continues past uppercase segments.
+let qualified(inp: Input, st: St): (List<(Identifier * Range)> * Identifier * St) =
+  let i = st.index
+  let (first, st1) =
+    match Core.tok(inp, i) with
+    | TIdent(s) -> (Identifier { range = Core.rng(inp, i), name = s }, st)
+    | _ -> (Identifier { range = Core.rng(inp, i), name = "_" }, Core.errExpectedName(inp, st, i, "an identifier"))
+
+  qualifiedSegments(inp, st1, [], first, i + 1)
+
+
+let qualifiedSegments(
+  inp: Input,
+  st: St,
+  modsRev: List<(Identifier * Range)>,
+  cur: Identifier,
+  k: Int64)
+  : (List<(Identifier * Range)> * Identifier * St) =
+  let next =
+    if Core.tok(inp, k) == TokenKind.TDot && Core.isUpperIdentifier(cur.name) then
+      match Core.tok(inp, k + 1) with
+      | TIdent(s) -> Stdlib.Option.Option.Some(s)
+      | t ->
+        if Core.isKeyword(t) && Core.adjacent(inp, k, k + 1) then
+          Stdlib.Option.Option.Some(Core.txt(inp, k + 1))
+        else
+          Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.None
+
+  match next with
+  | Some(s) ->
+    qualifiedSegments(
+      inp,
+      st,
+      [ (cur, Core.rng(inp, k)), ...modsRev ],
+      Identifier { range = Core.rng(inp, k + 1), name = s },
+      k + 2)
+  | None -> (Stdlib.List.reverse(modsRev), cur, Core.at(st, k))
+
+
+let moduleIds(mods: List<(Identifier * Range)>): List<(WrittenTypes.ModuleIdentifier * Range)> =
+  Stdlib.List.map(mods, fun((m, dot)) -> (WrittenTypes.ModuleIdentifier { range = m.range, name = m.name }, dot))
+
+
+let qualifiedType(
+  range: Range,
+  mods: List<(Identifier * Range)>,
+  typ: Identifier,
+  typeArgs: List<TypeReference>)
+  : WrittenTypes.QualifiedTypeIdentifier =
+  WrittenTypes.QualifiedTypeIdentifier
+    { range = range
+      modules = moduleIds(mods)
+      typ = WrittenTypes.TypeIdentifier { range = typ.range, name = typ.name }
+      typeArgs = typeArgs }
+
+
+// --- `>` and `>>` ---
+
+/// Close one generic level. A `>>` closes this one and leaves one `>` pending for the next.
+let expectGt(inp: Input, st: St): (Range * St) =
+  let j = st.index
+  if st.pendingGt > 0 then
+    (st.pendingGtRange, { st with pendingGt = st.pendingGt - 1 })
+  else if Core.tok(inp, j) == TokenKind.TGt then
+    (Core.rng(inp, j), Core.at(st, j + 1))
+  else if Core.tok(inp, j) == TokenKind.TShr then
+    let r = Core.rng(inp, j)
+    let mid = Point { row = r.start.row, column = r.start.column + 1 }
+    (Range { start = r.start, end_ = mid },
+     { st with
+         index = j + 1
+         pendingGtRange = Range { start = mid, end_ = r.end_ }
+         pendingGt = st.pendingGt + 1 })
+  else
+    (Core.zeroWidthAtEnd(Core.rng(inp, j)), Core.errExpected(inp, st, j, "'>'"))
+
+
+// --- type references ---
+
+let typeRef(inp: Input, st: St): (TypeReference * St) =
+  fnType(inp, { st with pendingGt = 0 })
+
+
+let fnType(inp: Input, st: St): (TypeReference * St) =
+  let (first, st1) = tupleType(inp, st)
+  let j = st1.index
+  if Core.tok(inp, j) != TokenKind.TArrow || st1.pendingGt > 0 then
+    (first, st1)
+  else
+    let (second, st2) = tupleType(inp, Core.at(st1, j + 1))
+    let k = if st2.index > j then st2.index else j + 1
+    let st3 =
+      if Core.tok(inp, k) == TokenKind.TArrow && st2.pendingGt == 0 then
+        Core.errFull(
+          inp,
+          st2,
+          Core.Code.Unexpected,
+          k,
+          "a function type with several arguments lists them in parentheses",
+          [],
+          Stdlib.Option.Option.Some(
+            "write `(A, B) -> C` for a function of two arguments, or `A -> (B -> C)` for one that returns a function"))
+      else
+        st2
+
+    let (argsRev, last, st4) =
+      typeChain(inp, Core.at(st3, k), TokenKind.TArrow, true, tupleType, [ (first, Core.rng(inp, j)) ], second)
+
+    (builtin(Builtin.TFn(Core.span(typeRange(first), typeRange(last)), Stdlib.List.reverse(argsRev), last)), st4)
+
+
+/// `sep T sep T …` after the type <param cur>: each type but the last with the separator
+/// after it, prepended to <param argsRev>, then the last type.
+let typeChain(
+  inp: Input,
+  st: St,
+  sep: TokenKind,
+  stopAtPendingGt: Bool,
+  p: Core.Parser<TypeReference>,
+  argsRev: List<(TypeReference * Range)>,
+  cur: TypeReference)
+  : (List<(TypeReference * Range)> * TypeReference * St) =
+  let k = st.index
+  if Core.tok(inp, k) == sep && Stdlib.Bool.not(stopAtPendingGt && st.pendingGt > 0) then
+    let (next, st2) = p(inp, Core.at(st, k + 1))
+    let k2 = if st2.index > k then st2.index else k + 1
+    typeChain(inp, Core.at(st2, k2), sep, stopAtPendingGt, p, [ (cur, Core.rng(inp, k)), ...argsRev ], next)
+  else
+    (argsRev, cur, st)
+
+
+let tupleType(inp: Input, st: St): (TypeReference * St) =
+  let (first, st1) = atomType(inp, st)
+  let j = st1.index
+  if Core.tok(inp, j) != TokenKind.TStar || st1.pendingGt > 0 then
+    (first, st1)
+  else
+    let star1 = Core.rng(inp, j)
+    let (second, st2) = atomType(inp, Core.at(st1, j + 1))
+    let (rest, st3) = Core.separatedSkipping(inp, st2, TokenKind.TStar, true, atomType)
+    let endT =
+      match Stdlib.List.last(rest) with
+      | Some((_, t)) -> t
+      | None -> second
+    let z = Core.zeroWidthAtEnd(typeRange(first))
+    (builtin(Builtin.TTuple(Core.span(typeRange(first), typeRange(endT)), first, star1, second, rest, z, z)), st3)
+
+
+/// `<T1, T2>` after a type name: the arguments, the `>` if there was one, and the state past it.
+let typeArgs(inp: Input, st: St): (List<TypeReference> * Option<Range> * St) =
+  let i = st.index
+  if Core.tok(inp, i) != TokenKind.TLt then
+    ([], Stdlib.Option.Option.None, st)
+  else
+    let (first, st1) = typeRef(inp, Core.at(st, i + 1))
+    let (rest, st2) = Core.separatedSkipping(inp, st1, TokenKind.TComma, true, typeRef)
+    let (closeR, st3) = expectGt(inp, st2)
+    ([ first, ...Stdlib.List.map(rest, fun((_, t)) -> t) ], Stdlib.Option.Option.Some(closeR), st3)
+
+
+let notAdjacent(inp: Input, st: St, nameIdx: Int64, ltIdx: Int64): St =
+  if Core.adjacent(inp, nameIdx, ltIdx) then
+    st
+  else
+    Core.err(inp, st, Core.Code.Expected, ltIdx, "Generic type arguments must be adjacent to the type name")
+
+
+let typeVariable(inp: Input, i: Int64, name: String): TypeReference =
+  let r = Core.rng(inp, i)
+  let afterTick = Point { row = r.start.row, column = r.start.column + 1 }
+  builtin(
+    Builtin.TVariable(
+      r,
+      Range { start = r.start, end_ = afterTick },
+      (Range { start = afterTick, end_ = r.end_ }, name)))
+
+
+let atomType(inp: Input, st: St): (TypeReference * St) =
+  let i = st.index
+  match Core.tok(inp, i) with
+  | TLParen -> parenType(inp, st)
+  | TIdent(name) ->
+    let ticked = Stdlib.String.startsWith(Core.txt(inp, i), "'")
+    let nextIsLt = Core.tok(inp, i + 1) == TokenKind.TLt
+    if name == "List" && nextIsLt then
+      let st1 = notAdjacent(inp, st, i, i + 1)
+      let (inner, st2) = typeRef(inp, Core.at(st1, i + 2))
+      let (closeB, st3) = expectGt(inp, st2)
+      (builtin(Builtin.TList(Core.span(Core.rng(inp, i), closeB), Core.rng(inp, i), Core.rng(inp, i + 1), inner, closeB)),
+       st3)
+    else if name == "Dict" && nextIsLt then
+      dictType(inp, notAdjacent(inp, st, i, i + 1))
+    else if ticked then
+      (typeVariable(inp, i, name), Core.at(st, i + 1))
+    else
+      match primType(name, Core.rng(inp, i)) with
+      | Some(t) -> (t, Core.at(st, i + 1))
+      | None ->
+        if Core.isUpperIdentifier(name) then
+          let (mods, final, st1) = qualified(inp, st)
+          let j = st1.index
+          let st2 =
+            if Core.tok(inp, j) == TokenKind.TLt && (Core.rng(inp, j)).start != final.range.end_ then
+              Core.err(inp, st1, Core.Code.Expected, j, "Generic type arguments must be adjacent to the type name")
+            else
+              st1
+          let (args, closeGeneric, st3) = typeArgs(inp, st2)
+          let endR =
+            match closeGeneric with
+            | Some(closeRange) -> closeRange
+            | None ->
+              match Stdlib.List.last(args) with
+              | Some(last) -> typeRange(last)
+              | None -> final.range
+          (TypeReference.QualifiedName(qualifiedType(Core.span(Core.rng(inp, i), endR), mods, final, args)), st3)
+        else
+          (typeVariable(inp, i, name), Core.at(st, i + 1))
+  | _ ->
+    (builtin(Builtin.TUnit(Core.rng(inp, i))),
+     Core.at(Core.errExpected(inp, st, i, "a type"), Core.recoverPast(inp, i)))
+
+
+let dictType(inp: Input, st: St): (TypeReference * St) =
+  let i = st.index
+  let (key0, st1) = typeRef(inp, Core.at(st, i + 2))
+  let j = st1.index
+  let (key, commaR, value, st2) =
+    if Core.tok(inp, j) == TokenKind.TComma then
+      let (value, st2) = typeRef(inp, Core.at(st1, j + 1))
+      (key0, Core.rng(inp, j), value, st2)
+    else if st1.pendingGt > 0 || Core.tok(inp, j) == TokenKind.TGt || Core.tok(inp, j) == TokenKind.TShr then
+      // `Dict<V>`, the old one-argument form: one error, and the dict it meant
+      let written =
+        Stdlib.List.range(i + 2, j - 1)
+        |> Stdlib.List.map(fun t ->
+          let gap = t > i + 2 && (Core.rng(inp, t)).start != (Core.rng(inp, t - 1)).end_
+          (if gap then " " else "") + Core.txt(inp, t))
+        |> Stdlib.String.join("")
+      let written = if st1.pendingGt > 0 then trimEndGt(written) + ">" else written
+      let st2 =
+        Core.errFull(
+          inp,
+          st1,
+          Core.Code.Expected,
+          j,
+          "a Dict names its key type and its value type",
+          [],
+          Stdlib.Option.Option.Some($"write `Dict<String, {written}>`"))
+      let z = Core.zeroWidthAtEnd(Core.rng(inp, j - 1))
+      (builtin(Builtin.TString(z)), z, key0, st2)
+    else
+      let st2 = Core.errExpected(inp, st1, j, "a comma between Dict's key and value types")
+      let (value, st3) = typeRef(inp, st2)
+      (key0, Core.zeroWidthAtEnd(Core.rng(inp, j)), value, st3)
+
+  let (closeB, st3) = expectGt(inp, st2)
+  (builtin(Builtin.TDict(Core.span(Core.rng(inp, i), closeB), Core.rng(inp, i), Core.rng(inp, i + 1), key, commaR, value, closeB)),
+   st3)
+
+
+let trimEndGt(s: String): String =
+  if Stdlib.String.endsWith(s, ">") then trimEndGt(Stdlib.String.dropLast(s, 1)) else s
+
+
+/// `(T)`, `(A * B)`, or `(A, B) -> C`, whose parenthesized list is a function's arguments.
+let parenType(inp: Input, st: St): (TypeReference * St) =
+  let i = st.index
+  let openP = Core.rng(inp, i)
+  let (inner, st1) = fnType(inp, Core.at(st, i + 1))
+  let j = st1.index
+  if Core.tok(inp, j) == TokenKind.TComma then
+    let (argsRev, cur, st2) = typeChain(inp, st1, TokenKind.TComma, false, fnType, [], inner)
+    let m = st2.index
+    let (afterClose, st3) =
+      if Core.tok(inp, m) == TokenKind.TRParen then
+        (m + 1, st2)
+      else
+        (m, Core.errUnclosed(inp, st2, m, ")", "(", openP))
+    if Core.tok(inp, afterClose) == TokenKind.TArrow then
+      let args = Stdlib.List.reverse([ (cur, Core.rng(inp, afterClose)), ...argsRev ])
+      let (ret, st4) = tupleType(inp, Core.at(st3, afterClose + 1))
+      let k = if st4.index > afterClose then st4.index else afterClose + 1
+      (builtin(Builtin.TFn(Core.span(openP, typeRange(ret)), args, ret)), Core.at(st4, k))
+    else
+      let st4 =
+        Core.errFull(
+          inp,
+          st3,
+          Core.Code.Expected,
+          afterClose,
+          "a parenthesized list of types is the argument list of a function type, and needs `->` and a return type after it",
+          [],
+          Stdlib.Option.Option.Some("write `(A, B) -> C` for a function, or `A * B` for a tuple"))
+      let z = Core.zeroWidthAtEnd(Core.rng(inp, afterClose - 1))
+      let args = Stdlib.List.reverse([ (cur, z), ...argsRev ])
+      (builtin(Builtin.TFn(Core.span(openP, Core.rng(inp, afterClose - 1)), args, builtin(Builtin.TUnit(z)))),
+       Core.at(st4, afterClose))
+  else if Core.tok(inp, j) == TokenKind.TRParen then
+    let closeP = Core.rng(inp, j)
+    match inner with
+    | Builtin(TTuple(_, f, s1, sec, rest, _, _)) ->
+      (builtin(Builtin.TTuple(Core.span(openP, closeP), f, s1, sec, rest, openP, closeP)), Core.at(st1, j + 1))
+    | other -> (other, Core.at(st1, j + 1))
+  else
+    (inner, Core.errUnclosed(inp, st1, j, ")", "(", openP))
+
+
+// --- type parameters ---
+
+/// The trait of a bound `'a: Show<Int64>`; anything but a named type is a diagnostic.
+let boundTrait(inp: Input, st: St): (Option<WrittenTypes.QualifiedTypeIdentifier> * St) =
+  let (t, st1) = atomType(inp, st)
+  match t with
+  | QualifiedName(q) -> (Stdlib.Option.Option.Some(q), st1)
+  | other ->
+    (Stdlib.Option.Option.None,
+     Core.errAt(
+       st1,
+       Core.Code.Bound,
+       typeRange(other),
+       "A bound names a trait, not a type",
+       Stdlib.Option.Option.Some("write `'a: Show`, where `Show` is a trait; `'a: String` is not a bound")))
+
+
+type TypeParams =
+  { names: List<(Range * String)>
+    bounds: List<WrittenTypes.TypeParamBound> }
+
+
+/// `<'a, 'b: Show + Compare>` from the current token, if there is one.
+let typeParams(inp: Input, st: St): (TypeParams * St) =
+  let i = st.index
+  if Core.tok(inp, i) != TokenKind.TLt then
+    (TypeParams { names = [], bounds = [] }, st)
+  else
+    let st1 =
+      if i > 0 && Stdlib.Bool.not(Core.adjacent(inp, i - 1, i)) then
+        Core.err(inp, st, Core.Code.Expected, i, "Generic type parameters must be adjacent to the declaration name")
+      else
+        st
+    let (namesRev, boundsRev, expectingName, st2) = typeParamsFrom(inp, Core.at(st1, i + 1), [], [], true)
+    let k = st2.index
+    let st3 =
+      if Stdlib.List.isEmpty(namesRev) then Core.errExpected(inp, st2, i + 1, "at least one type parameter")
+      else if expectingName then Core.errExpected(inp, st2, k, "a type parameter after ','")
+      else st2
+    let st4 =
+      if st3.pendingGt > 0 then
+        { st3 with pendingGt = st3.pendingGt - 1 }
+      else if Core.tok(inp, k) == TokenKind.TGt then
+        Core.at(st3, k + 1)
+      else if Core.tok(inp, k) == TokenKind.TShr then
+        Core.at(Core.errExpected(inp, st3, k, "'>' to close the type-parameter list"), k + 1)
+      else
+        Core.errExpected(inp, st3, k, "'>' to close the type-parameter list")
+    (TypeParams
+      { names = Stdlib.List.reverse(namesRev)
+        bounds = Stdlib.List.reverse(boundsRev) },
+     st4)
+
+
+let typeParamsFrom(
+  inp: Input,
+  st: St,
+  namesRev: List<(Range * String)>,
+  boundsRev: List<WrittenTypes.TypeParamBound>,
+  expectingName: Bool)
+  : (List<(Range * String)> * List<WrittenTypes.TypeParamBound> * Bool * St) =
+  let k = st.index
+  let t = Core.tok(inp, k)
+  if st.pendingGt != 0 || t == TokenKind.TGt || t == TokenKind.TShr || t == TokenKind.TEOF then
+    (namesRev, boundsRev, expectingName, st)
+  else
+    match t with
+    | TIdent(name) ->
+      if expectingName then
+        let st1 =
+          if Stdlib.String.startsWith(Core.txt(inp, k), "'") then
+            st
+          else
+            Core.err(inp, st, Core.Code.Expected, k, "Declared type parameters must start with an apostrophe, such as 'a")
+        let namesRev = [ (Core.rng(inp, k), name), ...namesRev ]
+        let (boundsRev, st2) =
+          if Core.tok(inp, k + 1) == TokenKind.TColon then
+            boundsFrom(inp, Core.at(st1, k + 2), name, Core.rng(inp, k + 1), boundsRev)
+          else
+            (boundsRev, Core.at(st1, k + 1))
+        typeParamsFrom(inp, st2, namesRev, boundsRev, false)
+      else
+        typeParamsFrom(inp, Core.errExpected(inp, st, k, "a comma between type parameters"), namesRev, boundsRev, true)
+    | TComma ->
+      if expectingName then
+        typeParamsFrom(inp, Core.at(Core.errExpected(inp, st, k, "a type parameter"), k + 1), namesRev, boundsRev, expectingName)
+      else
+        typeParamsFrom(inp, Core.at(st, k + 1), namesRev, boundsRev, true)
+    | _ ->
+      typeParamsFrom(inp, Core.at(Core.errExpected(inp, st, k, "a type parameter"), k + 1), namesRev, boundsRev, expectingName)
+
+
+let boundsFrom(
+  inp: Input,
+  st: St,
+  name: String,
+  colon: Range,
+  boundsRev: List<WrittenTypes.TypeParamBound>)
+  : (List<WrittenTypes.TypeParamBound> * St) =
+  let k = st.index
+  let (traitId, st1) = boundTrait(inp, st)
+  let boundsRev =
+    match traitId with
+    | Some(t) ->
+      [ WrittenTypes.TypeParamBound
+          { range = Core.span(colon, t.range)
+            param = name
+            trait_ = t
+            symbolColon = colon },
+        ...boundsRev ]
+    | None -> boundsRev
+  let k2 = if st1.index > k then st1.index else k + 1
+  if Core.tok(inp, k2) == TokenKind.TPlus then
+    boundsFrom(inp, Core.at(st1, k2 + 1), name, colon, boundsRev)
+  else
+    (boundsRev, Core.at(st1, k2))

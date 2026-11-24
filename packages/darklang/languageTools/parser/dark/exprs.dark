@@ -1,0 +1,1448 @@
+/// Expressions: a statement block, then `let`/`if`/`match`, pipes, infix operators by binding
+/// power, calls, postfix field access and unwrap, and the primary forms.
+module Darklang.LanguageTools.Parser.Dark.Exprs
+
+type Range = LanguageTools.Parser.Range
+type Point = LanguageTools.Parser.Point
+type Input = Core.Input
+type St = Core.St
+type TokenKind = Lexer.TokenKind
+type Expr = WrittenTypes.Expr
+type LetPattern = WrittenTypes.LetPattern
+
+
+let exprRange(e: Expr): Range =
+  WrittenTypes.Expr.range(e)
+
+
+let fnName(range: Range, modules: List<(WrittenTypes.ModuleIdentifier * Range)>, name: String, nameRange: Range): WrittenTypes.QualifiedFnIdentifier =
+  WrittenTypes.QualifiedFnIdentifier
+    { range = range
+      modules = modules
+      fn = WrittenTypes.FnIdentifier { range = nameRange, name = name } }
+
+
+/// `name` as a callee: a variable becomes a fn name.
+let variableAsFn(r: Range, name: String): Expr =
+  WrittenTypes.Expr.EFnName(r, fnName(r, [], name, r))
+
+
+// --- statements and blocks ---
+
+let expr(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  match Core.tok(inp, i) with
+  | TLet -> Core.withStmtScope(inp, st, (Core.rng(inp, i)).start.column, letExpr)
+  | TIf ->
+    let col = (Core.rng(inp, i)).start.column
+    Core.withStmtScope(inp, st, col, fun(inp2, st2) -> ifExpr(inp2, st2, col))
+  | TMatch -> Core.withStmtScope(inp, st, (Core.rng(inp, i)).start.column, matchExpr)
+  | _ -> pipe(inp, st)
+
+
+/// Newline-separated statements at one column, folded into an `EStatement` chain.
+let block(inp: Input, st: St): (Expr * St) =
+  let col = (Core.rng(inp, st.index)).start.column
+  Core.withStmtScope(inp, st, col, fun(inp2, st2) ->
+    let (stmtsRev, st3) = statementsAt(inp2, st2, col, [])
+    (foldStatements(stmtsRev), st3))
+
+
+let foldStatements(stmtsRev: List<Expr>): Expr =
+  match stmtsRev with
+  | [ last, ...earlier ] ->
+    Stdlib.List.fold(earlier, last, fun(acc, s) ->
+      WrittenTypes.Expr.EStatement(Core.span(exprRange(s), exprRange(acc)), s, acc))
+  | [] ->
+    let p = Point { row = 0, column = 0 }
+    WrittenTypes.Expr.EError(Range { start = p, end_ = p })
+
+
+let statementsAt(inp: Input, st: St, col: Int64, stmtsRev: List<Expr>): (List<Expr> * St) =
+  let k = st.index
+  let (stmt, st1) = expr(inp, st)
+  let stmtsRev = [ stmt, ...stmtsRev ]
+  let j = st1.index
+  if j == k then
+    (stmtsRev, Core.at(st1, k))
+  else if Core.tok(inp, j) == TokenKind.TSemicolon then
+    statementsAt(inp, Core.at(statementSemicolon(inp, st1, j), j + 1), col, stmtsRev)
+  else if hasNextStmt(inp, col, j) then
+    statementsAt(inp, st1, col, stmtsRev)
+  else
+    (stmtsRev, st1)
+
+
+let statementSemicolon(inp: Input, st: St, i: Int64): St =
+  Core.errFull(
+    inp,
+    st,
+    Core.Code.Expected,
+    i,
+    "expected a new line between statements, found ';'",
+    [],
+    Stdlib.Option.Option.Some("put the next statement on a new line"))
+
+
+let isOutcomeArrow(inp: Input, k: Int64): Bool =
+  Core.tok(inp, k) == TokenKind.TEquals
+  && Core.tok(inp, k + 1) == TokenKind.TGt
+  && Core.adjacent(inp, k, k + 1)
+
+
+let hasNextStmt(inp: Input, col: Int64, k: Int64): Bool =
+  let t = Core.tok(inp, k)
+  t != TokenKind.TEOF
+  && (Core.rng(inp, k)).start.column == col
+  && t != TokenKind.TBar
+  && Stdlib.Bool.not(isOutcomeArrow(inp, k))
+  && Stdlib.Bool.not(Core.closesOrSeparates(t))
+
+
+// --- pipes ---
+
+let pipe(inp: Input, st: St): (Expr * St) =
+  let (e, st1) = infix(inp, st)
+  let j = st1.index
+  if Core.tok(inp, j) != TokenKind.TPipe then
+    (e, st1)
+  else
+    let (segments, st2) = pipeSegments(inp, st1, [])
+    let k = st2.index
+    let endR = if k > 0 then Core.rng(inp, k - 1) else Core.rng(inp, j)
+    (WrittenTypes.Expr.EPipe(Core.span(exprRange(e), endR), e, segments), st2)
+
+
+let pipeSegments(inp: Input, st: St, segmentsRev: List<(Range * WrittenTypes.PipeExpr)>): (List<(Range * WrittenTypes.PipeExpr)> * St) =
+  let k = st.index
+  if Core.tok(inp, k) != TokenKind.TPipe then
+    (Stdlib.List.reverse(segmentsRev), st)
+  else
+    let pipeR = Core.rng(inp, k)
+    let (rhs, st1) = infix(inp, Core.at(st, k + 1))
+    let k2 = st1.index
+    let (segmentsRev, st2) =
+      match toPipeExpr(rhs) with
+      | Some(seg) -> ([ (pipeR, seg), ...segmentsRev ], st1)
+      | None ->
+        match rhs with
+        | EUnwrap(_, _, _) ->
+          (segmentsRev,
+           Core.errFull(
+             inp,
+             st1,
+             Core.Code.PipeSegment,
+             k + 1,
+             "'?' cannot end a pipe segment",
+             [],
+             Stdlib.Option.Option.Some("wrap the whole pipeline: `(value |> transform)?`")))
+        | _ -> (segmentsRev, Core.err(inp, st1, Core.Code.PipeSegment, k + 1, "unsupported pipe segment"))
+    pipeSegments(inp, Core.at(st2, if k2 > k then k2 else k + 1), segmentsRev)
+
+
+/// `x |> f()` is `f(x)`: the empty call's unit is not an argument here.
+let pipeArgs(r: Range, args: List<Expr>): List<Expr> =
+  match args with
+  | [ EUnit(ur) ] -> if ur.end_ == r.end_ then [] else args
+  | _ -> args
+
+
+let toPipeExpr(e: Expr): Option<WrittenTypes.PipeExpr> =
+  match e with
+  | EApply(r, EFnName(_, q), typeArgs, args) ->
+    Stdlib.Option.Option.Some(WrittenTypes.PipeExpr.EPipeFnCall(r, q, typeArgs, pipeArgs(r, args)))
+  | EFnName(r, q) -> Stdlib.Option.Option.Some(WrittenTypes.PipeExpr.EPipeFnCall(r, q, [], []))
+  | EVariable(r, name) -> Stdlib.Option.Option.Some(WrittenTypes.PipeExpr.EPipeVariableOrFnCall(r, name))
+  | ELambda(r, pats, body, kf, ar) -> Stdlib.Option.Option.Some(WrittenTypes.PipeExpr.EPipeLambda(r, pats, body, kf, ar))
+  | EEnum(r, tname, cn, fields, dot) -> Stdlib.Option.Option.Some(WrittenTypes.PipeExpr.EPipeEnum(r, tname, cn, fields, dot))
+  | EApply(r, EVariable(vr, name), typeArgs, args) ->
+    Stdlib.Option.Option.Some(WrittenTypes.PipeExpr.EPipeFnCall(r, fnName(r, [], name, vr), typeArgs, pipeArgs(r, args)))
+  | _ -> Stdlib.Option.Option.None
+
+
+// --- match ---
+
+let matchExpr(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let kwMatch = Core.rng(inp, i)
+  let (first, st0) = expr(inp, Core.at(st, i + 1))
+  let j0 = st0.index
+  let (subject, st1) =
+    if Core.tok(inp, j0) != TokenKind.TComma then
+      (first, st0)
+    else
+      let comma = Core.rng(inp, j0)
+      let (second, st2) = expr(inp, Core.at(st0, j0 + 1))
+      let (rest, st3) = Core.separated(inp, st2, TokenKind.TComma, expr)
+      let z = Core.zeroWidthAtEnd(exprRange(first))
+      let endE =
+        match Stdlib.List.last(rest) with
+        | Some((_, e)) -> e
+        | None -> second
+      (WrittenTypes.Expr.ETuple(Core.span(exprRange(first), exprRange(endE)), first, comma, second, rest, z, z), st3)
+  let j = st1.index
+  let (kwWith, afterWith, st2) =
+    if Core.tok(inp, j) == TokenKind.TWith then
+      (Core.rng(inp, j), j + 1, st1)
+    else
+      (Core.zeroWidthAtEnd(Core.rng(inp, j)), j, Core.errExpected(inp, st1, j, "'with' in match"))
+  let barFirst = Core.tok(inp, afterWith) == TokenKind.TBar
+  let armCol = if barFirst then (Core.rng(inp, afterWith)).start.column else 0
+  let armRow = if barFirst then (Core.rng(inp, afterWith)).start.row else -1
+  let (casesRev, st3) =
+    Core.scoped(
+      inp,
+      Core.at(st2, afterWith),
+      fun s -> { s with matchArms = [ (armRow, armCol), ...s.matchArms ] },
+      fun(inp2, st4) -> matchArms(inp2, st4, armRow, armCol, []))
+  let (endR, st4) =
+    match casesRev with
+    | [ last, ... ] -> (exprRange(last.rhs), st3)
+    | [] -> (kwWith, Core.errExpected(inp, st3, afterWith, "at least one match case starting with '|'"))
+  (WrittenTypes.Expr.EMatch(Core.span(kwMatch, endR), subject, Stdlib.List.reverse(casesRev), kwMatch, kwWith), st4)
+
+
+let matchArms(inp: Input, st: St, armRow: Int64, armCol: Int64, casesRev: List<WrittenTypes.MatchCase>): (List<WrittenTypes.MatchCase> * St) =
+  let k = st.index
+  let r = Core.rng(inp, k)
+  if Core.tok(inp, k) == TokenKind.TBar && (r.start.row == armRow || r.start.column == armCol) then
+    let (pat, st1) = Patterns.matchPattern(inp, Core.at(st, k + 1))
+    let k2 = st1.index
+    let (whenCond, st2) =
+      if Core.tok(inp, k2) == TokenKind.TWhen then
+        let (g, st2) = expr(inp, Core.at(st1, k2 + 1))
+        (Stdlib.Option.Option.Some((Core.rng(inp, k2), g)), st2)
+      else
+        (Stdlib.Option.Option.None, st1)
+    let (arrowR, st3) = Core.expect(inp, st2, TokenKind.TArrow, "'->' in match case")
+    let (rhs, st4) = block(inp, st3)
+    let case =
+      WrittenTypes.MatchCase
+        { pat = (r, pat, arrowR)
+          whenCondition = whenCond
+          rhs = rhs }
+    let next = if st4.index > k then st4.index else k + 1
+    matchArms(inp, Core.at(st4, next), armRow, armCol, [ case, ...casesRev ])
+  else
+    (casesRev, st)
+
+
+// --- if ---
+
+let ifExpr(inp: Input, st: St, minCol: Int64): (Expr * St) =
+  let i = st.index
+  let kwIf = Core.rng(inp, i)
+  let (cond, st1) = expr(inp, Core.at(st, i + 1))
+  let (kwThen, st2) = Core.expect(inp, st1, TokenKind.TThen, "'then'")
+  let (thenE, st3) = block(inp, st2)
+  let m = st3.index
+  let elseBinds = (Core.rng(inp, m)).start.column >= minCol
+  if Core.tok(inp, m) == TokenKind.TElse && elseBinds then
+    let kwElse = Core.rng(inp, m)
+    let (elseE, st4) =
+      if Core.tok(inp, m + 1) == TokenKind.TIf && (Core.rng(inp, m + 1)).start.row == (Core.rng(inp, m)).start.row then
+        ifExpr(inp, Core.at(st3, m + 1), minCol)
+      else
+        block(inp, Core.at(st3, m + 1))
+    (WrittenTypes.Expr.EIf(
+      Core.span(kwIf, exprRange(elseE)),
+      cond,
+      thenE,
+      Stdlib.Option.Option.Some(elseE),
+      kwIf,
+      kwThen,
+      Stdlib.Option.Option.Some(kwElse)),
+     st4)
+  else if Core.tok(inp, m) == TokenKind.TElif && elseBinds then
+    let (elseE, st4) = ifExpr(inp, st3, minCol)
+    (WrittenTypes.Expr.EIf(
+      Core.span(kwIf, exprRange(elseE)),
+      cond,
+      thenE,
+      Stdlib.Option.Option.Some(elseE),
+      kwIf,
+      kwThen,
+      Stdlib.Option.Option.None),
+     st4)
+  else
+    (WrittenTypes.Expr.EIf(Core.span(kwIf, exprRange(thenE)), cond, thenE, Stdlib.Option.Option.None, kwIf, kwThen, Stdlib.Option.Option.None),
+     st3)
+
+
+// --- let ---
+
+/// `let rec f`: Dark needs no `rec`; report it and go on from the name.
+let skipRec(inp: Input, st: St): St =
+  let i = st.index
+  match (Core.tok(inp, i), Core.tok(inp, i + 1)) with
+  | (TIdent("rec"), TIdent(_)) ->
+    Core.at(
+      Core.errFull(
+        inp,
+        st,
+        Core.Code.Unexpected,
+        i,
+        "Dark functions can call themselves; there's no `rec` keyword",
+        [],
+        Stdlib.Option.Option.Some("remove `rec`")),
+      i + 1)
+  | _ -> st
+
+
+let letExpr(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let keywordLet = Core.rng(inp, i)
+  let (pat, st1) = Patterns.letPattern(inp, skipRec(inp, Core.at(st, i + 1)))
+  let j = st1.index
+  match pat with
+  | LPVariable(_, _) ->
+    if Core.tok(inp, j) == TokenKind.TLParen then letFn(inp, st1, keywordLet, pat) else letValue(inp, st1, keywordLet, pat)
+  | _ -> letValue(inp, st1, keywordLet, pat)
+
+
+/// `let f(x: T)[: R] = body`: binds a lambda; the types are dropped.
+let letFn(inp: Input, st: St, keywordLet: Range, pat: LetPattern): (Expr * St) =
+  let j = st.index
+  let (ps, st1) = params(inp, st)
+  let pats =
+    Stdlib.List.map(ps, fun p ->
+      match p with
+      | Unit(u) -> WrittenTypes.LetPattern.LPUnit(u.range)
+      | Normal(n) -> WrittenTypes.LetPattern.LPVariable(n.name.range, n.name.name))
+  let k = st1.index
+  let st2 =
+    if Core.tok(inp, k) == TokenKind.TColon then
+      let (_, s) = Types.typeRef(inp, Core.at(st1, k + 1))
+      s
+    else
+      st1
+  let (symbolEquals, st3) = Core.expect(inp, st2, TokenKind.TEquals, "'=' in function binding")
+  let (fnBody, st4) = block(inp, st3)
+  let st5 = if Core.tok(inp, st4.index) == TokenKind.TIn then Core.at(st4, st4.index + 1) else st4
+  let (body, st6) = block(inp, st5)
+  let z = Core.zeroWidthAtEnd(keywordLet)
+  let lambda = WrittenTypes.Expr.ELambda(Core.span(Core.rng(inp, j), exprRange(fnBody)), pats, fnBody, z, z)
+  (WrittenTypes.Expr.ELet(Core.span(keywordLet, exprRange(body)), pat, lambda, body, keywordLet, symbolEquals), st6)
+
+
+let letValue(inp: Input, st: St, keywordLet: Range, pat: LetPattern): (Expr * St) =
+  let j = st.index
+  let st1 =
+    if Core.tok(inp, j) == TokenKind.TColon then
+      let st0 =
+        Core.errAt(
+          st,
+          Core.Code.Unexpected,
+          Core.rng(inp, j),
+          "Value annotations are not supported",
+          Stdlib.Option.Option.Some("remove ': Type' from this value binding"))
+      let (_, s) = Types.typeRef(inp, Core.at(st0, j + 1))
+      s
+    else
+      st
+  let (symbolEquals, st2) = Core.expect(inp, st1, TokenKind.TEquals, "'=' in let binding")
+  let (value, st3) = block(inp, st2)
+  let st4 = if Core.tok(inp, st3.index) == TokenKind.TIn then Core.at(st3, st3.index + 1) else st3
+  let (body, st5) = block(inp, st4)
+  let p = st5.index
+  let range = Core.span(keywordLet, Core.rng(inp, p - 1))
+  (WrittenTypes.Expr.ELet(range, pat, value, body, keywordLet, symbolEquals), st5)
+
+
+// --- infix operators ---
+
+let infixOf(t: TokenKind): Option<WrittenTypes.Infix> =
+  let fnCall = fun n -> Stdlib.Option.Option.Some(WrittenTypes.Infix.InfixFnCall(n))
+  match t with
+  | TPlus -> fnCall(WrittenTypes.InfixFnName.ArithmeticPlus)
+  | TMinus -> fnCall(WrittenTypes.InfixFnName.ArithmeticMinus)
+  | TStar -> fnCall(WrittenTypes.InfixFnName.ArithmeticMultiply)
+  | TSlash -> fnCall(WrittenTypes.InfixFnName.ArithmeticDivide)
+  | TPercent -> fnCall(WrittenTypes.InfixFnName.ArithmeticModulo)
+  | TEqEq -> fnCall(WrittenTypes.InfixFnName.ComparisonEquals)
+  | TNeq -> fnCall(WrittenTypes.InfixFnName.ComparisonNotEquals)
+  | TLt -> fnCall(WrittenTypes.InfixFnName.ComparisonLessThan)
+  | TGt -> fnCall(WrittenTypes.InfixFnName.ComparisonGreaterThan)
+  | TLte -> fnCall(WrittenTypes.InfixFnName.ComparisonLessThanOrEqual)
+  | TGte -> fnCall(WrittenTypes.InfixFnName.ComparisonGreaterThanOrEqual)
+  | TAnd -> Stdlib.Option.Option.Some(WrittenTypes.Infix.BinOp(WrittenTypes.BinaryOperation.BinOpAnd))
+  | TOr -> Stdlib.Option.Option.Some(WrittenTypes.Infix.BinOp(WrittenTypes.BinaryOperation.BinOpOr))
+  | TStarStar -> fnCall(WrittenTypes.InfixFnName.ArithmeticPower)
+  | TBitAnd -> fnCall(WrittenTypes.InfixFnName.BitwiseAnd)
+  | TBar -> fnCall(WrittenTypes.InfixFnName.BitwiseOr)
+  | TBitXor -> fnCall(WrittenTypes.InfixFnName.BitwiseXor)
+  | TShl -> fnCall(WrittenTypes.InfixFnName.ShiftLeft)
+  | TShr -> fnCall(WrittenTypes.InfixFnName.ShiftRight)
+  | _ -> Stdlib.Option.Option.None
+
+
+/// How tightly an operator binds, and whether it groups to the right.
+let bindingPower(t: TokenKind): Option<(Int64 * Bool)> =
+  match t with
+  | TOr -> Stdlib.Option.Option.Some((1, false))
+  | TAnd -> Stdlib.Option.Option.Some((2, false))
+  | TEqEq | TNeq | TLt | TGt | TLte | TGte -> Stdlib.Option.Option.Some((3, false))
+  | TBar -> Stdlib.Option.Option.Some((4, false))
+  | TBitXor -> Stdlib.Option.Option.Some((5, false))
+  | TBitAnd -> Stdlib.Option.Option.Some((6, false))
+  | TShl | TShr -> Stdlib.Option.Option.Some((7, false))
+  | TPlus | TMinus -> Stdlib.Option.Option.Some((8, false))
+  | TStar | TSlash | TPercent -> Stdlib.Option.Option.Some((9, false))
+  | TStarStar -> Stdlib.Option.Option.Some((10, true))
+  | _ -> Stdlib.Option.Option.None
+
+
+let infix(inp: Input, st: St): (Expr * St) =
+  let (left, st1) = app(inp, st)
+  infixFrom(inp, st1, 1, left)
+
+
+/// The operators from the current token binding at least <param minBp>, folded onto
+/// <param left> (precedence climbing).
+let infixFrom(inp: Input, st: St, minBp: Int64, left: Expr): (Expr * St) =
+  let j = st.index
+  let t = Core.tok(inp, j)
+  let s = Core.currentScope(st)
+  let so = s.stmtCol
+  let col = (Core.rng(inp, j)).start.column
+  let opContinues =
+    (Core.rng(inp, j)).start.row == (exprRange(left)).end_.row
+    || so < 0
+    || (if s.stmtExact then t != TokenKind.TMinus || col != so
+        else if t == TokenKind.TMinus then col > so
+        else col >= so)
+  match bindingPower(t) with
+  | Some((bp, rightAssoc)) ->
+    if t == TokenKind.TBar && Core.barStartsArm(inp, st, j) then
+      (left, st)
+    else if bp >= minBp && opContinues then
+      let opRange = Core.rng(inp, j)
+      let (rhs0, st1) = app(inp, Core.at(st, j + 1))
+      let (right, st2) = infixFrom(inp, st1, if rightAssoc then bp else bp + 1, rhs0)
+      let op =
+        match infixOf(t) with
+        | Some(op) -> op
+        | None -> WrittenTypes.Infix.BinOp(WrittenTypes.BinaryOperation.BinOpOr)
+      infixFrom(inp, st2, minBp, WrittenTypes.Expr.EInfix(Core.span(exprRange(left), exprRange(right)), (opRange, op), left, right))
+    else
+      (left, st)
+  | None -> (left, st)
+
+
+// --- calls ---
+
+/// `(e1, e2)` with the current token at the `(`: a call's arguments or a constructor's fields.
+/// `()` gives the one unit item.
+let parenList(inp: Input, st: St): (List<Expr> * St) =
+  let i = st.index
+  let openParen = Core.rng(inp, i)
+  Core.withStmtColExact(inp, st, (Core.rng(inp, i + 1)).start.column, fun(inp2, st2) ->
+    let (itemsRev, st3) = parenItems(inp2, Core.at(st2, i + 1), [])
+    let m = st3.index
+    let (m2, st4) =
+      if Core.tok(inp2, m) == TokenKind.TRParen then
+        (m + 1, Core.at(st3, m + 1))
+      else
+        (m, Core.errUnclosed(inp2, st3, m, ")", "(", openParen))
+    match itemsRev with
+    | [] -> ([ WrittenTypes.Expr.EUnit(Core.span(openParen, Core.rng(inp2, m2 - 1))) ], st4)
+    | _ -> (Stdlib.List.reverse(itemsRev), st4))
+
+
+let parenItems(inp: Input, st: St, itemsRev: List<Expr>): (List<Expr> * St) =
+  let m = st.index
+  if Core.tok(inp, m) == TokenKind.TRParen || Core.tok(inp, m) == TokenKind.TEOF || Core.declBarrier(inp, st, m) then
+    (itemsRev, st)
+  else
+    let (a, st1) = expr(inp, st)
+    let m2 = st1.index
+    if Core.tok(inp, m2) == TokenKind.TComma then
+      parenItems(inp, Core.at(st1, m2 + 1), [ a, ...itemsRev ])
+    else if m2 > m then
+      let st2 =
+        if Core.tok(inp, m2) != TokenKind.TRParen then
+          Patterns.requireSeparator(inp, st1, exprRange(a), m2, "a comma or newline between arguments")
+        else
+          st1
+      parenItems(inp, st2, [ a, ...itemsRev ])
+    else
+      ([ a, ...itemsRev ], Core.at(st1, m))
+
+
+/// `op operand` as a call of <param modules>.<param name>, the operand a whole application.
+let prefixCall(inp: Input, st: St, modules: List<String>, name: String): (Expr * St) =
+  let i = st.index
+  let (operand, st1) = app(inp, Core.at(st, i + 1))
+  let opR = Core.rng(inp, i)
+  let mods = Stdlib.List.map(modules, fun m -> (WrittenTypes.ModuleIdentifier { range = opR, name = m }, opR))
+  (WrittenTypes.Expr.EApply(
+    Core.span(opR, exprRange(operand)),
+    WrittenTypes.Expr.EFnName(opR, fnName(opR, mods, name, opR)),
+    [],
+    [ operand ]),
+   st1)
+
+
+let isCallee(e: Expr): Bool =
+  match e with
+  | EVariable(_, _) | EFnName(_, _) | EApply(_, _, _, _) | EUnwrap(_, _, _) | ERecordFieldAccess(_, _, _, _) | ELambda(_, _, _, _, _) -> true
+  | _ -> false
+
+
+let isNegLitArg(inp: Input, k: Int64): Bool =
+  Core.tok(inp, k) == TokenKind.TMinus
+  && (match Core.tok(inp, k + 1) with
+      | TBigInt(_) | TInt64(_) | TInt8(_) | TInt16(_) | TInt32(_) | TInt128(_) | TFloat64 | TFloat32 | TDecimal(_) -> true
+      | _ -> false)
+  && Core.adjacent(inp, k, k + 1)
+  && (k == 0
+      || (Core.rng(inp, k)).start.row != (Core.rng(inp, k - 1)).end_.row
+      || (Core.rng(inp, k)).start.column > (Core.rng(inp, k - 1)).end_.column)
+
+
+/// An expression and arguments written after it with spaces, `f a b`: an error, still
+/// parsed into the call it was meant to be.
+let app(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let (callee, st1) = atom(inp, st)
+  let j = st1.index
+  let acceptsArgs =
+    match callee with
+    | EEnum(_, _, _, [], _) -> true
+    | _ -> isCallee(callee)
+  if acceptsArgs && startsSpacedArg(inp, st1, i, j) then
+    let (argsRev, st2) = spacedArgs(inp, st1, i, [])
+    spacedApp(inp, st2, callee, argsRev)
+  else
+    (callee, st1)
+
+
+let startsSpacedArg(inp: Input, st: St, i: Int64, k: Int64): Bool =
+  (Core.canStartAtom(Core.tok(inp, k)) || isNegLitArg(inp, k)) && Core.offsideContinues(inp, st, i, k)
+
+
+let spacedArgs(inp: Input, st: St, i: Int64, argsRev: List<Expr>): (List<Expr> * St) =
+  if startsSpacedArg(inp, st, i, st.index) then
+    let (a, st1) = atom(inp, st)
+    spacedArgs(inp, st1, i, [ a, ...argsRev ])
+  else
+    (argsRev, st)
+
+
+let spacedApp(inp: Input, st: St, callee: Expr, argsRev: List<Expr>): (Expr * St) =
+  let args = Stdlib.List.reverse(argsRev)
+  let endR =
+    match argsRev with
+    | [ last, ... ] -> exprRange(last)
+    | [] -> exprRange(callee)
+  let shown = Core.writtenOrPlaceholders(inp, Stdlib.List.map(args, exprRange))
+  match callee with
+  | EEnum(er, tname, (cr, cn), [], dot) ->
+    let st1 =
+      Core.errAt(
+        st,
+        Core.Code.Unexpected,
+        Core.span(er, endR),
+        "a constructor's fields go in parentheses, separated by commas",
+        Stdlib.Option.Option.Some(Core.spacedHint(cn, shown)))
+    (WrittenTypes.Expr.EEnum(Core.span(er, endR), tname, (cr, cn), args, dot), st1)
+  | _ ->
+    let calleeText =
+      match callee with
+      | EVariable(_, name) -> name
+      | EFnName(_, q) ->
+        Stdlib.String.join(Stdlib.List.append(Stdlib.List.map(q.modules, fun((m, _)) -> m.name), q.fn.name), ".")
+      | _ -> "f"
+    let st1 =
+      Core.errAt(
+        st,
+        Core.Code.Unexpected,
+        Core.span(exprRange(callee), endR),
+        "arguments go in parentheses, separated by commas",
+        Stdlib.Option.Option.Some(Core.spacedHint(calleeText, shown)))
+    match callee with
+    | EApply(cr, fn, typeArgs, []) -> (WrittenTypes.Expr.EApply(Core.span(cr, endR), fn, typeArgs, args), st1)
+    | _ ->
+      let lhs =
+        match callee with
+        | EVariable(r, name) -> variableAsFn(r, name)
+        | other -> other
+      (WrittenTypes.Expr.EApply(Core.span(exprRange(lhs), endR), lhs, [], args), st1)
+
+
+/// `callee(a, b)`, as many times as they follow, each followed by any postfix.
+let calls(inp: Input, st: St, headIdx: Int64, e: Expr): (Expr * St) =
+  let j = st.index
+  let glued = j > 0 && Core.adjacent(inp, j - 1, j)
+  if isCallee(e) && Core.tok(inp, j) == TokenKind.TLParen && (glued || Core.offsideContinues(inp, st, headIdx, j)) then
+    let (args, st1) = parenList(inp, st)
+    let closeR = Core.rng(inp, st1.index - 1)
+    let called =
+      match e with
+      | EApply(cr, fn, typeArgs, []) -> WrittenTypes.Expr.EApply(Core.span(cr, closeR), fn, typeArgs, args)
+      | EVariable(r, name) -> WrittenTypes.Expr.EApply(Core.span(r, closeR), variableAsFn(r, name), [], args)
+      | other -> WrittenTypes.Expr.EApply(Core.span(exprRange(other), closeR), other, [], args)
+    let (after, st2) = postfix(inp, st1, called)
+    calls(inp, st2, headIdx, after)
+  else
+    (e, st)
+
+
+let atom(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let (baseE, st1) = primary(inp, st)
+  if Core.tok(inp, i) == TokenKind.TFun then
+    (baseE, st1)
+  else
+    let (e, st2) = postfix(inp, st1, baseE)
+    calls(inp, st2, i, e)
+
+
+let isDigits(s: String): Bool =
+  s != "" && Stdlib.List.all(Stdlib.String.toList(s), fun c -> Stdlib.Char.isDigit(c))
+
+
+/// `value?.field.1`, left to right.
+let postfix(inp: Input, st: St, e: Expr): (Expr * St) =
+  let i = st.index
+  let access =
+    fun(e2, dotR, fieldR, field) ->
+      WrittenTypes.Expr.ERecordFieldAccess(Core.span(exprRange(e2), fieldR), e2, (fieldR, field), dotR)
+  let t1 = Core.tok(inp, i + 1)
+  match Core.tok(inp, i) with
+  | TQuestion ->
+    let question = Core.rng(inp, i)
+    let st1 =
+      if (Core.rng(inp, i - 1)).end_ != question.start then
+        Core.errFull(
+          inp,
+          st,
+          Core.Code.Unexpected,
+          i,
+          "'?' must come directly after its operand, with no space",
+          [],
+          Stdlib.Option.Option.Some("write `value?`, or `(f x)?` for a call"))
+      else
+        st
+    postfix(inp, Core.at(st1, i + 1), WrittenTypes.Expr.EUnwrap(Core.span(exprRange(e), question), e, question))
+  | TDot ->
+    let dotR = Core.rng(inp, i)
+    let fieldR = Core.rng(inp, i + 1)
+    let fieldText = Core.txt(inp, i + 1)
+    match t1 with
+    | TIdent(field) -> postfix(inp, Core.at(st, i + 2), access(e, dotR, fieldR, field))
+    | TInt64(_) ->
+      if isDigits(fieldText) then
+        postfix(inp, Core.at(st, i + 2), access(e, dotR, fieldR, fieldText))
+      else
+        badTupleIndex(inp, st, e, i)
+    | TFloat64 ->
+      match Stdlib.String.split(fieldText, ".") with
+      | [ a, b ] ->
+        if isDigits(a) && isDigits(b) then
+          let la = Stdlib.String.length(a)
+          let atCol = fun c -> Point { row = fieldR.start.row, column = fieldR.start.column + c }
+          let aR = Range { start = fieldR.start, end_ = atCol(la) }
+          let innerDotR = Range { start = atCol(la), end_ = atCol(la + 1) }
+          let bR = Range { start = atCol(la + 1), end_ = fieldR.end_ }
+          let inner = access(e, dotR, aR, a)
+          postfix(inp, Core.at(st, i + 2), access(inner, innerDotR, bR, b))
+        else
+          badTupleIndex(inp, st, e, i)
+      | _ -> badTupleIndex(inp, st, e, i)
+    | _ ->
+      if Core.isKeyword(t1) && Core.adjacent(inp, i, i + 1) then
+        postfix(inp, Core.at(st, i + 2), access(e, dotR, fieldR, fieldText))
+      else if Core.isNumberLit(t1) then
+        badTupleIndex(inp, st, e, i)
+      else
+        (e, st)
+  | _ -> (e, st)
+
+
+/// `t.1s8`, `t.1e0`: not a tuple element number.
+let badTupleIndex(inp: Input, st: St, e: Expr, i: Int64): (Expr * St) =
+  let text = Core.txt(inp, i + 1)
+  let st1 =
+    if (Core.token(inp, i + 1)).lexError then
+      st
+    else
+      Core.errFull(
+        inp,
+        st,
+        Core.Code.Expected,
+        i + 1,
+        $"expected a tuple element number after '.', found '{text}'",
+        [],
+        Stdlib.Option.Option.Some("tuple elements are plain numbers counting from 1: t.1, t.2"))
+  let digits =
+    Stdlib.String.toList(text)
+    |> Stdlib.List.takeWhile(fun c -> Stdlib.Char.isDigit(c))
+    |> Stdlib.String.fromList
+  let fieldR = Core.rng(inp, i + 1)
+  postfix(
+    inp,
+    Core.at(st1, i + 2),
+    WrittenTypes.Expr.ERecordFieldAccess(Core.span(exprRange(e), fieldR), e, (fieldR, digits), Core.rng(inp, i)))
+
+
+// --- primary expressions ---
+
+let intLiteral(inp: Input, st: St, i: Int64): Option<(Expr * St)> =
+  let r = Core.rng(inp, i)
+  let (digits, suffix) = Patterns.splitIntSuffix(inp, i)
+  let some = fun e -> Stdlib.Option.Option.Some((e, Core.at(st, i + 1)))
+  match Core.tok(inp, i) with
+  | TBigInt(v) -> some(WrittenTypes.Expr.EBigInt(r, (r, v)))
+  | TInt64(v) -> some(WrittenTypes.Expr.EInt64(r, (digits, v), suffix))
+  | TInt8(v) -> some(WrittenTypes.Expr.EInt8(r, (digits, v), suffix))
+  | TUInt8(v) -> some(WrittenTypes.Expr.EUInt8(r, (digits, v), suffix))
+  | TInt16(v) -> some(WrittenTypes.Expr.EInt16(r, (digits, v), suffix))
+  | TUInt16(v) -> some(WrittenTypes.Expr.EUInt16(r, (digits, v), suffix))
+  | TInt32(v) -> some(WrittenTypes.Expr.EInt32(r, (digits, v), suffix))
+  | TUInt32(v) -> some(WrittenTypes.Expr.EUInt32(r, (digits, v), suffix))
+  | TUInt64(v) -> some(WrittenTypes.Expr.EUInt64(r, (digits, v), suffix))
+  | TInt128(v) -> some(WrittenTypes.Expr.EInt128(r, (digits, v), suffix))
+  | TUInt128(v) -> some(WrittenTypes.Expr.EUInt128(r, (digits, v), suffix))
+  | _ -> Stdlib.Option.Option.None
+
+
+let negative(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let r = Core.span(Core.rng(inp, i), Core.rng(inp, i + 1))
+  let (digits, suffix) = Patterns.splitIntSuffix(inp, i + 1)
+  let d = Core.span(Core.rng(inp, i), digits)
+  let next = Core.at(st, i + 2)
+  match Core.tok(inp, i + 1) with
+  | TBigInt(v) -> (WrittenTypes.Expr.EBigInt(r, (r, -v)), next)
+  | TInt64(v) -> (WrittenTypes.Expr.EInt64(r, (d, Patterns.negInt64(v)), suffix), next)
+  | TInt8(v) -> (WrittenTypes.Expr.EInt8(r, (d, Patterns.negInt8(v)), suffix), next)
+  | TInt16(v) -> (WrittenTypes.Expr.EInt16(r, (d, Patterns.negInt16(v)), suffix), next)
+  | TInt32(v) -> (WrittenTypes.Expr.EInt32(r, (d, Patterns.negInt32(v)), suffix), next)
+  | TInt128(v) -> (WrittenTypes.Expr.EInt128(r, (d, Patterns.negInt128(v)), suffix), next)
+  | TFloat64 ->
+    let (w, f) = Patterns.floatParts(Patterns.floatText(inp, i + 1, "f64"))
+    (WrittenTypes.Expr.EFloat64(r, LanguageTools.Sign.Negative, w, f), next)
+  | TFloat32 ->
+    let (w, f) = Patterns.floatParts(Patterns.floatText(inp, i + 1, "f32"))
+    (WrittenTypes.Expr.EFloat32(r, LanguageTools.Sign.Negative, w, f), next)
+  | TDecimal(v) -> (WrittenTypes.Expr.EDecimal(r, -v), next)
+  | _ -> prefixCall(inp, st, [ "Stdlib", "Negate" ], "negate")
+
+
+let primary(inp: Input, st0: St): (Expr * St) =
+  let i = st0.index
+  let st = Patterns.checkBareMinMagnitude(inp, st0, i)
+  let r = Core.rng(inp, i)
+  match intLiteral(inp, st, i) with
+  | Some(result) -> result
+  | None ->
+    match Core.tok(inp, i) with
+    | TMinus -> negative(inp, st)
+    | TFloat64 ->
+      let (w, f) = Patterns.floatParts(Patterns.floatText(inp, i, "f64"))
+      (WrittenTypes.Expr.EFloat64(r, LanguageTools.Sign.Positive, w, f), Core.at(st, i + 1))
+    | TFloat32 ->
+      let (w, f) = Patterns.floatParts(Patterns.floatText(inp, i, "f32"))
+      (WrittenTypes.Expr.EFloat32(r, LanguageTools.Sign.Positive, w, f), Core.at(st, i + 1))
+    | TDecimal(v) -> (WrittenTypes.Expr.EDecimal(r, v), Core.at(st, i + 1))
+    | TCharLit(c) ->
+      let (openQ, contents, closeQ) = Patterns.literalTextRanges(inp, i, "'")
+      (WrittenTypes.Expr.EChar(r, Stdlib.Option.Option.Some((contents, c)), openQ, closeQ), Core.at(st, i + 1))
+    | TTrue -> (WrittenTypes.Expr.EBool(r, true), Core.at(st, i + 1))
+    | TFalse -> (WrittenTypes.Expr.EBool(r, false), Core.at(st, i + 1))
+    | TStringLit(s) ->
+      let delimiter = if Stdlib.String.startsWith(Core.txt(inp, i), "\"\"\"") then "\"\"\"" else "\""
+      let (openQ, contents, closeQ) = Patterns.literalTextRanges(inp, i, delimiter)
+      (WrittenTypes.Expr.EString(r, Stdlib.Option.Option.None, [ WrittenTypes.StringSegment.StringText(contents, s) ], openQ, closeQ),
+       Core.at(st, i + 1))
+    | TInterpString -> Interpolation.interpString(inp, st)
+    | TIdent(name) -> name_(inp, st, name)
+    | TLParen -> paren(inp, st)
+    | TLBracket -> list(inp, st)
+    | TFun -> lambda(inp, st)
+    | TLBrace ->
+      match (Core.tok(inp, i + 1), Core.tok(inp, i + 2)) with
+      | (TRBrace, _) -> anonymousRecord(inp, st)
+      | (TIdent(_), TEquals) -> anonymousRecord(inp, st)
+      | _ -> recordUpdate(inp, st)
+    | TNot -> prefixCall(inp, st, [ "Builtin" ], "boolNot")
+    | TBitNot -> prefixCall(inp, st, [ "Stdlib", "BitwiseNot" ], "bitwiseNot")
+    | TDotDotDot ->
+      (WrittenTypes.Expr.EError(r),
+       Core.at(Core.err(inp, st, Core.Code.Unexpected, i, "'...' only goes inside a list, as in `[...a, ...b]`"), i + 1))
+    | t ->
+      let st1 =
+        if t == TokenKind.TQuestion then
+          let spaced = i == 0 || (Core.rng(inp, i - 1)).end_ != r.start
+          if spaced then
+            Core.errFull(
+              inp,
+              st,
+              Core.Code.Unexpected,
+              i,
+              "'?' must come directly after its operand, with no space",
+              [],
+              Stdlib.Option.Option.Some("write `value?`, or `(f x)?` for a call"))
+          else
+            Core.errFull(
+              inp,
+              st,
+              Core.Code.Unexpected,
+              i,
+              "'?' can't follow this expression directly",
+              [],
+              Stdlib.Option.Option.Some("wrap what you want to unwrap in parentheses: `(expr)?`"))
+        else
+          Core.errExpected(inp, st, i, "an expression")
+      (WrittenTypes.Expr.EError(Core.zeroWidthAtStart(r)), Core.at(st1, Core.recoverPast(inp, i)))
+
+
+let anonymousRecord(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let st1 = Core.err(inp, st, Core.Code.Expected, i, "Anonymous records are not supported; use a named record type")
+  let z = Core.zeroWidthAtEnd(Core.rng(inp, i))
+  let emptyType =
+    WrittenTypes.QualifiedTypeIdentifier
+      { range = z
+        modules = []
+        typ = WrittenTypes.TypeIdentifier { range = z, name = "" }
+        typeArgs = [] }
+  record(inp, st1, emptyType, Core.rng(inp, i))
+
+
+/// A name: a variable, a fn, an enum case, a record literal, or `Dict { … }`.
+let name_(inp: Input, st: St, name: String): (Expr * St) =
+  let i = st.index
+  let (mods0, final0, st1) = Types.qualified(inp, st)
+  let j0 = st1.index
+  let hasAdjacentLt = Core.tok(inp, j0) == TokenKind.TLt && (Core.rng(inp, j0)).start == final0.range.end_
+  let (nameTypeArgs, st2) =
+    if hasAdjacentLt then
+      let (args, _, s) = Types.typeArgs(inp, st1)
+      (args, s)
+    else
+      ([], st1)
+  let jTA = st2.index
+  let caseAfterArgs =
+    match nameTypeArgs with
+    | [] -> Stdlib.Option.Option.None
+    | _ ->
+      if Core.tok(inp, jTA) == TokenKind.TDot then
+        match Core.tok(inp, jTA + 1) with
+        | TIdent(caseName) -> if Core.startsUpper(caseName) then Stdlib.Option.Option.Some(caseName) else Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+  let (mods, final, st3) =
+    match caseAfterArgs with
+    | Some(caseName) ->
+      (Stdlib.List.append(mods0, (final0, Core.rng(inp, jTA))),
+       Types.Identifier { range = Core.rng(inp, jTA + 1), name = caseName },
+       Core.at(st2, jTA + 2))
+    | None -> (mods0, final0, st2)
+  let j = st3.index
+  let fullRange = Core.span(Core.rng(inp, i), final.range)
+  let finalIsUpper = Core.isUpperIdentifier(final.name)
+  let braceIsRecordLit =
+    finalIsUpper
+    && Core.tok(inp, j) == TokenKind.TLBrace
+    && (match (Core.tok(inp, j + 1), Core.tok(inp, j + 2)) with
+        | (TRBrace, _) -> true
+        | (TIdent(_), TEquals) -> true
+        | (t, TEquals) -> Core.isKeyword(t)
+        | _ -> false)
+  if Stdlib.List.isEmpty(mods) && final.name == "Dict" && Core.tok(inp, j) == TokenKind.TLBrace then
+    dict(inp, st3, final.range)
+  else if braceIsRecordLit then
+    record(inp, st3, Types.qualifiedType(fullRange, mods, final, nameTypeArgs), fullRange)
+  else if finalIsUpper then
+    let (typeName, symbolDot) =
+      match Stdlib.List.reverse(mods) with
+      | [ (typIdent, dotBeforeCase), ...revTypeMods ] ->
+        let typeMods = Stdlib.List.reverse(revTypeMods)
+        let startR =
+          match typeMods with
+          | [ (firstMod, _), ... ] -> firstMod.range
+          | [] -> typIdent.range
+        (Types.qualifiedType(Core.span(startR, typIdent.range), typeMods, typIdent, nameTypeArgs), dotBeforeCase)
+      | [] ->
+        let z = Core.zeroWidthAtEnd(Core.rng(inp, i))
+        (Types.qualifiedType(z, [], Types.Identifier { range = z, name = "" }, []), z)
+    let glued = Core.tok(inp, j) == TokenKind.TLParen && (Core.rng(inp, j)).start == final.range.end_
+    let (fields, st4) =
+      if Core.tok(inp, j) == TokenKind.TLParen && (glued || Core.offsideContinues(inp, st3, i, j)) then
+        parenList(inp, st3)
+      else
+        ([], st3)
+    let k = st4.index
+    let endR =
+      if Core.tok(inp, j) == TokenKind.TLParen && k > j then
+        Core.rng(inp, k - 1)
+      else
+        match Stdlib.List.last(fields) with
+        | Some(f) -> exprRange(f)
+        | None -> final.range
+    (WrittenTypes.Expr.EEnum(Core.span(Core.rng(inp, i), endR), typeName, (final.range, final.name), fields, symbolDot), st4)
+  else
+    let nameExpr =
+      if Stdlib.List.isEmpty(mods) then
+        WrittenTypes.Expr.EVariable(Core.rng(inp, i), name)
+      else
+        WrittenTypes.Expr.EFnName(fullRange, fnName(fullRange, Types.moduleIds(mods), final.name, final.range))
+    match nameTypeArgs with
+    | [] -> (nameExpr, st3)
+    | _ ->
+      let fnExpr =
+        match nameExpr with
+        | EVariable(r, nm) -> variableAsFn(r, nm)
+        | other -> other
+      (WrittenTypes.Expr.EApply(Core.span(fullRange, Core.rng(inp, j - 1)), fnExpr, nameTypeArgs, []), st3)
+
+
+// --- lambdas ---
+
+let lambda(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let kwFun = Core.rng(inp, i)
+  let (patsRev, st1) =
+    match Core.tok(inp, i + 1) with
+    | TLParen ->
+      if Core.tok(inp, i + 2) != TokenKind.TRParen then
+        let openP = Core.rng(inp, i + 1)
+        let (patsRev, st2) = lambdaParamList(inp, Core.at(st, i + 2), [])
+        let m = st2.index
+        if Core.tok(inp, m) == TokenKind.TRParen then
+          (patsRev, Core.at(st2, m + 1))
+        else
+          (patsRev, Core.errUnclosed(inp, st2, m, ")", "(", openP))
+      else
+        let (p, st2) = Patterns.letPattern(inp, Core.at(st, i + 1))
+        ([ p ], st2)
+    | TIdent(_) | TUnderscore ->
+      let (p, st2) = Patterns.letPattern(inp, Core.at(st, i + 1))
+      ([ p ], st2)
+    | _ ->
+      if Core.keywordHint(inp, i + 1) != "" then
+        let (p, st2) = Patterns.letPattern(inp, Core.at(st, i + 1))
+        ([ p ], st2)
+      else
+        ([], Core.at(st, i + 1))
+  let firstExtra = st1.index
+  let (patsRev, st2) = spacedLambdaParams(inp, st1, patsRev)
+  let patCount = Stdlib.List.length(patsRev)
+  let k = st2.index
+  let st3 =
+    if k > firstExtra then
+      let pats = Stdlib.List.reverse(patsRev)
+      let shown =
+        Stdlib.List.indexedMap(Core.placeholders(patCount), fun(ix, p) ->
+          match Stdlib.List.getAt(pats, ix) with
+          | Some(LPVariable(_, name)) -> name
+          | Some(LPWildcard(_)) -> "_"
+          | _ -> p)
+      Core.errFull(
+        inp,
+        st2,
+        Core.Code.Unexpected,
+        firstExtra,
+        "a lambda with several parameters lists them in parentheses, separated by commas",
+        [],
+        Stdlib.Option.Option.Some(
+          $"write `fun({Stdlib.String.join(shown, ", ")}) ->` rather than `fun {Stdlib.String.join(shown, " ")} ->`; a tuple parameter is `fun((a, b)) ->`"))
+    else
+      st2
+  let st4 = if patCount == 0 then Core.errExpectedName(inp, st3, k, "at least one lambda parameter") else st3
+  let (arrow, st5) = Core.expect(inp, st4, TokenKind.TArrow, "'->' in lambda")
+  let (body, st6) = block(inp, st5)
+  (WrittenTypes.Expr.ELambda(Core.span(kwFun, exprRange(body)), Stdlib.List.reverse(patsRev), body, kwFun, arrow), st6)
+
+
+let lambdaParamList(inp: Input, st: St, patsRev: List<LetPattern>): (List<LetPattern> * St) =
+  let m = st.index
+  if Core.tok(inp, m) == TokenKind.TRParen || Core.tok(inp, m) == TokenKind.TEOF then
+    (patsRev, st)
+  else
+    let (p, st1) = Patterns.letPattern(inp, st)
+    let m2 = st1.index
+    let st2 =
+      if Core.tok(inp, m2) == TokenKind.TColon then
+        let s = Core.err(inp, st1, Core.Code.Unexpected, m2, "a lambda's parameters take no type annotation; write `fun u ->`")
+        let (_, s2) = Types.typeRef(inp, Core.at(s, m2 + 1))
+        s2
+      else
+        st1
+    let m3 = st2.index
+    let patsRev = [ p, ...patsRev ]
+    if Core.tok(inp, m3) == TokenKind.TComma then
+      lambdaParamList(inp, Core.at(st2, m3 + 1), patsRev)
+    else if m3 > m then
+      if Core.tok(inp, m3) != TokenKind.TRParen then
+        (patsRev, Core.errExpected(inp, st2, m3, "',' or ')' in the lambda's parameters"))
+      else
+        lambdaParamList(inp, st2, patsRev)
+    else
+      (patsRev, Core.at(st2, m))
+
+
+let spacedLambdaParams(inp: Input, st: St, patsRev: List<LetPattern>): (List<LetPattern> * St) =
+  let k = st.index
+  match Core.tok(inp, k) with
+  | TIdent(_) | TUnderscore | TLParen ->
+    let (p, st1) = Patterns.letPattern(inp, st)
+    spacedLambdaParams(inp, Core.at(st1, if st1.index == k then k + 1 else st1.index), [ p, ...patsRev ])
+  | _ -> (patsRev, st)
+
+
+// --- parentheses ---
+
+/// `()`, `(e)`, a statement block in parentheses, `(a, b)`, or an operator section `(+)`.
+let paren(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let openP = Core.rng(inp, i)
+  if Core.tok(inp, i + 1) == TokenKind.TRParen then
+    (WrittenTypes.Expr.EUnit(Core.span(openP, Core.rng(inp, i + 1))), Core.at(st, i + 2))
+  else
+    match infixOf(Core.tok(inp, i + 1)) with
+    | Some(op) ->
+      if Core.tok(inp, i + 2) == TokenKind.TRParen then
+        let opR = Core.rng(inp, i + 1)
+        let r = Core.span(openP, Core.rng(inp, i + 2))
+        let z = Core.zeroWidthAtEnd(opR)
+        let body =
+          WrittenTypes.Expr.EInfix(r, (opR, op), WrittenTypes.Expr.EVariable(z, "a"), WrittenTypes.Expr.EVariable(z, "b"))
+        (WrittenTypes.Expr.ELambda(
+          r,
+          [ WrittenTypes.LetPattern.LPVariable(z, "a"), WrittenTypes.LetPattern.LPVariable(z, "b") ],
+          body,
+          z,
+          z),
+         Core.at(st, i + 3))
+      else
+        parenBody(inp, st)
+    | None -> parenBody(inp, st)
+
+
+let parenBody(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let openP = Core.rng(inp, i)
+  Core.withStmtColExact(inp, st, (Core.rng(inp, i + 1)).start.column, fun(inp2, st2) ->
+    let (first, st3) = expr(inp2, Core.at(st2, i + 1))
+    let j = st3.index
+    if Core.tok(inp2, j) == TokenKind.TComma then
+      let comma = Core.rng(inp2, j)
+      let (second, st4) = expr(inp2, Core.at(st3, j + 1))
+      let (restRev, st5) = parenTupleRest(inp2, st4, [])
+      let m = st5.index
+      let (closeP, st6) =
+        if Core.tok(inp2, m) == TokenKind.TRParen then
+          (Core.rng(inp2, m), Core.at(st5, m + 1))
+        else
+          (Core.zeroWidthAtEnd(Core.rng(inp2, m)), Core.errUnclosed(inp2, st5, m, ")", "(", openP))
+      (WrittenTypes.Expr.ETuple(Core.span(openP, closeP), first, comma, second, Stdlib.List.reverse(restRev), openP, closeP), st6)
+    else
+      let (stmtsRev, st4) = parenStatements(inp2, st3, [ first ])
+      let folded = foldStatements(stmtsRev)
+      let m = st4.index
+      if Core.tok(inp2, m) == TokenKind.TRParen then
+        (folded, Core.at(st4, m + 1))
+      else
+        (folded, Core.errUnclosed(inp2, st4, m, ")", "(", openP)))
+
+
+let parenTupleRest(inp: Input, st: St, restRev: List<(Range * Expr)>): (List<(Range * Expr)> * St) =
+  let m = st.index
+  if Core.tok(inp, m) != TokenKind.TComma then
+    (restRev, st)
+  else
+    let cr = Core.rng(inp, m)
+    let (e, st1) = expr(inp, Core.at(st, m + 1))
+    let restRev = [ (cr, e), ...restRev ]
+    let m2 = st1.index
+    if m2 == m + 1 && Core.tok(inp, m2) == Core.tok(inp, m) then
+      (restRev, Core.at(st1, m))
+    else
+      parenTupleRest(inp, st1, restRev)
+
+
+let parenStatements(inp: Input, st: St, stmtsRev: List<Expr>): (List<Expr> * St) =
+  let m0 = st.index
+  let t = Core.tok(inp, m0)
+  if t == TokenKind.TRParen || t == TokenKind.TEOF || t == TokenKind.TComma || Core.declBarrier(inp, st, m0) then
+    (stmtsRev, st)
+  else
+    let st0 =
+      if t == TokenKind.TSemicolon then Core.at(statementSemicolon(inp, st, m0), m0 + 1) else st
+    let m = st0.index
+    let (s, st1) = expr(inp, st0)
+    if st1.index > m then parenStatements(inp, st1, [ s, ...stmtsRev ]) else (stmtsRev, Core.at(st1, m))
+
+
+// --- lists ---
+
+let list(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let openB = Core.rng(inp, i)
+  Core.withElementScope(inp, st, fun(inp2, st2) ->
+    let (elemsRev, spreads, firstDots, st3) = listElems(inp2, Core.at(st2, i + 1), [], 0, [], Stdlib.Option.Option.None)
+    let k = st3.index
+    let (closeB, st4) =
+      if Core.tok(inp2, k) == TokenKind.TRBracket then
+        (Core.rng(inp2, k), Core.at(st3, k + 1))
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp2, k)), Core.errUnclosed(inp2, st3, k, "]", "[", openB))
+    let r = Core.span(openB, closeB)
+    match firstDots with
+    | None -> (WrittenTypes.Expr.EList(r, Stdlib.List.reverse(elemsRev), openB, closeB), st4)
+    | Some(dotsR) -> (spreadList(r, openB, closeB, dotsR, Stdlib.List.reverse(elemsRev), spreads), st4))
+
+
+let listElems(
+  inp: Input,
+  st: St,
+  elemsRev: List<(Expr * Option<Range>)>,
+  count: Int64,
+  spreads: List<Int64>,
+  firstDots: Option<Range>)
+  : (List<(Expr * Option<Range>)> * List<Int64> * Option<Range> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRBracket || Core.tok(inp, k) == TokenKind.TEOF || Core.declBarrier(inp, st, k) then
+    (elemsRev, spreads, firstDots, st)
+  else
+    let st0 = Core.setStmtCol(st, (Core.rng(inp, k)).start.column)
+    let isSpread = Core.tok(inp, k) == TokenKind.TDotDotDot
+    let (e, st1) = expr(inp, Core.at(st0, if isSpread then k + 1 else k))
+    let spreads = if isSpread then [ count, ...spreads ] else spreads
+    let firstDots =
+      match firstDots with
+      | None -> if isSpread then Stdlib.Option.Option.Some(Core.rng(inp, k)) else firstDots
+      | Some(_) -> firstDots
+    let k2 = st1.index
+    if k2 == k then
+      (elemsRev, spreads, firstDots, Core.at(Core.err(inp, st1, Core.Code.Unexpected, k, $"unexpected {Core.foundDesc(inp, k)} in list"), k))
+    else if Core.tok(inp, k2) == TokenKind.TComma then
+      listElems(inp, Core.at(st1, k2 + 1), [ (e, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], count + 1, spreads, firstDots)
+    else if Core.tok(inp, k2) == TokenKind.TSemicolon then
+      let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates list items with commas: `[a, b]`")
+      listElems(inp, Core.at(st2, k2 + 1), [ (e, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], count + 1, spreads, firstDots)
+    else
+      let st2 =
+        if Core.tok(inp, k2) != TokenKind.TRBracket then
+          Patterns.requireSeparator(inp, st1, exprRange(e), k2, "a comma or newline between list elements")
+        else
+          st1
+      listElems(inp, st2, [ (e, Stdlib.Option.Option.None), ...elemsRev ], count + 1, spreads, firstDots)
+
+
+/// `[a, ...b, c]` is `Stdlib.List.flatten([[a], b, [c]])`, and `[...a, ...b]` is
+/// `Stdlib.List.concat(a, b)`.
+let spreadList(
+  r: Range,
+  openB: Range,
+  closeB: Range,
+  dotsR: Range,
+  elems: List<(Expr * Option<Range>)>,
+  spreads: List<Int64>)
+  : Expr =
+  let literal =
+    fun revRun ->
+      match Stdlib.List.reverse(revRun) with
+      | [] -> []
+      | items ->
+        let first = exprRange(Stdlib.Tuple2.first(Stdlib.List.head(items) |> Stdlib.Option.withDefault((WrittenTypes.Expr.EUnit(r), Stdlib.Option.Option.None))))
+        let last = exprRange(Stdlib.Tuple2.first(Stdlib.List.last(items) |> Stdlib.Option.withDefault((WrittenTypes.Expr.EUnit(r), Stdlib.Option.Option.None))))
+        [ WrittenTypes.Expr.EList(Core.span(first, last), items, Core.zeroWidthAtEnd(first), last) ]
+  let (revSegments, revRun) =
+    Stdlib.List.fold(Stdlib.List.indexedMap(elems, fun(ix, e) -> (ix, e)), ([], []), fun((revSegs, revRun), (ix, elem)) ->
+      if Stdlib.List.contains(spreads, ix) then
+        (flattenSegs(Stdlib.Tuple2.first(elem), literal(revRun), revSegs), [])
+      else
+        (revSegs, [ elem, ...revRun ]))
+  let segments = Stdlib.List.reverse(Stdlib.List.concat(literal(revRun), revSegments))
+  let mods =
+    [ (WrittenTypes.ModuleIdentifier { range = dotsR, name = "Stdlib" }, dotsR)
+      (WrittenTypes.ModuleIdentifier { range = dotsR, name = "List" }, dotsR) ]
+  let stdlibList = fun name -> WrittenTypes.Expr.EFnName(dotsR, fnName(dotsR, mods, name, dotsR))
+  match segments with
+  | [ only ] -> only
+  | [ a, b ] -> WrittenTypes.Expr.EApply(r, stdlibList("concat"), [], [ a, b ])
+  | _ ->
+    let items = Stdlib.List.map(segments, fun e -> (e, Stdlib.Option.Option.None))
+    WrittenTypes.Expr.EApply(r, stdlibList("flatten"), [], [ WrittenTypes.Expr.EList(r, items, openB, closeB) ])
+
+
+/// A spread's segments, last first: the spread, then the run before it, then what came before.
+let flattenSegs(spread: Expr, run: List<Expr>, revSegs: List<Expr>): List<Expr> =
+  [ spread, ...Stdlib.List.concat(run, revSegs) ]
+
+
+// --- records and dicts ---
+
+let record(inp: Input, st: St, typeName: WrittenTypes.QualifiedTypeIdentifier, nameRange: Range): (Expr * St) =
+  let i = st.index
+  let openB = Core.rng(inp, i)
+  Core.withElementScope(inp, st, fun(inp2, st2) ->
+    let (fieldsRev, st3) = recordFields(inp2, Core.at(st2, i + 1), [])
+    let k = st3.index
+    let (closeB, st4) =
+      if Core.tok(inp2, k) == TokenKind.TRBrace then
+        (Core.rng(inp2, k), Core.at(st3, k + 1))
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp2, k)), Core.errUnclosed(inp2, st3, k, "}", "{", openB))
+    (WrittenTypes.Expr.ERecord(Core.span(nameRange, closeB), typeName, Stdlib.List.reverse(fieldsRev), openB, closeB), st4))
+
+
+let recordFields(inp: Input, st: St, fieldsRev: List<(Range * (Range * String) * Expr)>): (List<(Range * (Range * String) * Expr)> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRBrace || Core.tok(inp, k) == TokenKind.TEOF then
+    (fieldsRev, st)
+  else
+    match Core.fieldName(inp, k, TokenKind.TEquals) with
+    | Some(fname) ->
+      let fnameR = Core.rng(inp, k)
+      let st0 = Core.setStmtCol(st, fnameR.start.column)
+      let (value, st1) = expr(inp, Core.at(st0, k + 2))
+      let fieldsRev = [ (Core.span(fnameR, exprRange(value)), (fnameR, fname), value), ...fieldsRev ]
+      let k2 = st1.index
+      if Core.tok(inp, k2) == TokenKind.TComma then
+        recordFields(inp, Core.at(st1, k2 + 1), fieldsRev)
+      else if Core.tok(inp, k2) == TokenKind.TSemicolon then
+        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `Point { x = 1, y = 2 }`")
+        recordFields(inp, Core.at(st2, k2 + 1), fieldsRev)
+      else if k2 > k then
+        let st2 =
+          if Core.tok(inp, k2) != TokenKind.TRBrace then
+            Patterns.requireSeparator(inp, st1, exprRange(value), k2, "a comma or newline between record fields")
+          else
+            st1
+        recordFields(inp, st2, fieldsRev)
+      else
+        (fieldsRev, Core.at(st1, k))
+    | None -> (fieldsRev, Core.errExpectedName(inp, st, k, "a record field 'name = value'"))
+
+
+let dict(inp: Input, st: St, keywordDict: Range): (Expr * St) =
+  let i = st.index
+  let openB = Core.rng(inp, i)
+  Core.withElementScope(inp, st, fun(inp2, st2) ->
+    let (entriesRev, st3) = dictEntries(inp2, Core.at(st2, i + 1), [])
+    let k = st3.index
+    let (closeB, st4) =
+      if Core.tok(inp2, k) == TokenKind.TRBrace then
+        (Core.rng(inp2, k), Core.at(st3, k + 1))
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp2, k)), Core.errUnclosed(inp2, st3, k, "}", "{", openB))
+    (WrittenTypes.Expr.EDict(Core.span(keywordDict, closeB), Stdlib.List.reverse(entriesRev), keywordDict, openB, closeB), st4))
+
+
+let dictEntries(inp: Input, st: St, entriesRev: List<(Range * Expr * Range * Expr)>): (List<(Range * Expr * Range * Expr)> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRBrace || Core.tok(inp, k) == TokenKind.TEOF then
+    (entriesRev, st)
+  else
+    let st0 = Core.setStmtCol(st, (Core.rng(inp, k)).start.column)
+    let (key, st1) = expr(inp, st0)
+    let kAfterKey = st1.index
+    let t = Core.tok(inp, kAfterKey)
+    if kAfterKey <= k then
+      (entriesRev, Core.at(Core.errExpected(inp, st1, k, "a dict entry 'key: value'"), k))
+    else if t != TokenKind.TColon && t != TokenKind.TEquals then
+      (entriesRev, Core.at(Core.errExpected(inp, st1, kAfterKey, "`:` between a dict key and its value"), k))
+    else
+      let st2 =
+        if t == TokenKind.TEquals then
+          Core.err(inp, st1, Core.Code.Expected, kAfterKey, "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields")
+        else
+          st1
+      let colonR = Core.rng(inp, kAfterKey)
+      let (value, st3) = expr(inp, Core.at(st2, kAfterKey + 1))
+      let entriesRev = [ (Core.span(exprRange(key), exprRange(value)), key, colonR, value), ...entriesRev ]
+      let k2 = st3.index
+      if Core.tok(inp, k2) == TokenKind.TComma then
+        dictEntries(inp, Core.at(st3, k2 + 1), entriesRev)
+      else if Core.tok(inp, k2) == TokenKind.TSemicolon then
+        let st4 = Core.err(inp, st3, Core.Code.Expected, k2, "Dark separates dict entries with commas: `Dict { \"a\": 1, \"b\": 2 }`")
+        dictEntries(inp, Core.at(st4, k2 + 1), entriesRev)
+      else if k2 > kAfterKey then
+        let st4 =
+          if Core.tok(inp, k2) != TokenKind.TRBrace then
+            Patterns.requireSeparator(inp, st3, exprRange(value), k2, "a comma or newline between dict entries")
+          else
+            st3
+        dictEntries(inp, st4, entriesRev)
+      else
+        (entriesRev, Core.at(st3, k))
+
+
+let recordUpdate(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let openB = Core.rng(inp, i)
+  Core.withElementScope(inp, st, fun(inp2, st2) ->
+    let (recordExpr, st3) = expr(inp2, Core.at(st2, i + 1))
+    let (kwWith, st4) = Core.expect(inp2, st3, TokenKind.TWith, "'with' in record update")
+    let afterWith = st4.index
+    let (updatesRev, st5) = recordUpdateFields(inp2, st4, [])
+    let st6 =
+      if Stdlib.List.isEmpty(updatesRev) then
+        Core.errExpected(inp2, st5, afterWith, "at least one 'field = value' in a record update")
+      else
+        st5
+    let k = st6.index
+    let (closeB, st7) =
+      if Core.tok(inp2, k) == TokenKind.TRBrace then
+        (Core.rng(inp2, k), Core.at(st6, k + 1))
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp2, k)), Core.errUnclosed(inp2, st6, k, "}", "{", openB))
+    (WrittenTypes.Expr.ERecordUpdate(Core.span(openB, closeB), recordExpr, Stdlib.List.reverse(updatesRev), openB, closeB, kwWith), st7))
+
+
+let recordUpdateFields(inp: Input, st: St, updatesRev: List<((Range * String) * Range * Expr)>): (List<((Range * String) * Range * Expr)> * St) =
+  let k = st.index
+  if Core.tok(inp, k) == TokenKind.TRBrace || Core.tok(inp, k) == TokenKind.TEOF then
+    (updatesRev, st)
+  else
+    match Core.fieldName(inp, k, TokenKind.TEquals) with
+    | Some(fname) ->
+      let fnameR = Core.rng(inp, k)
+      let eqR = Core.rng(inp, k + 1)
+      let st0 = Core.setStmtCol(st, fnameR.start.column)
+      let (value, st1) = expr(inp, Core.at(st0, k + 2))
+      let updatesRev = [ ((fnameR, fname), eqR, value), ...updatesRev ]
+      let k2 = st1.index
+      if Core.tok(inp, k2) == TokenKind.TComma then
+        recordUpdateFields(inp, Core.at(st1, k2 + 1), updatesRev)
+      else if Core.tok(inp, k2) == TokenKind.TSemicolon then
+        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ p with x = 1, y = 2 }`")
+        recordUpdateFields(inp, Core.at(st2, k2 + 1), updatesRev)
+      else if k2 > k then
+        let st2 =
+          if Core.tok(inp, k2) != TokenKind.TRBrace then
+            Patterns.requireSeparator(inp, st1, exprRange(value), k2, "a comma or newline between record-update fields")
+          else
+            st1
+        recordUpdateFields(inp, st2, updatesRev)
+      else
+        (updatesRev, Core.at(st1, k))
+    | None -> (updatesRev, Core.errExpectedName(inp, st, k, "a record-update field 'name = value'"))
+
+
+// --- fn parameters ---
+
+type Parameter = WrittenTypes.FnDeclaration.Parameter
+
+
+/// `(a: T, b: U)` or `()`. A second list after the first is an error, read as more parameters.
+let params(inp: Input, st: St): (List<Parameter> * St) =
+  let (first, st1) = paramList(inp, st)
+  let (extrasRev, st2) = extraParamLists(inp, st1, [])
+  let ps = Stdlib.List.flatten([ first, ...Stdlib.List.reverse(extrasRev) ])
+  let st3 =
+    Stdlib.List.fold(ps, st2, fun(s, p) ->
+      match p with
+      | Normal(n) ->
+        if n.name.name == "" then
+          Core.errAt(
+            s,
+            Core.Code.Pattern,
+            n.name.range,
+            "Blank parameter '___' is not allowed in a package function",
+            Stdlib.Option.Option.Some("use () for a unit parameter or give the parameter a name"))
+        else
+          s
+      | Unit(_) -> s)
+  (ps, st3)
+
+
+let extraParamLists(inp: Input, st: St, extrasRev: List<List<Parameter>>): (List<List<Parameter>> * St) =
+  let k = st.index
+  if Core.tok(inp, k) != TokenKind.TLParen then
+    (extrasRev, st)
+  else
+    let (extra, st1) = paramList(inp, st)
+    let st2 =
+      Core.errFull(
+        inp,
+        st1,
+        Core.Code.Unexpected,
+        k,
+        "a function's parameters go in one list, separated by commas",
+        [],
+        Stdlib.Option.Option.Some("write `let f(a: T, b: U)` rather than `let f (a: T) (b: U)`"))
+    if st2.index == k then
+      ([ extra, ...extrasRev ], st2)
+    else
+      extraParamLists(inp, st2, [ extra, ...extrasRev ])
+
+
+let paramList(inp: Input, st: St): (List<Parameter> * St) =
+  let i = st.index
+  let lparen = Core.rng(inp, i)
+  if Core.tok(inp, i + 1) == TokenKind.TRParen then
+    ([ WrittenTypes.FnDeclaration.Parameter.Unit(WrittenTypes.FnDeclaration.UnitParameter { range = Core.span(lparen, Core.rng(inp, i + 1)) }) ],
+     Core.at(st, i + 2))
+  else
+    let (psRev, st1) = paramsFrom(inp, Core.at(st, i + 1), i, lparen, [], lparen)
+    (Stdlib.List.reverse(psRev), st1)
+
+
+let paramsFrom(
+  inp: Input,
+  st: St,
+  i: Int64,
+  lparen: Range,
+  psRev: List<Parameter>,
+  left: Range)
+  : (List<Parameter> * St) =
+  let nameIdx = st.index
+  let (nameId, st0) =
+    match Core.tok(inp, nameIdx) with
+    | TIdent(nm) -> (WrittenTypes.VariableIdentifier { range = Core.rng(inp, nameIdx), name = nm }, st)
+    | TUnderscore -> (WrittenTypes.VariableIdentifier { range = Core.rng(inp, nameIdx), name = "_" }, st)
+    | _ ->
+      (WrittenTypes.VariableIdentifier { range = Core.rng(inp, nameIdx), name = "_" },
+       Core.errExpectedName(inp, st, nameIdx, "a parameter name"))
+  let (colon, st1) =
+    if Core.tok(inp, nameIdx + 1) == TokenKind.TColon then
+      (Core.rng(inp, nameIdx + 1), Core.at(st0, nameIdx + 2))
+    else
+      (Core.zeroWidthAtEnd(Core.rng(inp, nameIdx + 1)), Core.at(Core.errExpected(inp, st0, nameIdx + 1, "':'"), nameIdx + 1))
+  let (typ, st2) = Types.typeRef(inp, st1)
+  let afterTyp = st2.index
+  let description =
+    let atLeft = if nameIdx == i + 1 then Core.docOf(inp, i) else ""
+    if atLeft != "" then atLeft else Core.docOf(inp, nameIdx)
+  let newlineSeparates =
+    (Core.rng(inp, afterTyp)).start.row > (Core.rng(inp, afterTyp - 1)).end_.row
+  let (right, next, finished, st3) =
+    match Core.tok(inp, afterTyp) with
+    | TComma -> (Core.rng(inp, afterTyp), afterTyp + 1, false, st2)
+    | TRParen -> (Core.rng(inp, afterTyp), afterTyp + 1, true, st2)
+    | TIdent(_) ->
+      if newlineSeparates then
+        (Core.zeroWidthAtEnd(Core.rng(inp, afterTyp - 1)), afterTyp, false, st2)
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp, afterTyp)), afterTyp, true, Core.errUnclosed(inp, st2, afterTyp, ")", "(", lparen))
+    | TUnderscore ->
+      if newlineSeparates then
+        (Core.zeroWidthAtEnd(Core.rng(inp, afterTyp - 1)), afterTyp, false, st2)
+      else
+        (Core.zeroWidthAtEnd(Core.rng(inp, afterTyp)), afterTyp, true, Core.errUnclosed(inp, st2, afterTyp, ")", "(", lparen))
+    | _ ->
+      (Core.zeroWidthAtEnd(Core.rng(inp, afterTyp)), afterTyp, true, Core.errUnclosed(inp, st2, afterTyp, ")", "(", lparen))
+  let param =
+    WrittenTypes.FnDeclaration.Parameter.Normal(
+      WrittenTypes.FnDeclaration.NormalParameter
+        { range = Core.span(left, right)
+          name = nameId
+          typ = typ
+          description = description
+          symbolLeftParen = left
+          symbolColon = colon
+          symbolRightParen = right })
+  let psRev = [ param, ...psRev ]
+  if Stdlib.Bool.not(finished) && Core.tok(inp, next) == TokenKind.TRParen then
+    (psRev, Core.at(st3, next + 1))
+  else if finished || next == nameIdx then
+    (psRev, Core.at(st3, next))
+  else
+    paramsFrom(inp, Core.at(st3, next), i, lparen, psRev, right)

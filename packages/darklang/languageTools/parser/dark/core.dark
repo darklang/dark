@@ -1,0 +1,538 @@
+/// The parser's state and the combinators the grammar is built from. A `Parser<'a>` reads
+/// from the token at `st.index` and returns what it parsed and the state after it. Parsers
+/// never fail: like the F# parser, a missing piece becomes a diagnostic and a recovery node,
+/// so callers always get a tree.
+module Darklang.LanguageTools.Parser.Dark.Core
+
+type Range = LanguageTools.Parser.Range
+type Point = LanguageTools.Parser.Point
+type Token = Lexer.Token
+type TokenKind = Lexer.TokenKind
+
+
+type Code =
+  | Expected
+  | Unclosed
+  | Escape
+  | IntRange
+  | FloatPrecision
+  | FloatOverflow
+  | FloatUnderflow
+  | FloatInvalid
+  | TooDeep
+  | Unexpected
+  | PipeSegment
+  | Pattern
+  | Interpolation
+  | Bound
+  | Lex
+
+
+type Diagnostic =
+  { code: Code
+    range: Range
+    message: String
+    related: List<(Range * String)>
+    hint: Option<String> }
+
+
+/// One offside scope: the column a statement is anchored at (-1 for none), and whether only
+/// that exact column starts a new statement (inside parentheses, where `)` closes).
+type Scope =
+  { stmtCol: Int64
+    stmtExact: Bool }
+
+
+type Input =
+  { tokens: List<Token>
+    count: Int64 }
+
+
+type St =
+  { index: Int64
+    scopes: List<Scope>
+    /// the (row, column) of the arms of each enclosing match, innermost first
+    matchArms: List<(Int64 * Int64)>
+    /// `>` left over from a `>>` that closed one generic level of two
+    pendingGt: Int64
+    pendingGtRange: Range
+    /// the column of the declaration being parsed, or -1
+    declAnchor: Int64
+    diagnosticsRev: List<Diagnostic> }
+
+
+type Parser<'a> = (Input, St) -> ('a * St)
+
+
+// --- tokens ---
+
+let token(inp: Input, i: Int64): Token =
+  match Stdlib.List.getAt(inp.tokens, i) with
+  | Some(t) -> t
+  | None ->
+    match Stdlib.List.last(inp.tokens) with
+    | Some(t) -> t
+    | None ->
+      let p = Point { row = 0, column = 0 }
+      Token
+        { kind = TokenKind.TEOF
+          text = ""
+          range = Range { start = p, end_ = p }
+          docComment = Stdlib.Option.Option.None
+          leadingTrivia = []
+          lexError = false }
+
+
+/// The kind of the token at <param i>; TEOF past the end.
+let tok(inp: Input, i: Int64): TokenKind =
+  if i < inp.count then (token(inp, i)).kind else TokenKind.TEOF
+
+
+let rng(inp: Input, i: Int64): Range =
+  (token(inp, i)).range
+
+
+let txt(inp: Input, i: Int64): String =
+  if i < inp.count then (token(inp, i)).text else ""
+
+
+let docOf(inp: Input, i: Int64): String =
+  if i < inp.count then
+    (token(inp, i)).docComment |> Stdlib.Option.withDefault("")
+  else
+    ""
+
+
+let isIdent(k: TokenKind): Bool =
+  match k with
+  | TIdent(_) -> true
+  | _ -> false
+
+
+let identName(k: TokenKind): String =
+  match k with
+  | TIdent(n) -> n
+  | _ -> ""
+
+
+let isIdentNamed(k: TokenKind, name: String): Bool =
+  match k with
+  | TIdent(n) -> n == name
+  | _ -> false
+
+
+let span(a: Range, b: Range): Range =
+  Range { start = a.start, end_ = b.end_ }
+
+
+let zeroWidthAtEnd(r: Range): Range =
+  Range { start = r.end_, end_ = r.end_ }
+
+
+let zeroWidthAtStart(r: Range): Range =
+  Range { start = r.start, end_ = r.start }
+
+
+let pointBefore(a: Point, b: Point): Bool =
+  a.row < b.row || (a.row == b.row && a.column < b.column)
+
+
+let at(st: St, i: Int64): St =
+  { st with index = i }
+
+
+let minI(a: Int64, b: Int64): Int64 =
+  if a < b then a else b
+
+
+let maxI(a: Int64, b: Int64): Int64 =
+  if a > b then a else b
+
+
+// --- diagnostics ---
+
+let addDiagnostic(st: St, d: Diagnostic): St =
+  { st with diagnosticsRev = [ d, ...st.diagnosticsRev ] }
+
+
+let errFull(
+  inp: Input,
+  st: St,
+  code: Code,
+  i: Int64,
+  message: String,
+  related: List<(Range * String)>,
+  hint: Option<String>)
+  : St =
+  addDiagnostic(
+    st,
+    Diagnostic
+      { code = code
+        range = rng(inp, i)
+        message = message
+        related = related
+        hint = hint })
+
+
+let err(inp: Input, st: St, code: Code, i: Int64, message: String): St =
+  errFull(inp, st, code, i, message, [], Stdlib.Option.Option.None)
+
+
+let errAt(st: St, code: Code, range: Range, message: String, hint: Option<String>): St =
+  addDiagnostic(
+    st,
+    Diagnostic
+      { code = code
+        range = range
+        message = message
+        related = []
+        hint = hint })
+
+
+/// What the parser is looking at, for "expected X, found Y".
+let foundDesc(inp: Input, i: Int64): String =
+  if i >= inp.count || tok(inp, i) == TokenKind.TEOF then
+    "end of file"
+  else
+    let t = Stdlib.String.replaceAll(txt(inp, i), "\n", "\\n")
+    if Stdlib.String.length(t) > 24 then
+      "'" + Stdlib.String.first(t, 24) + "…'"
+    else
+      "'" + t + "'"
+
+
+let errExpected(inp: Input, st: St, i: Int64, what: String): St =
+  err(inp, st, Code.Expected, i, $"expected {what}, found {foundDesc(inp, i)}")
+
+
+val reservedKinds: List<TokenKind> =
+  [ TokenKind.TLet
+    TokenKind.TVal
+    TokenKind.TIn
+    TokenKind.TIf
+    TokenKind.TElif
+    TokenKind.TThen
+    TokenKind.TElse
+    TokenKind.TType
+    TokenKind.TTrait
+    TokenKind.TImpl
+    TokenKind.TOf
+    TokenKind.TMatch
+    TokenKind.TWith
+    TokenKind.TFun
+    TokenKind.TWhen ]
+
+
+/// A reserved word other than `true`, `false` and `_`.
+let isKeyword(k: TokenKind): Bool =
+  Stdlib.List.contains(reservedKinds, k)
+
+
+let keywordHint(inp: Input, i: Int64): String =
+  if i > 0
+     && i < inp.count
+     && isKeyword(tok(inp, i))
+     && (rng(inp, i)).start.row == (rng(inp, i - 1)).end_.row then
+    let w = txt(inp, i)
+    $"; {w} is a keyword, so to use it as a name write `{w}`"
+  else
+    ""
+
+
+let errExpectedName(inp: Input, st: St, i: Int64, what: String): St =
+  err(
+    inp,
+    st,
+    Code.Expected,
+    i,
+    $"expected {what}, found {foundDesc(inp, i)}{keywordHint(inp, i)}")
+
+
+let errUnclosed(inp: Input, st: St, i: Int64, closeSym: String, openSym: String, openR: Range): St =
+  errFull(
+    inp,
+    st,
+    Code.Unclosed,
+    i,
+    $"expected '{closeSym}' to close the '{openSym}' at line {openR.start.row + 1}:{openR.start.column + 1}, found {foundDesc(inp, i)}",
+    [ (openR, $"the '{openSym}' opened here") ],
+    Stdlib.Option.Option.None)
+
+
+/// The name of a `name = value` or `name: Type` field at <param k>, when <param sep> follows.
+let fieldName(inp: Input, k: Int64, sep: TokenKind): Option<String> =
+  let t = tok(inp, k)
+  if tok(inp, k + 1) != sep then Stdlib.Option.Option.None
+  else
+    match t with
+    | TIdent(name) -> Stdlib.Option.Option.Some(name)
+    | _ -> if isKeyword(t) then Stdlib.Option.Option.Some(txt(inp, k)) else Stdlib.Option.Option.None
+
+
+// --- offside scopes ---
+
+let currentScope(st: St): Scope =
+  match st.scopes with
+  | [ s, ... ] -> s
+  | [] -> Scope { stmtCol = -1, stmtExact = false }
+
+
+let setStmtCol(st: St, col: Int64): St =
+  match st.scopes with
+  | [ s, ...rest ] -> { st with scopes = [ { s with stmtCol = col }, ...rest ] }
+  | [] -> { st with scopes = [ Scope { stmtCol = col, stmtExact = false } ] }
+
+
+/// Run <param p> with the scopes and match-arm anchors <param prepare> sets up, then put
+/// them back as they were.
+let scoped(inp: Input, st: St, prepare: St -> St, p: Parser<'a>): ('a * St) =
+  let (value, after) = p(inp, prepare(st))
+  (value, { after with scopes = st.scopes, matchArms = st.matchArms })
+
+
+let withStmtScope(inp: Input, st: St, col: Int64, p: Parser<'a>): ('a * St) =
+  scoped(
+    inp,
+    st,
+    fun s -> { s with scopes = [ Scope { stmtCol = col, stmtExact = false }, ...s.scopes ] },
+    p)
+
+
+let withoutMatchArms(inp: Input, st: St, p: Parser<'a>): ('a * St) =
+  scoped(inp, st, fun s -> { s with matchArms = [] }, p)
+
+
+let withElementScope(inp: Input, st: St, p: Parser<'a>): ('a * St) =
+  scoped(
+    inp,
+    st,
+    fun s ->
+      { s with
+          scopes = [ Scope { stmtCol = (currentScope(s)).stmtCol, stmtExact = false }, ...s.scopes ]
+          matchArms = [] },
+    p)
+
+
+let withStmtColExact(inp: Input, st: St, col: Int64, p: Parser<'a>): ('a * St) =
+  scoped(
+    inp,
+    st,
+    fun s ->
+      match s.scopes with
+      | [ top, ...rest ] ->
+        { s with scopes = [ { top with stmtCol = col, stmtExact = true }, ...rest ], matchArms = [] }
+      | [] -> { s with scopes = [ Scope { stmtCol = col, stmtExact = true } ], matchArms = [] },
+    p)
+
+
+let barStartsArm(inp: Input, st: St, i: Int64): Bool =
+  let r = rng(inp, i)
+  Stdlib.List.any(st.matchArms, fun((armRow, armCol)) -> r.start.row == armRow || r.start.column == armCol)
+
+
+let declBarrier(inp: Input, st: St, k: Int64): Bool =
+  (match tok(inp, k) with
+   | TLet | TType | TTrait | TImpl | TVal -> true
+   | _ -> false)
+  && st.declAnchor >= 0
+  && (rng(inp, k)).start.column <= st.declAnchor
+
+
+/// Does an operand at <param k> continue the construct started at <param headIdx>?
+let offsideContinues(inp: Input, st: St, headIdx: Int64, k: Int64): Bool =
+  let rk = rng(inp, k)
+  let rh = rng(inp, headIdx)
+  rk.start.row == rh.start.row
+  || rk.start.column > rh.start.column
+  || (let s = currentScope(st)
+      s.stmtCol >= 0
+      && (if s.stmtExact then rk.start.column != s.stmtCol else rk.start.column > s.stmtCol))
+
+
+/// Are the tokens at <param i> and <param j> written with nothing between them?
+let adjacent(inp: Input, i: Int64, j: Int64): Bool =
+  (rng(inp, i)).end_ == (rng(inp, j)).start
+
+
+// --- token classes ---
+
+let isIntLit(t: TokenKind): Bool =
+  match t with
+  | TBigInt(_) | TInt64(_) | TInt8(_) | TUInt8(_) | TInt16(_) | TUInt16(_) | TInt32(_) | TUInt32(_) | TUInt64(_) | TInt128(_) | TUInt128(_) -> true
+  | _ -> false
+
+
+let isNumberLit(t: TokenKind): Bool =
+  isIntLit(t)
+  || (match t with
+      | TFloat64 | TFloat32 | TDecimal(_) -> true
+      | _ -> false)
+
+
+let canStartAtom(t: TokenKind): Bool =
+  isIntLit(t)
+  || (match t with
+      | TFloat64 | TFloat32 | TDecimal(_) | TCharLit(_) | TTrue | TFalse | TStringLit(_) | TInterpString | TIdent(_) | TLParen | TLBracket | TLBrace | TNot | TBitNot -> true
+      | _ -> false)
+
+
+let canStartPattern(t: TokenKind): Bool =
+  isIntLit(t)
+  || (match t with
+      | TUnderscore | TMinus | TFloat64 | TFloat32 | TDecimal(_) | TCharLit(_) | TTrue | TFalse | TStringLit(_) | TIdent(_) | TLParen | TLBracket -> true
+      | _ -> false)
+
+
+let closesOrSeparates(t: TokenKind): Bool =
+  match t with
+  | TRParen | TRBracket | TRBrace | TSemicolon | TComma | TIn | TThen | TElse | TWith | TArrow | TEOF -> true
+  | _ -> false
+
+
+let isRecoveryBarrier(t: TokenKind): Bool =
+  closesOrSeparates(t)
+  || (match t with
+      | TLet | TType | TTrait | TImpl | TVal -> true
+      | _ -> false)
+
+
+/// After a failed parse at <param i>: skip the token unless the enclosing construct needs it.
+let recoverPast(inp: Input, i: Int64): Int64 =
+  if i < inp.count && Stdlib.Bool.not(isRecoveryBarrier(tok(inp, i))) then i + 1 else i
+
+
+let isUpperIdentifier(name: String): Bool =
+  let rest = if Stdlib.String.startsWith(name, "__") then Stdlib.String.dropFirst(name, 2) else name
+  match Stdlib.String.head(rest) with
+  | Some(c) -> Stdlib.Char.isUppercase(c)
+  | None -> false
+
+
+let startsUpper(name: String): Bool =
+  match Stdlib.String.head(name) with
+  | Some(c) -> Stdlib.Char.isUppercase(c)
+  | None -> false
+
+
+let startsLowerOrUnderscore(name: String): Bool =
+  match Stdlib.String.head(name) with
+  | Some(c) -> Stdlib.Char.isLowercase(c) || c == '_'
+  | None -> false
+
+
+// --- combinators ---
+
+let succeed(value: 'a): Parser<'a> =
+  fun(_inp, st) -> (value, st)
+
+
+let map(p: Parser<'a>, f: 'a -> 'b): Parser<'b> =
+  fun(inp, st) ->
+    let (v, st2) = p(inp, st)
+    (f(v), st2)
+
+
+let andThen(p: Parser<'a>, next: 'a -> Parser<'b>): Parser<'b> =
+  fun(inp, st) ->
+    let (v, st2) = p(inp, st)
+    (next(v))(inp, st2)
+
+
+/// `sep item sep item …`: each item with the range of the separator before it. A parse
+/// that makes no progress ends the list there.
+let separated(inp: Input, st: St, sep: TokenKind, p: Parser<'a>): (List<(Range * 'a)> * St) =
+  separatedFrom(inp, st, sep, p, [])
+
+
+let separatedFrom(
+  inp: Input,
+  st: St,
+  sep: TokenKind,
+  p: Parser<'a>,
+  itemsRev: List<(Range * 'a)>)
+  : (List<(Range * 'a)> * St) =
+  let m = st.index
+  if tok(inp, m) != sep then
+    (Stdlib.List.reverse(itemsRev), st)
+  else
+    let (item, st2) = p(inp, at(st, m + 1))
+    let itemsRev = [ (rng(inp, m), item), ...itemsRev ]
+    if st2.index > m then
+      separatedFrom(inp, st2, sep, p, itemsRev)
+    else
+      (Stdlib.List.reverse(itemsRev), at(st2, m))
+
+
+/// Like `separated`, but a parse that makes no progress skips the separator and goes on, and
+/// with <param stopAtPendingGt> a `>` left over from a `>>` ends the list.
+let separatedSkipping(
+  inp: Input,
+  st: St,
+  sep: TokenKind,
+  stopAtPendingGt: Bool,
+  p: Parser<'a>)
+  : (List<(Range * 'a)> * St) =
+  separatedSkippingFrom(inp, st, sep, stopAtPendingGt, p, [])
+
+
+let separatedSkippingFrom(
+  inp: Input,
+  st: St,
+  sep: TokenKind,
+  stopAtPendingGt: Bool,
+  p: Parser<'a>,
+  itemsRev: List<(Range * 'a)>)
+  : (List<(Range * 'a)> * St) =
+  let m = st.index
+  if tok(inp, m) != sep || (stopAtPendingGt && st.pendingGt > 0) then
+    (Stdlib.List.reverse(itemsRev), st)
+  else
+    let (item, st2) = p(inp, at(st, m + 1))
+    let next = if st2.index > m then st2.index else m + 1
+    separatedSkippingFrom(inp, at(st2, next), sep, stopAtPendingGt, p, [ (rng(inp, m), item), ...itemsRev ])
+
+
+/// The range of <param kind> at the current token and the state past it, or a diagnostic and a
+/// zero-width range where it should have been.
+let expect(inp: Input, st: St, kind: TokenKind, what: String): (Range * St) =
+  let i = st.index
+  if tok(inp, i) == kind then
+    (rng(inp, i), at(st, i + 1))
+  else
+    (zeroWidthAtEnd(rng(inp, i)), errExpected(inp, st, i, what))
+
+
+// --- hints that quote what was written ---
+
+/// Placeholder names, one per item: `a, b` for two.
+let placeholders(count: Int64): List<String> =
+  let names = Stdlib.List.take([ "a", "b", "c", "d", "e", "f", "g", "h" ], count)
+  if count > 8 then Stdlib.List.append(names, "...") else names
+
+
+let pointAtOrAfter(a: Point, b: Point): Bool =
+  Stdlib.Bool.not(pointBefore(a, b))
+
+
+/// For each range, what was written there when it is one token, else a placeholder.
+let writtenOrPlaceholders(inp: Input, ranges: List<Range>): List<String> =
+  let written =
+    fun r ->
+      let inside =
+        Stdlib.List.filter(inp.tokens, fun t ->
+          pointBefore(t.range.start, t.range.end_)
+          && pointAtOrAfter(t.range.start, r.start)
+          && pointAtOrAfter(r.end_, t.range.end_))
+      match inside with
+      | [ t ] -> Stdlib.Option.Option.Some(t.text)
+      | _ -> Stdlib.Option.Option.None
+
+  Stdlib.List.indexedMap(placeholders(Stdlib.List.length(ranges)), fun(i, p) ->
+    match Stdlib.List.getAt(ranges, i) with
+    | Some(r) -> written(r) |> Stdlib.Option.withDefault(p)
+    | None -> p)
+
+
+/// "write `Ok(5)` rather than `Ok 5`"
+let spacedHint(name: String, shown: List<String>): String =
+  $"write `{name}({Stdlib.String.join(shown, ", ")})` rather than `{name} {Stdlib.String.join(shown, " ")}`"

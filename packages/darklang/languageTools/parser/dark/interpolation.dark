@@ -1,0 +1,148 @@
+/// `$"text {expr} text"` and `$"""…"""`: the token's text is scanned again here, and each
+/// `{expr}` is lexed and parsed on its own, with its ranges moved to where it sits.
+module Darklang.LanguageTools.Parser.Dark.Interpolation
+
+type Range = LanguageTools.Parser.Range
+type Point = LanguageTools.Parser.Point
+type Input = Core.Input
+type St = Core.St
+type Expr = WrittenTypes.Expr
+type Source = Lexer.Source
+
+
+type Scan =
+  { src: Source
+    basePos: Point
+    triple: Bool
+    length: Int64 }
+
+
+/// The position of offset <param off> in the token's text.
+let posAt(scan: Scan, off: Int64): Point =
+  Lexer.advance(scan.src, scan.basePos, 0, Core.minI(off, scan.length))
+
+
+let rangeAt(scan: Scan, a: Int64, b: Int64): Range =
+  Range { start = posAt(scan, a), end_ = posAt(scan, b) }
+
+
+let atClose(scan: Scan, k: Int64): Bool =
+  if scan.triple then Lexer.isTripleQuote(scan.src, k) else Lexer.at(scan.src, k) == Lexer.quote
+
+
+let interpString(inp: Input, st: St): (Expr * St) =
+  let i = st.index
+  let token = Core.token(inp, i)
+  let src = Lexer.source(token.text)
+  let m = src.length
+  let triple = m >= 4 && Lexer.isTripleQuote(src, 1)
+  let scan =
+    Scan
+      { src = src
+        basePos = token.range.start
+        triple = triple
+        length = m }
+  let bodyStart = if triple then 4 else 2
+  let closeLen = if triple then 3 else 1
+  let (contentsRev, foundClose, st1) = segments(inp, st, scan, bodyStart, bodyStart, [])
+  let closeQ = if foundClose then rangeAt(scan, m - closeLen, m) else rangeAt(scan, m, m)
+  (WrittenTypes.Expr.EString(
+    token.range,
+    Stdlib.Option.Option.Some(rangeAt(scan, 0, 1)),
+    Stdlib.List.reverse(contentsRev),
+    rangeAt(scan, 1, bodyStart),
+    closeQ),
+   Core.at(st1, i + 1))
+
+
+type Segments = (List<WrittenTypes.StringSegment> * Bool * St)
+
+
+/// The segments from offset <param k>, where the current text run started at <param textStart>.
+let segments(
+  inp: Input,
+  st: St,
+  scan: Scan,
+  textStart: Int64,
+  k: Int64,
+  contentsRev: List<WrittenTypes.StringSegment>)
+  : Segments =
+  let src = scan.src
+  let m = scan.length
+  if k >= m then
+    (flushText(scan, contentsRev, textStart, m), false, st)
+  else if atClose(scan, k) then
+    (flushText(scan, contentsRev, textStart, k), true, st)
+  else if Lexer.at(src, k) == Lexer.backslash && Stdlib.Bool.not(scan.triple) && k + 1 < m then
+    segments(inp, st, scan, textStart, k + 2, contentsRev)
+  else if Lexer.isChar(src, k, '{') && k + 1 < m && Lexer.isChar(src, k + 1, '{') then
+    segments(inp, st, scan, textStart, k + 2, contentsRev)
+  else if Lexer.isChar(src, k, '}') && k + 1 < m && Lexer.isChar(src, k + 1, '}') then
+    segments(inp, st, scan, textStart, k + 2, contentsRev)
+  else if Lexer.isChar(src, k, '{') then
+    let flushed = flushText(scan, contentsRev, textStart, k)
+    match Lexer.interpClose(src, k + 1, 0) with
+    // unclosed: the run's text is flushed again, through the end
+    | None -> (flushText(scan, flushed, textStart, m), false, st)
+    | Some(found) ->
+      let (inner, st1) = innerExpr(inp, st, scan, k + 1, found)
+      let segment =
+        WrittenTypes.StringSegment.StringInterpolation(
+          rangeAt(scan, k, found + 1),
+          inner,
+          rangeAt(scan, k, k + 1),
+          rangeAt(scan, found, found + 1))
+      segments(inp, st1, scan, found + 1, found + 1, [ segment, ...flushed ])
+  else
+    segments(inp, st, scan, textStart, k + 1, contentsRev)
+
+
+/// The literal text [<param from>, <param to>): `{{`/`}}` halved first, then escapes decoded.
+let flushText(scan: Scan, contentsRev: List<WrittenTypes.StringSegment>, from: Int64, to: Int64): List<WrittenTypes.StringSegment> =
+  if to <= from then
+    contentsRev
+  else
+    let raw = Lexer.text(scan.src, from, to)
+    let deDoubled = Stdlib.String.replaceAll(Stdlib.String.replaceAll(raw, "{{", "{"), "}}", "}")
+    let text =
+      if scan.triple then
+        deDoubled
+      else
+        let s = Lexer.source(deDoubled)
+        Lexer.unescape(s, 0, s.length)
+    [ WrittenTypes.StringSegment.StringText(rangeAt(scan, from, to), text), ...contentsRev ]
+
+
+/// The expression in `{…}`, from offset <param from> to the `}` at <param found>.
+let innerExpr(inp: Input, st: St, scan: Scan, from: Int64, found: Int64): (Expr * St) =
+  let exprText = Lexer.text(scan.src, from, found)
+  let exprStart = posAt(scan, from)
+  let offset =
+    fun p ->
+      if p.row == 0 then
+        Point { row = exprStart.row, column = exprStart.column + p.column }
+      else
+        Point { row = exprStart.row + p.row, column = p.column }
+  let offsetRange = fun r -> Range { start = offset(r.start), end_ = offset(r.end_) }
+  let bodyRange = rangeAt(scan, from, found)
+  let lexed = Lexer.lex(exprText)
+  let st1 =
+    Stdlib.List.fold(lexed.diagnostics, st, fun(s, d) ->
+      Core.errAt(s, Core.Code.Lex, offsetRange(d.range), Lexer.problemMessage(d.problem), Stdlib.Option.Option.None))
+  let tokens =
+    Stdlib.List.map(lexed.tokens, fun t -> { t with range = offsetRange(t.range) })
+  let (decls, exprs, diagnostics) = Decls.parseTokens(tokens, Decls.ItemScope.Script)
+  let st2 = { st1 with diagnosticsRev = Stdlib.List.concat(Stdlib.List.reverse(diagnostics), st1.diagnosticsRev) }
+  let interpolationError = fun(s, message) -> Core.errAt(s, Core.Code.Interpolation, bodyRange, message, Stdlib.Option.Option.None)
+  let st3 =
+    if Stdlib.List.isEmpty(decls) then
+      st2
+    else
+      interpolationError(st2, "Interpolation body must be one expression, not a declaration")
+  match (decls, exprs) with
+  | ([], [ e ]) -> (e, st3)
+  | ([], [ e, ... ]) -> (e, interpolationError(st3, "Interpolation body must contain exactly one expression"))
+  | _ ->
+    let st4 =
+      if Stdlib.List.isEmpty(decls) then interpolationError(st3, "Interpolation body cannot be empty") else st3
+    (WrittenTypes.Expr.EUnit(bodyRange), st4)
