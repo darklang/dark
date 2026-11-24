@@ -107,6 +107,9 @@ let exportFrom (sourcePath : string) (outputPath : string) : unit =
 
   checkpointWal sourcePath
 
+  // made here, not by SQLite, so a missing directory names the path; SQLite only says it can't open it
+  System.IO.File.WriteAllBytes(outputPath, [||])
+
   use conn =
     new SqliteConnection(
       $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private"
