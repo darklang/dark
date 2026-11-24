@@ -1,6 +1,6 @@
 module Darklang.Cli.ScmJson
 
-// The AI-facing shapes behind `--json` on the SCM commands: status, commit, conflicts, deps, commits,
+// The shapes behind plain output and `--json` on the SCM commands: status, commit, conflicts, deps, commits,
 // branches, diff and log.
 //
 // Same data as the pretty view, typed, so an agent consumes it without scraping. That's the requirement, and
@@ -158,18 +158,6 @@ type BranchJson =
 type JsonText = Result<String, Stdlib.Json.SerializeError.SerializeError>
 
 
-let depsJson(d: DepsJson): JsonText =
-  Stdlib.Json.checkedSerialize<DepsJson>(d)
-
-
-let commitsJson(cs: List<CommitRowJson>): JsonText =
-  Stdlib.Json.checkedSerialize<List<CommitRowJson>>(cs)
-
-
-let branchesJson(bs: List<BranchJson>): JsonText =
-  Stdlib.Json.checkedSerialize<List<BranchJson>>(bs)
-
-
 /// One op on a branch, as `dark log <branch> --json` reports it. `seq` is its position, oldest first.
 ///
 /// `op` is the RENDERED op, the same text the human view prints. Exposing the op's full structure would
@@ -180,10 +168,6 @@ type BranchOpJson =
     op: String }
 
 
-let branchOpsJson(os: List<BranchOpJson>): JsonText =
-  Stdlib.Json.checkedSerialize<List<BranchOpJson>>(os)
-
-
 /// `dark diff --json`: the draft, the same list the pretty `diff` prints. `draftOps` counts what binds no
 /// name too (a deprecation, a restore), which `changed` cannot show.
 type DraftDiffJson =
@@ -191,16 +175,6 @@ type DraftDiffJson =
     changed: List<ChangedItem>
     /// Fully-qualified names the draft removes.
     removed: List<String> }
-
-
-let draftDiffJson(d: DraftDiffJson): JsonText =
-  Stdlib.Json.checkedSerialize<DraftDiffJson>(d)
-
-
-/// `dark diff <branch> --json`. The SCM record is serialized directly rather than copied into a shape of
-/// its own: there is nothing to add here, and a second shape would be a second thing to keep in step.
-let branchDiffJson(es: List<SCM.PackageOps.BranchDiffEntry>): JsonText =
-  Stdlib.Json.checkedSerialize<List<SCM.PackageOps.BranchDiffEntry>>(es)
 
 
 /// Classify what an update did to a name. Shared by the pretty CHANGED line and the JSON, so they can't
@@ -306,20 +280,8 @@ let changeNoteFor(item: ChangedItem): String =
   | names -> note + ", now also " + Stdlib.String.join(names, ", ")
 
 
-let statusJson(s: StatusJson): JsonText =
-  Stdlib.Json.checkedSerialize<StatusJson>(s)
-
-
 let commitJson(c: CommitJson): JsonText =
   Stdlib.Json.checkedSerialize<CommitJson>(c)
-
-
-let conflictListJson(c: ConflictListJson): JsonText =
-  Stdlib.Json.checkedSerialize<ConflictListJson>(c)
-
-
-let conflictJson(c: SCM.Conflicts.Conflict): JsonText =
-  Stdlib.Json.checkedSerialize<ConflictJson>(conflictWithFqn(c))
 
 
 let conflictActionJson(a: ConflictActionJson): JsonText =

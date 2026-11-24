@@ -6,6 +6,9 @@ module Darklang.Cli
 
 let executeCliCommand(args: List<String>): Int64 =
   let initialState = initState()
+  // `dark --plain ls` is `dark ls --plain`.
+  let leading = args |> Stdlib.List.takeWhile(fun a -> Stdlib.List.contains(Output.flags, a))
+  let args = Stdlib.List.concat(Stdlib.List.drop(args, Stdlib.List.length(leading)), leading)
   match args with
   | [] ->
     if initialState.telemetryEnabled then

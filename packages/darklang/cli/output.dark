@@ -1,0 +1,101 @@
+/// How a command prints its answer: pretty for a person, plain for a program, or JSON.
+///
+/// A command hands its pretty view and its answer here, and this picks one: plain and JSON both
+/// come from the answer, so the two can't disagree.
+module Darklang.Cli.Output
+
+type Mode =
+  /// Headers, glyphs and colour, for a person at a terminal.
+  | Pretty
+  /// One record per line, fields split by tabs, nothing else: for `grep`, `awk`, a script or an
+  /// agent.
+  | Plain
+  /// One JSON value.
+  | Json
+
+
+/// The flags that pick a mode on any command. `--json` isn't one: a command takes it only where
+/// it declares it.
+val flags = [ "--plain", "--pretty" ]
+
+
+/// The mode one run prints in: `--json`, then `--plain` or `--pretty`, then `DARK_OUTPUT`, and
+/// otherwise pretty only when stdout is a terminal.
+let modeOf(args: List<String>): Mode =
+  if Stdlib.List.contains(args, "--json") then
+    Mode.Json
+  else if Stdlib.List.contains(args, "--plain") then
+    Mode.Plain
+  else if Stdlib.List.contains(args, "--pretty") then
+    Mode.Pretty
+  else
+    match Stdlib.Env.get("DARK_OUTPUT") with
+    | Some("plain") -> Mode.Plain
+    | Some("pretty") -> Mode.Pretty
+    | _ ->
+      if (Stdlib.Cli.Tui.TerminalSupport.currentFacts()).outputIsTerminal then
+        Mode.Pretty
+      else
+        Mode.Plain
+
+
+/// One field of a row. A tab or newline inside it is written as `\t` or `\n`, so a row stays one
+/// line with one tab between fields.
+let cell(json: Stdlib.AltJson.Json): String =
+  match json with
+  | Null -> ""
+  | String(s) ->
+    s
+    |> Stdlib.String.replaceAll("\t", "\\t")
+    |> Stdlib.String.replaceAll("\n", "\\n")
+  | other -> Stdlib.AltJson.format(other)
+
+
+/// One record as a row: its fields' values in declared order.
+let row(json: Stdlib.AltJson.Json): String =
+  match json with
+  | Object(fields) ->
+    fields
+    |> Stdlib.List.map(fun((_, v)) -> cell(v))
+    |> Stdlib.String.join("\t")
+  | other -> cell(other)
+
+
+/// <param value> as plain rows. A list is one row per item. A record is one row per field,
+/// `name<TAB>value`, and a list field is one row per item, each led by the field's name.
+let rows(value: 'a): List<String> =
+  match Stdlib.Json.checkedToTree<'a>(value) with
+  | Error(e) ->
+    printErr(Stdlib.display(e))
+    []
+  | Ok(Array(items)) -> items |> Stdlib.List.map(row)
+  | Ok(Object(fields)) ->
+    fields
+    |> Stdlib.List.map(fun((key, v)) ->
+      match v with
+      | Array(items) -> items |> Stdlib.List.map(fun item -> key + "\t" + row(item))
+      | other -> [ key + "\t" + row(other) ])
+    |> Stdlib.List.flatten
+  | Ok(other) -> [ cell(other) ]
+
+
+/// Print the answer the way this run asked: <param pretty> for a person, and for a program the
+/// value <param data> builds, as <param plain>'s rows or as JSON. <param data> runs only for a
+/// program, so a person never pays for what the pretty view doesn't show.
+let answerWithRows(
+  state: AppState,
+  pretty: Unit -> AppState,
+  data: Unit -> 'a,
+  plain: 'a -> List<String>)
+  : AppState =
+  match state.output with
+  | Pretty -> pretty()
+  | Plain ->
+    plain(data()) |> Stdlib.List.iter(fun r -> Stdlib.printLine(r))
+    state
+  | Json -> exitWith(state, printJson(Stdlib.Json.checkedSerialize<'a>(data())))
+
+
+/// <fn answerWithRows>, with <fn rows> for plain.
+let answer(state: AppState, pretty: Unit -> AppState, data: Unit -> 'a): AppState =
+  answerWithRows<'a>(state, pretty, data, fun v -> rows<'a>(v))

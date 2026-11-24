@@ -21,6 +21,43 @@ let shouldCap(all: Bool): Bool =
   Stdlib.Bool.not(all) && (Stdlib.Cli.Tui.TerminalSupport.currentFacts()).outputIsTerminal
 
 
+/// One version of a name, as `ls --versions` answers it.
+type Version =
+  { hash: String
+    live: Bool }
+
+
+/// One item as `ls` and `tree` answer it.
+type Item =
+  { kind: String
+    /// Dotted, from the root.
+    name: String
+    deprecated: Bool
+    /// Oldest first, under `ls --versions` when there is more than one; empty otherwise.
+    versions: List<Version> }
+
+
+/// <param name> under <param modulePath>, dotted.
+let qualified(modulePath: List<String>, name: String): String =
+  Stdlib.String.join(Stdlib.List.append(modulePath, name), ".")
+
+
+/// Plain rows for listed items: `kind<TAB>full.name`, `deprecated` as a third field when it is,
+/// and a `version` row under the item for each of its versions.
+let rows(items: List<Item>): List<String> =
+  items
+  |> Stdlib.List.map(fun item ->
+    let mark = if item.deprecated then "\tdeprecated" else ""
+    let versions =
+      item.versions
+      |> Stdlib.List.map(fun v ->
+        let live = if v.live then "\tlive" else ""
+        $"version\t{item.name}\t{Stdlib.String.first(v.hash, 8)}{live}")
+
+    Stdlib.List.prepend(versions, $"{item.kind}\t{item.name}{mark}"))
+  |> Stdlib.List.flatten
+
+
 /// The footer under a capped listing: how many were left out, and how to see them.
 /// <param seeAlso> is what the reader should do, since not every surface that caps a
 /// listing has an `--all` flag of its own to point at.

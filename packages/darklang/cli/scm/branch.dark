@@ -382,15 +382,15 @@ let execute(state: AppState, args: List<String>): AppState =
   let has(flag: String): Bool = Stdlib.List.contains(flags, flag)
   match words with
   | [] -> executeCurrent(state)
-  | ["list"] -> executeList(state, Merged.showIf(has("--all")))
+  | ["list"] -> executeBranchesCmd(state, flags)
   | ["current"] -> executeCurrent(state)
   | ["switch", id] -> executeSwitch(state, id)
   | ["new", id] -> executeCreate(state, id)
   | ["create", id] -> executeCreate(state, id)
   | ["archive", id] -> executeArchive(state, id, Confirm.assumeIf(has("-y") || has("--yes")))
   | ["rename", id, newName] -> executeRename(state, id, newName)
-  | ["diff", id] -> executeDiff(state, id, Source.showIf(has("--source")))
-  | ["log", id] -> executeLog(state, id)
+  | ["diff", id] -> executeDiffCmd(state, Stdlib.List.prepend(flags, id))
+  | ["log", id] -> executeLogCmd(state, [ id ])
   | ["merge", id] -> executeMergeCmd(state, Stdlib.List.prepend(flags, id))
   | ["rebase", id] -> executeRebase(state, id)
   | ["resolve", id, name, choice] -> executeResolve(state, id, name, choice)
@@ -445,11 +445,11 @@ let executeCreate(state: AppState, name: String): AppState =
 
 /// `dark branches`
 let executeBranchesCmd(state: AppState, args: List<String>): AppState =
-  if ScmJson.wantsJson(args) then
-    // JSON is for a program, and a program wants the whole set rather than the readable subset.
-    exitWith(state, printJson(ScmJson.branchesJson(branchRows())))
-  else
-    executeList(state, Merged.showIf(Stdlib.List.contains(args, "--all")))
+  // A program wants the whole set rather than the readable subset.
+  Output.answer(
+    state,
+    fun () -> executeList(state, Merged.showIf(Stdlib.List.contains(args, "--all"))),
+    fun () -> branchRows())
 
 
 /// Start the branch named <param name> off <param parentId>, or say why it could not be.

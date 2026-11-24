@@ -495,32 +495,20 @@ let jsonSuccess(id: String, status: String, resolvedTo: String): Bool =
         { id = id, ok = true, status = status, resolvedTo = resolvedTo, error = "" }))
 
 
-/// The typed conflict list, as both listing arms print it.
-let printConflictList(cs: List<SCM.Conflicts.Conflict>): Bool =
-  printJson(
-    ScmJson.conflictListJson(
-      ScmJson.ConflictListJson
-        { pending = Stdlib.List.length(cs)
-          conflicts = cs |> Stdlib.List.map(ScmJson.conflictWithFqn) }))
+/// The typed conflict list, as both listing arms answer it.
+let conflictList(cs: List<SCM.Conflicts.Conflict>): ScmJson.ConflictListJson =
+  ScmJson.ConflictListJson
+    { pending = Stdlib.List.length(cs)
+      conflicts = cs |> Stdlib.List.map(ScmJson.conflictWithFqn) }
 
 
 let failureUnknown(state: AppState): AppState =
   jsonFailure(state, "unknown `dark conflicts` subcommand")
 
 
-/// The --json half. Same data the pretty view formats, never re-derived.
+/// `ack` and `override` under --json: what each did, as data.
 let executeJson(state: AppState, args: List<String>): AppState =
   match args with
-  | [] | ["list"] -> exitWith(state, printConflictList(SCM.Conflicts.pending()))
-  | ["branch", branchRef] ->
-    // Same name-to-id crossing the human-readable arm does; a name is what every command prints.
-    match Branch.resolveRef(branchRef) with
-    | None -> failed(state)
-    | Some(branchId) -> exitWith(state, printConflictList(SCM.PackageOps.branchPreview(branchId)))
-  | ["show", id] ->
-    match SCM.Conflicts.getByIdPrefix(id) with
-    | Some(c) -> exitWith(state, printJson(ScmJson.conflictJson(c)))
-    | None -> jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
   | ["ack", id] ->
     match SCM.Conflicts.getByIdPrefix(id) with
     | Some(c) ->
@@ -695,11 +683,21 @@ let executePretty(state: AppState, args: List<String>): AppState =
 
 
 let execute(state: AppState, args: List<String>): AppState =
-  let stripped = ScmJson.stripJson(args)
-  if ScmJson.wantsJson(args) then
-    executeJson(state, stripped)
-  else
-    executePretty(state, stripped)
+  let args = args |> Stdlib.List.filter(fun a -> a != "--json")
+  let pretty = fun () -> executePretty(state, args)
+  match args with
+  | [] | ["list"] -> Output.answer(state, pretty, fun () -> conflictList(SCM.Conflicts.pending()))
+  | ["branch", branchRef] ->
+    // Same name-to-id crossing the human-readable arm does; a name is what every command prints.
+    match Branch.resolveRef(branchRef) with
+    | None -> failed(state)
+    | Some(branchId) ->
+      Output.answer(state, pretty, fun () -> conflictList(SCM.PackageOps.branchPreview(branchId)))
+  | ["show", id] ->
+    match SCM.Conflicts.getByIdPrefix(id) with
+    | None -> executeShow(state, id)
+    | Some(c) -> Output.answer(state, pretty, fun () -> ScmJson.conflictWithFqn(c))
+  | _ -> if state.output == Output.Mode.Json then executeJson(state, args) else pretty()
 
 
 /// Ids are offered at the width they're printed at, since that's what people copy off the list.

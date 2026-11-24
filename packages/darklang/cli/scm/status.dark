@@ -7,7 +7,7 @@ module Darklang.Cli.Status
 // is it: one line saying what's in your draft, what committing it would repoint, and whether anything is
 // waiting on you. If it can't be said in a line or two, it belongs in `dark commit`, not here.
 
-/// The full structured view. `dark status` prints a line of it; `--json` hands over all of it.
+/// The full structured view. `dark status` prints a line of it; plain and `--json` hand over all of it.
 let statusJson(state: AppState): ScmJson.StatusJson =
   let p = SCM.Draft.read()
   let items =
@@ -159,11 +159,8 @@ let executePretty(state: AppState): AppState =
   state
 
 
-let execute(state: AppState, args: List<String>): AppState =
-  if ScmJson.wantsJson(args) then
-    exitWith(state, printJson(ScmJson.statusJson(statusJson(state))))
-  else
-    executePretty(state)
+let execute(state: AppState, _args: List<String>): AppState =
+  Output.answer(state, fun () -> executePretty(state), fun () -> statusJson(state))
 
 
 let help(_state: AppState): String =

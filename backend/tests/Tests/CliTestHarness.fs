@@ -29,6 +29,8 @@ let private cliBuiltins : Lazy<RT.Builtins> =
 
 let private buildState () : Task<RT.ExecutionState> =
   task {
+    // tests read what a person sees; a pipe would otherwise get plain output
+    System.Environment.SetEnvironmentVariable("DARK_OUTPUT", "pretty")
     let builtins = cliBuiltins.Force()
     // Reuse the CLI's compiled functions and evaluated values. The generic
     // PT-to-RT adapter recompiles on every fetch, making checker tests much slower.

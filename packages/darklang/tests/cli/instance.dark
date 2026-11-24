@@ -122,8 +122,10 @@ let dispose(i: T): Unit =
 ///
 /// `HOME` (`USERPROFILE` on Windows) moves the store. `DARK_CONFIG_DB_NAME` is named rather than
 /// inherited, since a caller with it set would point the instance at a file it has no copy of.
+/// `DARK_OUTPUT=pretty`: tests read what a person sees, and a pipe would otherwise get plain.
 let env(i: T): List<(String * String)> =
   [ ("DARK_CONFIG_DB_NAME", "data.db")
+    ("DARK_OUTPUT", "pretty")
     ("HOME", home(i))
     ("USERPROFILE", home(i))
     ("XDG_CONFIG_HOME", home(i) + "/config") ]

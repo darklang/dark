@@ -13,6 +13,18 @@ let getIcon(entityType: EntityType): String =
   | Test -> Glyphs.test
 
 
+/// The kind's word in a row for a pipe: the same words `Glyphs.kindOrder` uses.
+let kindWord(entityType: EntityType): String =
+  match entityType with
+  | Module -> "module"
+  | Function -> "fn"
+  | Type -> "type"
+  | Value -> "val"
+  | Trait -> "trait"
+  | Impl -> "impl"
+  | Test -> "test"
+
+
 /// Section header with icon for an entity type.
 let getSectionHeader(entityType: String): String =
   Glyphs.sectionHeader(entityType)
