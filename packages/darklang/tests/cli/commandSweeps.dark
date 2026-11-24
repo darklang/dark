@@ -135,7 +135,6 @@ val notSweepable: List<String> =
     "install-status"  // reports on the machine's install, which an instance is not
     "serve"  // binds a port and blocks; its refusals are in refusals.dark
     "typecheck"  // audits every declaration; swept with a module in jsonShapes.dark
-    "export-seed"  // takes its argument as a path and writes a multi-MB database there
     "clear" ]  // clears the screen, taking the sweep's own output with it
 
 
