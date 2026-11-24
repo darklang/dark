@@ -80,7 +80,6 @@ let createTraitInline(
             location,
             LanguageTools.ProgramTypes.ItemKind.Trait,
             "trait",
-            traitSource(location.name, definition),
             0,
             fun ctx ->
               let (packageTrait, ops, unresolvedNames) =
