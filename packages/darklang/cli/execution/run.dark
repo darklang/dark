@@ -75,8 +75,7 @@ let splitArgumentsAfter(
   : (List<String> * List<String>) =
   match remaining with
   | ["--", ...rest] -> (Stdlib.List.reverse(Stdlib.List.prepend(options, "--")), rest)
-  | [flag, value, ...rest]
-    when flag == "--branch" || flag == "--entry-point" || flag == "--allow" ->
+  | [flag, value, ...rest] when flag == "--branch" || flag == "--allow" ->
     splitArgumentsAfter(Stdlib.List.prepend(Stdlib.List.prepend(options, flag), value), rest)
   | [flag, ...rest] when isFlag(flag) ->
     splitArgumentsAfter(Stdlib.List.prepend(options, flag), rest)

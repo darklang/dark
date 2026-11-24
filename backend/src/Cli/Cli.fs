@@ -207,24 +207,19 @@ let execute
               LibDB.PackagePermissions.Load.fromStore
               state.fns.builtIn
               state.spread.counts }
-    // A leading override applies only to this invocation; nothing is stored, so there is
-    // nothing to restore afterwards. The test runner spawns its parallel workers this way
-    // (`LibDB.TestProcess`), by exact hash.
-    let entryPoint, args =
-      match args with
-      | "--entry-point" :: name :: rest when not (name.StartsWith "-") ->
-        Some name, rest
-      | "--entry-point" :: _ ->
-        invalidOp "--entry-point needs a package function name or #hash"
-      | _ -> None, args
     let settings = startupSettings ()
+    // The package test runner starts its workers by the worker fn's exact hash (`LibDB.TestProcess`).
     let fnName =
-      match entryPoint with
-      | None -> RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
-      | Some name ->
-        match LibDB.PackageManager.resolveFnRef name with
-        | Some fn -> fn
-        | None -> invalidOp $"Entry point not found: {name}"
+      match System.Environment.GetEnvironmentVariable "DARK_TEST_WORKER" with
+      | null
+      | "" -> RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
+      | hash ->
+        // cleared so the commands a test launches get the ordinary CLI
+        System.Environment.SetEnvironmentVariable("DARK_TEST_WORKER", null)
+        if bundled hash then
+          RT.FQFnName.fqPackage hash
+        else
+          invalidOp $"Not a bundled fn: {hash}"
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     // What this run records and keeps, from the flag and the store's `trace.*` settings.
@@ -370,22 +365,16 @@ let private installAuditLog () : unit =
 
 /// What `ps`, `top` and htop show for this process (`setProcessTitle`), as (name, command line).
 /// The command line says what runs: the fn, the script, the router and its port, the expression.
-/// The name is the part of that which fits the kernel's 15 bytes. <param invokedAs> is a name a
-/// launcher started this under other than its own (`exec -a todo dark --entry-point Me.Todo.main`):
-/// an alias for a fn, so the title names both.
-let private processTitle
-  (invokedAs : Option<string>)
-  (args : string list)
-  : string * string =
-  let rec split (entryPoint : Option<string>) (args : string list) =
+/// The name is the part of that which fits the kernel's 15 bytes.
+let private processTitle (args : string list) : string * string =
+  let rec split (args : string list) =
     match args with
-    | "--entry-point" :: fn :: rest -> split (Some fn) rest
     // `--branch` takes a value; `--trace` does NOT, so matching it here swallowed the
     // following argument and `dark --trace run app.dark` was titled `dark app.dark`.
     // The generic flag arm below drops it.
-    | "--branch" :: _ :: rest -> split entryPoint rest
-    | flag :: rest when flag.StartsWith "--" -> split entryPoint rest
-    | _ -> entryPoint, args
+    | "--branch" :: _ :: rest -> split rest
+    | flag :: rest when flag.StartsWith "--" -> split rest
+    | _ -> args
   // One line, and short enough to leave a terminal's `ps aux` room for the rest of the row.
   let oneLine (words : string list) =
     let text =
@@ -398,7 +387,7 @@ let private processTitle
         "."
         (Array.toList (fn.Split '.') |> List.rev |> List.truncate 2 |> List.rev)
   // A package test's worker (`LibDB.TestProcess`) is told apart by the directory it runs in.
-  let testWorker (args : string list) =
+  let (|TestWorker|_|) (args : string list) =
     match args with
     | path :: _ ->
       match System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName path) with
@@ -406,14 +395,10 @@ let private processTitle
       | dir when dir.StartsWith "dark-test-" -> Some(dir.Substring 10)
       | _ -> None
     | [] -> None
-  match split None args with
-  | Some fn, rest ->
-    match testWorker rest, invokedAs with
-    | Some id, _ -> $"dark test {id}", $"dark test worker {id}"
-    | None, Some name -> name, $"{name} (alias of {fn})"
-    | None, _ -> fnName fn, $"dark {fn}"
-  | None, [] -> "dark", "dark"
-  | None, ("serve" | "http-server") :: rest ->
+  match split args with
+  | TestWorker id -> $"dark test {id}", $"dark test worker {id}"
+  | [] -> "dark", "dark"
+  | ("serve" | "http-server") :: rest ->
     let rec routerAndPort (router : string) (port : string) (rest : string list) =
       match rest with
       | "--port" :: p :: rest -> routerAndPort router p rest
@@ -426,8 +411,8 @@ let private processTitle
     let router, port = routerAndPort "" "8080" rest
     $"dark :{port}",
     oneLine ([ "dark"; "serve"; router; $":{port}" ] |> List.filter ((<>) ""))
-  | None, ("run" | "run-script") :: rest ->
-    match snd (split None rest) with
+  | ("run" | "run-script") :: rest ->
+    match split rest with
     | path :: scriptArgs ->
       (if path.EndsWith ".dark" then
          $"dark {System.IO.Path.GetFileNameWithoutExtension path}"
@@ -435,7 +420,7 @@ let private processTitle
          fnName path),
       oneLine ("dark" :: "run" :: path :: scriptArgs)
     | [] -> "dark run", "dark run"
-  | None, (cmd :: _ as rest) -> $"dark {cmd}", oneLine ("dark" :: rest)
+  | cmd :: _ as rest -> $"dark {cmd}", oneLine ("dark" :: rest)
 
 /// Everything the CLI does. Called on a thread of our own; see `main`.
 let private runCli (args : string[]) : int =
@@ -492,12 +477,7 @@ let private runCli (args : string[]) : int =
     // Record host-operation decisions at the boundary.
     installAuditLog ()
     use _interrupt = installSuspendOnInterrupt ()
-    let shortTitle, title =
-      let ownName = System.IO.Path.GetFileName System.Environment.ProcessPath
-      let alias =
-        LibExecution.HostProcess.invokedName ()
-        |> Option.filter (fun name -> name <> ownName && name <> "dark")
-      processTitle alias (List.ofArray args)
+    let shortTitle, title = processTitle (List.ofArray args)
     LibExecution.HostProcess.setProcessTitle shortTitle title
     let commandLine = "dark " + String.concat " " args
 

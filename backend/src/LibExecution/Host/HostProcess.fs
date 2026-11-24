@@ -575,19 +575,6 @@ let runInWorkspace
       return Error(code, String.concat "\n" (message :: cleanupErrors))
   }
 
-/// The name this process was started under: the first word of `/proc/self/cmdline`, read before
-/// `setProcessTitle` replaces it. Linux only. Not `Environment.ProcessPath`, which is the file the
-/// kernel ran, the same for `exec -a todo dark ...` as for a plain `dark`.
-let invokedName () : Option<string> =
-  if System.OperatingSystem.IsLinux() then
-    try
-      let cmdline = File.ReadAllText "/proc/self/cmdline"
-      Some(Path.GetFileName(cmdline.Split(char 0)[0]))
-    with _ ->
-      None
-  else
-    None
-
 /// `ps aux`, `top -c` and htop read the memory the kernel copied argv into, so the title is written
 /// over it, cut to fit. Nothing past the arguments is touched.
 let private setCommandLine (title : string) : unit =
