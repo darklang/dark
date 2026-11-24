@@ -60,9 +60,13 @@ let commit (state : Target) (message : string) : Task<unit> =
 let commitOnly (state : Target) (message : string) (names : string) : Task<unit> =
   run state [ "commit"; message; $"--include={names}"; "-y" ]
 
-/// Move onto a branch, starting it if it is new.
+/// Move onto a branch, or start it with `switch -c` when it is new.
 let switch (state : Target) (branch : string) : Task<unit> =
-  run state [ "switch"; branch ]
+  task {
+    let! out = runCliPlain state [ "switch"; branch ]
+    if out.Contains "There is no branch named" then
+      do! run state [ "switch"; "-c"; branch ]
+  }
 
 let onMain (state : Target) : Task<unit> = switch state "main"
 

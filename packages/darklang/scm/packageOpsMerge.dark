@@ -234,7 +234,7 @@ let branchList(includeMerged: Bool): String =
   match Branches.listLines(includeMerged) with
   | [] ->
     if hidden == 0 then
-      "no branches -- `dark switch <name>` starts one."
+      "no branches -- `dark switch -c <name>` starts one."
     else
       $"no live branches.{footer}"
   | lines ->

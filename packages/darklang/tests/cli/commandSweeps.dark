@@ -368,7 +368,7 @@ test everyCommandRefusesAWordItDoesNotKnow = Instance.withInstance(fun i ->
 /// about main, plausibly, so a command that only misbehaves on a branch is invisible to the sweeps
 /// above.
 test everyCommandSurvivesABranch = Instance.withInstance(fun i ->
-  let switched = Instance.said(i, [ "switch", "cli-sweep-branch" ])
+  let switched = Instance.said(i, [ "switch", "-c", "cli-sweep-branch" ])
   let sweep = fun extra ->
     swept()
     |> Stdlib.List.filter(fun cmd ->
@@ -497,7 +497,7 @@ test everyCommandAnswersAFairQuestion = Instance.withInstance(fun i ->
       step([ "fn", fnName, "(): Int64 = Tests.Sweep.dep()" ])
       step([ "test", "add", "Tests.Sweep.passes", "Stdlib.Test.pass()" ])
       step([ "commit", "cli-sweep fixture", "-y" ])
-      step([ "switch", branch ])
+      step([ "switch", "-c", branch ])
       step([ "fn", "Tests.Sweep.onBranch", "() : Int64 = 2" ])
       step([ "switch", "main" ])
       step([ "traces", "record", "on" ])
