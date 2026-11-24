@@ -215,3 +215,12 @@ module FieldAccess =
       (let x = 6 in x.fieldName)
       => raises
         "Attempting to perform field access of an Int64, but this only works with records and tuples"
+
+// A type argument the first field leaves partial is filled in by a later one.
+type SamePair<'a> = { x: 'a, y: 'a }
+
+let takesStringListPair(p: SamePair<List<String>>): Int64 = 1
+
+test laterFieldFillsInPartialTypeArg =
+  takesStringListPair(SamePair { x = [], y = [ 1 ] }) => raises
+    "Darklang.Language.Tests.Records.takesStringListPair's 1st parameter `p` expects Darklang.Language.Tests.Records.SamePair<List<String>>, but got Darklang.Language.Tests.Records.SamePair<List<Int64>> (Darklang.Language.Tests.Records.SamePair<List<Int64>> { x: List<_> [], y: [1] })"

@@ -1373,9 +1373,12 @@ module DvalCreator =
       | ValueSome known -> ValueSome known
       | ValueNone -> ValueSome vt
     | known ->
-      match ValueType.merge known vt with
-      | Ok merged -> ValueSome merged
-      | Error() -> ValueNone
+      match TST.tryFind paramName newTST with
+      | ValueNone -> ValueSome known
+      | ValueSome bound ->
+        match ValueType.merge known bound with
+        | Ok merged -> ValueSome merged
+        | Error() -> ValueNone
 
   /// The type-argument walk from the checked-field slow path, without building an error path.
   ///
@@ -1542,7 +1545,12 @@ module DvalCreator =
                   | ValueNone -> ((paramName, vt))
 
                 | known ->
-                  match ValueType.merge known vt with
+                  match
+                    ValueType.merge
+                      known
+                      (TST.tryFind paramName newTST
+                       |> ValueOption.defaultValue known)
+                  with
                   | Ok merged -> ((paramName, merged))
                   | Error() ->
                     let expected = TypeReference.toVT types tst fieldDef
@@ -1871,7 +1879,12 @@ module DvalCreator =
                       | ValueNone -> ((paramName, vt))
 
                     | known ->
-                      match ValueType.merge known vt with
+                      match
+                        ValueType.merge
+                          known
+                          (TST.tryFind paramName newTST
+                           |> ValueOption.defaultValue known)
+                      with
                       | Ok merged -> ((paramName, merged))
                       | Error() ->
                         let expected = TypeReference.toVT types newTST fieldDef.typ
@@ -1997,7 +2010,12 @@ module DvalCreator =
                       | ValueNone -> ((paramName, vt))
 
                     | known ->
-                      match ValueType.merge known vt with
+                      match
+                        ValueType.merge
+                          known
+                          (TST.tryFind paramName newTST
+                           |> ValueOption.defaultValue known)
+                      with
                       | Ok merged -> ((paramName, merged))
                       | Error() ->
                         let expected = TypeReference.toVT types newTST fieldDef.typ
