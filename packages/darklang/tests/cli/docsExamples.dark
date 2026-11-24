@@ -160,8 +160,11 @@ let firstColumn(line: String): String =
   | [] -> ""
 
 
-/// The heredoc bodies in <param lines>.
-let heredocs(lines: List<String>): List<String> =
+/// The heredoc bodies in <param lines>, each with how to parse it: the body of a
+/// `run - <<'EOF'` is a script, any other (`module /X - <<'EOF'`) is a package file.
+let heredocs(
+  lines: List<String>)
+  : List<(LanguageTools.Parser.FileKind * String)> =
   let (bodies, _) =
     lines
     |> Stdlib.List.fold(([], Option.None), fun(acc, line) ->
@@ -169,16 +172,23 @@ let heredocs(lines: List<String>): List<String> =
       match open with
       | None ->
         if Stdlib.String.contains(line, "<<'EOF'") then
-          (bodies, Option.Some([]))
+          let kind =
+            if Stdlib.String.startsWith(Stdlib.String.trim(line), "run ") then
+              LanguageTools.Parser.FileKind.Script
+            else
+              LanguageTools.Parser.FileKind.Package
+
+          (bodies, Option.Some((kind, [])))
         else
           acc
-      | Some(body) ->
+      | Some((kind, body)) ->
         if Stdlib.String.trim(line) == "EOF" then
           (
-            [ Stdlib.String.join(Stdlib.List.reverse(body), "\n"), ...bodies ],
+            [ (kind, Stdlib.String.join(Stdlib.List.reverse(body), "\n"))
+              ...bodies ],
             Option.None)
         else
-          (bodies, Option.Some([ line, ...body ])))
+          (bodies, Option.Some((kind, [ line, ...body ]))))
 
   Stdlib.List.reverse(bodies)
 
@@ -213,7 +223,6 @@ let sources(
       Stdlib.List.any(block, fun l -> Stdlib.String.contains(l, "<<'EOF'"))
     then
       heredocs(block)
-      |> Stdlib.List.map(fun b -> (LanguageTools.Parser.FileKind.Package, b))
     else if
       Stdlib.List.contains(notCode, first)
       || Stdlib.String.startsWith(first, "type Stdlib.")
@@ -310,4 +319,17 @@ test theCheckFindsBrokenExamples =
             page(
               [ "module /Me.A - <<'EOF'", "let f(): Int64 = 1 # x", "EOF" ])))
         == 1,
-        "a heredoc's body is checked") ])
+        "a heredoc's body is checked")
+
+      Stdlib.Test.expect(
+        Stdlib.List.isEmpty(
+          failures(
+            "t",
+            page([ "run - Ada <<'EOF'", "Stdlib.printLine(\"hi\")", "EOF" ]))),
+        "a `run -` heredoc is checked as a script")
+
+      Stdlib.Test.expect(
+        Stdlib.List.length(
+          failures("t", page([ "run - <<'EOF'", "Stdlib.printLine(", "EOF" ])))
+        == 1,
+        "and a broken one is reported") ])
