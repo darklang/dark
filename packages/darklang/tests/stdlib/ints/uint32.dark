@@ -536,3 +536,11 @@ test divisionResults =
       Stdlib.UInt32.checkedMod(5u32, 0u32)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus)) ])
+
+
+test limits =
+  Stdlib.Test.all(
+    [ Stdlib.UInt32.minValue |> Stdlib.Test.equal(0u32)
+      Stdlib.UInt32.maxValue |> Stdlib.Test.equal(4294967295u32)
+      Stdlib.UInt32.bitWidth |> Stdlib.Test.equal(32)
+      Stdlib.UInt32.maxValue + 1u32 |> Stdlib.Test.equal(Stdlib.UInt32.minValue) ])

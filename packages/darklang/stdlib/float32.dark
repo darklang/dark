@@ -13,6 +13,19 @@ type ParseError =
   | BadFormat
 
 
+/// Not a number, the result of {{0.0 / 0.0}}. It is not equal to anything, itself
+/// included; test for it with <fn Float32.isNaN>.
+val nan = 0.0f32 / 0.0f32
+
+
+/// Positive infinity, the result of {{1.0 / 0.0}}
+val infinity = 1.0f32 / 0.0f32
+
+
+/// Negative infinity, the result of {{-1.0 / 0.0}}
+val negativeInfinity = -1.0f32 / 0.0f32
+
+
 /// Round <param a> to the nearest <type Float32>, ties to even. A value too large
 /// for a Float32 becomes an infinity, and one too small becomes zero.
 let fromFloat64(a: Float64): Float32 =

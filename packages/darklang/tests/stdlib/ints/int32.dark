@@ -737,3 +737,11 @@ test checkedSqrt =
       Stdlib.Int32.checkedSqrt(-4s32)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber)) ])
+
+
+test limits =
+  Stdlib.Test.all(
+    [ Stdlib.Int32.minValue |> Stdlib.Test.equal(-2147483648s32)
+      Stdlib.Int32.maxValue |> Stdlib.Test.equal(2147483647s32)
+      Stdlib.Int32.bitWidth |> Stdlib.Test.equal(32)
+      Stdlib.Int32.maxValue + 1s32 |> Stdlib.Test.equal(Stdlib.Int32.minValue) ])

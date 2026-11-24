@@ -714,3 +714,12 @@ test checkedParse =
       Stdlib.Float64.checkedParse("abc")
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat)) ])
+
+
+test namedValues =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.isNaN(Stdlib.Float64.nan) |> Stdlib.Test.equal(true)
+      Stdlib.Float64.infinity |> Stdlib.Test.equal(infinity())
+      Stdlib.Float64.negativeInfinity |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float64.isFinite(Stdlib.Float64.infinity) |> Stdlib.Test.equal(false)
+      -Stdlib.Float64.infinity |> Stdlib.Test.equal(Stdlib.Float64.negativeInfinity) ])

@@ -628,3 +628,11 @@ test divisionResults =
       Stdlib.UInt64.checkedMod(5u64, 0u64)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus)) ])
+
+
+test limits =
+  Stdlib.Test.all(
+    [ Stdlib.UInt64.minValue |> Stdlib.Test.equal(0u64)
+      Stdlib.UInt64.maxValue |> Stdlib.Test.equal(18446744073709551615u64)
+      Stdlib.UInt64.bitWidth |> Stdlib.Test.equal(64)
+      Stdlib.UInt64.maxValue + 1u64 |> Stdlib.Test.equal(Stdlib.UInt64.minValue) ])
