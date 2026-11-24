@@ -22,8 +22,8 @@ let kindFor(path: String): LanguageTools.Parser.FileKind =
     LanguageTools.Parser.FileKind.Script
 
 
-let compare(path: String, source: String): FileResult =
-  let kind = kindFor(path)
+let compare(path: String, source: String, partial: Bool): FileResult =
+  let kind = if partial then LanguageTools.Parser.FileKind.PackagePartialSave else kindFor(path)
   let t0 = Stdlib.DateTime.now()
   let (darkTree, darkDiagnostics) = Dark.parse(kind, source)
   let t1 = Stdlib.DateTime.now()
@@ -62,7 +62,8 @@ let brokenVersions(source: String): List<(String * String)> =
 
 
 /// Compare each file named in <param args> (or listed, one per line, in a file named with
-/// `--list`), printing a line per file and a summary.
+/// `--list`), printing a line per file and a summary. `--broken` compares broken versions of
+/// each file, and `--partial` parses them as a partial save.
 let main(args: List<String>): Int64 =
   let paths =
     match args with
@@ -71,15 +72,16 @@ let main(args: List<String>): Int64 =
       |> Stdlib.Result.withDefault("")
       |> Stdlib.String.splitOnNewline
       |> Stdlib.List.filter(fun p -> p != "")
-    | _ -> Stdlib.List.filter(args, fun a -> a != "--broken")
+    | _ -> Stdlib.List.filter(args, fun a -> a != "--broken" && a != "--partial")
   let broken = Stdlib.List.contains(args, "--broken")
+  let partial = Stdlib.List.contains(args, "--partial")
   let results =
     Stdlib.List.map(paths, fun path ->
       match Stdlib.Cli.FileSystem.readFileAsString(path) with
       | Ok(source) ->
         let versions = if broken then brokenVersions(source) else [ ("", source) ]
         Stdlib.List.map(versions, fun((label, text)) ->
-          let r = compare(path, text)
+          let r = compare(path, text, partial)
           let mark =
             match r.outcome with
             | Same -> "same "

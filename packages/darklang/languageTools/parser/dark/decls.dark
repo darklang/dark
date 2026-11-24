@@ -626,22 +626,184 @@ let itemsFrom(
   declsRev: List<Item>,
   exprsRev: List<Expr>)
   : (List<Item> * List<Expr> * St) =
+  itemsFromRejecting(inp, st, scope, minCol, Stdlib.Option.Option.None, declsRev, exprsRev)
+
+
+let itemsFromRejecting(
+  inp: Input,
+  st: St,
+  scope: ItemScope,
+  minCol: Int64,
+  rejectedAt: Option<Point>,
+  declsRev: List<Item>,
+  exprsRev: List<Expr>)
+  : (List<Item> * List<Expr> * St) =
   let k = st.index
   if Core.tok(inp, k) == TokenKind.TEOF || (Core.rng(inp, k)).start.column < minCol then
     (declsRev, exprsRev, st)
   else
     let col = (Core.rng(inp, k)).start.column
     let st0 = { (Core.setStmtCol(st, col)) with declAnchor = col }
-    let (declsRev2, exprsRev2, st1, scopeEnds) = item(inp, st0, scope, minCol, declsRev, exprsRev)
-    if scopeEnds then
+    let r = item(inp, st0, scope, minCol, declsRev, exprsRev)
+    let (declsRev2, exprsRev2, rejectedAt2, st1) =
+      match st.partialSave with
+      | None -> (r.declsRev, r.exprsRev, Stdlib.Option.Option.None, r.st)
+      | Some(_) -> partialSaveCheck(inp, st0, k, rejectedAt, declsRev, exprsRev, r)
+    if r.scopeEnds then
       (declsRev2, exprsRev2, st1)
     else if st1.index == k then
       if Core.tok(inp, k) == TokenKind.TEOF then
         (declsRev2, exprsRev2, st1)
       else
-        itemsFrom(inp, Core.at(st1, k + 1), scope, minCol, declsRev2, exprsRev2)
+        itemsFromRejecting(inp, Core.at(st1, k + 1), scope, minCol, rejectedAt2, declsRev2, exprsRev2)
     else
-      itemsFrom(inp, st1, scope, minCol, declsRev2, exprsRev2)
+      itemsFromRejecting(inp, st1, scope, minCol, rejectedAt2, declsRev2, exprsRev2)
+
+
+/// Did the lexer or a literal check report an error in the item from <param first> to
+/// <param next>? Errors before the first token on its line count, and after the last token
+/// on its line or on lines indented under it.
+let hasSourceError(inp: Input, st: St, first: Int64, next: Int64): Bool =
+  match st.partialSave with
+  | None -> false
+  | Some(errors) ->
+    let start = (Core.rng(inp, first)).start
+    let last = (Core.rng(inp, Core.maxI(first, next - 1))).end_
+    let boundary = (Core.rng(inp, Core.maxI(first + 1, next))).start
+    Stdlib.List.any(errors, fun d ->
+      let p = d.range.start
+      let prefix =
+        p.row == start.row
+        && Core.pointBefore(p, start)
+        && (first == 0 || Core.pointAtOrAfter(p, (Core.rng(inp, first - 1)).end_))
+      prefix
+      || (Core.pointAtOrAfter(p, start)
+          && Core.pointBefore(p, boundary)
+          && (p.row <= last.row || p.column > start.column)))
+
+
+/// After a broken item: a declaration on a later line at or left of its column.
+let nextDeclarationBoundary(inp: Input, first: Int64, next: Int64): Int64 =
+  let start = (Core.rng(inp, first)).start
+  boundaryFrom(inp, start, next, first + 1)
+
+
+let boundaryFrom(inp: Input, start: Point, next: Int64, index: Int64): Int64 =
+  if index >= next then
+    next
+  else
+    let p = (Core.rng(inp, index)).start
+    if p.row > (Core.rng(inp, index - 1)).end_.row && p.column <= start.column && startsPackageItem(inp, index) then
+      index
+    else
+      boundaryFrom(inp, start, next, index + 1)
+
+
+/// For a partial save: keep the item only when it, and its source, are clean and it passes
+/// the package checks. A broken item is dropped, and parsing goes on at the next declaration.
+let partialSaveCheck(
+  inp: Input,
+  before: St,
+  k: Int64,
+  rejectedAt: Option<Point>,
+  originalDecls: List<Item>,
+  originalExprs: List<Expr>,
+  r: ItemResult)
+  : (List<Item> * List<Expr> * Option<Point> * St) =
+  let st = r.st
+  let next = st.index
+  let start = (Core.rng(inp, k)).start
+  let unsafeBoundary =
+    match rejectedAt with
+    | Some(p) -> start.row <= p.row || start.column > p.column
+    | None -> false
+  let countBefore = Stdlib.List.length(before.diagnosticsRev)
+  let parserError = Stdlib.List.length(st.diagnosticsRev) > countBefore
+  let declaration =
+    if Stdlib.List.length(r.declsRev) != Stdlib.List.length(originalDecls) then
+      Stdlib.List.head(r.declsRev)
+    else if Stdlib.List.length(r.exprsRev) != Stdlib.List.length(originalExprs) then
+      Stdlib.List.head(r.exprsRev) |> Stdlib.Option.map(fun e -> Item.Expr(e))
+    else
+      Stdlib.Option.Option.None
+  let trailingText =
+    Stdlib.Bool.not(parserError)
+    && Stdlib.Option.isSome(declaration)
+    && next > k
+    && Core.tok(inp, next) != TokenKind.TEOF
+    && (Core.rng(inp, next)).start.row == (Core.rng(inp, next - 1)).end_.row
+    && Stdlib.Bool.not(startsPackageItem(inp, next))
+  let st1 = if trailingText then Core.err(inp, st, Core.Code.Unexpected, next, "Unexpected text after the declaration") else st
+  let syntaxError =
+    trailingText
+    || (match r.moduleHeaderError with
+        | Some(e) -> e
+        | None -> parserError || hasSourceError(inp, st1, k, next))
+  if syntaxError then
+    let rejectedAt2 = if unsafeBoundary then rejectedAt else Stdlib.Option.Option.Some(start)
+    let boundary =
+      if parserError
+         && Stdlib.Bool.not(unsafeBoundary)
+         && Stdlib.Bool.not(r.scopeEnds)
+         && Stdlib.Option.isNone(r.moduleHeaderError)
+         && Stdlib.Option.isSome(declaration) then
+        nextDeclarationBoundary(inp, k, next)
+      else
+        next
+    if boundary < next then
+      // restarting at the next declaration reports its own errors
+      let resumeAt = (Core.rng(inp, boundary)).start
+      let newRev = Stdlib.List.take(st1.diagnosticsRev, Stdlib.List.length(st1.diagnosticsRev) - countBefore)
+      let earlierRev = Stdlib.List.filter(newRev, fun d -> Core.pointBefore(d.range.start, resumeAt))
+      let kept =
+        match earlierRev with
+        | [] -> [ Core.Diagnostic { code = Core.Code.Expected, range = Core.rng(inp, k), message = "Incomplete declaration before the next item", related = [], hint = Stdlib.Option.Option.None } ]
+        | _ -> earlierRev
+      let st2 =
+        { st1 with
+            diagnosticsRev = Stdlib.List.concat(kept, before.diagnosticsRev)
+            pendingGt = before.pendingGt
+            pendingGtRange = before.pendingGtRange
+            index = boundary }
+      (originalDecls, originalExprs, rejectedAt2, st2)
+    else
+      (originalDecls, originalExprs, rejectedAt2, st1)
+  else if unsafeBoundary then
+    let st2 =
+      if Stdlib.Option.isSome(declaration) then
+        Core.err(inp, st1, Core.Code.Unexpected, k, "Unable to recover this item after a parse error. Submit it separately.")
+      else
+        st1
+    (originalDecls, originalExprs, rejectedAt, st2)
+  else
+    let issues =
+      match declaration with
+      | Some(Module(_, _, _, _)) -> []
+      | None -> []
+      | Some(d) -> Validation.packageItemIssues(d)
+    match issues with
+    | [] -> (r.declsRev, r.exprsRev, Stdlib.Option.Option.None, st1)
+    | _ ->
+      (originalDecls, originalExprs, Stdlib.Option.Option.Some(start), { st1 with diagnosticsRev = Stdlib.List.concat(Stdlib.List.reverse(issues), st1.diagnosticsRev) })
+
+
+type ItemResult =
+  { declsRev: List<Item>
+    exprsRev: List<Expr>
+    st: St
+    /// a `module A.B` header takes the rest of the scope
+    scopeEnds: Bool
+    /// for a module: whether its header or body is broken
+    moduleHeaderError: Option<Bool> }
+
+
+let itemResult(declsRev: List<Item>, exprsRev: List<Expr>, st: St, scopeEnds: Bool): ItemResult =
+  ItemResult
+    { declsRev = declsRev
+      exprsRev = exprsRev
+      st = st
+      scopeEnds = scopeEnds
+      moduleHeaderError = Stdlib.Option.Option.None }
 
 
 /// The item at the current token: the lists with it added, the state after it, and whether
@@ -653,7 +815,7 @@ let item(
   minCol: Int64,
   declsRev: List<Item>,
   exprsRev: List<Expr>)
-  : (List<Item> * List<Expr> * St * Bool) =
+  : ItemResult =
   let k = st.index
   match (Core.tok(inp, k), Core.tok(inp, k + 1)) with
   | (TVal, TIdent(_)) ->
@@ -662,7 +824,7 @@ let item(
       match d with
       | Fn(_) -> Core.err(inp, st1, Core.Code.Expected, k, "'val' declares a value and cannot have function parameters")
       | _ -> st1
-    ([ d, ...declsRev ], exprsRev, st2, false)
+    itemResult([ d, ...declsRev ], exprsRev, st2, false)
   | (TLet, TIdent(_)) ->
     let (d, st1) = decl(inp, st)
     let asExpr =
@@ -672,7 +834,7 @@ let item(
     if asExpr then
       // the declaration parse was speculative: its diagnostics go with it
       let (e, st2) = Exprs.expr(inp, st)
-      (declsRev, [ e, ...exprsRev ], st2, false)
+      itemResult(declsRev, [ e, ...exprsRev ], st2, false)
     else
       let st2 =
         match d with
@@ -687,39 +849,59 @@ let item(
           else
             st1
         | _ -> st1
-      ([ d, ...declsRev ], exprsRev, st2, false)
+      itemResult([ d, ...declsRev ], exprsRev, st2, false)
   | (TType, TIdent(_)) ->
     let (d, st1) = typeDecl(inp, st)
-    ([ d, ...declsRev ], exprsRev, st1, false)
+    itemResult([ d, ...declsRev ], exprsRev, st1, false)
   | (TTrait, TIdent(_)) ->
     let (d, st1) = traitDecl(inp, st)
-    ([ d, ...declsRev ], exprsRev, st1, false)
+    itemResult([ d, ...declsRev ], exprsRev, st1, false)
   | (TImpl, _) ->
     let (d, st1) = implDecl(inp, st)
-    ([ d, ...declsRev ], exprsRev, st1, false)
+    itemResult([ d, ...declsRev ], exprsRev, st1, false)
   | (TIdent("test"), TIdent(_)) ->
     let t2 = Core.tok(inp, k + 2)
     if t2 == TokenKind.TEquals || t2 == TokenKind.TColon || Core.isIdentNamed(t2, "raises") then
       let (d, st1) = testDecl(inp, st)
-      ([ d, ...declsRev ], exprsRev, st1, false)
+      itemResult([ d, ...declsRev ], exprsRev, st1, false)
     else
       exprItem(inp, st, declsRev, exprsRev)
   | (TIdent("module"), TIdent(first)) -> moduleItem(inp, st, minCol, declsRev, exprsRev, first)
+  | (TIdent("module"), _) ->
+    match st.partialSave with
+    | Some(_) ->
+      // a malformed header leaves the module path unclear: skip the rest of the scope, so
+      // its items can't be saved under the wrong module
+      let st1 = Core.errExpectedName(inp, st, k + 1, "a module name")
+      ItemResult
+        { declsRev = declsRev
+          exprsRev = exprsRev
+          st = Core.at(st1, scopeEndFrom(inp, minCol, k + 1))
+          scopeEnds = true
+          moduleHeaderError = Stdlib.Option.Option.None }
+    | None -> exprItem(inp, st, declsRev, exprsRev)
   | (TSemicolon, _) ->
-    (declsRev, exprsRev, Core.at(Exprs.statementSemicolon(inp, st, k), k + 1), false)
+    itemResult(declsRev, exprsRev, Core.at(Exprs.statementSemicolon(inp, st, k), k + 1), false)
   | _ -> exprItem(inp, st, declsRev, exprsRev)
 
 
-let exprItem(inp: Input, st: St, declsRev: List<Item>, exprsRev: List<Expr>): (List<Item> * List<Expr> * St * Bool) =
+let scopeEndFrom(inp: Input, minCol: Int64, index: Int64): Int64 =
+  if Core.tok(inp, index) == TokenKind.TEOF || (Core.rng(inp, index)).start.column < minCol then
+    index
+  else
+    scopeEndFrom(inp, minCol, index + 1)
+
+
+let exprItem(inp: Input, st: St, declsRev: List<Item>, exprsRev: List<Expr>): ItemResult =
   let (e, st1) = Exprs.expr(inp, st)
   let k2 = st1.index
   if Core.tok(inp, k2) == TokenKind.TEquals then
     let (expected, st2) = testExpected(inp, Core.at(st1, k2 + 1))
     let k3 = st2.index
     let endR = if k3 > 0 then Core.rng(inp, k3 - 1) else Core.rng(inp, k2)
-    ([ Item.Assertion(Core.span(Exprs.exprRange(e), endR), e, expected), ...declsRev ], exprsRev, st2, false)
+    itemResult([ Item.Assertion(Core.span(Exprs.exprRange(e), endR), e, expected), ...declsRev ], exprsRev, st2, false)
   else
-    (declsRev, [ e, ...exprsRev ], st1, false)
+    itemResult(declsRev, [ e, ...exprsRev ], st1, false)
 
 
 let moduleNameParts(inp: Input, partsRev: List<String>, nk: Int64): (List<String> * Int64) =
@@ -735,7 +917,7 @@ let moduleItem(
   declsRev: List<Item>,
   exprsRev: List<Expr>,
   first: String)
-  : (List<Item> * List<Expr> * St * Bool) =
+  : ItemResult =
   let k = st.index
   let kwModule = Core.rng(inp, k)
   let moduleCol = kwModule.start.column
@@ -747,11 +929,19 @@ let moduleItem(
   let (mdecls, mexprs, st1) =
     items(inp, Core.at(st, bodyStart), ItemScope.Module, if isBlock then moduleCol + 1 else minCol)
   let k2 = st1.index
-  let st2 =
-    if isBlock && Stdlib.List.isEmpty(mdecls) && Stdlib.List.isEmpty(mexprs) then
-      Core.errExpected(inp, st1, bodyStart, "an indented module body")
-    else
-      st1
+  let headerError =
+    hasSourceError(inp, st, k, bodyStart)
+    || Core.tok(inp, nk) == TokenKind.TDot
+    || (Stdlib.Bool.not(isBlock)
+        && Core.tok(inp, nk) != TokenKind.TEOF
+        && (Core.rng(inp, nk)).start.row == nameRange.end_.row
+        && Stdlib.Bool.not(startsPackageItem(inp, nk)))
+  let emptyBody =
+    isBlock
+    && Stdlib.List.isEmpty(mdecls)
+    && Stdlib.List.isEmpty(mexprs)
+    && (Stdlib.Option.isNone(st.partialSave) || k2 == bodyStart)
+  let st2 = if emptyBody then Core.errExpected(inp, st1, bodyStart, "an indented module body") else st1
   let moduleEndR = if k2 > 0 then Core.rng(inp, k2 - 1) else nameRange
   let d =
     Item.Module(
@@ -759,7 +949,12 @@ let moduleItem(
       (nameRange, nameStr),
       Stdlib.List.concat(mdecls, Stdlib.List.map(mexprs, fun e -> Item.Expr(e))),
       kwModule)
-  ([ d, ...declsRev ], exprsRev, st2, Stdlib.Bool.not(isBlock))
+  ItemResult
+    { declsRev = [ d, ...declsRev ]
+      exprsRev = exprsRev
+      st = st2
+      scopeEnds = Stdlib.Bool.not(isBlock)
+      moduleHeaderError = Stdlib.Option.Option.Some(headerError || emptyBody) }
 
 
 // --- files ---
@@ -773,14 +968,29 @@ let initialState(): St =
       pendingGt = 0
       pendingGtRange = Range { start = p, end_ = p }
       declAnchor = -1
-      diagnosticsRev = [] }
+      diagnosticsRev = []
+      partialSave = Stdlib.Option.Option.None }
 
 
 /// Parse lexed tokens: the declarations and the expressions at the top, and the parser's
 /// diagnostics in the order they were found.
 let parseTokens(tokens: List<Lexer.Token>, scope: ItemScope): (List<Item> * List<Expr> * List<Core.Diagnostic>) =
+  parseTokensSaving(tokens, scope, Stdlib.Option.Option.None)
+
+
+/// `parseTokens`, and for a partial save, the lexer's errors to match items against.
+let parseTokensSaving(
+  tokens: List<Lexer.Token>,
+  scope: ItemScope,
+  partialSave: Option<List<Core.Diagnostic>>)
+  : (List<Item> * List<Expr> * List<Core.Diagnostic>) =
   let inp = Core.Input { tokens = tokens, count = Stdlib.List.length(tokens) }
-  let (decls, exprs, st) = items(inp, initialState(), scope, 0)
+  let literals = Core.validateLiterals(inp)
+  let start =
+    { initialState() with
+        diagnosticsRev = Stdlib.List.reverse(literals)
+        partialSave = Stdlib.Option.map(partialSave, fun errors -> Stdlib.List.concat(errors, literals)) }
+  let (decls, exprs, st) = items(inp, start, scope, 0)
   (decls, exprs, Stdlib.List.reverse(st.diagnosticsRev))
 
 

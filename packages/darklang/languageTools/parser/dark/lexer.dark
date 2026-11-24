@@ -1054,3 +1054,68 @@ let problemMessage(p: Problem): String =
     | "@" -> "'@' is not Dark; join lists with `[...a, ...b]`"
     | _ -> "'++' is not Dark; join Strings with `+`"
   | UnexpectedCharacter(c) -> $"unexpected character: '{c}'"
+
+
+// --- literal checks, over a literal's raw inner text ---
+
+/// Is there an invalid escape in <param src> from <param i>?
+let badEscapeFrom(src: Source, i: Int64): Bool =
+  match findBackslash(src, i, src.length) with
+  | None -> false
+  | Some(b) ->
+    match decodeEscape(src, b) with
+    | Some((count, _)) -> badEscapeFrom(src, b + count)
+    | None -> true
+
+
+let hasInvalidEscape(content: String): Bool =
+  if Stdlib.String.contains(content, "\\") then badEscapeFrom(source(content), 0) else false
+
+
+/// Like `badEscapeFrom` for `$"…"` text: `{{`/`}}` are literal and `{…}` is code.
+let badEscapeInterpFrom(src: Source, i: Int64): Bool =
+  let n = src.length
+  if i >= n then false
+  else if at(src, i) == cLBrace && at(src, i + 1) == cLBrace && i + 1 < n then badEscapeInterpFrom(src, i + 2)
+  else if at(src, i) == cRBrace && at(src, i + 1) == cRBrace && i + 1 < n then badEscapeInterpFrom(src, i + 2)
+  else if at(src, i) == cLBrace then
+    match interpClose(src, i + 1, 0) with
+    | Some(close) -> badEscapeInterpFrom(src, close + 1)
+    | None -> false
+  else if at(src, i) == backslash then
+    match decodeEscape(src, i) with
+    | Some((count, _)) -> badEscapeInterpFrom(src, i + count)
+    | None -> true
+  else
+    badEscapeInterpFrom(src, i + 1)
+
+
+let hasInvalidEscapeInterp(inner: String): Bool =
+  badEscapeInterpFrom(source(inner), 0)
+
+
+/// A single `}` in interpolated-string text, outside any `{…}`.
+let singleCloseBraceFrom(src: Source, raw: Bool, i: Int64): Bool =
+  let n = src.length
+  if i >= n then false
+  else if at(src, i) == cLBrace && at(src, i + 1) == cLBrace && i + 1 < n then singleCloseBraceFrom(src, raw, i + 2)
+  else if at(src, i) == cRBrace && at(src, i + 1) == cRBrace && i + 1 < n then singleCloseBraceFrom(src, raw, i + 2)
+  else if at(src, i) == cLBrace then
+    match interpClose(src, i + 1, 0) with
+    | Some(close) -> singleCloseBraceFrom(src, raw, close + 1)
+    | None -> false
+  else if at(src, i) == cRBrace then true
+  else if at(src, i) == backslash && Stdlib.Bool.not(raw) && i + 1 < n then singleCloseBraceFrom(src, raw, i + 2)
+  else singleCloseBraceFrom(src, raw, i + 1)
+
+
+let hasSingleCloseBraceInterp(inner: String, raw: Bool): Bool =
+  singleCloseBraceFrom(source(inner), raw, 0)
+
+
+/// <param raw> without <param lead> at the start and <param close> at the end.
+let stripDelims(raw: String, lead: String, close: String): String =
+  let a = if Stdlib.String.startsWith(raw, lead) then Stdlib.String.length(lead) else 0
+  let n = Stdlib.String.length(raw)
+  let b = if n > a && Stdlib.String.endsWith(raw, close) then n - Stdlib.String.length(close) else n
+  if b > a then Stdlib.String.slice(raw, a, b) |> Stdlib.Result.withDefault("") else ""

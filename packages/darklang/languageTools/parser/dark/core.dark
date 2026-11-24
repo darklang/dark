@@ -59,7 +59,9 @@ type St =
     pendingGtRange: Range
     /// the column of the declaration being parsed, or -1
     declAnchor: Int64
-    diagnosticsRev: List<Diagnostic> }
+    diagnosticsRev: List<Diagnostic>
+    /// for a partial save: the lexer's and literal checks' errors, matched to items by position
+    partialSave: Option<List<Diagnostic>> }
 
 
 type Parser<'a> = (Input, St) -> ('a * St)
@@ -537,3 +539,50 @@ let writtenOrPlaceholders(inp: Input, ranges: List<Range>): List<String> =
 /// "write `Ok(5)` rather than `Ok 5`"
 let spacedHint(name: String, shown: List<String>): String =
   $"write `{name}({Stdlib.String.join(shown, ", ")})` rather than `{name} {Stdlib.String.join(shown, " ")}`"
+
+
+val escapeForms =
+  "; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)"
+
+
+/// Escapes, one-grapheme chars and lone `}` in every literal, before parsing.
+let validateLiterals(inp: Input): List<Diagnostic> =
+  Stdlib.List.indexedMap(inp.tokens, fun(i, t) ->
+    let diag = fun(code, message) ->
+      Diagnostic { code = code, range = t.range, message = message, related = [], hint = Stdlib.Option.Option.None }
+    match t.kind with
+    | TStringLit(_) ->
+      if Stdlib.Bool.not(Stdlib.String.startsWith(t.text, "\"\"\""))
+         && Lexer.hasInvalidEscape(Lexer.stripDelims(t.text, "\"", "\"")) then
+        [ diag(Code.Escape, "Invalid escape sequence or codepoint in string literal" + escapeForms) ]
+      else
+        []
+    | TCharLit(value) ->
+      let escape =
+        if Lexer.hasInvalidEscape(Lexer.stripDelims(t.text, "'", "'")) then
+          [ diag(Code.Escape, "Invalid escape sequence or codepoint in character literal" + escapeForms) ]
+        else
+          []
+      let one =
+        if Stdlib.String.length(value) == 1 then [] else [ diag(Code.Escape, "Character literal must contain exactly one grapheme") ]
+      Stdlib.List.concat(escape, one)
+    | TInterpString ->
+      if Stdlib.String.startsWith(t.text, "$\"\"\"") then
+        let inner = Lexer.stripDelims(t.text, "$\"\"\"", "\"\"\"")
+        if Lexer.hasSingleCloseBraceInterp(inner, true) then
+          [ diag(Code.Interpolation, "Single '}' in raw interpolated string text; use '}}' for a literal brace") ]
+        else
+          []
+      else
+        let inner = Lexer.stripDelims(t.text, "$\"", "\"")
+        Stdlib.List.concat(
+          (if Lexer.hasInvalidEscapeInterp(inner) then
+             [ diag(Code.Escape, "Invalid escape sequence or codepoint in interpolated string" + escapeForms) ]
+           else
+             []),
+          (if Lexer.hasSingleCloseBraceInterp(inner, false) then
+             [ diag(Code.Interpolation, "Single '}' in interpolated string text; use '}}' or '\\}' for a literal brace") ]
+           else
+             []))
+    | _ -> [])
+  |> Stdlib.List.flatten

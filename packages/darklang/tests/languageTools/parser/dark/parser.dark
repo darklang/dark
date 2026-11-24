@@ -176,7 +176,7 @@ module ExprsTests =
     |> Stdlib.Test.table(script)
 
   test slips =
-    [ "f a b", "Ok 5", "fun a b -> a", "[1; 2]", "x ?", "{ a = 1 }", "let x: Int64 = 1\nx" ]
+    [ "\"a\\qb\"", "'ab'", "$\"a } b\"", "$\"\\q {x}\"", "f a b", "Ok 5", "fun a b -> a", "[1; 2]", "x ?", "{ a = 1 }", "let x: Int64 = 1\nx" ]
     |> Stdlib.Test.table(script)
 
 
@@ -226,3 +226,19 @@ module DeclsTests =
   test declarationMistakes =
     [ "module M\n\nlet x = 1", "module M\n\nlet f (a: Int64) (b: Int64): Int64 = a", "module M\n\ntype T = | A of Int64" ]
     |> Stdlib.Test.table(package)
+
+
+  let partial(source: String): Stdlib.Test.Result =
+    sameAs(LanguageTools.Parser.FileKind.PackagePartialSave, source)
+
+
+  test partialSaves =
+    [ "let a(): Int64 = 1\nlet b(): Int64 = (\nlet c(): Int64 = 3"
+      "val x = 1\nval y = [1; 2]\nval z = 3"
+      "let a(): Int64 = 1 junk\nlet b(): Int64 = 2"
+      "module\nval x = 1"
+      "val s = \"a\\qb\"\nval t = 2"
+      "1 + 2\nval t = 2"
+      "let f(x: Int64, x: Int64): Int64 = x\nval ok = 1"
+      "module M =\n  val a = 1\n  val b = (\nval c = 3" ]
+    |> Stdlib.Test.table(partial)

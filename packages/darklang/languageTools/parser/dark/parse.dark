@@ -27,7 +27,12 @@ let parseWith(kind: LanguageTools.Parser.FileKind, code: String): Parsed =
     | PackagePartialSave -> Decls.ItemScope.Module
   let lexed = Lexer.lex(code)
   let inp = Core.Input { tokens = lexed.tokens, count = Stdlib.List.length(lexed.tokens) }
-  let (items, exprs, parseDiagnostics) = Decls.parseTokens(lexed.tokens, scope)
+  let lexDiagnostics = Stdlib.List.map(lexed.diagnostics, fun d -> lexDiagnostic(d))
+  let partialSave =
+    match kind with
+    | PackagePartialSave -> Stdlib.Option.Option.Some(lexDiagnostics)
+    | _ -> Stdlib.Option.Option.None
+  let (items, exprs, parseDiagnostics) = Decls.parseTokensSaving(lexed.tokens, scope, partialSave)
   let fileRange =
     if inp.count > 1 then Core.span(Core.rng(inp, 0), Core.rng(inp, inp.count - 2)) else Core.rng(inp, 0)
   let file =
@@ -37,7 +42,7 @@ let parseWith(kind: LanguageTools.Parser.FileKind, code: String): Parsed =
         exprsToEval = Stdlib.List.concat(exprs, Stdlib.List.flatten(Stdlib.List.map(items, fun d -> Decls.assertionExprs(d)))) }
   // in source order; equal positions keep the order they were found in
   let syntax =
-    Stdlib.List.concat(Stdlib.List.map(lexed.diagnostics, fun d -> lexDiagnostic(d)), parseDiagnostics)
+    Stdlib.List.concat(lexDiagnostics, parseDiagnostics)
     |> Stdlib.List.indexedMap(fun(i, d) -> (i, d))
     |> Stdlib.List.sortBy(fun((i, d)) -> (d.range.start.row, d.range.start.column, i))
     |> Stdlib.List.map(fun((_, d)) -> d)

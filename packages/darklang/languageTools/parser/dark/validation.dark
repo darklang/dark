@@ -266,3 +266,8 @@ let validate(mode: Mode, items: List<Decls.Item>, exprs: List<Expr>): List<Diagn
       (match mode with
        | Package -> Stdlib.List.map(exprs, packageExpression)
        | Script -> []) ])
+
+
+/// The checks one item of a partial save must pass.
+let packageItemIssues(d: Decls.Item): List<Diagnostic> =
+  Stdlib.List.concat(structureIssues(d), purposeIssues(Mode.Package, d))
