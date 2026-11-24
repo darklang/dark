@@ -217,8 +217,7 @@ first build left behind). CI exports its own. By hand it is
       tests/              # all package tests, one folder per area (stdlib/, language/,
                           # scm/, cli/, ...); module names follow what they test
                           # (`Darklang.SCM.Tests`), so `dark test run Darklang.SCM` runs one area
-    backend/migrations/   # schema/, the from-scratch shape; changes to an existing store go in
-                          # LibDB/Releases.fs
+    backend/migrations/   # schema/: every table and index (LibDB/StoreSchema.fs applies it)
     rundir/logs/          # log files
     scripts/dev/          # start, build, plan, status, watch, host-port
     scripts/build/        # the build itself; `_` ones are called by other scripts

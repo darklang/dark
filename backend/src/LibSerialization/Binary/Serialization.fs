@@ -57,18 +57,7 @@ let makeSerializer<'T, 'ID>
         stream.ToArray()))
 
 
-/// Version-dispatched deserializer: the reader receives the blob's format version, so a type whose
-/// on-disk layout has changed can branch (`match version with 1u -> readV1 r | 2u -> readV2 r`). Keep
-/// every historical readVN alongside one current writer; that is what lets a new binary decode an OLD
-/// blob.
-///
-/// Readers do dispatch on it now. On the RT side it reaches the let-pattern reader, whose layout
-/// changed in v11. An RT blob is a projection, but nothing on the shipped path re-folds one when
-/// the format moves (see `LibDB/Releases.fs`), so an old `rt_instrs` row is read by a new binary
-/// and the version has to be honoured there too.
-let makeDeserializerV<'T, 'ID>
-  (reader : uint32 -> BinaryReader -> 'T)
-  : 'ID -> byte[] -> 'T =
+let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
   fun id data ->
     wrap (fun () -> string id) (fun () ->
       use stream = new MemoryStream(data)
@@ -81,14 +70,7 @@ let makeDeserializerV<'T, 'ID>
       if uint32 remainingBytes <> header.DataLength then
         Validation.validateDataLength header.DataLength (uint32 remainingBytes)
 
-      reader header.Version r)
-
-
-/// Deserializer for a type with one on-disk layout: the reader never sees the blob's version.
-/// Everything else uses this; `makeDeserializerV` is for a type that needs to decode two.
-let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
-  makeDeserializerV (fun _version r -> reader r)
-
+      reader r)
 
 
 module PT =
@@ -221,11 +203,6 @@ module PT =
         Some(deserialize id data)
       with _ ->
         None
-
-    /// Unknown incoming formats remain stored and can be classified by a later build.
-    let kindOfBlob id data =
-      tryDeserialize id data |> Option.map kind |> Option.defaultValue "unknown"
-
 module RT =
   module PackageType =
     let serialize id value = makeSerializer RT.PackageType.write id value
@@ -237,7 +214,7 @@ module RT =
 
   module Instructions =
     let serialize id value = makeSerializer RT.Instructions.write id value
-    let deserialize id data = makeDeserializerV RT.Instructions.read id data
+    let deserialize id data = makeDeserializer RT.Instructions.read id data
 
   module PackageValue =
     let serialize id value = makeSerializer RT.PackageValue.write id value
@@ -245,7 +222,7 @@ module RT =
 
   module PackageFn =
     let serialize id value = makeSerializer RT.PackageFn.write id value
-    let deserialize id data = makeDeserializerV RT.PackageFn.read id data
+    let deserialize id data = makeDeserializer RT.PackageFn.read id data
 
     /// The symbol table, which travels in its own column rather than in the instruction blob.
     let serializeDebugSymbols id value =

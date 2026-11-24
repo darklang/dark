@@ -1,55 +1,23 @@
--- The shape a NEW store is born with: every table and index, in dependency order.
+-- The shape of the store: every table and index, in dependency order.
 --
--- ONE file, edited in place. It used to be fourteen numbered subsystem files, each frozen once it
--- had merged, because the same filename had to mean the same thing in every store ever made from
--- it. That rule bought backward compatibility with stores this build can no longer open anyway:
--- the molt dropped the sync tables, the user-space tables and `commits.author`, which is more
--- change than any upgrade path was going to carry. So the history is cut here. A store older than
--- the layered shape is reset on first open (`LibDB.Releases.resetIfOlderShape`): backed up, its
--- package and SCM tables dropped, and its packages refilled from the build.
+-- ONE file, edited in place. A store whose tables differ from it is refused rather than migrated
+-- (`LibDB.StoreSchema`); a new table or index reaches an existing store, since every statement here
+-- is `IF NOT EXISTS`.
 --
--- What did NOT change is the mechanism. `LibDB.Releases` still exists and still runs, and a schema
--- change from here on is still two halves: declare it here, for new stores, and add a step there,
--- for stores that already exist. `scripts/migrations/new` scaffolds both. The numbering is gone
--- because with one base file there is nothing to order -- and because two branches adding a file
--- both took the next number, which is how this directory came to hold `10-runs.sql` beside
--- `10-traits.sql` and two files called `11-`.
---
--- Statement order still matters within this file: a foreign key's target must be declared before
--- the table that references it. `Releases.applySchemaTables` runs the CREATE TABLEs and
--- `applySchemaIndexes` the indexes, in two passes, so an index may name a column declared anywhere
--- above it.
+-- Statement order matters: a foreign key's target must be declared before the table that
+-- references it, and an index after its table.
 
 
 -- ---------------------------------------------------------------------------
 -- from 01-instance.sql
 -- ---------------------------------------------------------------------------
 
--- The from-scratch shape of the store, split by subsystem and applied in LEXICAL ORDER.
---
--- This directory declares what a NEW store looks like. It is not how a change reaches an EXISTING
--- one: every statement here is `CREATE TABLE IF NOT EXISTS` (or `INSERT OR IGNORE`), which no-ops
--- against a table that already exists, so a new COLUMN declared here never arrives anywhere. That
--- is what `LibDB.Releases` is for, and it is the only answer -- a step there looks at the store
--- before acting, which a raw SQL file cannot.
---
--- The files are concatenated in filename order and hashed as one string, so splitting differently
--- or reordering IS a change: the bootstrap notices, drops the regenerable projections and replays.
--- FK targets must therefore still precede FK sources, across files as well as within one.
---
--- Bookkeeping that belongs to the INSTALL rather than to any package: what migrations have run,
--- and the accounts a store knows about.
+-- Bookkeeping that belongs to the INSTALL rather than to any package: the accounts a store knows
+-- about.
 
 --------------------
 -- Bookkeeping
 --------------------
-
-CREATE TABLE IF NOT EXISTS system_migrations_v0 (
-  name TEXT PRIMARY KEY,
-  execution_date TEXT NOT NULL,  -- ISO-8601 timestamp
-  sql TEXT NOT NULL
-);
-
 
 CREATE TABLE IF NOT EXISTS accounts_v0 (
   id TEXT PRIMARY KEY,
@@ -416,9 +384,6 @@ CREATE INDEX IF NOT EXISTS idx_package_dependencies_depends_on
 
 -- One row per handler invocation. Handler input (the parsed dval bound to the handler's parameter:
 -- `request` for HTTP, `expression` for eval) lives directly here, as a binary-serialized RT.Dval.
--- NB: the last columns of this table were, until the schema cut, added by release steps and
--- never declared here, so a fresh store got them from the step. They are declared now, in the
--- order `ALTER TABLE ADD COLUMN` appended them, so a new store and an existing one agree.
 CREATE TABLE IF NOT EXISTS traces (
   id TEXT PRIMARY KEY,
   root_tlid INTEGER NOT NULL,
@@ -435,7 +400,11 @@ CREATE TABLE IF NOT EXISTS traces (
   entry_hash TEXT,
   result_value BLOB,
   duration_ms INTEGER NOT NULL DEFAULT 0,
-  bytes INTEGER NOT NULL DEFAULT 0
+  bytes INTEGER NOT NULL DEFAULT 0,
+  -- The OS process running it: its pid and when that process started (`LibDB.Traces.Owner`).
+  -- A `running` trace whose process is gone is shown, and kept, as `lost`.
+  owner_pid INTEGER,
+  owner_start TEXT
 );
 
 
@@ -446,9 +415,6 @@ CREATE TABLE IF NOT EXISTS traces (
 --
 -- function and lambda frames get real `duration_ms`; builtins stay at 0, since the recorder only
 -- sees their synchronous storeFnResult and there is no matching entry hook.
--- NB: the last columns of this table were, until the schema cut, added by release steps and
--- never declared here, so a fresh store got them from the step. They are declared now, in the
--- order `ALTER TABLE ADD COLUMN` appended them, so a new store and an existing one agree.
 CREATE TABLE IF NOT EXISTS trace_fn_calls (
   trace_id TEXT NOT NULL,
   call_id TEXT NOT NULL,
@@ -464,7 +430,6 @@ CREATE TABLE IF NOT EXISTS trace_fn_calls (
   ord INTEGER NOT NULL DEFAULT -1,
   PRIMARY KEY (trace_id, call_id)
 );
-CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_id ON trace_fn_calls(trace_id);
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_fn_hash  ON trace_fn_calls(fn_hash);
 
 
@@ -512,29 +477,22 @@ CREATE TABLE IF NOT EXISTS config_v0 (
 -- from 10-runs.sql
 -- ---------------------------------------------------------------------------
 
--- A trace IS a run, and this file is everything the run half of that needs that `08-traces.sql`
--- cannot hold. That file has merged, so it is frozen (`docs/internals.md`, "Changing the schema"): the
--- COLUMNS this PR adds to `traces` and `trace_fn_calls` therefore come from steps in
--- `LibDB/Releases.fs`, which is the only thing that can widen a table that already exists. What
--- CAN live here is a new table and any index, so both are here.
+-- A trace IS a run, and this is everything the run half of that needs.
 
 --------------------
--- Two things `08-traces.sql` says that are no longer true
+-- Two things the trace tables' comments above say that are no longer true
 --------------------
 
--- It is frozen, so this is where they get corrected rather than there.
---
 -- `traces.root_tlid` is `NOT NULL` and every writer puts 0 in it. In classic it named the
 -- handler whose trace this was; here a run is not always a handler invocation, and the question
 -- it answered ("which handler served this?") is answered by `entry_hash`, which this PR adds.
--- Nothing reads it, there is no index on it, and a frozen `CREATE TABLE` cannot lose a column,
--- so it stays as a 4-byte-per-row fossil. Do not add a reader.
+-- Nothing reads it, and there is no index on it. Do not add a reader.
 --
 -- `trace_fn_calls`'s comment says every fn call and every lambda gets a row, that `kind`
 -- discriminates function / lambda / builtin, and that builtins stay at `duration_ms = 0`. All
 -- three are now wrong: only the impure calls are recorded, so `kind` is always 'builtin',
 -- `parent_call_id` and `lambda_expr_id` are always NULL, and a builtin carries a real duration
--- (measured at the landing, for a read in flight). The columns stay for the same reason.
+-- (measured at the landing, for a read in flight).
 
 
 --------------------
@@ -569,16 +527,12 @@ CREATE INDEX IF NOT EXISTS idx_trace_fns_fn_name ON trace_fns(fn_name);
 -- Indexes for the run verbs
 --------------------
 
--- Indexes are applied in a pass of their own, after the release steps, so one may name a column
--- a step has just added (`Releases.applySchemaIndexes`). Every listing and retention's scan order
--- by `timestamp DESC`; `status` is how the CLI finds the runs that can be resumed.
+-- Every listing and retention's scan order by `timestamp DESC`; `status` is how the CLI finds the runs that can be resumed.
 CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp);
 CREATE INDEX IF NOT EXISTS idx_traces_status    ON traces(status);
 
 -- Every read of one run's log selects by `trace_id` and orders by `seq`, so the composite
--- serves both halves and the single-column `idx_trace_fn_calls_trace_id` in `08-traces.sql`
--- becomes redundant. That file is frozen, so the old index stays on disk; SQLite will pick
--- this one.
+-- serves both halves.
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_seq
   ON trace_fn_calls(trace_id, seq);
 
@@ -587,11 +541,6 @@ CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_seq
 -- ---------------------------------------------------------------------------
 
 -- The two item kinds traits added: a trait, and an implementation of one for a type.
---
--- Its own file rather than an edit to `06-packages.sql`, because that file is already merged: a
--- schema file stops being editable the moment it lands on main, and a later change arrives as a
--- new file. Filename order is the contract (`LocalExec.Migrations.schemaSql`), and these tables
--- reference nothing, so sorting last is fine.
 
 -- Traits and impls: their own item kinds, folded from AddTrait / AddTraitImpl. `trait_hash` on an
 -- impl is the dispatch index: every impl of a trait is one indexed read.
@@ -656,8 +605,7 @@ CREATE INDEX IF NOT EXISTS idx_package_ops_commit ON package_ops(commit_hash)
 -- kinds, one table:
 --
 -- - every logged call's result, once per distinct value. `trace_fn_calls.result` holds the
---   value's hash as TEXT, and readers join here for the bytes (`08-traces.sql` is frozen, so the
---   column keeps its name). A traced type check reads the same items and gets the same small
+--   value's hash as TEXT, and readers join here for the bytes. A traced type check reads the same items and gets the same small
 --   answers thousands of times; one stdlib-wide trace had 8,217 calls and 2,700 distinct results.
 -- - the blobs a trace captured: a request body, a file's bytes, anything an effect handed over as
 --   `Bytes`.
@@ -674,3 +622,84 @@ CREATE TABLE IF NOT EXISTS trace_blobs (
   PRIMARY KEY (trace_id, hash)
 );
 CREATE INDEX IF NOT EXISTS idx_trace_blobs_hash ON trace_blobs(hash);
+
+
+-- Saves the source, arguments and options needed to replay a CLI run.
+-- Traces.create writes this row with the trace; delete them together.
+-- HTTP requests have traces, but no row in this CLI-only table.
+--
+-- Columns avoid storing Dval type hashes, which change when package types change.
+-- CHECKs reject missing options so replay cannot silently drop a sandbox.
+--
+-- CLEANUP consider removing this layer.
+-- Perhaps we could encode this in an ExecutionPoint segment of a trace, instead?
+-- Or maybe this is consolidated with the other root-level trace table?
+CREATE TABLE IF NOT EXISTS trace_cli_invocations (
+  trace_id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('eval', 'script')),
+  source TEXT NOT NULL,
+  filename TEXT,               -- scripts only
+  args BLOB,                   -- scripts only, see ScriptOrEvalInput.encodeArgs
+  allow_harmful INTEGER NOT NULL CHECK (allow_harmful IN (0, 1)),
+  sandbox INTEGER CHECK (sandbox IN (0, 1)),                  -- scripts only
+  CHECK (
+    (kind = 'eval'
+     AND filename IS NULL AND args IS NULL
+     AND sandbox IS NULL)
+    OR (kind = 'script'
+        AND filename IS NOT NULL AND args IS NOT NULL
+        AND sandbox IS NOT NULL))
+);
+
+-- The `dark test run` result cache: what a test came to, so a pass can be reused.
+--
+-- Keyed on everything a pass depends on that the test hash does not cover: the runtime and
+-- judging code (`runtime_hash`), the branch, and that branch's binding of
+-- `Stdlib.Test.Result` (`result_type_hash`). `outcome_json` is the outcome as Dark serialised
+-- it; the store does not read it.
+--
+-- A cache, not part of the log: survives a purge (see `hashCoupledSurvivors`).
+CREATE TABLE IF NOT EXISTS package_test_results (
+  test_hash TEXT NOT NULL,
+  runtime_hash TEXT NOT NULL,
+  branch_id TEXT NOT NULL,
+  result_type_hash TEXT NOT NULL,
+  outcome_json TEXT NOT NULL,
+  PRIMARY KEY (test_hash, runtime_hash, branch_id, result_type_hash)
+);
+
+-- The package reload's trait-call cache (`LibDB.TraitCallCache`): what the at-rest checker
+-- resolved in each body, so the next reload checks only the bodies whose inputs changed.
+--
+-- `environment_hash` covers everything a body's answer depends on that its own hash does not:
+-- the build, the checker, and the tree's types, traits, implementations, names for them and
+-- deprecations (`TraitCalls.environmentOf`). `resolutions` is by node position, and the store
+-- does not read it.
+--
+-- A cache, not part of the log: survives a purge (see `hashCoupledSurvivors`), and a seed
+-- export empties it.
+CREATE TABLE IF NOT EXISTS trait_call_resolutions (
+  environment_hash TEXT NOT NULL,
+  item_hash TEXT NOT NULL,
+  nodes INTEGER NOT NULL,
+  resolutions TEXT NOT NULL,
+  PRIMARY KEY (environment_hash, item_hash)
+);
+
+-- Which ops the fold has applied: every `package_ops` row whose `seq` is at or below the mark here,
+-- except the rows `package_ops_unapplied` lists. Applying ops moves one number rather than writing to
+-- every op it applied. `LibDB.AppliedOps` holds the SQL that reads and moves it.
+--
+-- The exceptions are ops at or below the mark that still have to fold: one this build cannot read,
+-- kept so a build that can still will, or one an author's save moved the mark past while it waited.
+--
+-- A schema change and a seed export set the mark back to 0, so the next start folds the whole log.
+CREATE TABLE IF NOT EXISTS package_ops_applied_through (
+  id INTEGER PRIMARY KEY CHECK (id = 0),
+  seq INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO package_ops_applied_through (id, seq) VALUES (0, 0);
+
+CREATE TABLE IF NOT EXISTS package_ops_unapplied (
+  seq INTEGER PRIMARY KEY
+);

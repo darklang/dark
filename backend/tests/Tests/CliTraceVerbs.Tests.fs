@@ -111,20 +111,6 @@ let private scriptOrEvalInputPersistence =
         let read = Traces.getCliInput id
         Expect.equal read (Some script) "and the invocation is left whole"
 
-        // Removing the retired warning mode preserves recorded invocations.
-        Sql.query
-          "ALTER TABLE trace_cli_invocations ADD COLUMN warn_permissions INTEGER NOT NULL DEFAULT 0"
-        |> Sql.executeStatement
-        LibDB.Releases.removeTraceWarningColumn ()
-        LibDB.Releases.removeTraceWarningColumn ()
-        let afterCleanup = Traces.getCliInput id
-        Expect.equal afterCleanup (Some script) "cleanup preserves the invocation"
-        let obsoleteColumn =
-          Sql.query
-            "SELECT 1 FROM pragma_table_info('trace_cli_invocations') WHERE name = 'warn_permissions'"
-          |> Sql.executeExists
-        Expect.isFalse obsoleteColumn "the retired column is absent"
-
         // The reader must also reject malformed argument bytes.
         for bad in
           [ [| 0x01uy |]

@@ -200,16 +200,6 @@ module HandleCommand =
     with ex ->
       Error $"Export failed: {ex.Message}"
 
-  let listMigrations () : Result<unit, string> =
-    try
-      print
-        "`migrations list` is gone — the schema lives in migrations/schema/ now and \
-         it kill-and-fills on hash change. Run `migrations run` to \
-         apply (or no-op if up-to-date)."
-      Ok()
-    with ex ->
-      Error $"Failed to list migrations: {ex.Message}"
-
   /// The PRODUCT's builtins. `Builtins.all ()` also carries `TestUtils.LibTest`, which no
   /// shipped code may name.
   let private productBuiltins () =
@@ -709,9 +699,6 @@ let main (args : string[]) : int =
       // this runs on every build, so the wording has to stop being alarming.
       handleCommand "bringing the schema up to date" (HandleCommand.runMigrations ())
 
-    | [ "migrations"; "list" ] ->
-      handleCommand "listing available migrations" (HandleCommand.listMigrations ())
-
     | [ "export-seed"; outputPath ] ->
       handleCommand
         $"Exporting seed to {outputPath}"
@@ -763,7 +750,6 @@ let main (args : string[]) : int =
       print "  reload-packages"
       print "  apply-package-edits"
       print "  migrations run"
-      print "  migrations list"
       print "  export-seed <output-path>"
       print "  pm-sweep-blobs"
       print "  reachability"

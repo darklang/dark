@@ -25,17 +25,16 @@ module LetPattern =
     | LPUnit -> w.Write 2uy
     | LPWildcard -> w.Write 3uy
 
-  /// <param version> is the blob's format. Before v11 a variable had no name.
-  let rec read (version : uint32) (r : BinaryReader) : LetPattern =
+  let rec read (r : BinaryReader) : LetPattern =
     match r.ReadByte() with
     | 0uy ->
       let extractTo = r.ReadInt32()
-      let name = if version < 11u then "[variable]" else String.read r
+      let name = String.read r
       LPVariable(extractTo, name)
     | 1uy ->
-      let first = read version r
-      let second = read version r
-      let theRest = List.read r (read version)
+      let first = read r
+      let second = read r
+      let theRest = List.read r read
       LPTuple(first, second, theRest)
     | 2uy -> LPUnit
     | 3uy -> LPWildcard
@@ -205,9 +204,9 @@ module LambdaImpl =
     Instructions.write w l.instructions
 
 
-  let read (version : uint32) (r : BinaryReader) : LambdaImpl =
+  let read (r : BinaryReader) : LambdaImpl =
     let exprId = r.ReadUInt64()
-    let patterns = NEList.read (LetPattern.read version) r |> NEList.toList
+    let patterns = NEList.read LetPattern.read r |> NEList.toList
     let registersToCloseOver =
       List.read r (fun r ->
         let copyFrom = r.ReadInt32()
@@ -215,7 +214,7 @@ module LambdaImpl =
         (copyFrom, copyTo))
     let selfRegister = Option.read r (fun r -> r.ReadInt32())
 
-    let instructions = Instructions.read version r
+    let instructions = Instructions.read r
     { exprId = exprId
       patterns = patterns
       registersToCloseOver = registersToCloseOver
@@ -363,7 +362,6 @@ module Instruction =
       w.Write 21uy
       w.Write(targetRegIfDB : int)
       String.write w name
-    // Tag 22 was this instruction before it carried the statement's id; it is still read.
     | CheckIfFirstExprIsUnit(exprId, reg) ->
       w.Write 25uy
       w.Write(exprId : uint64)
@@ -373,7 +371,7 @@ module Instruction =
       w.Write(exprId : uint64)
       w.Write(reg : int)
 
-  let read (version : uint32) (r : BinaryReader) : Instruction =
+  let read (r : BinaryReader) : Instruction =
     match r.ReadByte() with
     | 0uy ->
       let loadTo = r.ReadInt32()
@@ -399,7 +397,7 @@ module Instruction =
       CreateString(createTo, segments)
     | 5uy ->
       let valueReg = r.ReadInt32()
-      let pat = LetPattern.read version r
+      let pat = LetPattern.read r
       CheckLetPatternAndExtractVars(valueReg, pat)
     | 6uy ->
       let instrsToJump = r.ReadInt32()
@@ -471,7 +469,7 @@ module Instruction =
       LoadValue(createTo, valueName)
     | 18uy ->
       let createTo = r.ReadInt32()
-      let lambda = LambdaImpl.read version r
+      let lambda = LambdaImpl.read r
       CreateLambda(createTo, lambda)
     | 19uy ->
       let createTo = r.ReadInt32()
@@ -487,9 +485,6 @@ module Instruction =
       let targetRegIfDB = r.ReadInt32()
       let name = String.read r
       VarNotFound(targetRegIfDB, name)
-    | 22uy ->
-      let reg = r.ReadInt32()
-      CheckIfFirstExprIsUnit(0UL, reg)
     | 25uy ->
       let exprId = r.ReadUInt64()
       let reg = r.ReadInt32()
@@ -510,9 +505,8 @@ let write (w : BinaryWriter) (instrs : Instructions) =
   List.write w Instruction.write instrs.instructions
   w.Write instrs.resultIn
 
-/// <param version> is the blob's format (`makeDeserializerV`).
-let read (version : uint32) (r : BinaryReader) : Instructions =
+let read (r : BinaryReader) : Instructions =
   let registerCount = Varint.read r
-  let instructions = List.read r (Instruction.read version)
+  let instructions = List.read r Instruction.read
   let resultIn = r.ReadInt32()
   { registerCount = registerCount; instructions = instructions; resultIn = resultIn }

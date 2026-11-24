@@ -120,10 +120,20 @@ let private refuseToOpen
   exit 3
 
 
-/// One dark at a time through an upgrade, and through the grow that folds what it brought. SQLite has
-/// no `ADD COLUMN IF NOT EXISTS`, so each step looks before it acts, and two processes that both look
-/// before either acts both try to add the column; and processes folding one upgrade's ops at once
-/// fail with "database is locked".
+/// Stop at a store another version of dark made in a shape this one does not read. Nothing is
+/// migrated: say how to start a fresh one.
+let private refuseOldStore (dbPath : string) (reason : string) : 'a =
+  let e = System.Console.Error
+  e.WriteLine "dark can't open this store: another version of dark made it."
+  e.WriteLine $"  {reason}"
+  e.WriteLine "To start a fresh store, move this one aside and run dark again:"
+  e.WriteLine
+    $"  mv '{dbPath}' '{dbPath}.old' && rm -f '{dbPath}-wal' '{dbPath}-shm'"
+  exit 3
+
+
+/// One dark at a time through an upgrade, and through the grow that folds what it brought:
+/// processes folding one upgrade's ops at once fail with "database is locked".
 ///
 /// An exclusive open of a file beside the store, which .NET holds as an OS lock (`flock` on Unix). The
 /// kernel drops it when the process exits however it exits, so a crash leaves no stale lock, and a
@@ -243,54 +253,34 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
         //
         // Against the LEDGER, not against this seed: comparing against the current seed alone would
         // call the entire previous package set locally authored.
-        //
-        // `extract` runs before migrations, so on an older store this table does not exist yet and
-        // every query against it is a startup crash. Declaring it here is the only place that can
-        // be true of both a fresh store and one that predates the ledger.
         let held : List<HeldBinding> =
           if pending = 0 then
             []
           else
-            use ensure = conn.CreateCommand()
-            ensure.CommandText <-
-              "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY) WITHOUT ROWID"
+            use mine = conn.CreateCommand()
+            mine.CommandText <-
+              $"SELECT owner, modules, name, item_type, item_hash, source
+               FROM locations
+               WHERE live = 1 AND item_hash <> '' AND branch_id = '{string LibExecution.ProgramTypes.BranchId.Main}'
+                 AND op_id NOT IN (SELECT op_id FROM seed_ops)"
             Telemetry.count "sql.seed"
-            ensure.ExecuteNonQuery() |> ignore<int>
-
-            use ledger = conn.CreateCommand()
-            ledger.CommandText <- "SELECT COUNT(*) FROM seed_ops"
-            Telemetry.count "sql.seed"
-            let known = ledger.ExecuteScalar() |> string |> int
-
-            if known = 0 then
-              // First run on a store that predates the ledger: nothing here can say which ops came
-              // from a build, so claim none rather than guess. Every upgrade after this has provenance.
-              []
-            else
-              use mine = conn.CreateCommand()
-              mine.CommandText <-
-                $"SELECT owner, modules, name, item_type, item_hash, source
-                 FROM locations
-                 WHERE live = 1 AND item_hash <> '' AND branch_id = '{string LibExecution.ProgramTypes.BranchId.Main}'
-                   AND op_id NOT IN (SELECT op_id FROM seed_ops)"
-              Telemetry.count "sql.seed"
-              use r = mine.ExecuteReader()
-              let rows =
-                [ while r.Read() do
-                    yield
-                      (r.GetString 0,
-                       r.GetString 1,
-                       r.GetString 2,
-                       r.GetString 3,
-                       r.GetString 4,
-                       r.GetString 5) ]
-              r.Close()
-              rows
+            use r = mine.ExecuteReader()
+            let rows =
+              [ while r.Read() do
+                  yield
+                    (r.GetString 0,
+                     r.GetString 1,
+                     r.GetString 2,
+                     r.GetString 3,
+                     r.GetString 4,
+                     r.GetString 5) ]
+            r.Close()
+            rows
 
         let toppedUp =
           try
             if pending > 0 then
-              // Record what THIS seed carries, whichever branch ran above.
+              // Record what THIS seed carries.
               use remember = conn.CreateCommand()
               remember.CommandText <-
                 "ATTACH DATABASE $seed AS seed2;
@@ -418,7 +408,7 @@ let extract () : Extracted =
     // Asked ONCE, and it decides everything below.
     //
     // The stamp says which build last reconciled this store with its own embedded seed. The
-    // schema, the release steps and the seed are all fixed per binary, so a store this same
+    // schema and the seed are both fixed per binary, so a store this same
     // build has already reconciled cannot need any of them again -- and nothing outside can
     // create that need, because an older binary running here records ITS hash and we come back
     // and do the work. Without this guard every command would pay for the schema pass.
@@ -429,20 +419,23 @@ let extract () : Extracted =
     let reconciled =
       build <> "dev" && File.Exists(dbPath) && storeStamp dbPath = Some build
 
-    // An EXISTING store keeps whatever shape the seed it was born from had: the schema never runs
-    // against it, so a table or column added since is simply absent, and the top-up below is the first
-    // thing to trip over it -- as a raw SQLite error ("table locations has no column named previous"),
-    // on a store that is otherwise fine. Bring the shape forward first, in the order the statements
-    // require.
-    //
-    // In this order, and each one only if the one before it worked: back up, run the steps, top up,
-    // stamp. A step that fails stops dark here (`refuseToOpen`), unstamped, so the next start tries
-    // again; carrying on would run every command against a half-upgraded store.
+    // An EXISTING store opened by another build: refuse it if its tables or packages are in a
+    // shape this build does not read, then in this order, each only if the one before it worked:
+    // back up, add the tables this build has and the store lacks, top up, stamp.
     let upgradeTimings, locallyAuthored =
       if File.Exists(dbPath) && not reconciled then
         use _upgrading = upgradeLock dbPath
         // Another dark may have done all of this while this one waited for the lock.
         if not (build <> "dev" && storeStamp dbPath = Some build) then
+          let schema = embeddedSchema ()
+          let mismatch =
+            match schema |> Option.bind LibDB.StoreSchema.mismatch with
+            | Some reason -> Some reason
+            | None -> LibDB.StoreSchema.formatMismatch ()
+          match mismatch with
+          | Some reason -> refuseOldStore dbPath reason
+          | None -> ()
+
           let backup =
             match backupBeforeUpgrade dbPath build with
             | Ok backup -> backup
@@ -455,25 +448,13 @@ let extract () : Extracted =
 
           let schemaTimings =
             try
-              match embeddedSchema () with
+              match schema with
               | Some sql ->
-                let (_ : Option<string>), reset =
-                  timed "extract.reset" (fun () ->
-                    LibDB.Releases.resetIfOlderShape dbPath)
-                let (), schema =
-                  timed "extract.schema" (fun () ->
-                    LibDB.Releases.applySchemaTables sql)
-                let (), releases =
-                  timed "extract.releases" (fun () -> LibDB.Releases.runPending ())
-                let (), indexes =
-                  timed "extract.indexes" (fun () ->
-                    LibDB.Releases.applySchemaIndexes sql)
-                [ reset; schema; releases; indexes ]
+                let (), applied =
+                  timed "extract.schema" (fun () -> LibDB.StoreSchema.apply sql)
+                [ applied ]
               | None -> []
-            with
-            | LibDB.Releases.StepFailed(step, inner) ->
-              refuseToOpen dbPath (Some backup) $"release step: {step}" inner.Message
-            | e ->
+            with e ->
               refuseToOpen
                 dbPath
                 (Some backup)
@@ -523,8 +504,7 @@ let extract () : Extracted =
           conn.Open()
           use cmd = conn.CreateCommand()
           cmd.CommandText <-
-            "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY) WITHOUT ROWID;
-             INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM package_ops;"
+            "INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM package_ops;"
           Telemetry.count "sql.seed"
           cmd.ExecuteNonQuery() |> ignore<int>
         with e ->

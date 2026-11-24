@@ -39,7 +39,6 @@ GATES=(
   workbench-views
   first-day
   backups-restore
-  old-store-resets
   reload-is-reproducible
   package-edits-apply
   dark-format
@@ -62,7 +61,7 @@ GATES=(
 # first-day is not in this list because it needs the binary's path, so CI's `build` job runs it as its
 # own step. The gates below run later in that same job, against the same binary. CI bounds each
 # gate at 5m; a gate reporting 0s has not run at all.
-CI_GATES=(workbench-scm workbench-views old-store-resets backups-restore
+CI_GATES=(workbench-scm workbench-views backups-restore
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches
           shipped-tree-typechecks perf-probes-run prompts-unattended dark-format
@@ -75,7 +74,6 @@ describe() {
     workbench-views)        echo 'every workbench view, one session each' ;;
     first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;
     backups-restore)        echo 'backup, wipe, restore; the destructive verbs ask first' ;;
-    old-store-resets)       echo 'a store with older package tables: backed up, reset, refilled' ;;
     reload-is-reproducible) echo 'two reloads of one tree agree on every op id' ;;
     package-edits-apply)    echo 'a dev build lands an edit, a removal and a deleted file without a reload' ;;
     dark-format)            echo 'the .dark files a change touches are formatted (DARK_FORMAT_ALL=1: all, with the hash proof)' ;;

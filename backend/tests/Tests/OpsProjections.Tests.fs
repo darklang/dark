@@ -565,71 +565,50 @@ let committedBindingsSurviveMainDraftSuppression =
     LibDB.Caching.invalidateAll ()
   }
 
-let schemaColumnAdditionsAreRepeatable =
-  testTask "dated schema column additions preserve rows and can run twice" {
-    Sql.query
-      "CREATE TABLE schema_column_test (id INTEGER PRIMARY KEY); INSERT INTO schema_column_test VALUES (1)"
-    |> Sql.executeStatement
-    try
-      let schema =
-        "ALTER TABLE schema_column_test ADD COLUMN kind TEXT NOT NULL DEFAULT 'unknown';
-         CREATE INDEX IF NOT EXISTS idx_schema_column_test_kind ON schema_column_test(kind);"
-      LibDB.Releases.applySchemaTables schema
-      LibDB.Releases.applySchemaIndexes schema
-      LibDB.Releases.applySchemaTables schema
-      LibDB.Releases.applySchemaIndexes schema
-      let kind =
-        Sql.query "SELECT kind FROM schema_column_test WHERE id = 1"
-        |> Sql.executeRow (fun r -> r.string "kind")
-      Expect.equal kind "unknown" "the existing row survives with its column default"
-    finally
-      Sql.query "DROP TABLE schema_column_test" |> Sql.executeStatement
-  }
-
-
-let operationKindsBackfillFromTheLog =
-  testTask
-    "operation kind backfill preserves canonical bytes and indexes reference metadata" {
-    let id = System.Guid.NewGuid()
-    let location : PT.PackageLocation =
-      { owner = "Tests"; modules = [ "OpKind" ]; name = "caller" }
-    let op =
-      PT.PackageOp.SetReferenceNames(
-        location,
-        PT.PackageFn(PT.Hash(String.replicate 64 "a")),
-        [],
-        None
+let storeShapeMismatchIsNamed =
+  testTask "a table whose shape differs from the schema is named, not migrated" {
+    let realSchema =
+      System.IO.Directory.GetFiles(
+        System.IO.Path.Combine(LibConfig.Dirs.migrationsDir, "schema"),
+        "*.sql"
       )
-    let blob = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
-    Sql.query
-      "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
-       VALUES (@id, @main, @main, @blob, '2026-11-03T00:00:00.000Z')"
-    |> Sql.parameters
-      [ "id", Sql.uuid id
-        "blob", Sql.bytes blob
-        "main", Sql.string (string PT.BranchId.Main) ]
+      |> Array.sort
+      |> Array.map System.IO.File.ReadAllText
+      |> String.concat "\n"
+    Expect.equal
+      (LibDB.StoreSchema.mismatch realSchema)
+      None
+      "this store is the schema's"
+    Expect.equal
+      (LibDB.StoreSchema.formatMismatch ())
+      None
+      "and its packages are this build's"
+
+    Sql.query "CREATE TABLE schema_shape_test (id INTEGER PRIMARY KEY, kind TEXT)"
     |> Sql.executeStatement
     try
-      LibDB.Releases.runPending ()
-      // Simulate an operation that becomes readable after the migration was
-      // recorded. Startup must classify it without rerunning that migration.
-      Sql.query "UPDATE package_ops SET op_kind = 'unknown' WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeStatement
-      LibDB.Releases.runPending ()
-      let (kind, stored) =
-        Sql.query "SELECT op_kind, op_blob FROM package_ops WHERE id = @id"
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRow (fun r -> r.string "op_kind", r.bytes "op_blob")
-      Expect.equal kind "reference-names" "old rows become discoverable by kind"
+      let table columns =
+        $"CREATE TABLE IF NOT EXISTS schema_shape_test ({columns});"
       Expect.equal
-        stored
-        blob
-        "classification never rewrites the canonical operation"
+        (LibDB.StoreSchema.mismatch (
+          table "id INTEGER PRIMARY KEY, kind TEXT, more TEXT"
+        ))
+        (Some "the `schema_shape_test` table has no `more` column")
+        "a column the store lacks"
+      Expect.equal
+        (LibDB.StoreSchema.mismatch (table "id INTEGER PRIMARY KEY"))
+        (Some
+          "the `schema_shape_test` table has a `kind` column this dark does not know")
+        "a column the schema lacks"
+      Expect.equal
+        (LibDB.StoreSchema.mismatch (
+          table "kind TEXT, id INTEGER PRIMARY KEY"
+          + "CREATE TABLE IF NOT EXISTS schema_shape_absent (x TEXT);"
+        ))
+        None
+        "column order does not matter, and a table the store lacks is no difference"
     finally
-      Sql.query "DELETE FROM package_ops WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeStatement
+      Sql.query "DROP TABLE schema_shape_test" |> Sql.executeStatement
   }
 
 
@@ -849,9 +828,8 @@ let tests =
       originTsStrictlyIncreasing
       durableReleaseCarriesForward
       invalidReferenceSnapshotsAreRejectedBeforeStorage
-      schemaColumnAdditionsAreRepeatable
+      storeShapeMismatchIsNamed
       committedBindingsSurviveMainDraftSuppression
-      operationKindsBackfillFromTheLog
       unreadableReferenceMetadataIsRetained
       appliedMarkCoversOnlyWhatFolded
       registryCoversProjections
