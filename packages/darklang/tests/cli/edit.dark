@@ -1,4 +1,4 @@
-/// Patches must match exactly, then follow the normal edit rules.
+/// Patches match ignoring blank lines and spacing, then follow the normal edit rules.
 module Darklang.Cli.Tests.Edit
 
 let expectPatchedSource(
@@ -33,11 +33,54 @@ test exactPatchBlocks =
 
       expectPatchedSource("a\n\nb\n", "@@\n a\n \n-b\n+B\n", "a\n\nB\n")
       expectPatchFailure("a\na\n", "@@\n-a\n+b\n", "ambiguous")
-      expectPatchFailure("  a\n", "@@\n-a\n+b\n", "does not match")
       expectPatchFailure("a\n", "@@\n+b\n", "needs context")
       expectPatchFailure("a\n", "@@ -1 +1 @@\n-a\n+b\n", "bare @@")
       expectPatchFailure("a\nb\n", "@@\n-a\n+A\n@@\n-x\n+X\n", "does not match")
       expectPatchFailure("a\n", "@@\n-a\n+b\n@@\n-b\n+c\n", "does not match") ])
+
+
+test patchesIgnoreSpacesAndBlankLines =
+  Stdlib.Test.all(
+    [ expectPatchedSource("f(a,  b) \n", "@@\n-f(a, b)\n+g\n", "g\n")
+      expectPatchedSource("a\n\n\nb\nc\n", "@@\n a\n-b\n+B\n", "a\n\n\nB\nc\n")
+      expectPatchedSource("a\n  a\n", "@@\n-a\n+b\n", "b\n  a\n")
+      expectPatchFailure("  a\n    a\n", "@@\n-a\n+b\n", "more than one place")
+      expectPatchFailure("f(ab)\n", "@@\n-f(a b)\n+g\n", "does not match")
+      expectPatchFailure("a\n", "@@\n-b\n+c\n", "does not match") ])
+
+
+/// Added lines move to the indentation of the code they land in, keeping their own nesting.
+test loosePatchesReindentAddedLines =
+  Stdlib.Test.all(
+    [ expectPatchedSource("  a\n", "@@\n-a\n+b\n", "  b\n")
+
+      expectPatchedSource("  a\n\n  b\n", "@@\n a\n \n-b\n+B\n", "  a\n\n  B\n")
+
+      expectPatchedSource("a\n", "@@\n-    a\n+    b\n+      c\n", "b\n  c\n")
+
+      expectPatchedSource(
+        "match a with\n| 0 ->\n  match b with\n  | 0 -> 0\n  | _ -> 1\n| _ -> 2\n",
+        "@@\n | 0 -> 0\n+| 1 -> 3\n",
+        "match a with\n| 0 ->\n  match b with\n  | 0 -> 0\n  | 1 -> 3\n  | _ -> 1\n| _ -> 2\n") ])
+
+
+/// Spaces inside a string literal still count, so a patch can't land on the wrong line.
+test patchesKeepStringLiteralsExact =
+  Stdlib.Test.all(
+    [ expectPatchedSource(
+        "  f(\"a b\")\n  f(\"ab\")\n",
+        "@@\n-f(\"ab\")\n+g\n",
+        "  f(\"a b\")\n  g\n")
+
+      expectPatchFailure(
+        "  f(\"a  b\")\n",
+        "@@\n-f(\"a b\")\n+g\n",
+        "does not match")
+
+      expectPatchedSource(
+        "  f(\"a \\\" b\",  1)\n",
+        "@@\n-f(\"a \\\" b\", 1)\n+g\n",
+        "  g\n") ])
 
 
 test stdinAndPatchRoundTrip = Instance.withInstance(fun instance ->
