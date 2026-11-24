@@ -70,8 +70,6 @@ type Request =
   /// per-resource scoping, so these are ambient effects like `Stdout`.
   | Package of access : AccessKind
   | Trace of access : AccessKind
-  /// Spawning a process, `Exec.spawn`. Ambient, like `Stdout`.
-  | Concurrency
   /// The runtime's own in-memory state (`Effect.Runtime`). Ambient.
   | Runtime
   | Native of operation : string
@@ -147,7 +145,6 @@ module Request =
     | Request.Package AccessKind.Write -> Effect.Effect.PackageWrite
     | Request.Trace AccessKind.Read -> Effect.Effect.TraceRead
     | Request.Trace AccessKind.Write -> Effect.Effect.TraceWrite
-    | Request.Concurrency -> Effect.Effect.Concurrency
     | Request.Runtime -> Effect.Effect.Runtime
     | Request.Native _ -> Effect.Effect.Native
 
@@ -178,7 +175,6 @@ module Request =
     | Request.Package AccessKind.Write -> Some "package-write"
     | Request.Trace AccessKind.Read -> Some "trace-read"
     | Request.Trace AccessKind.Write -> Some "trace-write"
-    | Request.Concurrency -> Some "concurrency"
     | Request.Runtime -> Some "runtime"
     // Their narrowest rule covers more than the request; `suggestRule` says why.
     | Request.Process _
@@ -327,7 +323,6 @@ module Request =
     | Effect.Effect.PackageWrite -> Request.Package AccessKind.Write
     | Effect.Effect.TraceRead -> Request.Trace AccessKind.Read
     | Effect.Effect.TraceWrite -> Request.Trace AccessKind.Write
-    | Effect.Effect.Concurrency -> Request.Concurrency
     | Effect.Effect.Runtime -> Request.Runtime
     | Effect.Effect.Native -> Request.Native builtinName
     | scoped ->
@@ -647,6 +642,7 @@ module Policy =
   let denyAll : Policy = { allow = []; deny = [] }
   let allowAll : Policy = { allow = [ Rule.All ]; deny = [] }
 
+  /// A rule naming an information-only effect is dropped, including one in a saved policy.
   let create (allow : List<Rule>) (deny : List<Rule>) : Policy =
     let normalize =
       function
@@ -655,8 +651,13 @@ module Policy =
         | Ok rule -> Rule.Http rule
         | Error message -> invalidArg "rule" message
       | rule -> rule
-    { allow = allow |> List.map normalize |> List.distinct
-      deny = deny |> List.map normalize |> List.distinct }
+    let decided =
+      function
+      | Rule.Effect effect -> not (Set.contains effect Effect.informationOnly)
+      | _ -> true
+    let prepare rules =
+      rules |> List.filter decided |> List.map normalize |> List.distinct
+    { allow = prepare allow; deny = prepare deny }
 
   /// Grant effect families. Actual operations still check every restriction.
   let allowEffects (effects : Set<Effect.Effect>) : Policy =
@@ -676,11 +677,9 @@ module Policy =
         | Some effects, Some more -> Some(Set.union effects more))
       (Some Set.empty)
 
-  /// Default instance policy: package/local-store access, clock, randomness,
-  /// terminal I/O and spawning are allowed; filesystem, network, processes,
-  /// native, and environment access require an explicit grant. Spawning is
-  /// allowed because a spawned process runs under the spawner's own access
-  /// and can do nothing the spawner could not.
+  /// Default instance policy: package/local-store access, clock, randomness
+  /// and terminal I/O are allowed; filesystem, network, processes, native,
+  /// and environment access require an explicit grant.
   let defaultInstance : Policy =
     allowEffects (
       Set.ofList
@@ -690,8 +689,7 @@ module Policy =
           Effect.Effect.Clock
           Effect.Effect.Random
           Effect.Effect.Stdout
-          Effect.Effect.Stdin
-          Effect.Effect.Concurrency ]
+          Effect.Effect.Stdin ]
     )
 
   /// True for the canonical allow-all policy. It changes no decision, so

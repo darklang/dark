@@ -36,4 +36,6 @@ let content(): String =
 ## Debug
   1. Simplify expression
   2. Use eval to test pieces
-  3. Check ~/.darklang/logs/cli.log"""
+  3. Check the logs in ~/.darklang/logs/: cli.log has the errors that ended a
+     command, host-audit.jsonl each file, network, environment and process
+     access, and telemetry.jsonl timings when DARK_TELEMETRY=1 is set"""

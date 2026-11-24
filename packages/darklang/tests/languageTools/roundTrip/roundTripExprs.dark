@@ -277,27 +277,27 @@ test exprsInvalidEscapeSequences =
       rejected(
         "invalid escape in string literal",
         "\"\\d+\"",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "invalid escape in interpolation",
         "$\"a\\d+b\"",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in interpolated string")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in interpolated string; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "invalid escape in char literal",
         "'\\d'",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "invalid escape in string match pattern",
         "match s with\n| \"\\d+\" -> 1\n| _ -> 0",
-        "Parse error at line 2, column 3: Invalid escape sequence or codepoint in string literal")
+        "Parse error at line 2, column 3: Invalid escape sequence or codepoint in string literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "invalid escape in char match pattern",
         "match c with\n| '\\d' -> 1\n| _ -> 0",
-        "Parse error at line 2, column 3: Invalid escape sequence or codepoint in character literal")
+        "Parse error at line 2, column 3: Invalid escape sequence or codepoint in character literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       // A constructor pattern's fields go in parentheses, qualified or not.
       rejected(
@@ -355,27 +355,27 @@ test exprsWellFormedEscapes =
       rejected(
         "surrogate codepoint \\uD800",
         "\"\\uD800\"",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "surrogate codepoint \\U0000D800",
         "\"\\U0000D800\"",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "codepoint above max \\U00110000",
         "\"\\U00110000\"",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "surrogate codepoint in char",
         "'\\uD800'",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       rejected(
         "codepoint above max in char",
         "'\\U00110000'",
-        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal")
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal; Dark takes \\n \\t \\r \\a \\b \\v \\f \\0 \\\\ \\\" \\' \\/ \\{ \\} \\xHH \\uHHHH \\XHHHH \\UHHHHHHHH (see `docs escapes`)")
 
       // Pure syntax-rejection cases (no escape involvement).
       rejected(

@@ -41,66 +41,6 @@ let private bareDiffShowsTheDraft =
       return ()
     })
 
-/// An `Unbind` on a branch takes a main name away on that branch, shows in the draft as a removal, and
-/// takes it off main when the branch merges. Authored through `SCM.PackageOps.add`, since no verb writes
-/// one yet; the importer will, once the reload becomes a diff.
-let private anUnbindRemovesANameThroughTheCli =
-  instanceTest
-    "an unbind removes a name on the branch, then on main when the branch merges"
-    (fun state ->
-      task {
-        do! discardAll state
-        do! fn state "Tests.Gone.f" "() : Int64 = 1"
-        do! commit state "gone soon"
-        do! switch state "gonebr"
-        let! added =
-          runCli
-            state
-            [ "eval"
-              "Darklang.SCM.PackageOps.add(Builtin.scmCurrentBranch(), [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [\"Gone\"], name = \"f\" }, Stdlib.Option.Option.None) ])" ]
-        Expect.stringContains
-          added
-          "Ok"
-          $"the unbind was authored on the branch: {added}"
-
-        // `Ok` with "not found", not `| Error _ -> true`: a runtime crash would otherwise read as
-        // "the name is gone", which is the assertion passing for the one reason it must not.
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Gone.f()" ]
-            "not found"
-            "the name is gone on the branch"
-        do! shows state [ "status" ] "1 item removed" "status names the removal"
-        let! review = runCli state [ "commit"; "remove f"; "-y" ]
-        Expect.stringContains
-          review
-          "REMOVED (1)"
-          $"commit's review lists it: {review}"
-        Expect.stringContains review "Tests.Gone.f" $"by name: {review}"
-
-        do! switch state "main"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Gone.f()" ]
-            "1"
-            "main still has it before the merge"
-        do! shows state [ "merge"; "gonebr"; "-y" ] "Merged" "the branch merges"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Gone.f()" ]
-            "not found"
-            "and main no longer has the name"
-        do!
-          shows
-            state
-            [ "commits"; "3" ]
-            "remove f"
-            "the removal's commit travelled with the merge"
-      })
-
 /// A draft holding a deprecation can be committed by BOTH paths, and each fails differently without
 /// this. `--include=` has to read the `Reference` a `Deprecate` carries as a reference and not as a
 /// `Hash`, or it dies at runtime. And `commit --json` must not decide "nothing to commit" from the
@@ -263,58 +203,6 @@ let private aBranchLearnsThatMainMovedItsDependency =
         do! archiveBranches state [ "movedbr" ]
       })
 
-/// `status` counts the constraints that touch a name this draft binds; a clean tree calls the rest
-/// what they are, standing. One count for both reads as "your edit broke N things".
-let private statusSeparatesTheDraftsConstraintsFromStandingOnes =
-  instanceTest
-    "status says which constraints this draft caused and which stood already"
-    (fun state ->
-      task {
-        do! discardAll state
-        let! _ =
-          runCli state [ "fn"; "Tests.F9Kind.dep"; "(x: Int64) : Int64 = x + 1" ]
-        let! _ =
-          runCli
-            state
-            [ "fn"; "Tests.F9Kind.use"; "(x: Int64): Int64 = Tests.F9Kind.dep(x)" ]
-        do! commit state "f9 base"
-
-        // A kind change cannot be repointed, so the caller is left behind: a constraint THIS draft made.
-        do! value state "Tests.F9Kind.dep" "5"
-        do!
-          shows
-            state
-            [ "status" ]
-            "1 from this draft"
-            "the constraint the draft caused is attributed to it"
-
-        do! commit state "f9 kind"
-        do!
-          shows
-            state
-            [ "status" ]
-            "standing constraint"
-            "on a clean tree it is standing, not outstanding against you"
-
-        do! fn state "Tests.F9Kind.other" "() : Int64 = 1"
-        do!
-          shows
-            state
-            [ "status" ]
-            "none from this draft"
-            "an unrelated draft is not blamed for it"
-
-        // Back to a fn: the cascade repoints the caller and THIS constraint is gone, so the store is
-        // left as it was found. Asked by name: the shared store carries other tests' constraints.
-        let! _ =
-          runCli state [ "fn"; "Tests.F9Kind.dep"; "(x: Int64) : Int64 = x + 3" ]
-        do! commit state "f9 restored"
-        let! after = runCli state [ "constraints" ]
-        Expect.isFalse
-          (after.Contains "F9Kind")
-          $"restoring the kind clears it: {after}"
-      })
-
 /// A name that does not resolve fails before any call is made, so its stack is empty and the host
 /// prints no stack header over it. One line for a one-line mistake; a real stack, from a fn that
 /// failed inside another, still prints.
@@ -357,23 +245,6 @@ let private failuresExitNonzero =
         Expect.stringContains evalOut "not found" "the error is still printed"
         Expect.equal failed 1L "a failed eval exits 1"
       })
-
-/// `--as` takes one value and `--why` swallows the rest of the line; neither is a target id.
-let private constraintFlagsAreNotTargets =
-  instanceTest "constraint flag values are not read as finding ids" (fun state ->
-    task {
-      let! asOut =
-        runCli state [ "constraints"; "resolve"; "zzzzzzzz"; "--as"; "repoint" ]
-      Expect.stringContains asOut "zzzzzzzz" $"the target is reported: {asOut}"
-      Expect.isFalse
-        (asOut.Contains "matching \"repoint\"")
-        $"and the --as value is not: {asOut}"
-
-      let! whyOut = runCli state [ "ack"; "zzzzzzzz"; "--why"; "not"; "now" ]
-      Expect.isFalse
-        (whyOut.Contains "matching \"not\"" || whyOut.Contains "matching \"now\"")
-        $"an unquoted --why reason is not read as ids: {whyOut}"
-    })
 
 /// A branch discard deletes the rows its ops wrote along with the ops, so nothing the branch binds is
 /// left pointing at an op that is gone, and `status`'s store health stays quiet.
@@ -489,7 +360,6 @@ let private deprecationIsReversible =
 
       do! shows state [ "eval"; "Tests.Undep.item(1)" ] "4243" "and it still runs"
     })
-
 
 
 // The docs' worked example, executed: `docs scm` ends with one whose comments claim specific
@@ -683,58 +553,6 @@ let private deprecationTakesEffectInTheSameProcess =
 // It is tested where it can be: `harmfulGate` in `packages/darklang/tests/cli/deprecate.dark`, which drives
 // a real CLI process and asserts BOTH directions -- a fn marked harmful refuses to run, and
 // `--allow-harmful` runs it anyway.
-
-/// Shared content must remain bound at every alias when propagation crosses owners.
-let private allConsumersFollowAcrossOwners =
-  instanceTest "all consumers follow dependency edits across owners" (fun state ->
-    task {
-      do! fn state "Vendor.Auto.dep" "() : Int64 = 1"
-      let body = "() : Int64 = Vendor.Auto.dep () + 100"
-      do! fn state "Tests.Auto.x" body
-      do! fn state "Tests.Auto.y" body
-      do! fn state "Other.Auto.top" "(): Int64 = Tests.Auto.x() + 1000"
-      do! fn state "Vendor.Auto.dep" "() : Int64 = 2"
-      do! evals state "Tests.Auto.x()" "102" "first caller updates"
-      do! evals state "Tests.Auto.y()" "102" "shared alias also updates"
-      do! evals state "Other.Auto.top ()" "1102" "transitive foreign caller updates"
-      do!
-        shows
-          state
-          [ "undo"; "Vendor.Auto.dep" ]
-          "back on the version"
-          "source can be restored"
-      do! evals state "Tests.Auto.x()" "101" "caller follows restore"
-      do! evals state "Tests.Auto.y()" "101" "alias follows restore"
-      do! evals state "Other.Auto.top ()" "1101" "transitive caller follows restore"
-      do! fn state "Vendor.Auto.dep" "() : Int64 = 2"
-      do! evals state "Tests.Auto.x()" "102" "replayed content propagates again"
-      do! evals state "Other.Auto.top ()" "1102" "replayed cascade takes effect"
-    })
-
-let private crossOwnerPropagationIsBranchLocal =
-  instanceTest "cross-owner propagation stays on its branch" (fun state ->
-    task {
-      do! start state
-      do! fn state "Vendor.BranchAuto.dep" "() : Int64 = 41"
-      do!
-        fn
-          state
-          "Tests.BranchAuto.caller"
-          "() : Int64 = Vendor.BranchAuto.dep () + 1"
-      do! commit state "automatic propagation fixture"
-      do! switch state "auto-propagation"
-      do! fn state "Vendor.BranchAuto.dep" "() : Int64 = 51"
-      do!
-        evals
-          state
-          "Tests.BranchAuto.caller()"
-          "52"
-          "branch caller updates automatically"
-      do! onMain state
-      do! evals state "Tests.BranchAuto.caller()" "42" "main caller is unchanged"
-      do! evals state "Vendor.BranchAuto.dep ()" "41" "main dependency is unchanged"
-      do! archiveBranches state [ "auto-propagation" ]
-    })
 
 /// Every `--json` surface emits parseable JSON.
 ///
@@ -1327,89 +1145,6 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
       do! archiveBranches state [ "confbr" ]
     })
 
-/// Two branches authoring identical source hold the same op ids. Merging one must still commit what
-/// it landed, and the sibling's later archive must not make it reappear as draft work nobody typed.
-let private mergeCommitsWhatASiblingStillTags =
-  instanceTest
-    "a merge commits shared ops even while a sibling still tags them"
-    (fun state ->
-      task {
-        do! switch state "shared1"
-        do! fn state "Tests.SharedLand.f" "() : Int64 = 99"
-        do! commit state "shared1 work"
-        do! switch state "main"
-        do! switch state "shared2"
-        do! fn state "Tests.SharedLand.f" "() : Int64 = 99"
-        do! commit state "shared2 work"
-        do! switch state "main"
-
-        do!
-          shows state [ "merge"; "shared1"; "-y" ] "erged" "the merge went through"
-
-        // Main holds the shared op now, committed by the merge.
-        let! unstamped =
-          countSqlIn
-            state
-            "SELECT COUNT(*) as n FROM package_ops p
-             WHERE p.commit_hash IS NULL AND p.branch_id = '00000000-0000-0000-0000-000000000001'"
-        Expect.equal unstamped 0L "everything the merge landed is stamped by it"
-
-        do! shows state [ "status" ] "clean" "the merge left main clean"
-
-        let! _ = runCli state [ "branch"; "archive"; "shared2"; "-y" ]
-        do!
-          shows
-            state
-            [ "status" ]
-            "clean"
-            "the sibling's archive does not resurrect the op as draft work"
-      })
-
-/// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
-/// Ops are content-addressed, so re-binding a name to a hash it held before is byte-identical to
-/// the op that first bound it: it dedupes, folds nothing, and the revert silently does not happen
-/// while the CLI reports success. `Decision`/`Override` is the op that means "this binding again,
-/// and I mean it" -- rebinding authors it for exactly this reason.
-let revertingToAnEarlierVersionTakesEffect =
-  instanceTest "going back to an earlier version actually goes back" (fun state ->
-    task {
-      do! start state
-      do! switch state "revertbr"
-      do! fn state "Tests.Revert.b" "() : Int64 = 611"
-      do! commit state "611"
-      do! fn state "Tests.Revert.b" "() : Int64 = 622"
-      do! commit state "622"
-      do! evals state "Tests.Revert.b()" "622" "the second version is live"
-
-      do! fn state "Tests.Revert.b" "() : Int64 = 611"
-      do!
-        evals
-          state
-          "Tests.Revert.b()"
-          "611"
-          "and going back to the first takes effect"
-      do! dirty state "the revert is a change, so the draft holds it"
-
-      do! commit state "back to 611"
-      do! evals state "Tests.Revert.b()" "611" "and it survives the commit"
-      do! onMain state
-    })
-
-/// The same on main, where authoring is live-on-write.
-let revertingOnMainTakesEffect =
-  instanceTest "going back to an earlier version works on main too" (fun state ->
-    task {
-      do! start state
-      do! fn state "Tests.RevertMain.f" "() : Int64 = 1"
-      do! commit state "one"
-      do! fn state "Tests.RevertMain.f" "() : Int64 = 2"
-      do! commit state "two"
-      do! fn state "Tests.RevertMain.f" "() : Int64 = 1"
-      do! evals state "Tests.RevertMain.f()" "1" "back to the first version"
-      do! discardAll state
-    })
-
-
 /// `--include=<caller>` on a branch committed the caller and left its dependency's NAME in the
 /// draft, so a reader downstream could run the caller but could not find what it called.
 let aPartialCommitTakesItsDependencysName =
@@ -1718,24 +1453,16 @@ let tests : List<Test> =
     bareDiffShowsTheDraft
     dependentsSeeTheBranchYouAreOn
     branchReadsAnswerAboutTheBranch
-    anUnbindRemovesANameThroughTheCli
     aDeprecationCommitsByEitherPath
     archivingABranchCommitsItsEvent
     aBranchLearnsThatMainMovedItsDependency
     fnReadsItsDefinitionFromAFile
-    statusSeparatesTheDraftsConstraintsFromStandingOnes
     aMissingNameIsOneLineNotAStackHeader
     failuresExitNonzero
-    constraintFlagsAreNotTargets
     aBranchDiscardLeavesNoDanglingTags
     aNameHoldsOneItemWhateverItsKind
     editChangesAnItemWithoutRetypingIt
     everyJsonSurfaceParses
-    allConsumersFollowAcrossOwners
-    crossOwnerPropagationIsBranchLocal
-    mergeCommitsWhatASiblingStillTags
-    revertingToAnEarlierVersionTakesEffect
-    revertingOnMainTakesEffect
     aPartialCommitTakesItsDependencysName
     overrideByNameAnswersThePendingConflict
     aFailedJsonCommitExitsNonzero

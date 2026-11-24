@@ -13,12 +13,8 @@ open TestUtils.TestUtils
 
 module Config = LibDB.Config
 
-// sequenced so they get the sequenced half's store. on the parallel store every write
-// queues behind every other test's writes, and under load one waited past the 30 s
-// Microsoft.Data.Sqlite gives a busy store, failing with "database is locked"
 let tests =
-  testSequenced
-  <| testList
+  testList
     "LibDB.Config"
     [ testTask "set then get round-trips" {
         Config.set "test.config.k1" "hello"

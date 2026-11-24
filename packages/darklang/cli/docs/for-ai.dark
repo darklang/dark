@@ -83,7 +83,8 @@ Always give a value:
 - An HTTP request runs in the background until its result is used. To time one, wrap it in
   `Stdlib.await(...)` before reading the clock again, or the time comes out near zero.
 
-Logs: ~/.darklang/logs/cli.log
+Logs in ~/.darklang/logs/: cli.log (errors that ended a command), host-audit.jsonl
+(every file, network, env and process access), telemetry.jsonl (DARK_TELEMETRY=1).
 
 ## More
   docs for-ai packages | tests | permissions | traces | scm | syntax

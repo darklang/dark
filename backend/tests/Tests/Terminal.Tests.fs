@@ -146,6 +146,36 @@ let terminalTextTests =
           (TerminalText.wrapWithCursor $"{red}ab" "cd" 2)
           ([ $"{red}ab"; $"{red}cd" ], 1, 0)
           "styling costs no columns"
+      }
+      test "a space before a non-ASCII character is still a break point" {
+        Expect.equal
+          (TerminalText.wrapWithCursor "> 界界 界" "" 6)
+          ([ "> 界界"; "界" ], 1, 2)
+          "CJK"
+        Expect.equal
+          (TerminalText.wrapAtColumn "> ok 🙂🙂" 6)
+          [ "> ok"; "🙂🙂" ]
+          "emoji"
+        Expect.equal
+          (TerminalText.wrapAtColumn "> ok 👩‍💻" 6)
+          [ "> ok"; "👩‍💻" ]
+          "a ZWJ emoji sequence"
+        Expect.equal
+          (TerminalText.wrapAtColumn "> café éclair" 8)
+          [ "> café"; "éclair" ]
+          "accented"
+        Expect.equal
+          (TerminalText.wrapAtColumn "> cafe e\u0301clair" 8)
+          [ "> cafe"; "e\u0301clair" ]
+          "an accent from a combining mark"
+        Expect.equal
+          (TerminalText.wrapAtColumn "abcd efg" 4)
+          [ "abcd"; "efg" ]
+          "a space right after a full row is the break"
+        Expect.equal
+          (TerminalText.wrapAtColumn "abc efg" 4)
+          [ "abc"; "efg" ]
+          "so is a space that ends a full row"
       } ]
 
 

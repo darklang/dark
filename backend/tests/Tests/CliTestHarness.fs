@@ -63,10 +63,10 @@ let private buildState () : Task<RT.ExecutionState> =
     // `withState` supplies a fresh policy directory for this test. Approvals and instance
     // policy edits must not survive into another test or a later run of the suite.
 
-    // `defaultInstance` PLUS package-write, concurrency and runtime, granted for this test.
+    // `defaultInstance` PLUS package-write and runtime, granted for this test.
     //
-    // Tests author packages and spawn processes through guest `dark eval`, which needs
-    // package-write and concurrency. Live tests also need runtime to drop caches on edits.
+    // Tests author packages through guest `dark eval`, which needs package-write. Live tests
+    // also need runtime to drop caches on edits.
     //
     // What a GUEST may do without the grant is still tested, in `PermissionEscape.Tests`.
     let testInstancePolicy =
@@ -74,7 +74,6 @@ let private buildState () : Task<RT.ExecutionState> =
         Set.union
           (set
             [ LibExecution.Effects.Effect.PackageWrite
-              LibExecution.Effects.Effect.Concurrency
               LibExecution.Effects.Effect.Runtime ])
           (LibExecution.Permissions.Policy.coverableEffects
             LibExecution.Permissions.Policy.defaultInstance

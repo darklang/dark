@@ -392,8 +392,11 @@ let refreshWith (afterRead : unit -> unit) (pm : PT.PackageManager) : int64 =
   Telemetry.time "author.wipRefresh" [] (fun () ->
     // Retry if another edit changed the draft while we were refreshing it.
     // Stop after ten attempts rather than retrying indefinitely.
+    // a retry holds the write turn from its read to its write, so only another process can move
+    // the draft under it. with every parallel test saving into one draft, retries kept losing
     let rec attempt (attempts : int) : int64 =
-      match refreshOnce afterRead pm with
+      let once () = refreshOnce afterRead pm
+      match if attempts = 1 then once () else LibDB.Sqlite.WriteGate.hold once with
       | Some n -> n
       | None when attempts < 10 -> attempt (attempts + 1)
       | None ->

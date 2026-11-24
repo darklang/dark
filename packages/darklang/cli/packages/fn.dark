@@ -7,11 +7,11 @@ let execute(state: AppState, args: List<String>): AppState =
     state
   // fn SomeModule.myFn (param: Type): ReturnType = body
   | [location, ...definitionParts] ->
-    match definitionFromArgs(definitionParts) with
+    match definitionAndDescription(definitionParts) with
     | Error(message) ->
       printErr(message)
       failed(state)
-    | Ok(inlineDefinition) ->
+    | Ok((inlineDefinition, description)) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
         // No body provided - show error
         [ Stdlib.Cli.UI.Colors.error("Error: Function body required")
@@ -30,8 +30,13 @@ let execute(state: AppState, args: List<String>): AppState =
         |> Stderr.lines
 
         failed(state)
+      else if docBeforeParams(inlineDefinition) then
+        printErr("A `///` before the parameters would document the first parameter, not the function.")
+        printHint(
+          $"Document the function with `--description`: dark fn {location} '(x: Int64): Int64 = ...' --description \"...\"")
+        failed(state)
       else
-        createFnInline(state, location, inlineDefinition)
+        createFnInline(state, location, inlineDefinition, description)
 
 
 /// The source to parse for <param definition>. A complete declaration (with comments above it) is
@@ -48,7 +53,25 @@ let fnSource(name: String, definition: String): String =
     $"let {name} {definition}"
 
 
-let createFnInline(state: AppState, locationStr: String, definition: String): AppState =
+/// Whether <param definition> is the short form with a `///` before its `(`, where the parser would
+/// take it as the first parameter's doc.
+let docBeforeParams(definition: String): Bool =
+  let firstLine =
+    Stdlib.String.splitOnNewline(definition)
+    |> Stdlib.List.map(Stdlib.String.trim)
+    |> Stdlib.List.findFirst(fun line -> line != "")
+    |> Stdlib.Option.withDefault("")
+
+  Stdlib.String.startsWith(firstLine, "///")
+  && Stdlib.Bool.not(Stdlib.String.startsWith(codeAfterComments(definition), "let "))
+
+
+let createFnInline(
+  state: AppState,
+  locationStr: String,
+  definition: String,
+  description: Option<String>)
+  : AppState =
   let hint =
     [ Stdlib.Cli.UI.Colors.error("Expected exactly one function declaration")
       ""
@@ -74,6 +97,10 @@ let createFnInline(state: AppState, locationStr: String, definition: String): Ap
         // Nothing was saved: an agent's authoring loop branches on the exit.
         Option.Some(failed(state))
       | Function(writtenFn) ->
+        let writtenFn =
+          { writtenFn with
+              description = Stdlib.Option.withDefault(description, writtenFn.description) }
+
         // the short form is parsed behind `let <name> `, so a column on its first line is off by that
         let wrapped = fnSource(location.name, definition)
         let shift = Stdlib.String.length(wrapped) - Stdlib.String.length(definition)
@@ -164,6 +191,10 @@ let help(_state: AppState): String =
     "    if n < 2 then n"
     "    else fib(n - 1) + fib(n - 2)"
     "  EOF"
+    ""
+    "--description <text> documents the function. A `///` above a parameter"
+    "documents that parameter, and one above a full `let` documents the function:"
+    "  dark fn Me.Demo.twice '(x: Int64): Int64 = x * 2' --description \"Twice <param x>.\""
     ""
     "A leading `/` makes a name absolute (`/Me.Demo.double`); without one it is"
     "relative to the module `nav` put you in."

@@ -934,12 +934,8 @@ module Dval =
     | DBytes _ as bytes -> mk "DBytes" [ bytes ]
 
     // Streams render as a stub tag for LSP/reflection only — they
-    // can't round-trip (no live pull fn on the other side).
-    // TODO this is a one-way bridge — `fromDT` raises on DStreamStub.
-    // Any user code that introspects a Dval and rebuilds it (custom
-    // pretty-printer, trace viewer) silently breaks for streams. The
-    // asymmetry isn't documented in the public API. Document it or
-    // add a "rehydrate as a no-op stub stream" path.
+    // can't round-trip (no live pull fn on the other side), so `fromDT`
+    // raises on DStreamStub.
     | DStream impl -> streamStubDT impl
     // A frame's argument, recorded while the read was in flight and shown after it landed.
     | DPromise p when p.Task.IsCompletedSuccessfully -> toDT p.Task.Result

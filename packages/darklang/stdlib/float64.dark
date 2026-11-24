@@ -4,6 +4,19 @@ type ParseError =
   | BadFormat
 
 
+/// Not a number, the result of {{0.0 / 0.0}}. It is not equal to anything, itself
+/// included; test for it with <fn Float64.isNaN>.
+val nan = 0.0 / 0.0
+
+
+/// Positive infinity, the result of {{1.0 / 0.0}}
+val infinity = 1.0 / 0.0
+
+
+/// Negative infinity, the result of {{-1.0 / 0.0}}
+val negativeInfinity = -1.0 / 0.0
+
+
 /// Round up to an integer value. Raises for NaN, infinity, or a result past Int64;
 /// <fn Int64.fromFloatCeiling> returns an {{Error}} instead.
 let ceiling(a: Float64): Int64 =
@@ -57,6 +70,24 @@ impl Negate for Float64 =
 /// Get the square root of a float
 let sqrt(a: Float64): Float64 =
   Builtin.float64Sqrt(a)
+
+
+/// The natural logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log(a: Float64): Float64 =
+  Builtin.float64Log(a)
+
+
+/// The base-10 logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log10(a: Float64): Float64 =
+  Builtin.float64Log10(a)
+
+
+/// e raised to the power of <param a>. {{Infinity}} where the result is too large,
+/// {{0.0}} where it is too small.
+let exp(a: Float64): Float64 =
+  Builtin.float64Exp(a)
 
 
 impl Add for Float64 =

@@ -351,6 +351,39 @@ test sqrt =
       Stdlib.Float64.sqrt(0.0) |> Stdlib.Test.equal(0.0) ])
 
 
+test log =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.log(1.0) |> Stdlib.Test.equal(0.0)
+      Stdlib.Float64.log(2.718281828459045) |> Stdlib.Test.equal(1.0)
+      Stdlib.Float64.log(0.0) |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float64.log(-0.0) |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float64.log(infinity()) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float64.isNaN(Stdlib.Float64.log(-1.0)) |> Stdlib.Test.equal(true)
+      Stdlib.Float64.isNaN(Stdlib.Float64.log(nan())) |> Stdlib.Test.equal(true) ])
+
+
+test log10 =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.log10(1.0) |> Stdlib.Test.equal(0.0)
+      Stdlib.Float64.log10(1000.0) |> Stdlib.Test.equal(3.0)
+      Stdlib.Float64.log10(0.01) |> Stdlib.Test.equal(-2.0)
+      Stdlib.Float64.log10(0.0) |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float64.log10(infinity()) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float64.isNaN(Stdlib.Float64.log10(-1.0)) |> Stdlib.Test.equal(true)
+      Stdlib.Float64.isNaN(Stdlib.Float64.log10(nan())) |> Stdlib.Test.equal(true) ])
+
+
+test exp =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.exp(0.0) |> Stdlib.Test.equal(1.0)
+      Stdlib.Float64.exp(1.0) |> Stdlib.Test.equal(2.718281828459045)
+      Stdlib.Float64.exp(1000.0) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float64.exp(-1000.0) |> Stdlib.Test.equal(0.0)
+      Stdlib.Float64.exp(infinity()) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float64.exp(negativeInfinity()) |> Stdlib.Test.equal(0.0)
+      Stdlib.Float64.isNaN(Stdlib.Float64.exp(nan())) |> Stdlib.Test.equal(true) ])
+
+
 test subtract = 1.0 - 0.2 |> Stdlib.Test.equal(0.8)
 
 
@@ -681,3 +714,12 @@ test checkedParse =
       Stdlib.Float64.checkedParse("abc")
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat)) ])
+
+
+test namedValues =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.isNaN(Stdlib.Float64.nan) |> Stdlib.Test.equal(true)
+      Stdlib.Float64.infinity |> Stdlib.Test.equal(infinity())
+      Stdlib.Float64.negativeInfinity |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float64.isFinite(Stdlib.Float64.infinity) |> Stdlib.Test.equal(false)
+      -Stdlib.Float64.infinity |> Stdlib.Test.equal(Stdlib.Float64.negativeInfinity) ])

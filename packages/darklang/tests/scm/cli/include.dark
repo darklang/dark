@@ -1,0 +1,358 @@
+/// `dark commit --include`: a partial commit takes the named items and what they need, and leaves
+/// the rest of the draft alone, including around renames and alias-only edits.
+/// The helpers are in `helpers.dark`.
+module Darklang.SCM.Tests.Cli
+
+/// `dark commit <message> --include=<name> -y`.
+let commitOnly(
+  dark: Cli.Tests.Instance.T,
+  message: String,
+  name: String)
+  : Stdlib.Test.Result =
+  run(dark, [ "commit", message, $"--include={name}", "-y" ])
+
+
+/// The draft row for <param name> in a `status --json` or `commit --json` answer says
+/// <param change>.
+let changeOf(j: Stdlib.AltJson.Json, name: String): String =
+  rows(field(j, "changed"))
+  |> Stdlib.List.findFirst(fun row -> text(row, "name") == name)
+  |> Stdlib.Option.map(fun row -> text(row, "change"))
+  |> Stdlib.Option.withDefault("not listed")
+
+
+/// Committing a rename by its new name takes the caller version the rename captured, and leaves
+/// later edits in the draft. One case per combination of a draft before the rename and edits
+/// after it, each on main and on a branch.
+let aPartialRenameTakesTheVersionsItNeeds(
+  draftBeforeRename: Bool,
+  laterEdits: Bool)
+  : Stdlib.Test.Result =
+  scenario(fun dark ->
+    let onEachSide(branch: String, side: String): List<Stdlib.Test.Result> =
+      let p = $"Tests.Partial{side}"
+      let foo = $"{p}.foo"
+      let bar = $"{p}.bar"
+      let caller = $"{p}.caller"
+      let expected = if draftBeforeRename then "86403" else "86401"
+      let followed = if draftBeforeRename then "86411" else "86410"
+      Stdlib.List.flatten(
+        [ [ switch(dark, branch)
+            saveNumber(dark, foo, "86401")
+            save(dark, caller, $"(): Int64 = {foo}()")
+            commit(dark, "partial rename baseline") ]
+
+          if draftBeforeRename then
+            [ saveNumber(dark, foo, "86402")
+              save(dark, caller, $"(): Int64 = {foo}() + 1") ]
+          else
+            []
+
+          [ run(dark, [ "rename", foo, bar ]) ]
+          if laterEdits then
+            [ saveNumber(dark, foo, "86409")
+              saveNumber(dark, caller, "86499") ]
+          else
+            []
+
+          [ commitOnly(dark, "selected rename", bar)
+            if laterEdits then
+              draftIsNotEmpty(dark, "later edits stay in the draft")
+            else
+              draftIsEmpty(
+                dark,
+                "every version the rename needed was committed")
+
+            run(dark, [ "discard", "-y" ])
+            notFound(
+              dark,
+              $"{foo}()",
+              "the old name and any later replacement are gone")
+
+            evals(
+              dark,
+              $"{caller}()",
+              expected,
+              "the selected caller version survives discard")
+
+            says(
+              dark,
+              [ "deps", "uses", caller ],
+              bar,
+              "the committed caller follows the renamed dependency")
+
+            saveNumber(dark, foo, "86409")
+            evals(
+              dark,
+              $"{caller}()",
+              expected,
+              "reusing the old name does not redirect the caller")
+
+            saveNumber(dark, bar, "86410")
+            evals(
+              dark,
+              $"{caller}()",
+              followed,
+              "the caller follows later edits")
+
+            run(dark, [ "discard", "-y" ]) ] ])
+
+    Stdlib.List.flatten(
+      [ onEachSide("main", "Main")
+        onEachSide("partial-rename-versions", "Branch")
+        [ switch(dark, "main") ] ]))
+
+
+test aPartialRenameWithCommittedCallersAndLaterEdits =
+  aPartialRenameTakesTheVersionsItNeeds(false, true)
+
+
+test aPartialRenameWithDraftCallersAndNoLaterEdits =
+  aPartialRenameTakesTheVersionsItNeeds(true, false)
+
+
+test aPartialRenameWithDraftCallersAndLaterEdits =
+  aPartialRenameTakesTheVersionsItNeeds(true, true)
+
+
+/// A rename captures the caller version it saw. If that version does not type-check, committing
+/// the rename alone is refused, even after a later save fixed the caller in the draft.
+test aPartialRenameChecksTheCallerVersionItCaptured = scenario(fun dark ->
+  let onEachSide(branch: String, side: String): List<Stdlib.Test.Result> =
+    let p = $"Tests.RenameCheck{side}"
+    let original = $"{p}.original"
+    let moved = $"{p}.moved"
+    let caller = $"{p}.caller"
+    let setup =
+      [ switch(dark, branch)
+        saveNumber(dark, original, "93701")
+        commit(dark, "validation baseline")
+        // the rename captures this broken version
+        says(
+          dark,
+          [ "fn", caller, $"(): String = {original}()" ],
+          "saved as a draft",
+          "a type error is saved, and says so")
+
+        run(dark, [ "rename", original, moved ])
+        save(dark, caller, $"(): Int64 = {moved}()") ]
+
+    let review = json(dark, [ "commit", "--json" ])
+    let (code, _, said) =
+      exec(dark, [ "commit", "rename only", $"--include={moved}", "-y" ])
+
+    let refusal =
+      json(
+        dark,
+        [ "commit", "rename only", $"--include={moved}", "--json", "-y" ])
+
+    Stdlib.List.flatten(
+      [ setup
+        [ same(
+            text(review, "refused"),
+            "",
+            "the whole draft passes once the caller is fixed")
+
+          same(code, 1, "committing the rename alone is refused")
+          if Stdlib.String.contains(said, "definite errors") then
+            Stdlib.Test.Result.Pass
+          else
+            Stdlib.Test.fail(
+              $"the refusal names the captured type error: {said}")
+
+          same(text(refusal, "refused"), "type-errors", "--json refuses it too")
+          same(flag(refusal, "committed"), false, "and commits nothing")
+          run(dark, [ "discard", "-y" ])
+          evals(
+            dark,
+            $"{original}()",
+            "93701",
+            "the original name is still committed")
+
+          notFound(
+            dark,
+            $"{moved}()",
+            "the refused rename was not committed") ] ])
+
+  Stdlib.List.flatten(
+    [ onEachSide("main", "Main")
+      onEachSide("rename-validation", "Branch")
+      [ switch(dark, "main") ] ]))
+
+
+test aPartialCommitTakesDependenciesBeyondEightNames =
+  let p = "Tests.DeepCommit"
+  scenario(fun dark ->
+    let chain =
+      Stdlib.List.range(1, 11)
+      |> Stdlib.List.map(fun i ->
+        let before = Stdlib.display(i - 1)
+        save(
+          dark,
+          $"{p}.n{Stdlib.display(i)}",
+          $"(): Int64 = {p}.n{before}() + 1"))
+
+    Stdlib.List.flatten(
+      [ [ saveNumber(dark, $"{p}.n0", "1") ]
+        chain
+        [ commitOnly(dark, "deep dependency closure", $"{p}.n11")
+          draftIsEmpty(dark, "all twelve functions commit together")
+          evals(dark, $"{p}.n11()", "12", "the committed chain runs") ] ]))
+
+
+/// A rename committed by its new name takes the names its callers used then, not an alias a later
+/// edit switched to.
+test aPartialRenameKeepsTheAliasesItsCallersUsedThen = scenario(fun dark ->
+  let onEachSide(branch: String, side: String): List<Stdlib.Test.Result> =
+    let p = $"Tests.Transitive{side}"
+    Stdlib.List.flatten(
+      [ [ switch(dark, branch)
+          saveNumber(dark, $"{p}.x", "941001")
+          saveNumber(dark, $"{p}.y", "941001") ]
+
+        if branch == "main" then
+          []
+        else
+          [ save(dark, $"{p}.other", $"(): Int64 = {p}.y()") ]
+
+        [ save(dark, $"{p}.helper", $"(): Int64 = {p}.x()")
+          saveNumber(dark, $"{p}.source", "941002")
+          save(dark, $"{p}.caller", $"(): Int64 = {p}.source() + {p}.helper()")
+          run(dark, [ "rename", $"{p}.source", $"{p}.moved" ])
+          save(dark, $"{p}.helper", $"(): Int64 = {p}.y()")
+          commitOnly(dark, "rename and original dependencies", $"{p}.moved")
+          run(dark, [ "discard", "-y" ])
+          says(
+            dark,
+            [ "view", $"{p}.x", "--raw" ],
+            "941001",
+            "the original dependency name was committed")
+
+          notFound(
+            dark,
+            $"{p}.y()",
+            "the later alias stays unrelated draft work")
+
+          says(
+            dark,
+            [ "view", $"{p}.helper", "--raw" ],
+            $"{p}.x()",
+            "the committed helper follows the original alias")
+
+          saveNumber(dark, $"{p}.x", "941003")
+          evals(
+            dark,
+            $"{p}.caller()",
+            "1882005",
+            "the chain still follows the committed name")
+
+          run(dark, [ "discard", "-y" ]) ] ])
+
+  Stdlib.List.flatten(
+    [ onEachSide("main", "Main")
+      onEachSide("transitive-alias", "Branch")
+      [ switch(dark, "main") ] ]))
+
+
+/// Switching a caller between two names for the same body is an update, and committing it by name
+/// takes just that, each time.
+test aPartialCommitTakesRepeatedAliasOnlyEdits = scenario(fun dark ->
+  let onEachSide(branch: String, side: String): List<Stdlib.Test.Result> =
+    let p = $"Tests.Reference{side}"
+    let caller = $"{p}.caller"
+    let setup =
+      [ switch(dark, branch)
+        saveNumber(dark, $"{p}.a", "991273")
+        saveNumber(dark, $"{p}.b", "991273")
+        save(dark, caller, $"(): Int64 = {p}.a()")
+        commit(dark, "reference baseline") ]
+
+    let rounds =
+      [ "b", "a", "b" ]
+      |> Stdlib.List.map(fun alias ->
+        let edits =
+          [ save(dark, caller, $"(): Int64 = {p}.{alias}()")
+            saveNumber(dark, $"{p}.unrelated", "991274") ]
+
+        let statusSays = changeOf(json(dark, [ "status", "--json" ]), caller)
+
+        let previewSays =
+          changeOf(
+            json(dark, [ "commit", "--json", $"--include={caller}" ]),
+            caller)
+
+        Stdlib.List.flatten(
+          [ edits
+            [ same(
+                statusSays,
+                "updated",
+                "status calls an alias-only edit an update")
+
+              same(previewSays, "updated", "and so does the commit preview")
+              commitOnly(dark, "choose alias", caller)
+              says(
+                dark,
+                [ "status", "--json" ],
+                $"{p}.unrelated",
+                "the unrelated edit stays in the draft")
+
+              run(dark, [ "discard", "-y" ])
+              says(
+                dark,
+                [ "view", caller, "--raw" ],
+                $"{p}.{alias}()",
+                "discard keeps the committed names")
+
+              draftIsEmpty(
+                dark,
+                "no older alias edits are left in the draft") ] ]))
+      |> Stdlib.List.flatten
+
+    Stdlib.List.flatten(
+      [ setup
+        rounds
+        [ saveNumber(dark, $"{p}.b", "991275")
+          evals(
+            dark,
+            $"{caller}()",
+            "991275",
+            "the committed caller follows the chosen alias")
+
+          run(dark, [ "discard", "-y" ]) ] ])
+
+  Stdlib.List.flatten(
+    [ onEachSide("main", "Main")
+      onEachSide("reference-only", "Branch")
+      [ switch(dark, "main") ] ]))
+
+
+test aPartialRenameLeavesALaterAliasEditInTheDraft =
+  let p = "Tests.PartialAlias"
+  scenario(fun dark ->
+    [ saveNumber(dark, $"{p}.original", "582781")
+      saveNumber(dark, $"{p}.alias", "582781")
+      commit(dark, "alias partial baseline")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.original()")
+      run(dark, [ "rename", $"{p}.original", $"{p}.moved" ])
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.alias()")
+      commitOnly(dark, "rename without later alias edit", $"{p}.moved")
+      run(dark, [ "discard", "-y" ])
+      says(
+        dark,
+        [ "view", $"{p}.caller", "--raw" ],
+        $"{p}.moved()",
+        "discard shows the caller version the rename selected")
+
+      saveNumber(dark, $"{p}.alias", "582782")
+      evals(
+        dark,
+        $"{p}.caller()",
+        "582781",
+        "the later alias edit was not committed")
+
+      saveNumber(dark, $"{p}.moved", "582783")
+      evals(
+        dark,
+        $"{p}.caller()",
+        "582783",
+        "the committed caller follows the rename") ])

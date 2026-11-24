@@ -402,7 +402,6 @@ let private toDList (xs : List<string>) : Dval =
   xs |> List.map DString |> Dval.list KTString
 
 
-// TODO: review/reconsider the accessibility of these fns
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ // location -> hash, hash -> every location, and hash -> item, for any item kind
     findFn ()

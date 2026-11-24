@@ -108,38 +108,54 @@ let private startupSettings () : Map<string, string> =
   with _ ->
     Map.empty
 
-/// How many worker schedulers this run may start: the store's `exec.workers`, else one per
-/// core. Never below one.
-let private workerCount (settings : Map<string, string>) : int =
-  match Map.tryFind "exec.workers" settings with
-  | Some s ->
-    match System.Int32.TryParse s with
-    | true, n when n >= 1 -> n
-    | _ -> max 1 System.Environment.ProcessorCount
-  | None -> max 1 System.Environment.ProcessorCount
+/// The scheduler's settings for this run, from the store's `exec.*`. Workers never go below
+/// one, the caps never below 0 (none), and a store poll under 10 ms is ignored, because a busy
+/// loop on a timer is not a setting anyone means (`config set` refuses one too).
+let private execFrom
+  (settings : Map<string, string>)
+  (defaults : RT.ExecSettings)
+  : RT.ExecSettings =
+  let cap (key : string) : int64 =
+    match Map.tryFind key settings with
+    | Some v ->
+      match System.Int64.TryParse v with
+      | true, n when n >= 0L -> n
+      | _ -> 0L
+    | None -> 0L
+  let atLeast (least : int) (key : string) (otherwise : int) : int =
+    match Map.tryFind key settings with
+    | Some v ->
+      match System.Int32.TryParse v with
+      | true, n when n >= least -> n
+      | _ -> otherwise
+    | None -> otherwise
+  { workers = atLeast 1 "exec.workers" defaults.workers
+    maxInstructions = cap "exec.maxInstructions"
+    maxBytes = cap "exec.maxBytes"
+    storePollMs = atLeast 10 "exec.storePollMs" defaults.storePollMs }
 
 /// The scheduling policy, an expert setting: `exec.policy` names a Dark function
 /// (`Darklang.LanguageTools.Exec.Policy.youngestFirst`, say) that is asked which runnable process to
 /// step next whenever there is a choice; unset, the scheduler round-robins in F# and never
 /// asks. A name that does not resolve is said and ignored.
-let private installPolicy
+let private policyFrom
   (settings : Map<string, string>)
   (state : RT.ExecutionState)
-  : unit =
+  : LibExecution.Scheduler.Policy =
   let named = Map.tryFind "exec.policy" settings |> Option.defaultValue ""
-  if named <> "" then
+  if named = "" then
+    LibExecution.Scheduler.RoundRobin
+  else
     match LibDB.PackageManager.resolveFnRef named with
     | Some fn ->
-      LibExecution.Scheduler.policy <-
-        LibExecution.Scheduler.Chooser(
-          Builtins.Language.Libs.Exec.chooserFor state fn
-        )
+      LibExecution.Scheduler.Chooser(Builtins.Language.Libs.Exec.chooserFor state fn)
     | None ->
       System.Console.Error.WriteLine(
         Builtins.Language.Libs.Exec.policyComplaint
           named
           "did not resolve to a function"
       )
+      LibExecution.Scheduler.RoundRobin
 
 /// How list ops spread in this run (`LibExecution.Spread`): `exec.spread off` or `--no-spread`
 /// turns it off; the rest are expert settings, for measuring.
@@ -240,23 +256,6 @@ let execute
       return result
     else
       installStoreVersionSource ()
-      LibExecution.Scheduler.defaultWorkers <- workerCount settings
-      let cap (key : string) : int64 =
-        match Map.tryFind key settings with
-        | Some v ->
-          match System.Int64.TryParse v with
-          | true, n when n >= 0L -> n
-          | _ -> 0L
-        | None -> 0L
-      // How often a live view looks for a change. Left alone it is the 25 ms the scheduler
-      // ships with (`Scheduler.storePollMs`); a value under 10 ms is ignored here, and
-      // `config set` refuses one, because a busy loop on a timer is not a setting anyone means.
-      match Map.tryFind "exec.storePollMs" settings with
-      | Some v ->
-        match System.Int32.TryParse v with
-        | true, n when n >= 10 -> LibExecution.Scheduler.storePollMs <- n
-        | _ -> ()
-      | None -> ()
       // `DARK_SPREAD_REPORT=1` says at exit how many spreads ran and how many fell back: the way to
       // tell a run that spread from one that matched serial without spreading. A diagnostic
       // switch like `DARK_SCHEDULER`, not a setting.
@@ -279,13 +278,17 @@ let execute
         | true, n when n >= 1 -> LibExecution.HostHttp.setMaxConnectionsPerHost n
         | _ -> ()
       | None -> ()
-      LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
-      LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
       let state =
         { tracedUnder settings with
-            spread = spreadFrom settings noSpread state.spread }
-      installPolicy settings state
-      return LibExecution.Scheduler.executeFunction state fnName [] args
+            spread = spreadFrom settings noSpread state.spread
+            exec = execFrom settings state.exec }
+      return
+        LibExecution.Scheduler.executeFunction
+          (policyFrom settings state)
+          state
+          fnName
+          []
+          args
   }
 
 let initSerializers () = ()
@@ -465,15 +468,14 @@ let private runCli (args : string[]) : int =
       else
         0L
 
-    // Extract embedded resources FIRST: this chooses the store directory, which
-    // LibConfig.Config fixes the first time anything reads it.
+    // Extract embedded resources FIRST: a published CLI seeds or upgrades its store here,
+    // before anything opens it.
     let extractStart = System.Diagnostics.Stopwatch.GetTimestamp()
     let extracted = EmbeddedResources.extract ()
     let extractTicks = System.Diagnostics.Stopwatch.GetTimestamp() - extractStart
     initSerializers ()
 
-    // Extraction established the rundir, so policy paths are safe to use. The policy belongs to
-    // the INSTANCE (see `setPolicyDirectory`), which is what the rundir is; for an ordinary
+    // The policy belongs to the INSTANCE (see `setPolicyDirectory`), which is what the rundir is; for an ordinary
     // install that is `~/.darklang`, so this is the same file it always was.
     LibExecution.HostSecurity.setPolicyDirectory (
       System.IO.Path.Combine(LibConfig.Config.runDir, "policy")
@@ -968,8 +970,13 @@ let private runCli (args : string[]) : int =
               s.Contains "couldn't be found"
               && System.Text.RegularExpressions.Regex.IsMatch(s, "[0-9a-f]{32}")
             then
-              "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
-              + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary."
+              // A release binary carries its seed and brings the store up to itself on start.
+              if EmbeddedResources.hasEmbeddedResource "data.db.br" then
+                "\n\nThis usually means the store was last used by a different build of dark.\n"
+                + "  Run `dark update` to get the latest dark."
+              else
+                "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
+                + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary."
             else
               ""
 
