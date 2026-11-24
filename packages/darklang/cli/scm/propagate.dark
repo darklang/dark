@@ -35,4 +35,8 @@ let cascadeAndForce(
   | Error(e) ->
     printErr($"  cascade failed: {e}")
     false
-  | Ok(_) -> true
+  | Ok(repoints) ->
+    // A repointed saved generator re-runs, here as on the eager path, so an undo leaves its
+    // outputs where its inputs are.
+    Generate.regenerateRepointed(state.currentBranchId, repoints)
+    true
