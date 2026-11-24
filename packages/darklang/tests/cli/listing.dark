@@ -85,3 +85,34 @@ test referenceListingsAnswer =
           Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "commands" ])),
           "nav",
           "commands lists the registry") ]))
+
+
+/// A full name means the same thing wherever you stand, and a miss names what was typed.
+test fullNamesAfterNav =
+  let branch = SCM.Branch.mainBranchId
+  let root = Cli.Packages.PackageLocation.Module([])
+  let inList =
+    Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
+
+  let walk = fun(start, path) ->
+    Cli.Packages.Traversal.traverse(branch, start, path)
+
+  Stdlib.Test.all(
+    [ walk(inList, "Stdlib.String.length")
+      |> Stdlib.Test.equal(walk(root, "Stdlib.String.length"))
+
+      walk(inList, "Darklang.Stdlib.String.length")
+      |> Stdlib.Test.equal(walk(root, "Darklang.Stdlib.String.length"))
+
+      walk(inList, "Stdlib.String")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          Cli.Packages.PackageLocation.Module(
+            [ "Darklang", "Stdlib", "String" ])))
+
+      walk(inList, "map")
+      |> Stdlib.Test.equal(walk(root, "Darklang.Stdlib.List.map"))
+
+      walk(inList, "Stdlib.String.nope")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error("Not found: Stdlib.String.nope")) ])
