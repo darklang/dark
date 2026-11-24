@@ -63,11 +63,14 @@ let editInstancePolicy(
   commitInstancePolicy(expected, applyInstanceEdit(policy, allow, deny, remove))
 
 
-/// The effects a policy decides on: all but `Raise`, which no rule grants or denies.
+/// The effects a policy decides on: all but `Raise` and `Concurrency`, which no rule grants or denies.
 let permissionEffects(
   effects: List<LanguageTools.Permissions.Effect>)
   : List<LanguageTools.Permissions.Effect> =
-  effects |> Stdlib.List.filter(fun e -> e != LanguageTools.Permissions.Effect.Raise)
+  effects
+  |> Stdlib.List.filter(fun e ->
+    e != LanguageTools.Permissions.Effect.Raise
+    && e != LanguageTools.Permissions.Effect.Concurrency)
 
 
 /// The transitive permission requirements and whether analysis was complete.

@@ -5,6 +5,18 @@ type ParseError =
   | OutOfRange
 
 
+/// The smallest <type Int32>: {{-2147483648}}
+val minValue = -2147483648s32
+
+
+/// The largest <type Int32>: {{2147483647}}
+val maxValue = 2147483647s32
+
+
+/// How many bits a <type Int32> holds: {{32}}
+val bitWidth = 32
+
+
 impl Modulo for Int32 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0
@@ -323,8 +335,6 @@ let checkedPower(base: Int32, exponent: Int32): Result<Int32, Math.PowerError> =
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
-// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
-// builtin in NoModule.fs.
 
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the

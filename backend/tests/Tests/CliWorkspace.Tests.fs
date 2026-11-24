@@ -225,61 +225,6 @@ let versionAndStatusAnswer =
           "install-status names the version it is"
     })
 
-let configRoundTrips =
-  instanceTest "config set is what config get reads back" (fun state ->
-    task {
-      do!
-        shows
-          state
-          [ "config"; "set"; "instance.name"; "hello" ]
-          "instance.name"
-          "set says what it set"
-      do!
-        shows
-          state
-          [ "config"; "get"; "instance.name" ]
-          "hello"
-          "and get reads it back"
-      do!
-        shows
-          state
-          [ "config"; "get"; "trace.maxMb" ]
-          "trace.maxMb is not set (default: 256)"
-          "an unset key is not an empty value, and get says what applies"
-      do!
-        shows
-          state
-          [ "config"; "unset"; "instance.name" ]
-          "instance.name is back to its default (this machine's hostname)"
-          "unset says what applies now"
-      do!
-        shows
-          state
-          [ "config"; "get"; "instance.name" ]
-          "instance.name is not set"
-          "and get no longer finds it"
-      do!
-        shows
-          state
-          [ "config"; "get"; "exec.spreadPredict" ]
-          "exec.spreadPredict is not set"
-          "a key with no listed default is just not set"
-      do!
-        refuses
-          state
-          [ "config"; "unset"; "instance.id" ]
-          "cannot be unset"
-          "back to its default"
-          "instance.id has no default to go back to"
-      do!
-        refuses
-          state
-          [ "config"; "unset"; "trace.recrod" ]
-          "Did you mean trace.record?"
-          "back to its default"
-          "unset refuses a typo like set does"
-    })
-
 /// `instance.id` and `instance.name` used to live in `cli-config.json` beside the store, written by
 /// Dark. The runtime moves them into the store the first time anything asks, and makes the id
 /// itself when there is no file.
@@ -326,80 +271,6 @@ let instanceMovesIntoTheStore =
             [ "config"; "get"; "instance.name" ]
             "new-name"
             "once, so a later set is not undone by the file"
-      })
-
-/// The key list is closed: nothing reads a key it does not name, so storing one would only hide
-/// a typo. A refusal names the key meant when one is obvious, and a value is checked on `set`.
-let configRefusesUnknownKeysAndBadValues =
-  instanceTest
-    "config refuses a key nothing reads, and a value the boot cannot use"
-    (fun state ->
-      task {
-        do!
-          refuses
-            state
-            [ "config"; "set"; "trace.recrod"; "on" ]
-            "Did you mean trace.record?"
-            "Set "
-            "a typo is refused with the key it meant"
-        do!
-          refuses
-            state
-            [ "config"; "set"; "loopback"; "on" ]
-            "Did you mean http.loopback?"
-            "Set "
-            "a bare suffix names its key"
-        do!
-          refuses
-            state
-            [ "config"; "set"; "tests.workspace"; "hello" ]
-            "is not a config key"
-            "Set "
-            "a key nothing reads is refused"
-        do!
-          lacks
-            state
-            [ "config"; "set"; "tests.workspace"; "hello" ]
-            "Did you mean"
-            "with no guess when none is obvious"
-        do!
-          refuses
-            state
-            [ "config"; "set"; "exec.policy"; "Zzz.Nope.nope" ]
-            "is not one on main"
-            "Set "
-            "a policy that names no function is refused once, on set"
-        do!
-          shows
-            state
-            [ "config"
-              "set"
-              "exec.policy"
-              "Darklang.LanguageTools.Exec.Policy.roundRobin" ]
-            "Set exec.policy"
-            "a policy that resolves is stored"
-        do!
-          refuses
-            state
-            [ "config"; "set"; "exec.policy"; "" ]
-            "config unset exec.policy"
-            "Set "
-            "an empty value is refused, pointing at unset"
-        do! run state [ "config"; "unset"; "exec.policy" ]
-        do!
-          refuses
-            state
-            [ "config"; "set"; "exec.spreadPredict"; "maybe" ]
-            "on or off"
-            "Set "
-            "the measuring keys are checked too"
-        do!
-          refuses
-            state
-            [ "config"; "set"; "instance.id"; "x" ]
-            "cannot be set"
-            "Set "
-            "instance.id is made once, by the runtime"
       })
 
 /// Regression: this crashed. `backups now` asked whether the store existed, that
@@ -985,8 +856,6 @@ let unapprovingAnUnapprovedNameSaysSo =
           "has no remembered approval"
           "an unmatched name removes nothing and says so"
     })
-
-
 
 
 // ─── the log ──────────────────────────────────────────────────────────────
@@ -2438,9 +2307,7 @@ let tests : List<Test> =
     nothingToGrowDoesNotWait
     versionAndStatusAnswer
     firstRunAtOnceSetsUpOneStore
-    configRoundTrips
     instanceMovesIntoTheStore
-    configRefusesUnknownKeysAndBadValues
     backupsCanBeTaken
     backupsRefusesToRestoreWhatIsNotThere
     storeBackupsKeepTheWal

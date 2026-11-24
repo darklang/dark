@@ -494,9 +494,8 @@ let private prepareForStore
 
 /// Write an evaluated value's result where `getValue` reads it.
 ///
-/// TODO: open question W?.1 of the package-tree data design: whether `AddValue` should carry
-/// this result's hash (each machine evaluates and checks it) or the result itself. Until it is
-/// settled, every machine that folds the op evaluates the value again, in `evaluateAllValues`.
+/// `AddValue` carries neither the result nor its hash, so every machine that folds the op
+/// evaluates the value again, in `evaluateAllValues`.
 let private storeResult (valueHash : PT.Hash) (dval : RT.Dval) : unit =
   let rtHash = PT2RT.Hash.toRT valueHash
   let rtValue = LibExecution.Dval.packageValue rtHash dval

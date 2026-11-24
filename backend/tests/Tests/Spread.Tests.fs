@@ -722,9 +722,10 @@ let private countsAreExact (op : string) (code : string) =
     $"a spread {op} counts every call and instruction a serial run does, on any number of workers" {
     let state = executionStateFor pmPT false
     let! instrs = instrsFor code
-    let counted (spread : bool) : Task<Counts> =
+    let counted (spread : bool) (workers : int) : Task<Counts> =
       task {
         let stats = RT.InterpreterStats.ForOneVM()
+        let state = { state with exec = { state.exec with workers = workers } }
         let! (result, moved) =
           delta (spreads state) (fun () ->
             runInstrsCounting (Some stats) state spread instrs)
@@ -739,24 +740,19 @@ let private countsAreExact (op : string) (code : string) =
             builtinCalls = stats.builtinCallCount
             instructions = stats.instructionCount }
       }
-    let! serial = counted false
+    let! serial = counted false Scheduler.defaultWorkers
     Expect.equal serial.spreads 0L "the serial run did not spread"
     Expect.equal serial.joins 400L "serial: one join per element"
     // However the work is split, and however many workers there are to split it over, a spread
     // run counts exactly the serial run's work.
-    let before = Scheduler.defaultWorkers
-    try
-      for workers in [ 2; 4; 16; before ] do
-        Scheduler.defaultWorkers <- workers
-        for _ in 1..3 do
-          let! spread = counted true
-          Expect.isGreaterThan spread.spreads 0L $"the map spread, {workers} workers"
-          Expect.equal
-            { spread with spreads = 0L }
-            serial
-            $"the serial run's counts, {workers} workers"
-    finally
-      Scheduler.defaultWorkers <- before
+    for workers in [ 2; 4; 16; Scheduler.defaultWorkers ] do
+      for _ in 1..3 do
+        let! spread = counted true workers
+        Expect.isGreaterThan spread.spreads 0L $"the map spread, {workers} workers"
+        Expect.equal
+          { spread with spreads = 0L }
+          serial
+          $"the serial run's counts, {workers} workers"
   }
 
 // -- Guarantees (`docs/processes.md`, "Computation spreads by itself") --
@@ -1148,9 +1144,10 @@ let private chargesAsSerial =
         $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i == 20)"
         "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in if i == 20 then (let _ = trace(\"x\") in i) else Stdlib.List.fold(Stdlib.List.range(1, 500), i, fun(a, x) -> a + x))))" ] do
       let! instrs = instrsFor code
-      let taken (spread : bool) =
+      let taken (spread : bool) (workers : int) =
         task {
           let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+          let state = { state with exec = { state.exec with workers = workers } }
           let p =
             s.Spawn(
               spreading spread state,
@@ -1168,20 +1165,18 @@ let private chargesAsSerial =
           expectOk result |> ignore<RT.Dval>
           return p.instructionsTaken
         }
-      let! serial = taken false
-      let before = Scheduler.defaultWorkers
+      let! serial = taken false Scheduler.defaultWorkers
       try
-        for workers in [ 2; 4; 16; before ] do
-          Scheduler.defaultWorkers <- workers
+        for workers in [ 2; 4; 16; Scheduler.defaultWorkers ] do
           for _ in 1..3 do
-            let! (spread, moved) = delta (spreads state) (fun () -> taken true)
+            let! (spread, moved) =
+              delta (spreads state) (fun () -> taken true workers)
             Expect.isGreaterThan moved 0L $"it spread, {workers} workers: {code}"
             Expect.equal
               spread
               serial
               $"charged as serially, {workers} workers: {code}"
       finally
-        Scheduler.defaultWorkers <- before
         Trace.take () |> ignore<List<string>>
   }
 

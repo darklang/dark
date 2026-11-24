@@ -135,7 +135,7 @@ test raisesWhatItRaises =
   (1 / 0)
   => raises "Cannot divide by 0"
 test injectsRuntimeError =
-  Stdlib.Test.raiseRuntimeError("injected")
+  Darklang.Language.Tests.raiseRuntimeError("injected")
   => raises "Uncaught exception: injected"
 test raisesButReturned =
   1
@@ -185,12 +185,13 @@ test randomInherited =
 
     let! injected = run m "injectsRuntimeError"
     Expect.equal injected "pass" "a package test may inject an exact runtime error"
-    let! outside = evalDarkExpr "Stdlib.Test.raiseRuntimeError(\"outside\")"
+    let! outside =
+      evalDarkExpr "Darklang.Language.Tests.raiseRuntimeError(\"outside\")"
     match outside with
     | Error(RT.RuntimeError.UncaughtException(message, _), _) ->
       Expect.equal
         message
-        "Stdlib.Test.raiseRuntimeError requires a running package test"
+        "Darklang.Language.Tests.raiseRuntimeError requires a running package test"
         "test capability does not escape to the caller after execution"
     | other -> failtest $"expected injection to be refused outside a test: {other}"
 

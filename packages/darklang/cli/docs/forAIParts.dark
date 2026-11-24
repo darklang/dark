@@ -32,6 +32,12 @@ and body fragment remains valid:
   let double(n: Int64): Int64 = n * 2
   EOF
 
+`--description <text>` documents what `fn`, `type`, `val`, `trait` or `test add`
+saves; in a full declaration a `///` above it does the same, and one above a
+parameter documents that parameter:
+
+  fn /Me.Example.twice '(x: Int64): Int64 = x * 2' --description "Twice <param x>."
+
 At module scope values use `val name = value` or `val name: Type = value` (the
 type is checked); `let` declares functions. Inside a function, local values use
 `let`. Nested helpers annotate every parameter
@@ -401,7 +407,7 @@ Every run is a process: reads run at once with no code change, writes keep order
 waits here; `Exec.spawn`/`await`/`cancel` when you want control;
 `ps` shows what is running on the machine, `traces resume <id>` picks a Ctrl-C'd
 run back up, `traces fork` branches one. `docs processes` and `docs live` have the
-short versions; `docs/processes.md` and `docs/live.md` in the repo have the design.
+details.
 """
 
 

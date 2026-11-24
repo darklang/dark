@@ -112,7 +112,18 @@ let executeList(state: AppState, merged: Merged): AppState =
 ///
 /// Both halves are needed: the interactive REPL is one long-lived process, so writing only the config key
 /// leaves it on whatever branch it booted on while the status bar says otherwise.
+/// What a switch does with a name no unmerged branch has.
+type IfMissing =
+  | Refuse
+  | Start
+
+
+/// `dark switch <ref>`: move onto an existing branch.
 let executeSwitch(state: AppState, branchRef: String): AppState =
+  executeSwitchTo(state, branchRef, IfMissing.Refuse)
+
+
+let executeSwitchTo(state: AppState, branchRef: String, ifMissing: IfMissing): AppState =
   // Decided BEFORE the switch, which can create a branch and change what the name resolves to.
   let refused =
     if Stdlib.String.startsWith(branchRef, "-") then
@@ -120,9 +131,11 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
     else if branchRef == "" || branchRef == SCM.Branch.mainBranchName then
       false
     else
-      match SCM.PackageOps.resolveBranchRef(branchRef) with
-      | UnknownId(_) -> true
-      | Ambiguous -> true
+      match SCM.PackageOps.resolveBranchRef(branchRef), ifMissing with
+      | UnknownId(_), _ -> true
+      | Ambiguous, _ -> true
+      | NotFound, Refuse -> true
+      | Found(existing), Refuse -> SCM.PackageOps.branchIsMerged(existing)
       | _ -> false
 
   // The branch a switch lands on, RETURNED rather than assumed, so the REPL's state moves with the process's
@@ -150,17 +163,17 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
 
       // Resolve BEFORE creating; `lookupRef` takes a name or an id. It also resolves MERGED branches,
       // because read verbs need them -- but switching onto one must not, since its work is already in the
-      // parent. A merged name is therefore free again, and typing it starts a new branch.
-      // Only a name nobody has starts a branch. A foreign uuid or an ambiguous prefix is refused, with
-      // the reason `lookupRef` printed; starting a branch NAMED after either read as success.
+      // parent. A merged name is therefore free again, and `switch -c` starts a new branch under it.
+      // A foreign uuid or an ambiguous prefix is refused, with the reason `lookupRef` printed; starting
+      // a branch NAMED after either read as success.
       let resolved =
         match SCM.PackageOps.resolveBranchRef(ref) with
         | Found(existing) ->
           if SCM.PackageOps.branchIsMerged(existing) then
-            start(ref, parentId)
+            startOrRefuse(ref, parentId, ifMissing)
           else
             Option.Some((existing, false))
-        | NotFound -> start(ref, parentId)
+        | NotFound -> startOrRefuse(ref, parentId, ifMissing)
         | UnknownId(_) ->
           let _ = lookupRef(ref)
           Option.None
@@ -342,7 +355,8 @@ let help(_state: AppState): String =
     "  Also at the root, because you reach for them constantly:"
     "  dark branches                 same as `dark branch list`"
     "  dark branches --all           merged branches too (hidden by default)"
-    "  dark switch <name>            same as `dark branch switch`; a new name starts it"
+    "  dark switch <name>            same as `dark branch switch`"
+    "  dark switch -c <name>         same as `dark branch create` (or --create)"
     "  dark merge <name>             merge a branch into its parent"
     "  dark merge <name> --allow-type-errors   even with type errors in it"
     "  dark rebase <name> [--dry-run]  accept the parent's changes into a branch"
@@ -426,7 +440,7 @@ let executeCreate(state: AppState, name: String): AppState =
     printHint($"  `dark switch {name}` goes to it.")
     failed(state)
   else
-    executeSwitch(state, name)
+    executeSwitchTo(state, name, IfMissing.Start)
 
 
 /// `dark branches`
@@ -439,6 +453,23 @@ let executeBranchesCmd(state: AppState, args: List<String>): AppState =
 
 
 /// Start the branch named <param name> off <param parentId>, or say why it could not be.
+/// A switch to a name no unmerged branch has: start it, or say how to.
+let startOrRefuse(name: String, parentId: Uuid, ifMissing: IfMissing): Option<(Uuid * Bool)> =
+  match ifMissing with
+  | Start -> start(name, parentId)
+  | Refuse ->
+    let names =
+      SCM.Branches.list()
+      |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(b.merged) && b.name != "")
+      |> Stdlib.List.map(fun b -> b.name)
+      |> Stdlib.List.prepend(SCM.Branch.mainBranchName)
+
+    printErr($"There is no branch named `{name}`.{Accepts.didYouMean(name, names)}")
+    printHint($"  to start it: dark switch -c {name}")
+    printHint("  `dark branches` lists them.")
+    Option.None
+
+
 let start(name: String, parentId: Uuid): Option<(Uuid * Bool)> =
   match SCM.PackageOps.ensureBranch(name, parentId) with
   | Ok(pair) -> Option.Some(pair)
@@ -447,14 +478,17 @@ let start(name: String, parentId: Uuid): Option<(Uuid * Bool)> =
     Option.None
 
 
-/// `dark switch [<id>]`. No argument reports where you are rather than switching, so a bare `switch`
-/// can't silently move you to main.
+/// `dark switch [-c] [<id>]`. No argument reports where you are rather than switching, so a bare
+/// `switch` can't silently move you to main. Only `-c` starts a branch, so a typo can't.
 let executeSwitchCmd(state: AppState, args: List<String>): AppState =
-  match args with
-  | [] -> executeCurrent(state)
-  | [id] -> executeSwitch(state, id)
-  | _ ->
-    printErr("usage: dark switch <branch>   (`dark switch main` returns to main)")
+  let create = Stdlib.List.contains(args, "-c") || Stdlib.List.contains(args, "--create")
+  let words = Stdlib.List.filter(args, fun a -> a != "-c" && a != "--create")
+  match words, create with
+  | [], false -> executeCurrent(state)
+  | [id], false -> executeSwitch(state, id)
+  | [id], true -> executeCreate(state, id)
+  | _, _ ->
+    printErr("usage: dark switch <branch>, or dark switch -c <new branch>   (`dark switch main` returns to main)")
     failed(state)
 
 

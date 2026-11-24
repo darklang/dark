@@ -1,0 +1,17 @@
+/// `--json`, `--no-input` and `--no-color` go before the command or after it.
+module Darklang.Cli.Tests.GlobalFlags
+
+test eitherSideOfTheCommand = Instance.withInstance(fun i ->
+  let (jsonBefore, jsonOut, _) = Instance.streams(i, [ "--json", "status" ])
+  let (_, jsonAfter, _) = Instance.streams(i, [ "status", "--json" ])
+  let (inputBefore, _, _) = Instance.streams(i, [ "--no-input", "status" ])
+  let (inputAfter, _, _) = Instance.streams(i, [ "status", "--no-input" ])
+  let (colorBefore, colorOut, _) = Instance.streams(i, [ "--no-color", "status" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(jsonBefore, 0, "--json before the command")
+      Instance.says(jsonOut, "{\"branch\":\"main\"", "status answers as JSON")
+      jsonOut |> Stdlib.Test.equal(jsonAfter)
+      Instance.exitedWith(inputBefore, 0, "--no-input before the command")
+      Instance.exitedWith(inputAfter, 0, "--no-input after the command")
+      Instance.exitedWith(colorBefore, 0, "--no-color before the command")
+      Instance.says(colorOut, "On branch main", "status answers") ]))

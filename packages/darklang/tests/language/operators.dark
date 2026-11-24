@@ -109,15 +109,15 @@ test unaryMinus =
       -(1.0 + 1.5) |> Stdlib.Test.equal(-2.5) ])
 
 test rightOperandErrorRaises =
-  5 + (Stdlib.Test.raiseRuntimeError("error"))
+  5 + (Darklang.Language.Tests.raiseRuntimeError("error"))
   => raises "Uncaught exception: error"
 
 test leftOperandErrorRaises =
-  (Stdlib.Test.raiseRuntimeError("error")) + 5
+  (Darklang.Language.Tests.raiseRuntimeError("error")) + 5
   => raises "Uncaught exception: error"
 
 test leftOperandErrorRaisesFirst =
-  (Stdlib.Test.raiseRuntimeError("one")) + (Stdlib.Test.raiseRuntimeError("two"))
+  (Darklang.Language.Tests.raiseRuntimeError("one")) + (Darklang.Language.Tests.raiseRuntimeError("two"))
   => raises "Uncaught exception: one"
 
 // ---------------------------------------------------------------------------

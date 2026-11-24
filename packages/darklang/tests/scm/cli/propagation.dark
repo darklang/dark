@@ -1,5 +1,6 @@
 /// Callers following an edit: when you save a new version of a function, everything that calls it
-/// is repointed at the new version ("follows"), on main, on a branch, and through merges.
+/// is repointed at the new version ("follows"), on main, on a branch, across owners and through
+/// merges, and what `status` and `constraints` say about callers left behind.
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
@@ -195,3 +196,149 @@ test savedDisplayMustMatchTheChangedReturnType = scenario(fun dark ->
       "Tests.ReturnChange.a(1)",
       "<Ok(1)>",
       "the re-saved caller uses Result's Display") ])
+
+
+/// A cascade on a branch finds callers through the branch's own version of a name, so it never
+/// replaces what the branch rebound with main's version.
+test aCascadeOnABranchLeavesWhatTheBranchReboundAlone =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.base", "20")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.base()")
+      commit(dark, "base")
+      switch(dark, "feat")
+      saveNumber(dark, "Tests.App.caller", "777")
+      commit(dark, "branch caller")
+      saveNumber(dark, "Tests.App.base", "30")
+      evals(dark, "Tests.App.caller()", "777", "the branch keeps its own caller")
+      evalsOn(
+        dark,
+        "main",
+        "Tests.App.caller()",
+        "20",
+        "and main still calls its own base") ])
+
+
+/// Callers in other owners follow an edit too, every name that holds the same code follows, and an
+/// undo of the dependency takes them all back.
+test callersInEveryOwnerFollowAnEditAndItsUndo =
+  let body = "(): Int64 = Vendor.Auto.dep() + 100"
+  scenario(fun dark ->
+    [ saveNumber(dark, "Vendor.Auto.dep", "1")
+      save(dark, "Tests.Auto.x", body)
+      save(dark, "Tests.Auto.y", body)
+      save(dark, "Other.Auto.top", "(): Int64 = Tests.Auto.x() + 1000")
+      saveNumber(dark, "Vendor.Auto.dep", "2")
+      evals(dark, "Tests.Auto.x()", "102", "the first caller follows")
+      evals(dark, "Tests.Auto.y()", "102", "and so does a name holding the same code")
+      evals(dark, "Other.Auto.top()", "1102", "and a caller of the caller, in another owner")
+
+      says(
+        dark,
+        [ "undo", "Vendor.Auto.dep" ],
+        "back on the version",
+        "the dependency can be put back")
+
+      evals(dark, "Tests.Auto.x()", "101", "the caller follows the undo")
+      evals(dark, "Tests.Auto.y()", "101", "and so does the other name")
+      evals(dark, "Other.Auto.top()", "1101", "and the caller of the caller")
+      saveNumber(dark, "Vendor.Auto.dep", "2")
+      evals(dark, "Tests.Auto.x()", "102", "saving it again follows again")
+      evals(dark, "Other.Auto.top()", "1102", "all the way up") ])
+
+
+/// A caller in another owner follows an edit made on a branch only on that branch.
+test aCallerInAnotherOwnerFollowsABranchEditOnlyOnTheBranch =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Vendor.App.dep", "41")
+      save(dark, "Tests.App.caller", "(): Int64 = Vendor.App.dep() + 1")
+      commit(dark, "base")
+      switch(dark, "feat")
+      saveNumber(dark, "Vendor.App.dep", "51")
+      evals(dark, "Tests.App.caller()", "52", "on the branch the caller follows")
+      evalsOn(dark, "main", "Tests.App.caller()", "42", "main's caller does not")
+      evalsOn(dark, "main", "Vendor.App.dep()", "41", "nor main's dependency") ])
+
+
+/// Going back to a version committed earlier is a change of its own: it takes effect, sits in the
+/// draft, and survives the commit, even though the same code was bound before.
+test goingBackToAnEarlierCommittedVersionTakesEffect =
+  scenario(fun dark ->
+    [ switch(dark, "feat")
+      saveNumber(dark, "Tests.App.b", "611")
+      commit(dark, "611")
+      saveNumber(dark, "Tests.App.b", "622")
+      commit(dark, "622")
+      evals(dark, "Tests.App.b()", "622", "the second version runs")
+      saveNumber(dark, "Tests.App.b", "611")
+      evals(dark, "Tests.App.b()", "611", "going back to the first takes effect")
+      same(
+        draft(dark),
+        [ "updated Tests.App.b" ],
+        "the draft holds it as a change")
+      commit(dark, "back to 611")
+      evals(dark, "Tests.App.b()", "611", "and it survives the commit") ])
+
+
+/// `status` counts the constraints this draft caused apart from the ones that stood already, so an
+/// edit isn't blamed for what was there before it.
+test statusSaysWhichConstraintsTheDraftCausedAndWhichStood =
+  scenario(fun dark ->
+    [ save(dark, "Tests.App.dep", "(x: Int64): Int64 = x + 1")
+      save(dark, "Tests.App.use", "(x: Int64): Int64 = Tests.App.dep(x)")
+      commit(dark, "base")
+      run(dark, [ "val", "Tests.App.dep", "5" ])
+      says(
+        dark,
+        [ "status" ],
+        "1 from this draft",
+        "a value can't be called, so the caller is left behind, by this draft")
+
+      commit(dark, "dep is a value")
+      says(
+        dark,
+        [ "status" ],
+        "standing constraint",
+        "on a clean tree it is a standing one")
+
+      saveNumber(dark, "Tests.App.other", "1")
+      says(
+        dark,
+        [ "status" ],
+        "none from this draft",
+        "an unrelated draft is not blamed for it")
+
+      save(dark, "Tests.App.dep", "(x: Int64): Int64 = x + 3")
+      commit(dark, "dep is a fn again")
+      doesNotSay(
+        dark,
+        [ "constraints" ],
+        "Tests.App.use",
+        "making it a fn again repoints the caller and clears the constraint") ])
+
+
+/// `--as` takes one value and `--why` takes the rest of the line; neither is read as an id.
+test constraintFlagValuesAreNotReadAsIds =
+  scenario(fun dark ->
+    [ says(
+        dark,
+        [ "constraints", "resolve", "zzzzzzzz", "--as", "repoint" ],
+        "zzzzzzzz",
+        "the id is reported")
+
+      doesNotSay(
+        dark,
+        [ "constraints", "resolve", "zzzzzzzz", "--as", "repoint" ],
+        "matching \"repoint\"",
+        "and the --as value is not")
+
+      doesNotSay(
+        dark,
+        [ "ack", "zzzzzzzz", "--why", "not", "now" ],
+        "matching \"not\"",
+        "an unquoted --why reason is not read as an id")
+
+      doesNotSay(
+        dark,
+        [ "ack", "zzzzzzzz", "--why", "not", "now" ],
+        "matching \"now\"",
+        "nor is the rest of it") ])

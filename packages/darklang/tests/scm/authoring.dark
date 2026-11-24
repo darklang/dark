@@ -66,7 +66,7 @@ let authorAll(
     | Error(_) -> acc)
 
 
-/// A branch off <param parent>, as `dark switch <name>` makes one.
+/// A branch off <param parent>, as `dark switch -c <name>` makes one.
 let branchOff(name: String, parent: Uuid): Uuid =
   let (id, _) = SCM.PackageOps.ensureBranch(name, parent) |> Builtin.unwrap
   id

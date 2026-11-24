@@ -51,3 +51,16 @@ test treeRefusesWhatItCannotShow = Instance.withInstance(fun i ->
       Instance.doesNotSay(badPath, header, "with no tree")
       Instance.says(twoPaths, "does not take `Darklang.Cli`", "a second path is refused")
       Instance.says(withDepth, header, "--depth=1 shows a tree") ]))
+
+
+/// The reference listings answer: `builtins` by module, `commands` from the registry.
+test referenceListingsAnswer = Instance.withInstance(fun i ->
+  Stdlib.Test.all(
+    [ Instance.says(
+        Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "builtins" ])),
+        "Int64:",
+        "builtins lists them by module")
+      Instance.says(
+        Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "commands" ])),
+        "nav",
+        "commands lists the registry") ]))

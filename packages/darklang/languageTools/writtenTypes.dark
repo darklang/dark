@@ -490,7 +490,6 @@ module ModuleDeclaration =
     | Impl(ImplDeclaration.ImplDeclaration)
     | Test(TestDeclaration.TestDeclaration)
     | SubModule(ModuleDeclaration.ModuleDeclaration)
-    // TODO: handle http handler and db
     | Expr(Expr)
 
 

@@ -5,6 +5,18 @@ type ParseError =
   | OutOfRange
 
 
+/// The smallest <type Int8>: {{-128}}
+val minValue = -128s8
+
+
+/// The largest <type Int8>: {{127}}
+val maxValue = 127s8
+
+
+/// How many bits a <type Int8> holds: {{8}}
+val bitWidth = 8
+
+
 impl Modulo for Int8 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.
@@ -320,8 +332,6 @@ let checkedPower(base: Int8, exponent: Int8): Result<Int8, Math.PowerError> =
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
-// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
-// builtin in NoModule.fs.
 
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the

@@ -352,7 +352,6 @@ let padEnd(string: String, padWith: Char, goalLength: Int64): String =
     string + (checkedRepeat(fromChar(padWith), padCount) |> Result.withDefault(""))
 
 
-// TODO: re-write in dark
 /// Returns a copy of <param str> with all leading and trailing whitespace
 /// removed. 'whitespace' here means all Unicode characters with the
 /// {{White_Space}} property, which includes {{" "}}, {{"\t"}} and
@@ -361,7 +360,6 @@ let trim(str: String): String =
   Builtin.stringTrim(str)
 
 
-// TODO: re-write in dark
 /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
 /// here means all Unicode characters with the {{White_Space}} property, which
 /// includes {{" "}}, {{"\t"}} and {{"\n"}}.
@@ -369,7 +367,6 @@ let trimStart(str: String): String =
   Builtin.stringTrimStart(str)
 
 
-// TODO: re-write in dark
 /// Returns a copy of <param str> with all trailing whitespace removed.
 /// 'whitespace' here means all Unicode characters with the {{White_Space}}
 /// property, which includes {{" "}}, {{"\t"}} and {{"\n"}}.

@@ -243,22 +243,23 @@ let storeAndFoldOn
 
 /// Run <param f> in one transaction on a connection of its own.
 let inTransaction (f : Ctx -> 'a) : 'a =
-  use conn = new SqliteConnection(LibDB.Sqlite.connString)
-  conn.Open()
-  do
-    use pragma = conn.CreateCommand()
-    pragma.CommandText <- "PRAGMA busy_timeout=5000;"
-    Telemetry.count "sql.init"
-    pragma.ExecuteNonQuery() |> ignore<int>
-  use tx = conn.BeginTransaction()
-  let ctx = newCtx conn
-  try
-    let r = f ctx
-    tx.Commit()
-    Caching.invalidateAll ()
-    r
-  finally
-    disposeCtx ctx
+  WriteGate.hold (fun () ->
+    use conn = new SqliteConnection(LibDB.Sqlite.connString)
+    conn.Open()
+    do
+      use pragma = conn.CreateCommand()
+      pragma.CommandText <- "PRAGMA busy_timeout=5000;"
+      Telemetry.count "sql.init"
+      pragma.ExecuteNonQuery() |> ignore<int>
+    use tx = conn.BeginTransaction()
+    let ctx = newCtx conn
+    try
+      let r = f ctx
+      tx.Commit()
+      Caching.invalidateAll ()
+      r
+    finally
+      disposeCtx ctx)
 
 /// Record each repointed item's callees under every name its previous version reached them through.
 ///
@@ -533,10 +534,22 @@ let rewriteDraftIfUnchanged
     if (current |> List.map (fst >> System.Guid.Parse)) <> draftAsRead then
       None
     else
+      // only from the first op that changes: the ones before it would go back as they were,
+      // and every op rewritten is time under the write lock
+      let ops = keepBoundContent ops0 ops
+      let unchanged =
+        Seq.zip ops0 ops
+        |> Seq.takeWhile (fun (before, after) ->
+          computeOpHash before = computeOpHash after)
+        |> Seq.length
       // Only what was read as an op: an op this build cannot decode is spared, not skipped, so a
       // build that can read it still will.
-      let readable = ops0 |> List.map (computeOpHash >> string) |> jsonStrings
-      let bindIds (cmd : SqliteCommand) = p cmd "$ids" readable
+      let replaced =
+        ops0
+        |> List.skip unchanged
+        |> List.map (computeOpHash >> string)
+        |> jsonStrings
+      let bindIds (cmd : SqliteCommand) = p cmd "$ids" replaced
       Layers.dropRowsOf
         ctx
         PT.BranchId.Main
@@ -548,7 +561,8 @@ let rewriteDraftIfUnchanged
             AND id IN (SELECT value FROM json_each($ids))"
         bindIds
       let inserted =
-        keepBoundContent ops0 ops
+        ops
+        |> List.skip unchanged
         |> storeAndFoldOn ctx PT.BranchId.Main "op" tsFor (fun _ -> None)
       Some(int64 (List.length inserted)))
 

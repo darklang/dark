@@ -579,6 +579,10 @@ let stripDelims (raw : string) (lead : string) (close : string) : string =
     else
       raw.Length
   if b > a then raw.Substring(a, b - a) else ""
+
+let private escapeForms =
+  """; Dark takes \n \t \r \a \b \v \f \0 \\ \" \' \/ \{ \} \xHH \uHHHH \XHHHH \UHHHHHHHH (see `docs escapes`)"""
+
 let validateLiterals (state : ParserState) : unit =
   for vi in 0 .. state.tokenCount - 1 do
     match state.toks[vi].token with
@@ -588,14 +592,14 @@ let validateLiterals (state : ParserState) : unit =
           state
           DiagnosticCode.escape
           vi
-          "Invalid escape sequence or codepoint in string literal"
+          $"Invalid escape sequence or codepoint in string literal{escapeForms}"
     | TCharLit _ ->
       if Lexer.hasInvalidEscape (stripDelims (txt state vi) "'" "'") then
         err
           state
           DiagnosticCode.escape
           vi
-          "Invalid escape sequence or codepoint in character literal"
+          $"Invalid escape sequence or codepoint in character literal{escapeForms}"
       match state.toks[vi].token with
       | TCharLit value when Option.isNone (String.toEgcChar value) ->
         err
@@ -611,7 +615,7 @@ let validateLiterals (state : ParserState) : unit =
           state
           DiagnosticCode.escape
           vi
-          "Invalid escape sequence or codepoint in interpolated string"
+          $"Invalid escape sequence or codepoint in interpolated string{escapeForms}"
       if Lexer.hasSingleCloseBraceInterp inner false then
         err
           state

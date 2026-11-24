@@ -106,16 +106,17 @@ let private count
 /// dropped after a commit, since every action here writes something they are built from.
 let private transact (f : SqliteConnection -> Result<'a, 'e>) : Result<'a, 'e> =
   let result =
-    use conn = new SqliteConnection(LibDB.Sqlite.connString)
-    conn.Open()
-    // IMMEDIATE (the default here): the write lock is taken at BEGIN, so what the action reads
-    // inside is what it writes against.
-    use tx = conn.BeginTransaction()
-    let r = f conn
-    match r with
-    | Ok _ -> tx.Commit()
-    | Error _ -> tx.Rollback()
-    r
+    WriteGate.hold (fun () ->
+      use conn = new SqliteConnection(LibDB.Sqlite.connString)
+      conn.Open()
+      // IMMEDIATE (the default here): the write lock is taken at BEGIN, so what the action reads
+      // inside is what it writes against.
+      use tx = conn.BeginTransaction()
+      let r = f conn
+      match r with
+      | Ok _ -> tx.Commit()
+      | Error _ -> tx.Rollback()
+      r)
   Caching.invalidateAll ()
   result
 

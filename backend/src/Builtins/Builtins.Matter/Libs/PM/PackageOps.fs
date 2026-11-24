@@ -27,8 +27,6 @@ let private unresolvedTraitCallTypeName () =
   )
 
 
-// TODO: review/reconsider the accessibility of these fns
-
 /// The evaluation failures that belong to THIS call's values. Evaluation also sweeps unrelated
 /// pending values, so match on location as well as hash: a refresh may move a value's hash while
 /// its location stays put.
@@ -95,7 +93,7 @@ let private authorOpsWith
     if branchId.IsMain then false else LibDB.Branches.isFinished branchId
   if finished then
     Error
-      $"branch {branchId} has been merged or archived; `dark switch <name>` starts a new one"
+      $"branch {branchId} has been merged or archived; `dark switch -c <name>` starts a new one"
   else
     if not branchId.IsMain then
       LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main

@@ -34,8 +34,8 @@ module Registry =
       [ ("get", Accepts.between(1, 1, []))
         ("set", Accepts.textBetween(2, 2))
         ("unset", Accepts.between(1, 1, []))
-        ("list", Accepts.nothing()) ],
-      Accepts.nothing())
+        ("list", Accepts.flagsOnly([ "--json" ])) ],
+      Accepts.flagsOnly([ "--json" ]))
 
 
   let acceptsInstall(): Accepts.Accepts =
@@ -197,7 +197,7 @@ module Registry =
 
   let acceptsBranches(): Accepts.Accepts = Accepts.flagsOnly([ "--all", "--json" ])
 
-  let acceptsSwitch(): Accepts.Accepts = Accepts.upTo(1, [])
+  let acceptsSwitch(): Accepts.Accepts = Accepts.upTo(1, [ "-c", "--create" ])
 
   let acceptsDiff(): Accepts.Accepts = Accepts.upTo(1, [ "--source", "--json" ])
 
@@ -747,7 +747,9 @@ module Registry =
     let globalFlags =
       [ "Global flags:"
         "  --branch <name>       run on that branch, this time only"
+        "  --json                answer as JSON, on commands that answer"
         "  --no-input            never prompt (same as DARK_NO_INPUT=1)"
+        "  --no-color            no colour (same as NO_COLOR=1)"
         "  --trace, --no-trace   record a trace of this run, or don't"
         "  -h, --help            help for dark or any command"
         "  -v, --version         print the version" ]
