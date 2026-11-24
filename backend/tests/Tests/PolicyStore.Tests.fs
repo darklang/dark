@@ -42,66 +42,10 @@ let private scoped (hash : string) : PolicyStore.ScopedKey = None, hash
 let private approval hash policy fingerprint : PolicyStore.Approval =
   { hash = hash; policy = policy; fingerprint = fingerprint; explicitRules = true }
 
-/// A `Unit -> BigInt` package fn with the given body.
-let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
-  { hash = PT.Hash hash
-    body = body
-    typeParams = []
-    parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
-    returnType = PT.TBigInt
-    description = ""
-    bounds = [] }
-
-/// Builtin effects for the review tests: `syscallGettimeofday` is clock-only and
-/// `fileRead` reads files; anything else is unknown (incomplete).
-let private testEffects : PackagePermissions.CallEffectsFor =
-  fun (name, _version) ->
-    match name with
-    | "syscallGettimeofday" -> Some(Set.singleton Effect.Effect.Clock)
-    | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
-    | _ -> None
-
-let private callBuiltin (name : string) : PT.Expr =
-  eApply (eBuiltinFn name 0) [] [ eUnit () ]
-
-/// The review tests share one package universe: `v1` is the approved version,
-/// `v2` an identical-contract re-release, `wider` adds a file read, and
-/// `dynamic` applies a callback the static walk cannot follow.
-let private reviewUniverse =
-  [ unitFn "v1" (callBuiltin "syscallGettimeofday")
-    unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "syscallGettimeofday"))
-    unitFn
-      "wider"
-      (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
-    unitFn "dynamic" (eApply (eVar "callback") [] [ eUnit () ])
-    // A root with a dependency: reads a file itself and calls `v1` for the clock.
-    unitFn
-      "caller"
-      (eStatement (callBuiltin "fileRead") (eApply (ePackageFn "v1") [] [ eUnit () ])) ]
-  |> List.map (fun fn -> fn.hash, fn)
-  |> Map.ofList
-
-let private loadFromUniverse : PackagePermissions.Load =
-  { fn = (fun hash -> Map.tryFind hash reviewUniverse); value = (fun _ -> None) }
-
-let private reviewUnder
-  explicitPolicy
-  previousApproval
-  hash
-  acknowledgeIncomplete
-  acknowledgeChange
-  =
-  PackagePermissions.reviewVersion
-    loadFromUniverse
-    testEffects
-    previousApproval
-    hash
-    explicitPolicy
-    acknowledgeIncomplete
-    acknowledgeChange
-
-let private review previousApproval hash acknowledgeIncomplete acknowledgeChange =
-  reviewUnder None previousApproval hash acknowledgeIncomplete acknowledgeChange
+let private unitFn = Tests.PackagePermissions.unitFn
+let private callBuiltin = Tests.PackagePermissions.callBuiltin
+let private reviewUnder = Tests.PackagePermissions.reviewUnder
+let private review = Tests.PackagePermissions.review
 
 let policyStoreRoundTripsVersionedPolicies =
   test "policy store round-trips instance and package approvals" {
