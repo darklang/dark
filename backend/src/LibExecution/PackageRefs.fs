@@ -647,6 +647,8 @@ module Type =
 
   module SCM =
     let storeHealth = p [ "SCM"; "StoreHealth" ] "Counts"
+    /// What `scmSyncStanding` answers with.
+    let syncStanding = p [ "SCM"; "Sync" ] "Standing"
     /// What `scmDeps` is asked, and what it answers with.
     let depQuery = p [ "SCM"; "Deps" ] "DepQuery"
     let depEdge = p [ "SCM"; "Deps" ] "DepEdge"

@@ -315,6 +315,64 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
 
+    // How sync stands, for `dark status` to word (`SCM.Sync.line`): what the watcher last recorded
+    // about the link, and how many changes the other end lacks.
+    { name = fn "scmSyncStanding" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TypeReference.option (
+          TCustomType(
+            NR.ok (FQTypeName.fqPackage (PackageRefs.Type.SCM.syncStanding ())),
+            []
+          )
+        )
+      description =
+        "How sync with the other end stands: its state, the peer, how many changes it lacks, "
+        + "whether this machine's token only reads, and how long ago it was last heard from. "
+        + "None when sync is off."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          let typeName = FQTypeName.fqPackage (PackageRefs.Type.SCM.syncStanding ())
+          let kt = KTCustomType(typeName, [])
+          match LibDB.SyncLink.standingNow () with
+          | None -> Dval.optionNone kt
+          | Some(peer, s, behind) ->
+            let now = System.DateTime.UtcNow
+            let ago (t : Option<System.DateTime>) =
+              match t with
+              | Some t ->
+                Dval.optionSome KTInt64 (DInt64(int64 (now - t).TotalSeconds))
+              | None -> Dval.optionNone KTInt64
+            let state =
+              if
+                s.state = "offline" && s.detail = LibDB.SyncLink.tokenRefusedDetail
+              then
+                "refused"
+              else
+                s.state
+            Dval.optionSome
+              kt
+              (DRecord(
+                typeName,
+                typeName,
+                [],
+                RecordFields.ofList
+                  [ "state", DString state
+                    "peer", DString peer
+                    "behind", DInt64 behind
+                    "readOnly", DBool s.readOnly
+                    "lastContactSecondsAgo", ago s.contact
+                    "stateSecondsAgo", ago s.since ]
+              ))
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+
     // Dark edits `locations` directly on the surgical discard path, which is the one place outside the
     // fold that does. The in-memory caches key on what that table says, so whoever changes it has to say
     // so; F# does this inline (`Caching.invalidateAll`), and Dark needs the same reach.

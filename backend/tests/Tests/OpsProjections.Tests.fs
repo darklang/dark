@@ -509,6 +509,9 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
     Sql.query "DELETE FROM branches WHERE id = @id"
     |> Sql.parameters [ "id", Sql.string (string branch) ]
     |> Sql.executeStatement
+    Sql.query "DELETE FROM sync_journal WHERE branch = @id"
+    |> Sql.parameters [ "id", Sql.string (string branch) ]
+    |> Sql.executeStatement
   }
 
 let committedBindingsSurviveMainDraftSuppression =
@@ -742,6 +745,7 @@ let noCanonicalInDropSet =
         "branch_name_bases"
         "commits"
         "conflicts"
+        "sync_journal" // what travels to another store, removals included
         "config_v0" // this install's own settings: its identity, the branch it is on
         "accounts_v0" ]
 

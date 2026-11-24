@@ -347,6 +347,10 @@ let private resetWorkedExample () : Task<unit> =
       $"DELETE FROM package_ops WHERE commit_hash IN
           (SELECT hash FROM commits WHERE message IN {messages})"
 
+    execSql
+      $"DELETE FROM sync_journal WHERE kind = 'commit' AND commit_hash IN
+          (SELECT hash FROM commits WHERE message IN {messages})"
+
     execSql $"DELETE FROM commits WHERE message IN {messages}"
 
     execSql

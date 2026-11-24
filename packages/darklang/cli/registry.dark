@@ -415,6 +415,10 @@ module Registry =
     Accepts.flagsOnly([ "--live" ])
 
 
+  let acceptsSync(): Accepts.Accepts =
+    Accepts.text(0)
+
+
   let allCommands(): List<CommandHandler> =
     [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
       (
@@ -836,6 +840,15 @@ module Registry =
         Backups.complete)
 
       (
+        "sync",
+        "Keep this store in step with a machine you own, over ssh",
+        [],
+        acceptsSync,
+        Sync.execute,
+        Sync.help,
+        Sync.complete)
+
+      (
         "builtins",
         "List all builtin functions and values",
         [],
@@ -1164,7 +1177,8 @@ module Registry =
           "conflicts"
           "constraints"
           "ack"
-          "ops" ])
+          "ops"
+          "sync" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
       ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])

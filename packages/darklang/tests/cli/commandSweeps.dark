@@ -470,6 +470,8 @@ let knownGood(
     ("traces", [ "inspect", run ])
     ("conflicts", [ "list" ])
     ("backups", [ "list" ])
+    // the verbs that do something reach another machine over ssh; the help reads
+    ("sync", [ "help" ])
     ("permissions", [ "show", fnName ])
     ("effects", [ fnName ])
     ("typecheck", [ "Darklang.Stdlib.Bool" ])

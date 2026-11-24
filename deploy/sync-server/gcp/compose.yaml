@@ -1,0 +1,26 @@
+# A dark sync server on one VM (Google Compute Engine, or any machine with Docker): the server, and
+# Caddy in front for TLS with a certificate it gets and renews itself. The store lives on the VM's
+# persistent disk at /mnt/disks/dark-sync (see docs/sync-server.md).
+services:
+  dark-sync:
+    image: dark-sync:latest
+    restart: unless-stopped
+    stop_grace_period: 30s
+    env_file: /mnt/disks/dark-sync/server.env
+    volumes:
+      - /mnt/disks/dark-sync/data:/data
+    expose:
+      - "8080"
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DARK_SYNC_DOMAIN: ${DARK_SYNC_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /mnt/disks/dark-sync/caddy:/data
+    depends_on:
+      - dark-sync
