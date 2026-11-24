@@ -1151,7 +1151,7 @@ gate_package_tests() {
   # Every line goes to the log. Shown: failures with their messages as they happen, the slowest
   # tests and the verdict, and a count every 250 passes, which keeps CI's no-output timeout from
   # stopping a running suite. Unbuffered throughout so a failure appears when it happens.
-  "$CLI" test run --force < /dev/null 2>&1 | sed -u 's/\x1b\[[0-9;]*m//g' | tee "$ROOT/test.log" \
+  "$CLI" test run --force --verbose < /dev/null 2>&1 | sed -u 's/\x1b\[[0-9;]*m//g' | tee "$ROOT/test.log" \
     | awk '/^Running: / { next }
            /^PASS / { if (++passed % 250 == 0) { print passed " passed so far"; fflush() } next }
            { print; fflush() }'

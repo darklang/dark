@@ -184,7 +184,7 @@ test scriptTestsSeeDeclarationsOnly = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let _ = Stdlib.Cli.File.writeText(path, source)
-  let (testCode, tested) = Instance.ran(i, [ "test", "run", path ])
+  let (testCode, tested) = Instance.ran(i, [ "test", "run", "--verbose", path ])
   let (runCode, ran) = Instance.ran(i, [ "run", path ])
   let (_, status) = Instance.ran(i, [ "status" ])
   Stdlib.Test.all(
@@ -222,7 +222,7 @@ test scriptTestUsesLet = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let _ = Stdlib.Cli.File.writeText(path, source)
-  let (code, out) = Instance.ran(i, [ "test", "run", path ])
+  let (code, out) = Instance.ran(i, [ "test", "run", "--verbose", path ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, $"refused: {out}")
       Instance.says(
@@ -259,7 +259,7 @@ test scriptTestAboveLetRuns = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let _ = Stdlib.Cli.File.writeText(path, source)
-  let (testCode, tested) = Instance.ran(i, [ "test", "run", path ])
+  let (testCode, tested) = Instance.ran(i, [ "test", "run", "--verbose", path ])
   let (runCode, ran) = Instance.ran(i, [ "run", path ])
   Stdlib.Test.all(
     [ Instance.exitedWith(testCode, 0, $"the tests pass: {tested}")
