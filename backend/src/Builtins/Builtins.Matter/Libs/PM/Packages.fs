@@ -432,14 +432,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ typeArg ], [| DUnit |] ->
-          uply {
-            let kt = KTCustomType(PT2DT.PackageType.typeName (), [])
-            match typeArg with
-            | TCustomType({ resolved = Ok(FQTypeName.Package(Hash hash)) }, _) ->
-              let! result = pm.getType (PT.Hash hash)
-              return result |> Option.map PT2DT.PackageType.toDT |> Dval.option kt
-            | _ -> return Dval.option kt None
-          }
+          let kt = KTCustomType(PT2DT.PackageType.typeName (), [])
+          match typeArg with
+          | TCustomType({ resolved = Ok(FQTypeName.Package(Hash hash)) }, _) ->
+            pm.getType (PT.Hash hash)
+            |> Option.map PT2DT.PackageType.toDT
+            |> Dval.option kt
+          | _ -> Dval.option kt None
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

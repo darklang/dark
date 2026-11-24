@@ -40,7 +40,7 @@ let stripQuotes(s: String): String =
       && Stdlib.String.endsWith(x, close)
       && Stdlib.String.length(x) >= 2
     then
-      Stdlib.String.slice(x, 1, Stdlib.String.length(x) - 1)
+      Stdlib.String.dropLast(Stdlib.String.dropFirst(x, 1), 1)
     else
       x
 
@@ -98,7 +98,7 @@ let balanced(s: String): Option<(String * String)> =
   match Stdlib.String.indexOf(s, "(") with
   | None -> Option.None
   | Some(start) ->
-    let before = Stdlib.String.slice(s, 0, start)
+    let before = Stdlib.String.first(s, start)
     let after = Stdlib.String.dropFirst(s, start + 1)
     let (_, body, found) =
       Stdlib.String.toList(after)

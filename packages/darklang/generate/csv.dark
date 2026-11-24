@@ -30,7 +30,7 @@ let cellsOf(line: String): List<String> =
       && Stdlib.String.endsWith(trimmed, "\"")
       && Stdlib.String.length(trimmed) >= 2
     then
-      Stdlib.String.slice(trimmed, 1, Stdlib.String.length(trimmed) - 1)
+      Stdlib.String.dropLast(Stdlib.String.dropFirst(trimmed, 1), 1)
     else
       trimmed)
 
@@ -196,7 +196,7 @@ let fromSample(name: String, sample: Bytes): Run =
               "      |> Stdlib.List.map(fun cell ->"
               "        let trimmed = Stdlib.String.trim(cell)"
               "        if (Stdlib.String.startsWith(trimmed, \"\\\"\")) && (Stdlib.String.endsWith(trimmed, \"\\\"\")) && ((Stdlib.String.length(trimmed)) >= 2) then"
-              "          Stdlib.String.slice(trimmed, 1, (Stdlib.String.length(trimmed)) - 1)"
+              "          Stdlib.String.dropLast(Stdlib.String.dropFirst(trimmed, 1), 1)"
               "        else"
               "          trimmed)"
               "    fromFields(cells))" ],

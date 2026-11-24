@@ -419,36 +419,276 @@ module Registry =
 
   let allCommands(): List<CommandHandler> =
     [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
-      ("help", "Show help for commands", [ "commands", "?", "--help", "-h" ], acceptsHelp, Help.execute, Help.help, Help.complete)
-      ("config", "Manage CLI configuration", [], acceptsConfig, Config.execute, Config.help, Config.complete)
-      ("install", "Install CLI for your user account", [], acceptsInstall, Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
-      ("update", "Update CLI to latest version", [ "upgrade" ], acceptsUpdate, Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
-      ("uninstall", "Remove CLI installation", [], acceptsUninstall, Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
-      ("install-status", "Show installation status", [], acceptsInstallStatus, Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
-      ("version", "Display CLI version", [ "--version", "-v" ], acceptsVersion, Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
-      ("nav", "Navigate between owners, modules, and items", [ "cd" ], acceptsNav, Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
-      ("ls", "List package contents", [ "dir" ], acceptsLs, Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
-      ("back", "Go back to previous location", [], acceptsBack, Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
-      ("clear", "Clear the screen", [ "cls" ], acceptsClear, Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
-      ("format", "Format .dark files", [ "fmt" ], acceptsFormat, Cli.Format.execute, Cli.Format.help, Cli.Format.complete)
-      ("run-script", "Run a package function by name, or a Dark script file", [ "run" ], acceptsRunScript, Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
-      ("eval", "Evaluate a Dark expression", [], acceptsEval, Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
-      ("view", "View details of a module, type, value, fn, trait, impl or test", [], acceptsView, Packages.View.execute, Packages.View.help, Packages.View.complete)
-      ("tree", "Display package hierarchy in tree format", [ "packages" ], acceptsTree, Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
-      ("search", "Search modules, types, functions, values, traits, impls and tests", [], acceptsSearch, Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
-      ("typecheck", "Audit package declarations without changing them", [], acceptsTypecheck, Packages.Typecheck.execute, Packages.Typecheck.help, Packages.Typecheck.complete)
-      ("test", "Run package tests", [ "tests" ], acceptsTest, Packages.Test.execute, Packages.Test.help, Packages.Test.complete)
-      ("deps", "Show dependencies and dependents", [ "dependencies" ], acceptsDeps, Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
-      ("val", "Create a new value", [ "let" ], acceptsVal, Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
-      ("fn", "Create a new function", [ "function" ], acceptsFn, Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
-      ("type", "Create a new type", [], acceptsType, Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
-      ("trait", "Create a new trait", [], acceptsTrait, Packages.TraitCommand.execute, Packages.TraitCommand.help, Packages.TraitCommand.complete)
-      ("impl", "Implement a trait for a type", [], acceptsImpl, Packages.ImplCommand.execute, Packages.ImplCommand.help, Packages.ImplCommand.complete)
-      ("module", "Define multiple package declarations", [], acceptsModule, Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
-      ("generate", "Run a generator: a fn that writes Dark, staged like typed code", [], acceptsGenerate, Cli.Generate.execute, Cli.Generate.help, Cli.Generate.complete)
-      ("edit", "Change an item without retyping it", [], acceptsEdit, Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
-      ("rename", "Give an item a different name (its content and callers are untouched)", [], acceptsRename, Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
-      ("hash", "Show hash of a package item", [], acceptsHash, Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
+      (
+        "help",
+        "Show help for commands",
+        [ "commands", "?", "--help", "-h" ],
+        acceptsHelp,
+        Help.execute,
+        Help.help,
+        Help.complete)
+
+      (
+        "config",
+        "Manage CLI configuration",
+        [],
+        acceptsConfig,
+        Config.execute,
+        Config.help,
+        Config.complete)
+
+      (
+        "install",
+        "Install CLI for your user account",
+        [],
+        acceptsInstall,
+        Installation.Install.execute,
+        Installation.Install.help,
+        Installation.Install.complete)
+
+      (
+        "update",
+        "Update CLI to latest version",
+        [ "upgrade" ],
+        acceptsUpdate,
+        Installation.Update.execute,
+        Installation.Update.help,
+        Installation.Update.complete)
+
+      (
+        "uninstall",
+        "Remove CLI installation",
+        [],
+        acceptsUninstall,
+        Installation.Uninstall.execute,
+        Installation.Uninstall.help,
+        Installation.Uninstall.complete)
+
+      (
+        "install-status",
+        "Show installation status",
+        [],
+        acceptsInstallStatus,
+        Installation.Status.execute,
+        Installation.Status.help,
+        Installation.Status.complete)
+
+      (
+        "version",
+        "Display CLI version",
+        [ "--version", "-v" ],
+        acceptsVersion,
+        Installation.Version.execute,
+        Installation.Version.help,
+        Installation.Version.complete)
+
+      (
+        "nav",
+        "Navigate between owners, modules, and items",
+        [ "cd" ],
+        acceptsNav,
+        Packages.Nav.execute,
+        Packages.Nav.help,
+        Packages.Nav.complete)
+
+      (
+        "ls",
+        "List package contents",
+        [ "dir" ],
+        acceptsLs,
+        Packages.Listing.execute,
+        Packages.Listing.help,
+        Packages.Listing.complete)
+
+      (
+        "back",
+        "Go back to previous location",
+        [],
+        acceptsBack,
+        Packages.Back.execute,
+        Packages.Back.help,
+        Packages.Back.complete)
+
+      (
+        "clear",
+        "Clear the screen",
+        [ "cls" ],
+        acceptsClear,
+        Clear.execute,
+        Clear.help,
+        Clear.complete)
+
+      (
+        "format",
+        "Format .dark files",
+        [ "fmt" ],
+        acceptsFormat,
+        Format.execute,
+        Format.help,
+        Format.complete)
+
+      (
+        "run-script",
+        "Run a package function by name, or a Dark script file",
+        [ "run" ],
+        acceptsRunScript,
+        Run.execute,
+        Run.help,
+        Run.complete)
+
+      (
+        "eval",
+        "Evaluate a Dark expression",
+        [],
+        acceptsEval,
+        Eval.execute,
+        Eval.help,
+        Eval.complete)
+
+      (
+        "view",
+        "View details of a module, type, value, fn, trait, impl or test",
+        [],
+        acceptsView,
+        Packages.View.execute,
+        Packages.View.help,
+        Packages.View.complete)
+
+      (
+        "tree",
+        "Display package hierarchy in tree format",
+        [ "packages" ],
+        acceptsTree,
+        Packages.Tree.execute,
+        Packages.Tree.help,
+        Packages.Tree.complete)
+
+      (
+        "search",
+        "Search modules, types, functions, values, traits, impls and tests",
+        [],
+        acceptsSearch,
+        Packages.Search.execute,
+        Packages.Search.help,
+        Packages.Search.complete)
+
+      (
+        "typecheck",
+        "Audit package declarations without changing them",
+        [],
+        acceptsTypecheck,
+        Packages.Typecheck.execute,
+        Packages.Typecheck.help,
+        Packages.Typecheck.complete)
+
+      (
+        "test",
+        "Run package tests",
+        [ "tests" ],
+        acceptsTest,
+        Packages.Test.execute,
+        Packages.Test.help,
+        Packages.Test.complete)
+
+      (
+        "deps",
+        "Show dependencies and dependents",
+        [ "dependencies" ],
+        acceptsDeps,
+        Deps.execute,
+        Deps.help,
+        Deps.complete)
+
+      (
+        "val",
+        "Create a new value",
+        [ "let" ],
+        acceptsVal,
+        Packages.Value.execute,
+        Packages.Value.help,
+        Packages.Value.complete)
+
+      (
+        "fn",
+        "Create a new function",
+        [ "function" ],
+        acceptsFn,
+        Packages.Fn.execute,
+        Packages.Fn.help,
+        Packages.Fn.complete)
+
+      (
+        "type",
+        "Create a new type",
+        [],
+        acceptsType,
+        Packages.Type.execute,
+        Packages.Type.help,
+        Packages.Type.complete)
+
+      (
+        "trait",
+        "Create a new trait",
+        [],
+        acceptsTrait,
+        Packages.TraitCommand.execute,
+        Packages.TraitCommand.help,
+        Packages.TraitCommand.complete)
+
+      (
+        "impl",
+        "Implement a trait for a type",
+        [],
+        acceptsImpl,
+        Packages.ImplCommand.execute,
+        Packages.ImplCommand.help,
+        Packages.ImplCommand.complete)
+
+      (
+        "module",
+        "Define multiple package declarations",
+        [],
+        acceptsModule,
+        Packages.ModuleCommand.execute,
+        Packages.ModuleCommand.help,
+        Packages.ModuleCommand.complete)
+
+      (
+        "generate",
+        "Run a generator: a fn that writes Dark, staged like typed code",
+        [],
+        acceptsGenerate,
+        Generate.execute,
+        Generate.help,
+        Generate.complete)
+
+      (
+        "edit",
+        "Change an item without retyping it",
+        [],
+        acceptsEdit,
+        Packages.Edit.execute,
+        Packages.Edit.help,
+        Packages.Edit.complete)
+
+      (
+        "rename",
+        "Give an item a different name (its content and callers are untouched)",
+        [],
+        acceptsRename,
+        Packages.Rename.execute,
+        Packages.Rename.help,
+        Packages.Rename.complete)
+
+      (
+        "hash",
+        "Show hash of a package item",
+        [],
+        acceptsHash,
+        Packages.Hash.execute,
+        Packages.Hash.help,
+        Packages.Hash.complete)
+
       // SCM commands
       (
         "status",

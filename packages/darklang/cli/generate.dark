@@ -70,7 +70,7 @@ let parseOptions(args: List<String>): Result<Options, String> =
             // `--key=value` here; `--key value` waits for the next argument.
             match Stdlib.String.indexOf(flag, "=") with
             | Some(at) ->
-              let key = Stdlib.String.slice(flag, 0, at)
+              let key = Stdlib.String.first(flag, at)
               let value = Stdlib.String.dropFirst(flag, at + 1)
               if alreadyGiven(key) then
                 Result.Error($"--{key} was given twice")
@@ -108,8 +108,7 @@ let generatorArgs(opts: Options): List<(String * String)> =
 /// `  stored ./order.json as bytes 7f3a1c9e (412 B)`: the one line for bytes that just
 /// landed in the store, whoever put them there.
 let printStoredBytes(verb: String, what: String, hash: String, size: Int64): Unit =
-  printHint(
-    $"  {verb} {what} as bytes {Stdlib.String.slice(hash, 0, 8)} ({Stdlib.display(size)} B)")
+  printHint($"  {verb} {what} as bytes {Stdlib.String.first(hash, 8)} ({Stdlib.display(size)} B)")
 
 
 /// GET <param url> and store the body. Prints the `fetched` line. The CLI does the
@@ -223,7 +222,7 @@ let argumentSource(
       Result.Error($"parameter `{param.name}` takes a file, and {arg} does not exist")
     else
       match Stdlib.Cli.File.readBytes(arg) with
-      | Error(err) -> Result.Error($"could not read {arg}: {err.message}")
+      | Error(err) -> Result.Error($"could not read {arg}: {Stdlib.display(err)}")
       | Ok(bytes) ->
         let hash = Stdlib.Bytes.persist(bytes)
         printStoredBytes("stored", arg, hash, Stdlib.Bytes.length(bytes))
@@ -235,7 +234,7 @@ let argumentSource(
       Result.Error($"parameter `{param.name}` takes a directory of files, and {arg} is not one")
     else
       match Stdlib.Cli.Dir.listFullPaths(arg) with
-      | Error(err) -> Result.Error($"could not list {arg}: {err.message}")
+      | Error(err) -> Result.Error($"could not list {arg}: {Stdlib.display(err)}")
       | Ok(paths) ->
         let files =
           paths
@@ -246,7 +245,7 @@ let argumentSource(
           files
           |> Stdlib.List.map(fun path ->
             match Stdlib.Cli.File.readBytes(path) with
-            | Error(err) -> Result.Error($"could not read {path}: {err.message}")
+            | Error(err) -> Result.Error($"could not read {path}: {Stdlib.display(err)}")
             | Ok(bytes) ->
               let hash = Stdlib.Bytes.persist(bytes)
               Result.Ok($"Darklang.Generate.input(\"{hash}\")"))
@@ -365,15 +364,11 @@ let refreshSaved(
             match Stdlib.String.indexOf(source, marker) with
             | None -> Option.None
             | Some(at) ->
-              let after =
-                Stdlib.String.slice(
-                  source,
-                  at + Stdlib.String.length(marker),
-                  Stdlib.String.length(source))
-
+              let after = Stdlib.String.dropFirst(source, at + Stdlib.String.length(marker))
               match Stdlib.String.indexOf(after, "\"") with
               | None -> Option.None
-              | Some(q) -> Option.Some(Stdlib.String.slice(after, q + 1, q + 65))
+              | Some(q) ->
+                Option.Some(Stdlib.String.first(Stdlib.String.dropFirst(after, q + 1), 64))
 
           match oldHash with
           | None ->
@@ -472,7 +467,7 @@ let writeArtifacts(dir: String, artifacts: List<(String * String)>): Result<Unit
       let size = Stdlib.String.length(text)
       printHint($"  wrote {full} ({Stdlib.display(size)} B)")
       Result.Ok()
-    | Error(err) -> Result.Error($"could not write {full}: {err.message}"))
+    | Error(err) -> Result.Error($"could not write {full}: {Stdlib.display(err)}"))
   |> Stdlib.Result.collect
   |> Stdlib.Result.map(fun _ -> ())
 

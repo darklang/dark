@@ -5,7 +5,6 @@
 module Tests.CliGenerate
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 

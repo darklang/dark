@@ -31,17 +31,14 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBytes ref |] ->
-          uply {
-            match ref with
-            | Persistent(hash, _) -> return DString hash
-            | Ephemeral _ ->
-              // The leaf handler, not the whole-graph rewriter: this IS the leaf, and
-              // going through `promote` meant matching a shape it can only return.
-              match! Bytes.promoteEphemeralLeaf state.blobs.persist (DBytes ref) with
-              | Some(DBytes(Persistent(hash, _))) -> return DString hash
-              | _ ->
-                return Exception.raiseInternal "an ephemeral blob did not promote" []
-          }
+          match ref with
+          | Persistent(hash, _) -> DString hash
+          | Ephemeral _ ->
+            // The leaf handler, not the whole-graph rewriter: this IS the leaf, and
+            // going through `promote` meant matching a shape it can only return.
+            match Bytes.promoteEphemeralLeaf state.blobs.persist (DBytes ref) with
+            | Some(DBytes(Persistent(hash, _))) -> DString hash
+            | _ -> Exception.raiseInternal "an ephemeral blob did not promote" []
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
@@ -58,17 +55,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DString hash |] ->
-          uply {
-            // The ref needs the length, and the only place that knows it is the row,
-            // so this reads the bytes once. A blob a generator feeds on is small;
-            // this is not a streaming path.
-            let! bytes = state.blobs.get hash
-            return
-              bytes
-              |> Option.map (fun (bs : byte[]) ->
-                DBytes(Persistent(hash, int64 bs.Length)))
-              |> Dval.option KTBytes
-          }
+          // The ref needs the length, and the only place that knows it is the row,
+          // so this reads the bytes once. A blob a generator feeds on is small;
+          // this is not a streaming path.
+          state.blobs.get hash
+          |> Option.map (fun (bs : byte[]) ->
+            DBytes(Persistent(hash, int64 bs.Length)))
+          |> Dval.option KTBytes
         | _ -> incorrectArgs ())
       previewable = Impure
       // CLEANUP: whether this should carry `PackageRead` is unsettled; it reads a row

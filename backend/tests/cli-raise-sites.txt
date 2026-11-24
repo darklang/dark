@@ -8,7 +8,6 @@
 1 Darklang.Cli.Format.formatFiles Darklang.Stdlib.List.parallelMap
 1 Darklang.Cli.Format.settle Darklang.Stdlib.Cli.File.writeText
 1 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.Cli.Dir.listFullPaths
-1 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.Cli.File.exists
 1 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.List.sort
 1 Darklang.Cli.Generate.fetchToBytes Darklang.Stdlib.HttpClient.get
 1 Darklang.Cli.Generate.writeArtifacts Darklang.Stdlib.Cli.File.writeText
