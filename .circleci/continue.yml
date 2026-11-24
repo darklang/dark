@@ -400,6 +400,7 @@ jobs:
             export CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64"
             # The gates print a summary when they finish; the package tests stream, which
             # keeps the step's no-output timer quiet while both run.
+            set +e
             (
               timeout 15m scripts/testing/gates ci --parallel
               ci_status=$?
@@ -410,7 +411,6 @@ jobs:
               [[ "$ci_status" -eq 0 && "$first_day_status" -eq 0 ]]
             ) > /tmp/gates-ci.log 2>&1 &
             gates=$!
-            set +e
             timeout 20m scripts/testing/gates package-tests
             package_tests=$?
             wait "$gates"
