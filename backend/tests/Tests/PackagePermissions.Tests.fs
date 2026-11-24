@@ -16,7 +16,7 @@ module RT = LibExecution.RuntimeTypes
 let private only (item : 'a) : Permission.Scope<'a> = Permission.Scope.Only item
 
 /// A `Unit -> BigInt` package fn with the given body.
-let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
+let unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
   { hash = PT.Hash hash
     body = body
     typeParams = []
@@ -62,7 +62,7 @@ let private testEffects : PackagePermissions.CallEffectsFor =
     | "listMap" -> Some Set.empty
     | _ -> None
 
-let private callBuiltin (name : string) : PT.Expr =
+let callBuiltin (name : string) : PT.Expr =
   eApply (eBuiltinFn name 0) [] [ eUnit () ]
 
 /// The review tests share one package universe: `v1` is the approved version,
@@ -96,7 +96,7 @@ let private reviewUniverse =
 let private loadFromUniverse : PackagePermissions.Load =
   { fn = (fun hash -> Map.tryFind hash reviewUniverse); value = (fun _ -> None) }
 
-let private reviewUnder
+let reviewUnder
   explicitPolicy
   previousApproval
   hash
@@ -112,7 +112,7 @@ let private reviewUnder
     acknowledgeIncomplete
     acknowledgeChange
 
-let private review previousApproval hash acknowledgeIncomplete acknowledgeChange =
+let review previousApproval hash acknowledgeIncomplete acknowledgeChange =
   reviewUnder None previousApproval hash acknowledgeIncomplete acknowledgeChange
 
 /// `file read /data` plus the clock: the consumer's own resource rules.
