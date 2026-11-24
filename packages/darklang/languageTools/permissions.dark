@@ -647,6 +647,48 @@ let hostWideHttpRule(text: String): Option<String> =
   | _ -> Option.None
 
 
+/// The web rule without its ?query, so any query is allowed.
+let pathWideHttpRule(text: String): Option<String> =
+  match parseRuleText(text) with
+  | Some([Http(rule)]) ->
+    match rule.query with
+    | Only(_) -> Option.Some(renderHttpRule({ rule with query = Scope.All }))
+    | All -> Option.None
+  | _ -> Option.None
+
+
+/// The file rule for the whole folder, plus read or write if the program also needs them.
+let folderFileRules(text: String, alsoNeeded: List<Effect>): Option<List<String>> =
+  let folderOf(path: String): Option<String> =
+    match Stdlib.String.splitLast(path, "/") with
+    | Some((folder, _)) when folder != "" -> Option.Some(folder)
+    | _ -> Option.None
+
+  let denied =
+    match parseRuleText(text) with
+    | Some([FileRead(Only(path))]) -> Option.Some((Effect.FileRead, path))
+    | Some([FileWrite(Only(path))]) -> Option.Some((Effect.FileWrite, path))
+    | _ -> Option.None
+
+  match denied with
+  | Some((effect, path)) ->
+    match folderOf(path) with
+    | Some(folder) ->
+      let wanted =
+        [ Effect.FileRead, Effect.FileWrite ]
+        |> Stdlib.List.filter(fun e -> e == effect || Stdlib.List.contains(alsoNeeded, e))
+
+      wanted
+      |> Stdlib.List.map(fun e ->
+        if e == Effect.FileRead then
+          renderRule(Rule.FileRead(Scope.Only(folder)))
+        else
+          renderRule(Rule.FileWrite(Scope.Only(folder))))
+      |> Option.Some
+    | None -> Option.None
+  | None -> Option.None
+
+
 /// Faithful text for one process rule: `process <executable> [args…]`.
 let renderProcessRule(rule: ProcessRule): String =
   let executable = renderStringScope(rule.executable)
