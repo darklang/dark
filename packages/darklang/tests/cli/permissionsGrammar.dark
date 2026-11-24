@@ -29,6 +29,14 @@ module PermissionsGrammar =
                   LanguageTools.Permissions.Scope.Only("/tmp/five;six")) ] }))
 
 
+  /// Rules are separated by `;`, and a comma can be part of a path or a URL.
+  test usagesSeparateRulesWithSemicolons =
+    Cli.Permissions.Command.subcommands
+    |> Stdlib.List.filter(fun((_name, usage)) ->
+      Stdlib.String.contains(Stdlib.Option.withDefault(usage, ""), ","))
+    |> Stdlib.Test.equal([])
+
+
   let only(value: String): LanguageTools.Permissions.Scope<String> =
     LanguageTools.Permissions.Scope.Only(value)
 

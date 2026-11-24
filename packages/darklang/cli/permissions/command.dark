@@ -971,7 +971,7 @@ val subcommands =
     ("set", Option.Some("set <rule>;… (or `clear`)"))
     ("clear", Option.None)
     ("approve", Option.Some("approve --for <fn> <rules>"))
-    ("update", Option.Some("update <fn> [rule,…]"))
+    ("update", Option.Some("update <fn> [<rule>;…]"))
     ("unapprove", Option.Some("unapprove <fn>"))
     ("approved", Option.None)
     ("requirements", Option.Some("requirements <fn|hash>"))
