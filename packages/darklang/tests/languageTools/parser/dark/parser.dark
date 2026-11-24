@@ -244,6 +244,15 @@ module DeclsTests =
     |> Stdlib.Test.table(partial)
 
 
+module GuardTests =
+  test deepNesting =
+    [ Stdlib.String.repeat("(", 150) + "1" + Stdlib.String.repeat(")", 150)
+      Stdlib.String.repeat("[", 250) + Stdlib.String.repeat("]", 250)
+      "type X = " + Stdlib.String.repeat("List<", 210) + "Int64" + Stdlib.String.repeat(">", 210)
+      "match x with\n| " + Stdlib.String.repeat("Some(", 210) + "1" + Stdlib.String.repeat(")", 210) + " -> 1" ]
+    |> Stdlib.Test.table(script)
+
+
 module FixTests =
   let fixes(source: String): List<String> =
     (LanguageTools.Parser.Dark.parseWith(LanguageTools.Parser.FileKind.Script, source)).diagnostics

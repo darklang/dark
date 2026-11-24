@@ -171,7 +171,7 @@ let expectGt(inp: Input, st: St): (Range * St) =
 // --- type references ---
 
 let typeRef(inp: Input, st: St): (TypeReference * St) =
-  fnType(inp, { st with pendingGt = 0 })
+  Core.guarded(inp, st, fun(inp2, st2) -> fnType(inp2, { st2 with pendingGt = 0 }), fun r -> builtin(Builtin.TUnit(r)))
 
 
 let fnType(inp: Input, st: St): (TypeReference * St) =

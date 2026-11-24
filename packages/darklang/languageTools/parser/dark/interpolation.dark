@@ -115,6 +115,22 @@ let flushText(scan: Scan, contentsRev: List<WrittenTypes.StringSegment>, from: I
 
 /// The expression in `{…}`, from offset <param from> to the `}` at <param found>.
 let innerExpr(inp: Input, st: St, scan: Scan, from: Int64, found: Int64): (Expr * St) =
+  if st.interpDepth >= 64 then
+    let st1 =
+      Core.errFull(
+        inp,
+        st,
+        Core.Code.TooDeep,
+        st.index,
+        "string interpolation nested too deeply (over 64 levels); parsing abandoned",
+        [],
+        Stdlib.Option.Option.None)
+    (WrittenTypes.Expr.EUnit(rangeAt(scan, from, found)), { st1 with abandoned = true })
+  else
+    innerExprAt(inp, st, scan, from, found)
+
+
+let innerExprAt(inp: Input, st: St, scan: Scan, from: Int64, found: Int64): (Expr * St) =
   let exprText = Lexer.text(scan.src, from, found)
   let exprStart = posAt(scan, from)
   let offset =
@@ -131,7 +147,7 @@ let innerExpr(inp: Input, st: St, scan: Scan, from: Int64, found: Int64): (Expr 
       Core.errAt(s, Core.Code.Lex, offsetRange(d.range), Lexer.problemMessage(d.problem), Stdlib.Option.Option.None))
   let tokens =
     Stdlib.List.map(lexed.tokens, fun t -> { t with range = offsetRange(t.range) })
-  let (decls, exprs, diagnostics) = Decls.parseTokens(tokens, Decls.ItemScope.Script)
+  let (decls, exprs, diagnostics) = Decls.parseTokensSaving(tokens, Decls.ItemScope.Script, Stdlib.Option.Option.None, st.interpDepth + 1)
   let st2 = { st1 with diagnosticsRev = Stdlib.List.concat(Stdlib.List.reverse(diagnostics), st1.diagnosticsRev) }
   let interpolationError = fun(s, message) -> Core.errAt(s, Core.Code.Interpolation, bodyRange, message, Stdlib.Option.Option.None)
   let st3 =

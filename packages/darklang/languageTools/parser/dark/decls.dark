@@ -969,25 +969,31 @@ let initialState(): St =
       pendingGtRange = Range { start = p, end_ = p }
       declAnchor = -1
       diagnosticsRev = []
-      partialSave = Stdlib.Option.Option.None }
+      partialSave = Stdlib.Option.Option.None
+      depth = 0
+      steps = 0
+      abandoned = false
+      interpDepth = 0 }
 
 
 /// Parse lexed tokens: the declarations and the expressions at the top, and the parser's
 /// diagnostics in the order they were found.
 let parseTokens(tokens: List<Lexer.Token>, scope: ItemScope): (List<Item> * List<Expr> * List<Core.Diagnostic>) =
-  parseTokensSaving(tokens, scope, Stdlib.Option.Option.None)
+  parseTokensSaving(tokens, scope, Stdlib.Option.Option.None, 0)
 
 
 /// `parseTokens`, and for a partial save, the lexer's errors to match items against.
 let parseTokensSaving(
   tokens: List<Lexer.Token>,
   scope: ItemScope,
-  partialSave: Option<List<Core.Diagnostic>>)
+  partialSave: Option<List<Core.Diagnostic>>,
+  interpDepth: Int64)
   : (List<Item> * List<Expr> * List<Core.Diagnostic>) =
   let inp = Core.Input { tokens = tokens, count = Stdlib.List.length(tokens) }
   let literals = Core.validateLiterals(inp)
   let start =
     { initialState() with
+        interpDepth = interpDepth
         diagnosticsRev = Stdlib.List.reverse(literals)
         partialSave = Stdlib.Option.map(partialSave, fun errors -> Stdlib.List.concat(errors, literals)) }
   let (decls, exprs, st) = items(inp, start, scope, 0)

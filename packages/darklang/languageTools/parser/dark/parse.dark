@@ -41,7 +41,7 @@ let parseWith(kind: LanguageTools.Parser.FileKind, code: String): Parsed =
     match kind with
     | PackagePartialSave -> Stdlib.Option.Option.Some(lexDiagnostics)
     | _ -> Stdlib.Option.Option.None
-  let (items, exprs, parseDiagnostics) = Decls.parseTokensSaving(lexed.tokens, scope, partialSave)
+  let (items, exprs, parseDiagnostics) = Decls.parseTokensSaving(lexed.tokens, scope, partialSave, 0)
   let fileRange =
     if inp.count > 1 then Core.span(Core.rng(inp, 0), Core.rng(inp, inp.count - 2)) else Core.rng(inp, 0)
   let file =

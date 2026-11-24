@@ -352,7 +352,7 @@ let patternOrNoAs(inp: Input, st: St): (MatchPattern * St) =
 
 
 let patternBase(inp: Input, st: St): (MatchPattern * St) =
-  let (p, st1) = patternBaseInner(inp, st)
+  let (p, st1) = Core.guarded(inp, st, patternBaseInner, fun r -> WrittenTypes.MatchPattern.MPError(r))
   let j = st1.index
   // `head :: tail`: the lexer reported the `::`, so skip it and the tail
   if j < inp.count && (Core.token(inp, j)).lexError && Core.txt(inp, j) == "::" then

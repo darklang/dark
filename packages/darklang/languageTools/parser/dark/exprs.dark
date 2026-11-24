@@ -30,6 +30,10 @@ let variableAsFn(r: Range, name: String): Expr =
 // --- statements and blocks ---
 
 let expr(inp: Input, st: St): (Expr * St) =
+  Core.guarded(inp, st, exprUnguarded, fun r -> WrittenTypes.Expr.EError(r))
+
+
+let exprUnguarded(inp: Input, st: St): (Expr * St) =
   let i = st.index
   match Core.tok(inp, i) with
   | TLet -> Core.withStmtScope(inp, st, (Core.rng(inp, i)).start.column, letExpr)
