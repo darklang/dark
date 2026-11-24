@@ -26,6 +26,10 @@ use; it was a fifth name for `item`.
 ## Global flags
   --branch <name>   run ONE command on a branch, without switching to it
   --json            on any command that answers a question
+  --no-input        never prompt (same as DARK_NO_INPUT=1)
+  --no-color        no colour (same as NO_COLOR=1)
+
+These go anywhere: `dark --json status` is `dark status --json`.
 
 Branch context DOES persist: `dark switch <name>` moves you and the next `dark`
 starts there. `--branch` is for a one-off.
