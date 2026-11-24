@@ -61,7 +61,10 @@ def run(start, bash, lower_priority=False):
 # Build logic
 ###################
 def pretty_print(msg, color):
-  print(f"\x1b[6;30;{str(color)}m\n$ {msg}\x1b[0m")
+  if os.environ.get("NO_COLOR"):
+    print(f"\n$ {msg}")
+  else:
+    print(f"\x1b[6;30;{str(color)}m\n$ {msg}\x1b[0m")
 
 
 def run_backend(start, bash):

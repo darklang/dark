@@ -203,10 +203,13 @@ def cmd_build(args):
     cmd.append("--optimize")
   cmd += plan.kept
 
+  # compile's output is always a pipe here, so whether to colour is decided by ours.
+  env = None if sys.stdout.isatty() else dict(os.environ, NO_COLOR="1")
+
   # Tee in-process rather than through a pipeline, so the exit code stays compile's.
   with open(BUILD_LOG, "w") as log:
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, bufsize=1)
+                            text=True, bufsize=1, env=env)
     for line in proc.stdout:
       sys.stdout.write(line)
       sys.stdout.flush()
@@ -294,7 +297,7 @@ def cmd_check(args):
   """Gate for scripts depending on the build. Silent when there's nothing to say."""
   ready, fatal, lines = _buildstate.check()
   for line in lines:
-    print(line, file=sys.stderr)
+    print(f"{'error' if fatal else 'warning'}: {line}", file=sys.stderr)
   return 1 if fatal else 0
 
 

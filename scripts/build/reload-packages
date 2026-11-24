@@ -32,6 +32,7 @@ fi
 
 grey="\033[1;30m"
 reset="\033[0m"
+if [[ -n "${NO_COLOR:-}" || ! -t 1 ]]; then grey=""; reset=""; fi
 
 echo -e "Reloading packages ${grey}(${LOG_PACKAGES})${reset}"
 

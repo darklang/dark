@@ -359,7 +359,21 @@ class TestState(unittest.TestCase):
       ready, fatal, lines = _buildstate.check()
       self.assertFalse(ready)
       self.assertFalse(fatal)
-      self.assertIn("behind the tree", " ".join(lines))
+      self.assertEqual(len(lines), 1)
+      self.assertIn("behind the tree", lines[0])
+
+  def test_an_edit_that_changes_no_binary_says_nothing(self):
+    # run-cli prints check()'s line ahead of every answer; a test fixture edit
+    # doesn't make the CLI stale, so it must not cost every call a warning.
+    with TempTree() as t:
+      t.with_build_outputs()
+      t.write("backend/tests/testfiles/a.dark", "1\n")
+      _buildstate.begin(["backend_quick_build"], [], "build")
+      _buildstate.finish(True, ["backend_quick_build"])
+      _buildindex.save(_buildindex.snapshot())
+
+      t.write("backend/tests/testfiles/a.dark", "2\n")
+      self.assertEqual(_buildstate.check(), (True, False, []))
 
   def test_either_configuration_counts_as_built(self):
     # The question is whether something wiped backend/Build, not which
