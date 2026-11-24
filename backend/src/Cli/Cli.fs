@@ -422,6 +422,21 @@ let private processTitle (args : string list) : string * string =
     | [] -> "dark run", "dark run"
   | cmd :: _ as rest -> $"dark {cmd}", oneLine ("dark" :: rest)
 
+/// Isolated tests and the store top-up work in the temp dir. Where it can't be written (a
+/// sandbox, a read-only container), point TMPDIR into the rundir, which dark writes anyway.
+let private useWritableTemp () : unit =
+  try
+    System.IO.Directory.Delete(
+      System.IO.Directory.CreateTempSubdirectory("dark-").FullName
+    )
+  with _ ->
+    try
+      let dir = System.IO.Path.Combine(LibConfig.Config.runDir, "tmp")
+      System.IO.Directory.CreateDirectory dir |> ignore<IO.DirectoryInfo>
+      System.Environment.SetEnvironmentVariable("TMPDIR", dir)
+    with _ ->
+      ()
+
 /// Everything the CLI does. Called on a thread of our own; see `main`.
 let private runCli (args : string[]) : int =
   try
@@ -448,6 +463,8 @@ let private runCli (args : string[]) : int =
         int64 (mainEntry - processStart).TotalMilliseconds
       else
         0L
+
+    useWritableTemp ()
 
     // Extract embedded resources FIRST: a published CLI seeds or upgrades its store here,
     // before anything opens it.
