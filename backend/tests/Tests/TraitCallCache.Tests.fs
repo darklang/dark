@@ -35,8 +35,8 @@ let tests =
           "backend/src/Builtins/Builtins.Pure/CaseMapping.fs"
           "String.toLowercase calls CaseMapping, which defines no builtin"
         Expect.isFalse
-          (files.Contains(pureLib "Bytes"))
-          "the checker calls no Bytes builtin"
+          (files.Contains(pureLib "X509"))
+          "the checker calls no X509 builtin"
         Expect.isFalse
           (files.Contains(pureLib "Math"))
           "the checker calls no Math builtin"
@@ -54,7 +54,7 @@ let tests =
       testTask
         "an edit to a file the checker runs changes the key, and to any other does not" {
         let! (files : Set<string>) = checkerFiles ()
-        let copied = files |> Set.add (pureLib "Bytes") |> Set.add (pureLib "Math")
+        let copied = files |> Set.add (pureLib "X509") |> Set.add (pureLib "Math")
         let dir = System.IO.Directory.CreateTempSubdirectory "trait-call-cache-"
         try
           for f in copied do
@@ -71,9 +71,9 @@ let tests =
               "\n// edited\n"
             )
           let before = key ()
-          edit "Bytes"
+          edit "X509"
           edit "Math"
-          Expect.equal (key ()) before "Bytes.fs and Math.fs are not the checker's"
+          Expect.equal (key ()) before "X509.fs and Math.fs are not the checker's"
           edit "Dict"
           Expect.notEqual (key ()) before "Dict.fs is the checker's"
         finally
