@@ -6282,18 +6282,19 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
               dictReg
               (TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries)
         | CreateSet(setReg, itemRegs) ->
-          // Items are compared to be kept in order, so each lands first, as a dict key does.
-          let mutable rest = itemRegs
-          while not retry && not (List.isEmpty rest) do
-            match rest with
-            | itemReg :: tail ->
-              (match registers[itemReg] with
-               | DPromise p ->
-                 parkOnRead vm registers itemReg p &retry &force &forceReg
-               | _ -> ())
-              rest <- tail
-            | [] -> ()
-          if not retry then
+          // Items are compared to be kept in order, so a read in flight lands first, as a dict
+          // key does.
+          let regs = registers
+          let inFlight =
+            itemRegs
+            |> List.tryPick (fun itemReg ->
+              match regs[itemReg] with
+              | DPromise p -> Some(itemReg, p)
+              | _ -> None)
+          match inFlight with
+          | Some(itemReg, p) ->
+            parkOnRead vm registers itemReg p &retry &force &forceReg
+          | None ->
             Registers.set
               registers
               setReg
