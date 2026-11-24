@@ -422,6 +422,82 @@ gate_reload_is_reproducible() {
   echo "  and the second resolved $moved trait call op(s)."
 }
 
+# --- package-edits-apply: a dev build lands an edit, a removal and a deleted file without a reload ---
+# `apply-package-edits` diffs packages/ against the text the store was loaded from. Own rundir and
+# own copy of packages/, so neither the dev store nor the tree moves.
+#
+# Gate, not an F# test: it needs a store a whole reload filled, and that reload's record of its files.
+gate_package_edits_apply() {
+  set -euo pipefail
+
+  HOME=$(realpath -m rundir/package-edits); export HOME; WORK="$HOME/.darklang"
+  rm -rf "$HOME"
+  mkdir -p "$WORK/logs" "$HOME/root"
+  scripts/testing/_copy-store "$WORK/data.db"
+  cp rundir/data.db.package-sources.json "$WORK/"
+  cp -r packages "$HOME/root/"
+  ln -s "$PWD/backend" "$HOME/root/backend"
+  export DARK_CONFIG_ROOT_DIR="$HOME/root"
+
+  # CI builds only the Release LocalExec and passes the published CLI in.
+  LOCAL_EXEC=backend/Build/out/LocalExec/Debug/net11.0/LocalExec
+  [[ -x "$LOCAL_EXEC" ]] || LOCAL_EXEC=backend/Build/out/LocalExec/Release/net11.0/publish/LocalExec
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
+  # A module of its own each run: removing the same version twice is the same op, which folds nothing.
+  M="EditProbe$RANDOM$RANDOM"
+  PROBE="$HOME/root/packages/darklang/editProbe.dark"
+  probe() {  # probe <declaration...>: the probe file, holding these
+    { printf 'module Darklang.%s\n' "$M"; printf '\n%s\n' "$@"; } > "$PROBE"
+  }
+
+  # apply <what> <expected line>: the build's step, which must take the path the line names.
+  apply() {
+    local said
+    said=$("$LOCAL_EXEC" apply-package-edits 2>&1 | grep -E '^packages: ' || true)
+    if [[ "$said" != *"$2"* ]]; then
+      echo "package-edits-apply: $1: expected '$2', got: ${said:-(no packages: line)}"
+      exit 1
+    fi
+  }
+  # answer <expr> <expected>: what the store now says.
+  answer() {
+    local got
+    got=$("$CLI" eval "$1" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' || true)
+    if [[ "$got" != *"$2"* ]]; then
+      echo "package-edits-apply: \`$1\` should give '$2', got: $got"
+      exit 1
+    fi
+  }
+
+  probe 'let a(): Int64 = 1' 'let b(): Int64 = 2'
+  apply "a new file" "applied 2 declaration(s) from 1 file(s)"
+  answer "Darklang.$M.a()" 1
+
+  probe 'let a(): Int64 = 5' 'let b(): Int64 = 2'
+  apply "an edit" "applied 1 declaration(s) from 1 file(s)"
+  answer "Darklang.$M.a()" 5
+
+  probe 'let a(): Int64 = 5'
+  apply "a removed declaration" "removed 1"
+  answer "Darklang.$M.b()" "not found"
+  answer "Darklang.$M.a()" 5
+
+  # Something still calls what goes: the full reload is what reports that.
+  probe 'let a(): Int64 = 5' 'let c(): Int64 = a() + 1'
+  apply "a caller" "applied 1 declaration(s)"
+  probe 'let c(): Int64 = a() + 1'
+  apply "a removal with a live caller" "full reload: 1 live item(s) still use what was removed"
+  answer "Darklang.$M.c()" 6
+
+  rm "$PROBE"
+  apply "a deleted file" "removed 2"
+  answer "Darklang.$M.a()" "not found"
+  answer "Darklang.$M.c()" "not found"
+
+  echo "package-edits-apply: an edit, a removal and a deleted file land without a reload;"
+  echo "  a removal something still uses falls back to it."
+}
+
 # --- trait-checker-vs-dispatch: the checker and dispatch agree on which impls exist ---
 # An implementation is a candidate only while a name binds it AND it is not deprecated. Dispatch
 # applies both filters; so does the save-time resolver. The checker's visible-impl set applied

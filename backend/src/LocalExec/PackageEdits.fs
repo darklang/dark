@@ -4,13 +4,14 @@
 /// This diffs each changed file against the text the store was loaded from, declaration by
 /// declaration, and lands the changed ones through `dark module`'s own code
 /// (`ModuleCommand.defineBundled`), so their dependents are repointed the way an authored edit
-/// repoints them. Then it commits them as the baseline, as a reload does.
+/// repoints them. Declarations removed from a file, or in a deleted file, are unbound, as a reload
+/// drops them. Then it commits them as the baseline, as a reload does.
 ///
 /// It refuses, and the build runs the full reload instead, when:
 /// - the store has no record of what it was loaded from, or its ops changed since (your own `dark`
 ///   edits, say);
-/// - a file was deleted, or a declaration removed or renamed: a reload drops it, an edit never does;
-/// - a trait or impl was added, which can change how existing calls resolve;
+/// - something live still uses a removed declaration: the reload is what reports that;
+/// - a trait or impl was added or removed, which can change how existing calls resolve;
 /// - a type changed that more than `typeDependentsLimit` items depend on, since a type's dependents
 ///   are repointed without a check;
 /// - the edits have more than `dependentsLimit` dependents in all, where a reload is no slower;
@@ -191,13 +192,22 @@ let rec private changesResolution (d : Decl) : bool =
   || d.kind = "impl"
   || d.inner |> Option.exists (snd >> List.exists changesResolution)
 
-/// The source to hand `dark module` for one module level, and what it adds or changes: every new or
-/// changed declaration, inside the nested modules it is in.
+/// Every declaration in <param d>, nested modules opened up, as something that goes.
+let rec private removals (modules : List<string>) (d : Decl) : List<Change> =
+  match d.inner with
+  | Some(_, inner) -> inner |> List.collect (removals (modules @ [ d.name ]))
+  | None when changesResolution d ->
+    refuse
+      $"a trait or impl was removed ({d.name}), which can change how existing calls resolve"
+  | None -> [ { added = false; kind = d.kind; modules = modules; name = d.name } ]
+
+/// The source to hand `dark module` for one module level, what it adds or changes (every new or
+/// changed declaration, inside the nested modules it is in), and what is no longer there.
 let rec private diff
   (modules : List<string>)
   (olds : List<Decl>)
   (news : List<Decl>)
-  : string * List<Change> =
+  : string * List<Change> * List<Change> =
   // Nested module blocks pair up in order; anything else by its name.
   let keyed (decls : List<Decl>) =
     decls
@@ -213,36 +223,51 @@ let rec private diff
   let olds = keyed olds
   let news = keyed news
   let newKeys = news |> List.map fst |> Set.ofList
-  olds
-  |> List.tryFind (fun (k, _) -> not (Set.contains k newKeys))
-  |> Option.iter (fun (_, d) ->
-    refuse $"{dotted (modules @ [ d.name ])} was removed or renamed")
+  let gone =
+    olds
+    |> List.filter (fun (k, _) -> not (Set.contains k newKeys))
+    |> List.collect (fun (_, d) -> removals modules d)
   let oldOf = Map.ofList olds
-  news
-  |> List.map (fun (key, d) ->
-    match Map.tryFind key oldOf, d.inner with
-    | None, _ when changesResolution d ->
-      refuse
-        $"a trait or impl was added ({d.name}), which can change how existing calls resolve"
-    | None, _ ->
-      d.text, [ { added = true; kind = d.kind; modules = modules; name = d.name } ]
-    | Some o, _ when o.text = d.text -> "", []
-    | Some { inner = Some(_, oldInner) }, Some(header, newInner) ->
-      let source, changes = diff (modules @ [ d.name ]) oldInner newInner
-      if List.isEmpty changes then "", [] else header + source, changes
-    | Some _, _ ->
-      d.text, [ { added = false; kind = d.kind; modules = modules; name = d.name } ])
-  |> List.filter (fun (_, changes) -> not (List.isEmpty changes))
-  |> fun parts ->
-      (parts |> List.map fst |> String.concat "\n\n", parts |> List.collect snd)
+  let parts =
+    news
+    |> List.map (fun (key, d) ->
+      match Map.tryFind key oldOf, d.inner with
+      | None, _ when changesResolution d ->
+        refuse
+          $"a trait or impl was added ({d.name}), which can change how existing calls resolve"
+      | None, _ ->
+        d.text,
+        [ { added = true; kind = d.kind; modules = modules; name = d.name } ],
+        []
+      | Some o, _ when o.text = d.text -> "", [], []
+      | Some { inner = Some(_, oldInner) }, Some(header, newInner) ->
+        let source, changes, removed = diff (modules @ [ d.name ]) oldInner newInner
+        (if List.isEmpty changes then "" else header + source), changes, removed
+      | Some _, _ ->
+        d.text,
+        [ { added = false; kind = d.kind; modules = modules; name = d.name } ],
+        [])
+  let sources =
+    parts
+    |> List.filter (fun (_, changes, _) -> not (List.isEmpty changes))
+    |> List.map (fun (source, _, _) -> source)
+  (String.concat "\n\n" sources,
+   parts |> List.collect (fun (_, changes, _) -> changes),
+   gone @ (parts |> List.collect (fun (_, _, removed) -> removed)))
 
 
 // ------------------------------------------------------------------
 // The store
 // ------------------------------------------------------------------
 
-/// How many live items depend on what <param change> names now, transitively.
-let private dependents (change : Change) : int64 =
+let private location (change : Change) : PT.PackageLocation =
+  match change.modules with
+  | owner :: modules ->
+    { owner = owner; modules = modules; name = change.name.Trim('`') }
+  | [] -> refuse $"{change.name} is outside any module"
+
+/// The hashes live at what <param change> names now.
+let private liveAt (change : Change) : List<string> =
   // An impl is at its trait's name in its type's module (`WT.implMemberPath`), and its methods
   // are the fns in the module below that.
   let places =
@@ -276,7 +301,11 @@ let private dependents (change : Change) : int64 =
   if List.isEmpty roots then
     refuse
       $"the store has nothing at {dotted (change.modules @ [ change.name ])}, which it was loaded with"
-  let roots = jsonRows (roots |> List.map (fun r -> [ r ]))
+  roots
+
+/// How many live items depend on what <param change> names now, transitively.
+let private dependents (change : Change) : int64 =
+  let roots = jsonRows (liveAt change |> List.map (fun r -> [ r ]))
   Sql.query
     "WITH RECURSIVE dep(h) AS (
        SELECT json_extract(value, '$[0]') FROM json_each(@roots)
@@ -288,6 +317,28 @@ let private dependents (change : Change) : int64 =
   |> Sql.parameters
     [ "roots", Sql.string roots; "main", Sql.string (string PT.BranchId.Main) ]
   |> Sql.executeRow (fun read -> read.int64 "n")
+
+/// The live items, other than those at <param locations>, that call one of <param locations> by
+/// name. By name, not hash: the same body at another name is a different item.
+let private users (locations : List<PT.PackageLocation>) : List<string> =
+  let places =
+    locations
+    |> List.map (fun l -> [ l.owner; String.concat "." l.modules; l.name ])
+  Sql.query
+    "WITH gone(owner, modules, name) AS (
+       SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]')
+         FROM json_each(@places))
+     SELECT DISTINCT l.owner || '.' || l.modules || '.' || l.name AS name
+       FROM package_dependencies d
+       JOIN gone g ON d.depends_on_owner = g.owner AND d.depends_on_modules = g.modules
+                  AND d.depends_on_name = g.name
+       JOIN locations l ON l.item_hash = d.item_hash AND l.live = 1 AND l.branch_id = @main
+      WHERE NOT EXISTS (SELECT 1 FROM gone o
+                         WHERE o.owner = l.owner AND o.modules = l.modules AND o.name = l.name)"
+  |> Sql.parameters
+    [ "places", Sql.string (jsonRows places)
+      "main", Sql.string (string PT.BranchId.Main) ]
+  |> Sql.executeRows (fun read -> read.string "name")
 
 
 /// The state `defineBundled` runs in: the CLI's builtins, with `scmAddOps` the one that lets
@@ -327,11 +378,15 @@ let private applyEdits () : string =
     |> List.map (fun (file, text) ->
       (System.IO.Path.GetRelativePath(root (), file), text))
     |> Map.ofList
-  recordedFiles
-  |> Map.tryFindKey (fun file _ -> not (Map.containsKey file current))
-  |> Option.iter (fun file -> refuse $"{file} was deleted")
+  let deleted =
+    recordedFiles
+    |> Map.toList
+    |> List.filter (fun (file, _) -> not (Map.containsKey file current))
+    |> List.collect (fun (file, text) ->
+      let modules, olds = parse file text
+      olds |> List.collect (removals modules))
 
-  let work =
+  let diffs =
     current
     |> Map.toList
     |> List.choose (fun (file, text) ->
@@ -345,9 +400,24 @@ let private applyEdits () : string =
           | Some b -> parse file b
           | None -> (modules, [])
         if oldModules <> modules then refuse $"{file}'s module line changed"
-        match diff modules olds news with
-        | _, [] -> None
-        | source, changes -> Some(file, modules, source, changes))
+        let source, changes, removed = diff modules olds news
+        Some(file, modules, source, changes, removed))
+  let work =
+    diffs
+    |> List.filter (fun (_, _, _, changes, _) -> not (List.isEmpty changes))
+    |> List.map (fun (file, modules, source, changes, _) ->
+      (file, modules, source, changes))
+
+  // A declaration that moved to another file is defined there, not removed.
+  let defined =
+    work
+    |> List.collect (fun (_, _, _, changes) -> changes)
+    |> List.map location
+    |> Set.ofList
+  let removed =
+    deleted @ (diffs |> List.collect (fun (_, _, _, _, removed) -> removed))
+    |> List.filter (fun c -> not (Set.contains (location c) defined))
+    |> List.distinctBy location
 
   let counts =
     work
@@ -363,7 +433,7 @@ let private applyEdits () : string =
   if total > dependentsLimit then
     refuse $"the changes have {total} dependents, over {dependentsLimit}"
 
-  if not (List.isEmpty work) then
+  if not (List.isEmpty work && List.isEmpty removed) then
     let state = exeState ()
     let define =
       match PM.resolveFnRef "Darklang.Cli.Packages.ModuleCommand.defineBundled" with
@@ -388,6 +458,26 @@ let private applyEdits () : string =
             Exe.runtimeErrorMessage state rte)
         refuse $"`dark module` did not apply {file}: {message}")
 
+    // After the edits, so a caller rewritten in the same change no longer counts as a user.
+    if not (List.isEmpty removed) then
+      let bound = removed |> List.map (fun c -> location c, liveAt c)
+      let stillUsed = users (List.map fst bound)
+      if not (List.isEmpty stillUsed) then
+        refuse
+          $"{List.length stillUsed} live item(s) still use what was removed, such as {stillUsed[0]}"
+      let unbinds =
+        bound
+        |> List.collect (fun (loc, hashes) ->
+          hashes |> List.map (fun h -> PT.PackageOp.Unbind(loc, Some(PT.Hash h))))
+      LibDB.Queries.ensureAuthoringClockIsCurrent ()
+      match LibDB.Inserts.insertBundledOps PT.BranchId.Main unbinds with
+      // An op is its content, so removing the same version a second time is the op already in
+      // the log, which folds nothing.
+      | Ok n when n < int64 (List.length unbinds) ->
+        refuse "a removed declaration was removed before with the same body"
+      | Ok _ -> ()
+      | Error reason -> refuse $"removing declarations failed: {reason}"
+
     let _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
     LibDB.PackageRefsGenerator.generate true
     match LibDB.Seed.evaluateAllValues (Builtins.all ()) PM.rt with
@@ -396,7 +486,8 @@ let private applyEdits () : string =
 
   writeRecord files
   let decls = work |> List.sumBy (fun (_, _, _, changes) -> List.length changes)
-  $"applied {decls} declaration(s) from {List.length work} file(s), {total} dependent(s), in {started.Elapsed.TotalSeconds:F1}s; no full reload"
+  let gone = if List.isEmpty removed then "" else $", removed {List.length removed}"
+  $"applied {decls} declaration(s) from {List.length work} file(s){gone}, {total} dependent(s), in {started.Elapsed.TotalSeconds:F1}s; no full reload"
 
 
 /// Apply the edits, and say in a line starting `packages:` which path the build took.
