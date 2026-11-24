@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
   <!-- Create empty package-ref-hashes.txt if missing (fresh clone / CI before reload-packages) -->
   <Target Name="EnsurePackageRefHashes" BeforeTargets="PrepareForBuild">
@@ -37,6 +38,7 @@
     <Compile Include="Host/HostDescriptors.fs" />
     <Compile Include="Host/HostClock.fs" />
     <Compile Include="Host/HostRandom.fs" />
+    <Compile Include="Host/HostSqlite.fs" />
     <Compile Include="Host/Host.fs" />
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />

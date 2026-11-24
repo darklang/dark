@@ -1303,6 +1303,61 @@ let packageStoreAncestorsAreProtected =
       System.IO.Directory.Delete(root, true)
   }
 
+/// A database is a file: SQLite gets the file checks, never opens the store, and reads
+/// through a connection SQLite itself keeps read-only.
+let sqliteIsCheckedLikeAFile =
+  testSequenced
+  <| testTask "SQLite needs the file grant and never opens the package store" {
+    let root =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-sqlite-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
+    let store = System.IO.Path.Combine(root, "data.db")
+    System.IO.File.WriteAllText(store, "")
+    let restorePackageDbPath =
+      LibExecution.HostSecurity.packageDbPathForTesting store
+    let sqlite access write path sql =
+      let access =
+        Permission.Access.start (
+          Permission.Policy.create [ Permission.Rule.File(access, only root) ] []
+        )
+      LibExecution.Host.perform access (HT.Operation.Sqlite(path, write, sql, []))
+    let write = Permission.AccessKind.Write
+    let read = Permission.AccessKind.Read
+    try
+      let link = System.IO.Path.Combine(root, "link.db")
+      System.IO.File.CreateSymbolicLink(link, store)
+      |> ignore<System.IO.FileSystemInfo>
+      for path in [ store; store + "-wal"; store + "-journal"; link ] do
+        for isWrite in [ true; false ] do
+          let! outcome = sqlite write isWrite path "SELECT 1"
+          match outcome with
+          | HT.Outcome.Rejected _ -> ()
+          | other -> failtest $"{path}: expected the guard to refuse, got {other}"
+      let app = System.IO.Path.Combine(root, "app.db")
+      let! denied = sqlite read true app "CREATE TABLE t (v)"
+      match denied with
+      | HT.Outcome.Denied _ -> ()
+      | other -> failtest $"a write with only a read grant: {other}"
+      let! created =
+        sqlite write true app "CREATE TABLE t (v); INSERT INTO t VALUES (1)"
+      match created with
+      | HT.Outcome.Success(HT.Response.Sqlite(Ok answer)) ->
+        Expect.equal answer.rowsAffected 1L "one row inserted"
+      | other -> failtest $"create and insert: {other}"
+      let! readOnly = sqlite read false app "DELETE FROM t RETURNING v"
+      match readOnly with
+      | HT.Outcome.Success(HT.Response.Sqlite(Error e)) ->
+        Expect.equal e.code 8 "SQLITE_READONLY"
+      | other -> failtest $"a write through query: {other}"
+    finally
+      restorePackageDbPath.Dispose()
+      Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
+      System.IO.Directory.Delete(root, true)
+  }
+
 /// The root directory is a directory. The libc walk hands every operation a
 /// parent descriptor plus a final name, which `/` does not have, so listing
 /// and stat on it failed with "no final component" and `pathExists "/"` was
@@ -1807,4 +1862,5 @@ let tests =
       posixWalkRefusesALinkMetAtOperationTime
       localPolicyPathsRejectTraversal
       packageStoreAncestorsAreProtected
+      sqliteIsCheckedLikeAFile
       rootDirectoryIsReadable ]

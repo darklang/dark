@@ -149,6 +149,7 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
+          "Microsoft.Data.Sqlite": "[11.0.0, )",
           "Prelude": "[1.0.0, )"
         }
       },

@@ -189,6 +189,10 @@ permission to use it. Loading it later cannot restore access from an earlier run
   a link swapped in between the check and the operation is refused too; Windows
   relies on the check alone.
 - `~/.darklang/policy/` is refused under any spelling, even with every file allowed.
+- SQLite databases are files too. `Darklang.Sqlite.query` needs read access to the
+  database file, and `Darklang.Sqlite.execute` write access. SQLite's own side files
+  (`-wal`, `-shm`, `-journal`) need no rule of their own. The SQL can't reach any other
+  file: `ATTACH` and `VACUUM INTO` are refused, and so is Dark's own store.
 
 **Environment variables.** Rules name the variables code can read or change.
 Reading `APP_MODE` does not allow changing it or reading others. Denying any

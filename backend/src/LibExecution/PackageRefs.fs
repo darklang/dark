@@ -645,6 +645,11 @@ module Type =
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"
 
+  module Sqlite =
+    let value = p [ "Sqlite" ] "Value"
+    let error = p [ "Sqlite" ] "Error"
+    let changes = p [ "Sqlite" ] "Changes"
+
   module SCM =
     let storeHealth = p [ "SCM"; "StoreHealth" ] "Counts"
     /// What `scmDeps` is asked, and what it answers with.

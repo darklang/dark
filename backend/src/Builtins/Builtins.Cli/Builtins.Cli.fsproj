@@ -14,6 +14,7 @@
     <Compile Include="Libs/Posix.fs" />
     <Compile Include="Libs/Syscall.fs" />
     <Compile Include="Libs/RuntimeChild.fs" />
+    <Compile Include="Libs/Sqlite.fs" />
     <Compile Include="Libs/TerminalText.fs" />
     <Compile Include="Libs/Terminal.fs" />
     <Compile Include="Builtin.fs" />

@@ -1,0 +1,55 @@
+/// Read and write SQLite database files, with the SQLite built into `dark`.
+///
+/// A database is a file: `query` needs `file read` on it, `execute` needs `file write`. The
+/// SQL reaches that one file only: `ATTACH` and `VACUUM INTO` are refused, and so is this
+/// install's own store. Parameters bind to `?1`, `?2`, ... and are never spliced into the SQL.
+module Darklang.Sqlite
+
+/// One SQLite value: a column of a row, or a parameter.
+type Value =
+  | Null
+  | Integer(Int64)
+  | Real(Float64)
+  | Text(String)
+  | Blob(Bytes)
+
+
+/// Why a call failed. `code` is SQLite's extended result code (19 for a constraint, 2067 for
+/// a UNIQUE one), or -1 when the failure is not SQLite's.
+type Error =
+  { code: Int64
+    message: String }
+
+
+impl Stdlib.Display for Error =
+  let display(e: Error): String =
+    e.message
+
+
+/// What `execute` changed.
+type Changes =
+  { rowsAffected: Int64
+    lastInsertRowid: Int64 }
+
+
+/// Runs <param sql> on the database at <param path>, opened read-only, and returns the rows of
+/// every statement, each keyed by column name. <param params> bind to `?1`, `?2`, ... in order.
+///
+/// {{Darklang.Sqlite.query("app.db", "SELECT name FROM users WHERE id = ?1", [ Darklang.Sqlite.Value.Integer(1) ])}}
+/// is {{Ok([ Dict { "name": Darklang.Sqlite.Value.Text("Alice") } ])}}
+let query(
+  path: String,
+  sql: String,
+  params: List<Value>)
+  : Result<List<Dict<String, Value>>, Error> =
+  Builtin.sqliteQuery(path, sql, params)
+
+
+/// Runs the statements in <param sql> on the database at <param path> in one transaction,
+/// creating the file if it does not exist. All of them apply, or none. <param params> bind to
+/// `?1`, `?2`, ... in order.
+///
+/// {{Darklang.Sqlite.execute("app.db", "INSERT INTO users (name) VALUES (?1)", [ Darklang.Sqlite.Value.Text("Alice") ])}}
+/// is {{Ok(Darklang.Sqlite.Changes { rowsAffected = 1, lastInsertRowid = 1 })}}
+let execute(path: String, sql: String, params: List<Value>): Result<Changes, Error> =
+  Builtin.sqliteExecute(path, sql, params)

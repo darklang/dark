@@ -16,5 +16,6 @@ let builtins () =
       Libs.Terminal.builtins ()
       Libs.Posix.builtins ()
       Libs.Syscall.builtins ()
-      Libs.RuntimeChild.builtins () ]
+      Libs.RuntimeChild.builtins ()
+      Libs.Sqlite.builtins () ]
     fnRenames
