@@ -1791,10 +1791,11 @@ let parsedAs(
 
 
 let mismatchAt(
-  position: Int64)
+  position: Int64,
+  mismatch: Stdlib.DateTime.PatternMismatch)
   : Stdlib.Result.Result<DateTime, Stdlib.DateTime.PatternParseError> =
   Stdlib.Result.Result.Error(
-    Stdlib.DateTime.PatternParseError.Mismatch(position))
+    Stdlib.DateTime.PatternParseError.Mismatch(position, mismatch))
 
 
 let invalidDate()
@@ -1837,7 +1838,8 @@ test parseWithOffset =
       |> Stdlib.Test.equal(parsedAs("2019-12-31T23:00:00Z"))
 
       pw("2019-07-28T22:42:36+2", "%Y-%m-%dT%H:%M:%S%z")
-      |> Stdlib.Test.equal(mismatchAt(19))
+      |> Stdlib.Test.equal(
+        mismatchAt(19, Stdlib.DateTime.PatternMismatch.Field('z')))
 
       pw("2019-07-28T22:42:36+2500", "%Y-%m-%dT%H:%M:%S%z")
       |> Stdlib.Test.equal(invalidDate()) ])
@@ -1902,21 +1904,54 @@ test parseWithErrors =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(civil(2019, 1, 1)))
 
       // fields read as many digits as they can: %d takes "21", leaving nothing for the 1
-      pw("04-21", "%m-%d1") |> Stdlib.Test.equal(mismatchAt(5))
+      pw("04-21", "%m-%d1")
+      |> Stdlib.Test.equal(
+        mismatchAt(
+          5,
+          Stdlib.DateTime.PatternMismatch.Literal(
+            '1',
+            Stdlib.Option.Option.None)))
 
       pw("0415", "%m%d")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(civil(1970, 4, 15)))
 
-      // whatever their value: %H takes "91", not "9"
-      pw("915", "%H%M") |> Stdlib.Test.equal(invalidDate())
+      // but stop before a digit that would make the field too large: 91 is no hour
+      pw("915", "%H%M")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(d("1970-01-01T09:15:00Z")))
 
-      pw("2019/07/28", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(4))
+      pw("45", "%m%d")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(civil(1970, 4, 5)))
 
-      pw("2019--28", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(5))
+      // At the boundary: 2 could start an hour from 20 to 23, so %H reads the next digit
+      // whatever it is, as C's strptime does. 23 is an hour; 24 is not, and is not 02.
+      pw("235", "%H%M")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(d("1970-01-01T23:05:00Z")))
 
-      pw("2019-07-28x", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(10))
+      pw("245", "%H%M") |> Stdlib.Test.equal(invalidDate())
 
-      pw("2019-07", "%Y-%m-%d") |> Stdlib.Test.equal(mismatchAt(7))
+      pw("2019/07/28", "%Y-%m-%d")
+      |> Stdlib.Test.equal(
+        mismatchAt(
+          4,
+          Stdlib.DateTime.PatternMismatch.Literal(
+            '-',
+            Stdlib.Option.Option.Some('/'))))
+
+      pw("2019--28", "%Y-%m-%d")
+      |> Stdlib.Test.equal(
+        mismatchAt(5, Stdlib.DateTime.PatternMismatch.Field('m')))
+
+      pw("2019-07-28x", "%Y-%m-%d")
+      |> Stdlib.Test.equal(
+        mismatchAt(10, Stdlib.DateTime.PatternMismatch.TrailingText('x')))
+
+      pw("2019-07", "%Y-%m-%d")
+      |> Stdlib.Test.equal(
+        mismatchAt(
+          7,
+          Stdlib.DateTime.PatternMismatch.Literal(
+            '-',
+            Stdlib.Option.Option.None)))
 
       pw("2019-02-30", "%Y-%m-%d") |> Stdlib.Test.equal(invalidDate())
 
@@ -1925,8 +1960,10 @@ test parseWithErrors =
       pw("2019-07-28 24:00", "%Y-%m-%d %H:%M")
       |> Stdlib.Test.equal(invalidDate())
 
+      // %M stops at 6, since 60 is no minute, leaving the 0 unmatched
       pw("2019-07-28 23:60", "%Y-%m-%d %H:%M")
-      |> Stdlib.Test.equal(invalidDate())
+      |> Stdlib.Test.equal(
+        mismatchAt(15, Stdlib.DateTime.PatternMismatch.TrailingText('0')))
 
       // in range as written, past 9999-12-31 once the offset is applied
       pw("9999-12-31T23:00:00-0200", "%Y-%m-%dT%H:%M:%S%z")
@@ -1935,8 +1972,35 @@ test parseWithErrors =
       pw("-9999-12-31", "%Y-%m-%d") |> Stdlib.Test.equal(invalidDate())
 
       Stdlib.display(Stdlib.DateTime.PatternParseError.RepeatedDirective("%d"))
-      |> Stdlib.Test.equal("The pattern uses %d more than once")
+      |> Stdlib.Test.equal("The pattern uses %d more than once") ])
 
-      Stdlib.display(Stdlib.DateTime.PatternParseError.Mismatch(4))
+
+test parseWithMismatchMessages =
+  Stdlib.Test.all(
+    [ pw("2019/07/28", "%Y-%m-%d")
+      |> Stdlib.Result.mapError(Stdlib.display)
       |> Stdlib.Test.equal(
-        "The text does not match the pattern at character 4") ])
+        Stdlib.Result.Result.Error("Expected '-' at character 5, found '/'"))
+
+      pw("2019-07", "%Y-%m-%d")
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Expected '-' at character 8, found end of text"))
+
+      pw("2019-07-28x", "%Y-%m-%d")
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Expected end of text at character 11, found 'x'"))
+
+      pw("2019--28", "%Y-%m-%d")
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error("Could not read %m starting at character 6"))
+
+      pw("100\n", "100%%")
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Expected '%' at character 4, found '\\n'")) ])

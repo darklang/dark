@@ -459,6 +459,7 @@ test plainQuestionsFindTheFunctionNeeded = Instance.withInstance(fun i ->
     ("parse csv", "Darklang.Stdlib.Csv.parse")
     ("escape html", "Darklang.Stdlib.Html.escapeHtml")
     ("format a date as text", "Darklang.Stdlib.DateTime.format")
+    ("parse a date using a pattern", "Darklang.Stdlib.DateTime.parseWith")
     ("split a string into lines", "Darklang.Stdlib.String.split")
     ("sleep for some milliseconds", "Darklang.Stdlib.Cli.Posix.sleep")
     ("base64 encode bytes", "Darklang.Stdlib.Base64.encode")
