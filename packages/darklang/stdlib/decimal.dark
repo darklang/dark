@@ -376,7 +376,7 @@ let toFloat32(d: Decimal): Float32 =
   match Float32.parse(display(d)) with
   | Ok(f) -> f
   // unreachable: every decimal prints as digits a Float32 parses
-  | Error(_) -> 0.0f32
+  | Error(_) -> 0.0
 
 
 /// The decimal that <param f> prints as, so {{Decimal.fromFloat32(0.1f32) == Some(0.1dec)}}

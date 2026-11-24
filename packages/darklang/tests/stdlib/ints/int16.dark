@@ -116,19 +116,19 @@ test negate =
 /// divisor is 0.
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedRemainder(15s16, 6s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3s16))
+    [ Stdlib.Int16.checkedRemainder(15, 6)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
 
-      Stdlib.Int16.checkedRemainder(-20s16, 8s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4s16))
+      Stdlib.Int16.checkedRemainder(-20, 8)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4))
 
-      Stdlib.Int16.checkedRemainder(-20s16, -8s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4s16))
+      Stdlib.Int16.checkedRemainder(-20, -8)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4))
 
-      Stdlib.Int16.checkedRemainder(-32768s16, -1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s16))
+      Stdlib.Int16.checkedRemainder(-32768, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
 
-      Stdlib.Int16.checkedRemainder(5s16, 0s16)
+      Stdlib.Int16.checkedRemainder(5, 0)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
 
@@ -186,45 +186,39 @@ test toString =
 
 test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.toFloat64(2s16) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int16.toFloat64(-10s16) |> Stdlib.Test.equal(-10.0) ])
+    [ Stdlib.Int16.toFloat64(2) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int16.toFloat64(-10) |> Stdlib.Test.equal(-10.0) ])
 
 
 test parse =
   Stdlib.Test.all(
-    [ Stdlib.Int16.parse("0")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s16))
+    [ Stdlib.Int16.parse("0") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
 
-      Stdlib.Int16.parse("1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.parse("1") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.parse(" 1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.parse(" 1") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.parse("1 ")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.parse("1 ") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.parse("+1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.parse("+1") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
       Stdlib.Int16.parse(" +1 ")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.parse("-1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
+      Stdlib.Int16.parse("-1") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
       // "octal" format ignored
       Stdlib.Int16.parse("078")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(78s16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(78))
 
       Stdlib.Int16.parse("-00001")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
       Stdlib.Int16.parse("32767")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767s16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767))
 
       Stdlib.Int16.parse("-32768")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768)) ])
 
 
 test parseOutOfRange =
@@ -296,93 +290,93 @@ test parseBadFormat =
 
 test fromInt8 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromInt8(0s8) |> Stdlib.Test.equal(0s16)
-      Stdlib.Int16.fromInt8(1s8) |> Stdlib.Test.equal(1s16)
-      Stdlib.Int16.fromInt8(127s8) |> Stdlib.Test.equal(127s16)
-      Stdlib.Int16.fromInt8(-1s8) |> Stdlib.Test.equal(-1s16)
-      Stdlib.Int16.fromInt8(-128s8) |> Stdlib.Test.equal(-128s16) ])
+    [ Stdlib.Int16.fromInt8(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int16.fromInt8(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int16.fromInt8(127) |> Stdlib.Test.equal(127)
+      Stdlib.Int16.fromInt8(-1) |> Stdlib.Test.equal(-1)
+      Stdlib.Int16.fromInt8(-128) |> Stdlib.Test.equal(-128) ])
 
 
 test fromUInt8 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromUInt8(0u8) |> Stdlib.Test.equal(0s16)
-      Stdlib.Int16.fromUInt8(1u8) |> Stdlib.Test.equal(1s16)
-      Stdlib.Int16.fromUInt8(255u8) |> Stdlib.Test.equal(255s16) ])
+    [ Stdlib.Int16.fromUInt8(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int16.fromUInt8(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int16.fromUInt8(255) |> Stdlib.Test.equal(255) ])
 
 
 test fromUInt16 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromUInt16(0u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s16))
+    [ Stdlib.Int16.fromUInt16(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int16.fromUInt16(1u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s16))
+      Stdlib.Int16.fromUInt16(1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int16.fromUInt16(32767u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767s16))
+      Stdlib.Int16.fromUInt16(32767)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767))
 
-      Stdlib.Int16.fromUInt16(32768u16)
+      Stdlib.Int16.fromUInt16(32768)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
 test fromInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromInt32(0s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s16))
+    [ Stdlib.Int16.fromInt32(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int16.fromInt32(1s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s16))
+      Stdlib.Int16.fromInt32(1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int16.fromInt32(32767s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767s16))
+      Stdlib.Int16.fromInt32(32767)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767))
 
-      Stdlib.Int16.fromInt32(32768s32)
+      Stdlib.Int16.fromInt32(32768)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Int16.fromInt32(-1s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s16))
+      Stdlib.Int16.fromInt32(-1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1))
 
-      Stdlib.Int16.fromInt32(-32768s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-32768s16))
+      Stdlib.Int16.fromInt32(-32768)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-32768))
 
-      Stdlib.Int16.fromInt32(-32769s32)
+      Stdlib.Int16.fromInt32(-32769)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
 test fromUInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromUInt32(0u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s16))
+    [ Stdlib.Int16.fromUInt32(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int16.fromUInt32(1u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s16))
+      Stdlib.Int16.fromUInt32(1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int16.fromUInt32(32767u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767s16))
+      Stdlib.Int16.fromUInt32(32767)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767))
 
-      Stdlib.Int16.fromUInt32(32768u32)
+      Stdlib.Int16.fromUInt32(32768)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
 test fromInt64 =
   Stdlib.Test.all(
     [ Stdlib.Int16.fromInt64(0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s16))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
       Stdlib.Int16.fromInt64(1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s16))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
       Stdlib.Int16.fromInt64(32767)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767s16))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767))
 
       Stdlib.Int16.fromInt64(32768)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
       Stdlib.Int16.fromInt64(-1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s16))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1))
 
       Stdlib.Int16.fromInt64(-32768)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-32768s16))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-32768))
 
       Stdlib.Int16.fromInt64(-32769)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
@@ -390,55 +384,55 @@ test fromInt64 =
 
 test fromUInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromUInt64(0u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s16))
+    [ Stdlib.Int16.fromUInt64(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int16.fromUInt64(1u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s16))
+      Stdlib.Int16.fromUInt64(1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int16.fromUInt64(32767u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767s16))
+      Stdlib.Int16.fromUInt64(32767)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767))
 
-      Stdlib.Int16.fromUInt64(32768u64)
+      Stdlib.Int16.fromUInt64(32768)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
 test fromInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromInt128(0s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s16))
+    [ Stdlib.Int16.fromInt128(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int16.fromInt128(1s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s16))
+      Stdlib.Int16.fromInt128(1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int16.fromInt128(32767s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767s16))
+      Stdlib.Int16.fromInt128(32767)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767))
 
-      Stdlib.Int16.fromInt128(32768s128)
+      Stdlib.Int16.fromInt128(32768)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Int16.fromInt128(-1s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s16))
+      Stdlib.Int16.fromInt128(-1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1))
 
-      Stdlib.Int16.fromInt128(-32768s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-32768s16))
+      Stdlib.Int16.fromInt128(-32768)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-32768))
 
-      Stdlib.Int16.fromInt128(-32769s128)
+      Stdlib.Int16.fromInt128(-32769)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
 test fromUInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.fromUInt128(0u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s16))
+    [ Stdlib.Int16.fromUInt128(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int16.fromUInt128(1u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s16))
+      Stdlib.Int16.fromUInt128(1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int16.fromUInt128(32767u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767s16))
+      Stdlib.Int16.fromUInt128(32767)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32767))
 
-      Stdlib.Int16.fromUInt128(32768u128)
+      Stdlib.Int16.fromUInt128(32768)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
@@ -513,158 +507,158 @@ test shiftCountWraps =
 
 test checkedAdd =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedAdd(32767s16, 1s16)
+    [ Stdlib.Int16.checkedAdd(32767, 1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedAdd(-32768s16, -1s16)
+      Stdlib.Int16.checkedAdd(-32768, -1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedAdd(32767s16, -1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32766s16))
+      Stdlib.Int16.checkedAdd(32767, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32766))
 
-      Stdlib.Int16.checkedAdd(-32768s16, 1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767s16))
+      Stdlib.Int16.checkedAdd(-32768, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767))
 
-      Stdlib.Int16.checkedAdd(32767s16, -32768s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
+      Stdlib.Int16.checkedAdd(32767, -32768)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
-      Stdlib.Int16.checkedAdd(-32768s16, 0s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16)) ])
+      Stdlib.Int16.checkedAdd(-32768, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768)) ])
 
 
 test checkedSubtract =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedSubtract(-32768s16, 1s16)
+    [ Stdlib.Int16.checkedSubtract(-32768, 1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedSubtract(32767s16, -1s16)
+      Stdlib.Int16.checkedSubtract(32767, -1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedSubtract(0s16, -32768s16)
+      Stdlib.Int16.checkedSubtract(0, -32768)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedSubtract(-1s16, -32768s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767s16))
+      Stdlib.Int16.checkedSubtract(-1, -32768)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767))
 
-      Stdlib.Int16.checkedSubtract(32767s16, 32767s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s16))
+      Stdlib.Int16.checkedSubtract(32767, 32767)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
 
-      Stdlib.Int16.checkedSubtract(-32768s16, -1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767s16)) ])
+      Stdlib.Int16.checkedSubtract(-32768, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767)) ])
 
 
 test checkedMultiply =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedMultiply(32767s16, 2s16)
+    [ Stdlib.Int16.checkedMultiply(32767, 2)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedMultiply(-32768s16, -1s16)
+      Stdlib.Int16.checkedMultiply(-32768, -1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedMultiply(-1s16, -32768s16)
+      Stdlib.Int16.checkedMultiply(-1, -32768)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedMultiply(-32768s16, 2s16)
+      Stdlib.Int16.checkedMultiply(-32768, 2)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedMultiply(32767s16, -1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767s16))
+      Stdlib.Int16.checkedMultiply(32767, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767))
 
-      Stdlib.Int16.checkedMultiply(-32768s16, 1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16))
+      Stdlib.Int16.checkedMultiply(-32768, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768))
 
-      Stdlib.Int16.checkedMultiply(-32768s16, 0s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s16))
+      Stdlib.Int16.checkedMultiply(-32768, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
 
-      Stdlib.Int16.checkedMultiply(-2s16, 16383s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32766s16)) ])
+      Stdlib.Int16.checkedMultiply(-2, 16383)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32766)) ])
 
 
 test checkedNegate =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedNegate(-32768s16)
+    [ Stdlib.Int16.checkedNegate(-32768)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedNegate(32767s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767s16))
+      Stdlib.Int16.checkedNegate(32767)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767))
 
-      Stdlib.Int16.checkedNegate(0s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s16)) ])
+      Stdlib.Int16.checkedNegate(0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0)) ])
 
 
 test checkedAbsoluteValue =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedAbsoluteValue(-32768s16)
+    [ Stdlib.Int16.checkedAbsoluteValue(-32768)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Int16.checkedAbsoluteValue(-32767s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767s16))
+      Stdlib.Int16.checkedAbsoluteValue(-32767)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767))
 
-      Stdlib.Int16.checkedAbsoluteValue(32767s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767s16))
+      Stdlib.Int16.checkedAbsoluteValue(32767)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767))
 
-      Stdlib.Int16.checkedAbsoluteValue(0s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s16)) ])
+      Stdlib.Int16.checkedAbsoluteValue(0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0)) ])
 
 
 /// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
 test checkedPower =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedPower(2s16, 14s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16384s16))
+    [ Stdlib.Int16.checkedPower(2, 14)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16384))
 
-      Stdlib.Int16.checkedPower(2s16, 15s16)
+      Stdlib.Int16.checkedPower(2, 15)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
 
-      Stdlib.Int16.checkedPower(-2s16, 15s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16))
+      Stdlib.Int16.checkedPower(-2, 15)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768))
 
-      Stdlib.Int16.checkedPower(-2s16, 14s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16384s16))
+      Stdlib.Int16.checkedPower(-2, 14)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16384))
 
-      Stdlib.Int16.checkedPower(3s16, 0s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.checkedPower(3, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.checkedPower(0s16, 0s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.checkedPower(0, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.checkedPower(0s16, 32767s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s16))
+      Stdlib.Int16.checkedPower(0, 32767)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
 
-      Stdlib.Int16.checkedPower(1s16, 32767s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.checkedPower(1, 32767)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.checkedPower(2s16, 32767s16)
+      Stdlib.Int16.checkedPower(2, 32767)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
 
-      Stdlib.Int16.checkedPower(-1s16, 32767s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
+      Stdlib.Int16.checkedPower(-1, 32767)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
-      Stdlib.Int16.checkedPower(-1s16, 32766s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.checkedPower(-1, 32766)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.checkedPower(2s16, -1s16)
+      Stdlib.Int16.checkedPower(2, -1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent))
 
-      Stdlib.Int16.checkedPower(0s16, -1s16)
+      Stdlib.Int16.checkedPower(0, -1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent))
 
-      Stdlib.Int16.checkedPower(1s16, -32768s16)
+      Stdlib.Int16.checkedPower(1, -32768)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent)) ])
 
@@ -672,43 +666,43 @@ test checkedPower =
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedDivide(17s16, 3s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5s16))
+    [ Stdlib.Int16.checkedDivide(17, 3)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5))
 
-      Stdlib.Int16.checkedDivide(-8s16, 5s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
+      Stdlib.Int16.checkedDivide(-8, 5)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
-      Stdlib.Int16.checkedDivide(-32768s16, -1s16)
+      Stdlib.Int16.checkedDivide(-32768, -1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.Overflow))
 
-      Stdlib.Int16.checkedDivide(-32768s16, 1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16))
+      Stdlib.Int16.checkedDivide(-32768, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768))
 
-      Stdlib.Int16.checkedDivide(-32767s16, -1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767s16))
+      Stdlib.Int16.checkedDivide(-32767, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(32767))
 
-      Stdlib.Int16.checkedDivide(32767s16, -1s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767s16))
+      Stdlib.Int16.checkedDivide(32767, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32767))
 
-      Stdlib.Int16.checkedDivide(-32768s16, -2s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16384s16))
+      Stdlib.Int16.checkedDivide(-32768, -2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16384))
 
-      Stdlib.Int16.checkedDivide(5s16, 0s16)
+      Stdlib.Int16.checkedDivide(5, 0)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero))
 
-      Stdlib.Int16.checkedMod(15s16, 6s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3s16))
+      Stdlib.Int16.checkedMod(15, 6)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
 
-      Stdlib.Int16.checkedMod(-1s16, 2s16)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s16))
+      Stdlib.Int16.checkedMod(-1, 2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
 
-      Stdlib.Int16.checkedMod(5s16, 0s16)
+      Stdlib.Int16.checkedMod(5, 0)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus))
 
-      Stdlib.Int16.checkedMod(5s16, -1s16)
+      Stdlib.Int16.checkedMod(5, -1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
 
@@ -730,25 +724,24 @@ test moduloRejectsMinusOne =
 
 test sqrt =
   Stdlib.Test.all(
-    [ Stdlib.Int16.sqrt(4s16) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int16.sqrt(86s16) |> Stdlib.Test.equal(9.273618495495704)
-      Stdlib.Int16.sqrt(32767s16) |> Stdlib.Test.equal(181.01657382681842) ])
+    [ Stdlib.Int16.sqrt(4) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int16.sqrt(86) |> Stdlib.Test.equal(9.273618495495704)
+      Stdlib.Int16.sqrt(32767) |> Stdlib.Test.equal(181.01657382681842) ])
 
 
 test checkedSqrt =
   Stdlib.Test.all(
-    [ Stdlib.Int16.checkedSqrt(4s16)
+    [ Stdlib.Int16.checkedSqrt(4)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.0))
 
-      Stdlib.Int16.checkedSqrt(-4s16)
+      Stdlib.Int16.checkedSqrt(-4)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber)) ])
 
 
 test limits =
   Stdlib.Test.all(
-    [ Stdlib.Int16.minValue |> Stdlib.Test.equal(-32768s16)
-      Stdlib.Int16.maxValue |> Stdlib.Test.equal(32767s16)
+    [ Stdlib.Int16.minValue |> Stdlib.Test.equal(-32768)
+      Stdlib.Int16.maxValue |> Stdlib.Test.equal(32767)
       Stdlib.Int16.bitWidth |> Stdlib.Test.equal(16)
-      Stdlib.Int16.maxValue + 1s16
-      |> Stdlib.Test.equal(Stdlib.Int16.minValue) ])
+      Stdlib.Int16.maxValue + 1 |> Stdlib.Test.equal(Stdlib.Int16.minValue) ])

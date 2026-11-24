@@ -234,6 +234,29 @@ test acceptsTheSameMeaningLaidOutAnotherWay =
   |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Option.None))
 
 
+test acceptsADroppedSuffixTheSaveWritesBack =
+  LanguageTools.Formatter.parse(
+    "module Darklang.Tests.FormatSample\n\nlet f(): Float64 = Stdlib.Int16.sqrt(4s16)\n")
+  |> Stdlib.Result.map(fun file ->
+    LanguageTools.Formatter.meaningChange(
+      file,
+      "module Darklang.Tests.FormatSample\n\nlet f(): Float64 = Stdlib.Int16.sqrt(4)\n"))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Option.None))
+
+
+test refusesADroppedSuffixTheSaveWouldNotWriteBack =
+  LanguageTools.Formatter.parse(
+    "module Darklang.Tests.FormatSample\n\nlet f(): List<Int16> = [ 4s16 ]\n")
+  |> Stdlib.Result.map(fun file ->
+    LanguageTools.Formatter.meaningChange(
+      file,
+      "module Darklang.Tests.FormatSample\n\nlet f(): List<Int16> = [ 4 + 0 ]\n"))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      Option.Some(
+        "formatting would change what Darklang.Tests.FormatSample.f means")))
+
+
 test refusesWhatDoesNotParse =
   LanguageTools.Formatter.parse(subtraction)
   |> Stdlib.Result.map(fun file ->

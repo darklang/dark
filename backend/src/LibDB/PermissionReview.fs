@@ -88,7 +88,7 @@ let preflight
         List.tryItem index args |> Option.defaultValue Known.Unknown, true
       | PT.EVariable(_, name) ->
         Map.tryFind name env |> Option.defaultValue Known.Unknown, true
-      | PT.ELet(_, pattern, value, body) ->
+      | PT.ELet(_, pattern, _, value, body) ->
         let value, continues = walk entry stack env args value
         if not continues then
           Known.Unknown, false

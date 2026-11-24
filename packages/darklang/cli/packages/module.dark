@@ -333,7 +333,7 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
             else
               ()
 
-            AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0u64)
+            AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0)
 
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.
@@ -463,7 +463,7 @@ let execute(state: AppState, args: List<String>): AppState =
 /// main in place of a reload. An unresolved name fails it, leaving that to the reload. The dependents
 /// that follow are not type-checked: for a core function that is most of the time, and a reload
 /// doesn't check them either.
-let defineBundled(modulePath: String, source: String): Int64 =
+let defineBundled(modulePath: String, source: String): UInt8 =
   let state =
     { Cli.initState() with nonInteractive = true, currentBranchId = SCM.Branch.mainBranchId }
 

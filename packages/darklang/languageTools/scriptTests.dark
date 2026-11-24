@@ -82,7 +82,7 @@ let belowLet(sourceFile: WrittenTypes.SourceFile.SourceFile): List<BelowLet> =
 /// The first name a chain of top-level statements binds with `let`, and its line.
 let firstLet(e: WrittenTypes.Expr): Option<(String * Int64)> =
   match e with
-  | ELet(_, pattern, _, rest, keywordLet, _) ->
+  | ELet(_, pattern, _, _, rest, keywordLet, _) ->
     match letBindings(pattern) with
     | [name, ...] -> Option.Some((name, keywordLet.start.row + 1))
     | [] -> firstLet(rest)
@@ -93,11 +93,11 @@ let firstLet(e: WrittenTypes.Expr): Option<(String * Int64)> =
 /// The names a chain of top-level statements binds, added to <param acc>.
 let statementLocals(acc: Dict<String, Local>, e: WrittenTypes.Expr): Dict<String, Local> =
   match e with
-  | ELet(_, LPVariable(_, name), ELambda(_, params, body, _, _), rest, _, _) ->
+  | ELet(_, LPVariable(_, name), _, ELambda(_, params, body, _, _), rest, _, _) ->
     let uses = used(Stdlib.List.flatten(Stdlib.List.map(params, letBindings)), body)
     let acc = Stdlib.Dict.set(acc, name, Local.Fn(uses |> Stdlib.List.map(Stdlib.Tuple2.first)))
     statementLocals(acc, rest)
-  | ELet(_, pattern, _, rest, keywordLet, _) ->
+  | ELet(_, pattern, _, _, rest, keywordLet, _) ->
     let line = keywordLet.start.row + 1
     let acc =
       Stdlib.List.fold(letBindings(pattern), acc, fun(acc, name) ->
@@ -163,7 +163,7 @@ let used(bound: List<String>, e: WrittenTypes.Expr): List<(String * Parser.Range
   match e with
   | EVariable(range, n) -> name(n, range)
   | EFnName(range, q) when Stdlib.List.isEmpty(q.modules) -> name(q.fn.name, range)
-  | ELet(_, pattern, value, body, _, _) ->
+  | ELet(_, pattern, _, value, body, _, _) ->
     Stdlib.List.concat(
       used(bound, value),
       used(Stdlib.List.concat(bound, letBindings(pattern)), body))

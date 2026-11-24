@@ -287,7 +287,7 @@ test namedTestOutcomes =
 
   let notReserved =
     match exprs("let test = 1 in test") with
-    | [ELet(_, _, _, _, _, _)] -> ok()
+    | [ELet(_, _, _, _, _, _, _)] -> ok()
     | _ -> unexpected("let test = 1 in test")
 
   Stdlib.Test.all([ raises, call, notReserved ])
@@ -348,7 +348,7 @@ test simpleExpressions =
 test topLevelLetSequences =
   let source = "let x = 1\nx"
   match decls(source), exprs(source) with
-  | [], [ELet(_, LPVariable(_, "x"), EInt64(_, (_, 1), _), EVariable(_, "x"), _, _)] ->
+  | [], [ELet(_, LPVariable(_, "x"), None, EInt64(_, (_, 1), _), EVariable(_, "x"), _, _)] ->
     ok()
   | _ -> unexpected(source)
 
@@ -418,7 +418,7 @@ test matchPatterns =
 
       match armPatterns(
               "match x with | Ok(5s8) -> 1 | Ok(-4s8) -> 2 | _ -> 3") with
-      | [MPEnum(_, (_, "Ok"), [MPInt8(_, (_, 5s8), _)]), MPEnum(_, (_, "Ok"), [MPInt8(_, (_, -4s8), _)]), _] ->
+      | [MPEnum(_, (_, "Ok"), [MPInt8(_, (_, 5), _)]), MPEnum(_, (_, "Ok"), [MPInt8(_, (_, -4), _)]), _] ->
         ok()
       | _ -> unexpected("sized-int fields")
 
@@ -527,7 +527,7 @@ test offside =
       | _ -> unexpected("statement then unit")
 
       match fnBody("let f(): Int64 =\n  let x = 1\n  let y = 2\n  x") with
-      | Some(ELet(_, LPVariable(_, "x"), _, ELet(_, LPVariable(_, "y"), _, EVariable(_, "x"), _, _), _, _)) ->
+      | Some(ELet(_, LPVariable(_, "x"), _, _, ELet(_, LPVariable(_, "y"), _, _, EVariable(_, "x"), _, _), _, _)) ->
         ok()
       | _ -> unexpected("let chain")
 
@@ -543,7 +543,7 @@ test offside =
       // a nested fn declaration is a name-bound lambda
       match fnBody(
               "let f(): Int64 =\n  let g(x: Int64): Int64 = x + 1\n  g(5)") with
-      | Some(ELet(_, LPVariable(_, "g"), ELambda(_, _, EInfix(_, (_, InfixFnCall(ArithmeticPlus)), _, _), _, _), EApply(_, _, _, _), _, _)) ->
+      | Some(ELet(_, LPVariable(_, "g"), _, ELambda(_, _, EInfix(_, (_, InfixFnCall(ArithmeticPlus)), _, _), _, _), EApply(_, _, _, _), _, _)) ->
         ok()
       | _ -> unexpected("nested fn") ])
 
@@ -765,7 +765,7 @@ test functionTypes =
 test literalValues =
   Stdlib.Test.all(
     [ match exprs("-128s8") with
-      | [EInt8(_, (_, v), _)] -> v |> Stdlib.Test.equal(-128s8)
+      | [EInt8(_, (_, v), _)] -> v |> Stdlib.Test.equal(-128)
       | _ -> unexpected("-128s8")
 
       // exponent floats lower to plain digits

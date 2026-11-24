@@ -239,7 +239,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
     required
     @ duplicateIssues (patterns |> List.collect letBindings)
     @ exprIssues true body
-  | WT.ELet(_, pattern, value, body, _, _) ->
+  | WT.ELet(_, pattern, _, value, body, _, _) ->
     duplicateIssues (letBindings pattern) @ recurse value @ recurse body
   | WT.EMatch(range, value, cases, _, _) ->
     let required =

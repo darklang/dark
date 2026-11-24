@@ -83,7 +83,7 @@ let truncate(a: Float32): Int64 =
 impl Negate for Float32 =
   /// Returns the negation of <param a>, {{-a}}
   let negate(a: Float32): Float32 =
-    a * -1.0f32
+    a * -1.0
 
 
 /// Get the square root of a float, correctly rounded
@@ -193,7 +193,7 @@ let checkedMultiply(a: Float32, b: Float32): Result<Float32, Math.Overflow> =
 /// Divides <param a> by <param b>, or {{Error DivisionByZero}} where <param b> is zero
 /// and {{Error Overflow}} where the quotient is too large
 let checkedDivide(a: Float32, b: Float32): Result<Float32, Math.NonFinite> =
-  if b == 0.0f32 then
+  if b == 0.0 then
     Result.Error(Math.NonFinite.DivisionByZero)
   else
     __finite(a / b, Math.NonFinite.Overflow)
@@ -203,12 +203,7 @@ let checkedDivide(a: Float32, b: Float32): Result<Float32, Math.NonFinite> =
 /// is not finite: {{DivisionByZero}} for zero to a negative power, {{NotANumber}} for a
 /// negative base to a fractional power, and {{Overflow}} where it is too large
 let checkedPower(base: Float32, exponent: Float32): Result<Float32, Math.NonFinite> =
-  let ifInfinite =
-    if base == 0.0f32 then
-      Math.NonFinite.DivisionByZero
-    else
-      Math.NonFinite.Overflow
-
+  let ifInfinite = if base == 0.0 then Math.NonFinite.DivisionByZero else Math.NonFinite.Overflow
   __finite(base ** exponent, ifInfinite)
 
 
@@ -288,7 +283,7 @@ let isNaN(f: Float32): Bool =
 /// and for positive or negative infinity
 let isFinite(f: Float32): Bool =
   // NaN and ±infinity give NaN here, which equals nothing
-  f - f == 0.0f32
+  f - f == 0.0
 
 
 /// Convert <param a> to an <type Int64> by discarding its fractional part.
@@ -318,9 +313,9 @@ impl Display for Float32 =
 
 impl Zero for Float32 =
   let zero(): Float32 =
-    0.0f32
+    0.0
 
 
 impl One for Float32 =
   let one(): Float32 =
-    1.0f32
+    1.0

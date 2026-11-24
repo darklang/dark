@@ -256,7 +256,7 @@ module Builtins =
             resolved(
               LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
                 LanguageTools.ProgramTypes.FQFnName.Builtin
-                  { name = "missing", version = 0s32 })),
+                  { name = "missing", version = 0 })),
             [],
             []),
           [],

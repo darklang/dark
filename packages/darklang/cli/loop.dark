@@ -443,7 +443,7 @@ let applyKeyRead(
 
 
 /// <param watch> is how far this loop has looked at the op log (`Stdlib.Host.begin`).
-let runInteractiveLoop(state: AppState, watch: LanguageTools.Live.Watch): Int64 =
+let runInteractiveLoop(state: AppState, watch: LanguageTools.Live.Watch): UInt8 =
   if state.isExiting then
     // Clear any retained prompt region so the shell prompt takes its place.
     let _cleared = clearPromptRegion(state)

@@ -55,7 +55,7 @@ let isRoot(): Bool =
 let __text(buffer: Bytes, offset: Int64, length: Int64): String =
   let field = Bytes.take(Bytes.drop(buffer, offset), length)
   let text =
-    match Bytes.indexOf(field, 0u8) with
+    match Bytes.indexOf(field, 0) with
     | Some(nul) -> Bytes.take(field, nul)
     | None -> field
 

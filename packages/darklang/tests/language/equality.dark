@@ -374,7 +374,7 @@ test int8EqualsInt32Raises =
   (5s8 == 5s32) => raises "Cannot perform equality check on Int8 and Int32"
 
 test int64EqualsInt32Raises =
-  (5 == 5s32) => raises "Cannot perform equality check on Int64 and Int32"
+  (Stdlib.Int64.fromInt32(5s32) == 5s32) => raises "Cannot perform equality check on Int64 and Int32"
 
 test uint16NotEqualsInt16Raises =
   (5u16 != 6s16) => raises "Cannot perform equality check on UInt16 and Int16"

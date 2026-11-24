@@ -376,6 +376,7 @@ type FnLayout =
 let declaration(
   branchId: Uuid,
   known: PrettyPrinter.ProgramTypes.KnownBindings,
+  bare: Dict<String, Bool>,
   width: Int64,
   file: File,
   path: List<String>,
@@ -423,7 +424,8 @@ let declaration(
         trailingComments = byKey(trailingInside, fun c -> c.node)
         compactFnBody = layout == FnLayout.Compact
         hasComments = Stdlib.Bool.not(Stdlib.List.isEmpty(inside))
-        knownBindings = Option.Some(known) }
+        knownBindings = Option.Some(known)
+        bareNumbers = Option.Some(bare) }
 
   let asWritten(): (String * String * List<String>) =
     (aboveText, sourceOf(file, d), [ declarationName(file, d) ])
@@ -450,10 +452,12 @@ let declaration(
 
     let innerPath = Stdlib.List.concat(path, Stdlib.String.split(name, "."))
     if header then
-      let (body, names) = declarations(branchId, known, width, file, innerPath, own, inner)
+      let (body, names) = declarations(branchId, known, bare, width, file, innerPath, own, inner)
       (aboveText, docText + $"module {name}\n\n" + body, names)
     else
-      let (body, names) = declarations(branchId, known, width - 2, file, innerPath, own, inner)
+      let (body, names) =
+        declarations(branchId, known, bare, width - 2, file, innerPath, own, inner)
+
       (aboveText, docText + $"module {name} =\n" + indentLines(body, 2), names)
   | _ ->
     match printed with
@@ -491,6 +495,7 @@ let widthFor(width: Int64, path: List<String>, d: Declaration): Int64 =
 let declarations(
   branchId: Uuid,
   known: PrettyPrinter.ProgramTypes.KnownBindings,
+  bare: Dict<String, Bool>,
   width: Int64,
   file: File,
   path: List<String>,
@@ -523,6 +528,7 @@ let declarations(
             declaration(
               branchId,
               known,
+              bare,
               widthFor(width, path, d),
               file,
               path,
@@ -574,7 +580,16 @@ let declarations(
       match s with
       | Some(compact) when run >= 3 -> compact
       | _ ->
-        declaration(branchId, known, widthFor(width, path, d), file, path, FnLayout.Spaced, own, d))
+        declaration(
+          branchId,
+          known,
+          bare,
+          widthFor(width, path, d),
+          file,
+          path,
+          FnLayout.Spaced,
+          own,
+          d))
 
   // One blank line between two declarations that each fit on a line, and two otherwise, or
   // between all of a run of tests when any of the run takes several lines.
@@ -614,6 +629,37 @@ let declarations(
     |> Stdlib.List.flatten
 
   (text, names)
+
+
+/// The bodies in <param ds>, modules' included, as the ops that would add them, for asking the
+/// checker about their numbers. The parse gives every declaration the same placeholder hash, so
+/// each gets one of its own; what they name resolved to the store, or doesn't count.
+let opsIn(ds: List<Declaration>): List<ProgramTypes.PackageOp> =
+  bodiesIn(ds)
+  |> Stdlib.List.indexedMap(fun(i, op) ->
+    let hash = ProgramTypes.Hash.Hash($"format-{Stdlib.display(i)}")
+    match op with
+    | AddFn(fn) -> ProgramTypes.PackageOp.AddFn({ fn with hash = hash })
+    | AddValue(v) -> ProgramTypes.PackageOp.AddValue({ v with hash = hash })
+    | AddTest(t) -> ProgramTypes.PackageOp.AddTest({ t with hash = hash })
+    | other -> other)
+
+
+let bodiesIn(ds: List<Declaration>): List<ProgramTypes.PackageOp> =
+  ds
+  |> Stdlib.List.map(fun d ->
+    match d.item with
+    | Module(_, _, inner) -> bodiesIn(inner)
+    | Fn(_, fn) -> [ ProgramTypes.PackageOp.AddFn(fn) ]
+    | Value(_, v) -> [ ProgramTypes.PackageOp.AddValue(v) ]
+    | Test(_, t) -> [ ProgramTypes.PackageOp.AddTest(t) ]
+    | Impl(_, _, members) ->
+      Stdlib.List.filterMap(members, fun m ->
+        match m with
+        | Declared(_, fn) -> Option.Some(ProgramTypes.PackageOp.AddFn(fn))
+        | Named(_) -> Option.None)
+    | _ -> [])
+  |> Stdlib.List.flatten
 
 
 /// The package references printed in <param ds>, declared at <param path>, by the module
@@ -688,7 +734,15 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
               referencesIn([], file.declarations)) }
 
     let (body, asWritten) =
-      declarations(branchId, known, width, file, [], comments, file.declarations)
+      declarations(
+        branchId,
+        known,
+        AtRestTypeChecker.Suffixes.droppable(branchId, opsIn(file.declarations)),
+        width,
+        file,
+        [],
+        comments,
+        file.declarations)
 
     // Comments after the last line of code.
     let lastRow =
@@ -726,15 +780,69 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
       Result.Error($"formatting would change its comments, starting with: {lost}")
 
 
-/// Each declaration in <param ds> with what it means, a module's by what is in it.
-let meanings(file: File, path: String, ds: List<Declaration>): List<(String * String)> =
+/// Each declaration in <param ds> by its full name, a module's by what is in it.
+let named(file: File, path: String, ds: List<Declaration>): List<(String * Declaration)> =
   ds
   |> Stdlib.List.map(fun d ->
     let name = path + declarationName(file, d)
     match d.item with
-    | Module(_, _, inner) -> meanings(file, name + ".", inner)
-    | _ -> [ (name, d.meaning) ])
+    | Module(_, _, inner) -> named(file, name + ".", inner)
+    | _ -> [ (name, d) ])
   |> Stdlib.List.flatten
+
+
+/// What <param d> stores once saved. The save gives a bare number the type its slot wants,
+/// which the parse alone can't see, so a suffix the printer dropped leaves this the same.
+let stored(d: Declaration): String =
+  // Stabilizing rehashes only an item bound to a name, so each gets one.
+  let bound =
+    opsIn([ d ])
+    |> Stdlib.List.indexedMap(fun(i, op) ->
+      // an impl's methods are several items, so each gets its own name
+      let at =
+        ProgramTypes.PackageLocation
+          { owner = "Format", modules = [], name = $"item{Stdlib.display(i)}" }
+
+      match op with
+      | AddFn(fn) ->
+        [ op
+          ProgramTypes.PackageOp.SetName(
+            at,
+            ProgramTypes.Reference.PackageFn(fn.hash),
+            Option.None) ]
+      | AddValue(v) ->
+        [ op
+          ProgramTypes.PackageOp.SetName(
+            at,
+            ProgramTypes.Reference.PackageValue(v.hash),
+            Option.None) ]
+      | AddTest(t) ->
+        [ op
+          ProgramTypes.PackageOp.SetName(
+            at,
+            ProgramTypes.Reference.PackageTest(t.hash),
+            Option.None) ]
+      | _ -> [ op ])
+    |> Stdlib.List.flatten
+
+  let hashes = fun () ->
+    let (resolved, _) = PackageManager.resolveTraitCalls(bound)
+    PackageManager.stabilizeHashes(resolved)
+    |> Stdlib.List.filterMap(fun op ->
+      match op with
+      | AddFn(fn) -> Option.Some(fn.hash)
+      | AddValue(v) -> Option.Some(v.hash)
+      | AddTest(t) -> Option.Some(t.hash)
+      | _ -> Option.None)
+    |> Stdlib.List.map(ProgramTypes.hashToString)
+    |> Stdlib.String.join(" ")
+
+  match d.item with
+  | Fn(_, _) | Value(_, _) | Test(_, _) -> hashes()
+  // the impl's own header, then its declared methods as their fns are stored
+  | Impl(implementation, _, _) ->
+    Stdlib.inspect({ implementation with hash = ProgramTypes.Hash.Hash("") }) + " " + hashes()
+  | _ -> d.meaning
 
 
 /// Why <param formatted> can't replace <param file>: the first declaration it would change the
@@ -746,17 +854,20 @@ let meaningChange(file: File, formatted: String): Option<String> =
     match parse(formatted) with
     | Error(e) -> Option.Some($"formatting would leave it not parsing: {e}")
     | Ok(after) ->
-      let was = meanings(file, "", file.declarations)
-      let now = meanings(after, "", after.declarations)
-      if was == now then
-        Option.None
-      else
-        let first =
-          Stdlib.List.zipShortest(was, now)
-          |> Stdlib.List.findFirst(fun pair ->
-            let (w, n) = pair
-            w != n)
-          |> Stdlib.Option.map(fun pair -> Stdlib.Tuple2.first(Stdlib.Tuple2.first(pair)))
-          |> Stdlib.Option.withDefault("the declarations after the last one it keeps")
+      let was = named(file, "", file.declarations)
+      let now = named(after, "", after.declarations)
+      let first =
+        Stdlib.List.zipShortest(was, now)
+        |> Stdlib.List.findFirst(fun pair ->
+          let ((wName, w), (nName, n)) = pair
+          wName != nName || w.meaning != n.meaning && stored(w) != stored(n))
+        |> Stdlib.Option.map(fun pair -> Stdlib.Tuple2.first(Stdlib.Tuple2.first(pair)))
 
-        Option.Some($"formatting would change what {first} means")
+      match first with
+      | Some(name) -> Option.Some($"formatting would change what {name} means")
+      | None ->
+        if Stdlib.List.length(was) == Stdlib.List.length(now) then
+          Option.None
+        else
+          Option.Some(
+            "formatting would change what the declarations after the last one it keeps means")

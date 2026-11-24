@@ -104,7 +104,7 @@ test readlinkAtTruncates =
     Builtin.syscallReadlinkAt(link, 2)
     |> Stdlib.Result.map(Stdlib.Bytes.toList))
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok([ 97u8, 98u8 ])))
+    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok([ 97, 98 ])))
 
 
 // The cwd and readlink wrappers grow their buffer until the result fits
@@ -118,7 +118,7 @@ test bufferGrowth =
              Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("/x\0"))),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 47u8, 120u8, 0u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 47, 120, 0 ]))
 
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun count ->
@@ -130,7 +130,7 @@ test bufferGrowth =
              Stdlib.Result.Result.Error(22)),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 97u8, 98u8, 99u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 97, 98, 99 ]))
 
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun _ -> Stdlib.Result.Result.Ok(Stdlib.Bytes.empty)),
@@ -148,19 +148,19 @@ test kernelSignedField =
     Stdlib.Cli.Posix.__kernelSignedField(Stdlib.Bytes.fromList(bytes), 0, width)
 
   Stdlib.Test.all(
-    [ field([ 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8 ], 8)
+    [ field([ 255, 255, 255, 255, 255, 255, 255, 255 ], 8)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
-      field([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 128u8 ], 8)
+      field([ 0, 0, 0, 0, 0, 0, 0, 128 ], 8)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
 
-      field([ 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 127u8 ], 8)
+      field([ 255, 255, 255, 255, 255, 255, 255, 127 ], 8)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9223372036854775807))
 
-      field([ 255u8, 255u8, 255u8, 255u8 ], 4)
+      field([ 255, 255, 255, 255 ], 4)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
-      field([ 1u8, 2u8, 3u8 ], 8)
+      field([ 1, 2, 3 ], 8)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
 

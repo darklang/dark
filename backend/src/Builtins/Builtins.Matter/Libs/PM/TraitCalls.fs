@@ -46,6 +46,29 @@ type private Resolution =
     param : string *
     trait_ : PT.FQTraitName.Package *
     fromParam : string
+  /// A number written without a suffix, and the type its slot gave it.
+  | Literal of at : id * typ : PT.TypeReference
+
+
+/// The types a bare number can be given, by the name of the checker's type for each.
+let private literalTypes : List<string * PT.TypeReference> =
+  [ "TInt8", PT.TInt8
+    "TUInt8", PT.TUInt8
+    "TInt16", PT.TInt16
+    "TUInt16", PT.TUInt16
+    "TInt32", PT.TInt32
+    "TUInt32", PT.TUInt32
+    "TUInt64", PT.TUInt64
+    "TInt128", PT.TInt128
+    "TUInt128", PT.TUInt128
+    "TBigInt", PT.TBigInt
+    "TFloat32", PT.TFloat32 ]
+
+let private literalTypeNamed (name : string) : Option<PT.TypeReference> =
+  literalTypes |> List.tryPick (fun (n, t) -> if n = name then Some t else None)
+
+let private literalTypeName (typ : PT.TypeReference) : Option<string> =
+  literalTypes |> List.tryPick (fun (n, t) -> if t = typ then Some n else None)
 
 
 /// Decoders that ANSWER NOTHING rather than raising, unlike `PT2DT`'s.
@@ -93,6 +116,10 @@ module private Decode =
       match nodeId at, hash trait_ with
       | Some at, Some trait_ -> Some(CallerBoundDeferred(at, param, trait_, from))
       | _ -> None
+    | DEnum(_, _, _, "Literal", [ at; DEnum(_, _, _, typ, []) ]) ->
+      match nodeId at, literalTypeNamed typ with
+      | Some at, Some typ -> Some(Literal(at, typ))
+      | _ -> None
     | _ -> None
 
   let private field (name : string) (fields : RecordFields) : Option<Dval> =
@@ -122,6 +149,35 @@ module private Decode =
       | Some(DList(_, Items(items))) -> items |> List.choose itemReport |> Map.ofList
       | _ -> Map.empty
     | _ -> Map.empty
+
+  /// The items the checker could not check at all: running it on them failed. During a reload
+  /// that is code it runs that only means what it means once checked, such as a bare number.
+  let unchecked (d : Dval) : Set<PT.Hash> =
+    let unavailable (issue : Dval) =
+      match issue with
+      | DRecord(_, _, _, fields) ->
+        match field "context" fields with
+        | Some(DEnum(_, _, _, "CheckerUnavailable", _)) -> true
+        | _ -> false
+      | _ -> false
+    match d with
+    | DRecord(_, _, _, fields) ->
+      match field "items" fields with
+      | Some(DList(_, Items(items))) ->
+        items
+        |> List.choose (fun item ->
+          match item with
+          | DRecord(_, _, _, fields) ->
+            match field "warnings" fields, field "item" fields with
+            | Some(DList(_, Items(ws))), Some(DEnum(_, _, _, _, [ h ])) when
+              List.exists unavailable ws
+              ->
+              hash h
+            | _ -> None
+          | _ -> None)
+        |> Set.ofList
+      | _ -> Set.empty
+    | _ -> Set.empty
 
   /// The items the checker found a definite type error in.
   let failed (d : Dval) : Set<PT.Hash> =
@@ -246,6 +302,10 @@ module private Encoding =
         | CallerBoundDeferred(id, param, PT.Hash trait_, fromParam) ->
           at id [ param; trait_; fromParam ]
           |> Option.map (fun f -> "boundDeferred" :: f)
+        | Literal(id, typ) ->
+          literalTypeName typ
+          |> Option.bind (fun name -> at id [ name ])
+          |> Option.map (fun f -> "literal" :: f)
       fields
       |> Option.filter (List.forall writable)
       |> Option.map (String.concat "\t")
@@ -277,6 +337,8 @@ module private Encoding =
         at p
         |> Option.map (fun id ->
           CallerBoundDeferred(id, param, PT.Hash trait_, fromParam))
+      | [ "literal"; p; typ ] ->
+        Option.map2 (fun id typ -> Literal(id, typ)) (at p) (literalTypeNamed typ)
       | _ -> None
     if text = "" then
       Some []
@@ -401,7 +463,7 @@ let private environmentOf
     |> String.concat " "
   let checker = PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOpsOn ()
   let lines =
-    [ "trait-call-cache 3"
+    [ "trait-call-cache 4"
       $"runtime {build}"
       $"branch {branchId.Guid}"
       $"checker {checker}"
@@ -440,7 +502,7 @@ let private askChecker
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Task<Option<Map<PT.Hash, List<Resolution>> * Set<PT.Hash>>> =
+  : Task<Option<Map<PT.Hash, List<Resolution>> * Set<PT.Hash> * Set<PT.Hash>>> =
   // The branch explicitly, not whatever `exeState` happens to carry: a call resolves to the
   // implementation live on the branch being SAVED to.
   let args =
@@ -451,14 +513,15 @@ let private askChecker
   |> Task.map (fun answer ->
     match answer with
     | Ok report ->
-      let decoded = Decode.report report
+      // An item the checker could not run on has no answer: neither cached nor applied.
+      let unchecked = Decode.unchecked report
+      let reported = Decode.report report
+      let decoded =
+        unchecked |> Set.fold (fun found h -> Map.remove h found) reported
       let failed = Decode.failed report
-      // An empty report and an empty answer are the same zero here; `guarded` puts the
-      // reason in `warnings`, which this decoder otherwise drops.
-      if
-        Set.isEmpty failed
-        && decoded |> Map.forall (fun _ resolutions -> List.isEmpty resolutions)
-      then
+      // A report with no items is `guarded` giving up on the whole batch, the reason in
+      // `warnings`, which this decoder otherwise drops.
+      if Set.isEmpty failed && Map.isEmpty reported then
         let warnings =
           match report with
           | DRecord(_, _, _, fields) ->
@@ -471,9 +534,9 @@ let private askChecker
             $"  [traitcalls] the checker reported no resolutions and {warnings} warning(s); the batch was not checked"
           None
         else
-          Some(decoded, failed)
+          Some(decoded, failed, unchecked)
       else
-        Some(decoded, failed)
+        Some(decoded, failed, unchecked)
     | Error(rte, _) ->
       // A swallowed checker failure and a checker with nothing to say are the same zero, and
       // the zero is what nobody re-checks, so say which one happened. Kept deliberately: the
@@ -537,7 +600,8 @@ let rec private calledPackageFns (expr : PT.Expr) : List<PT.Hash> =
 
 /// Could anything in this batch have a choice to record?
 ///
-/// Three clauses, and the third is the one an authoring batch needs. A save of
+/// Three clauses, and the third is the one an authoring batch needs. A number written without a
+/// suffix counts as an operator does: its type is a choice the checker makes. A save of
 /// `let f() = Stdlib.max(1L, 2L)` contains no operator and names no trait: its only dependency
 /// is on `Stdlib.max`, an ordinary package fn. But `max` is BOUNDED, so this call is the only
 /// place that can record which implementation its type argument implied, and skipping the
@@ -555,6 +619,7 @@ let private worthChecking
       match op with
       | PT.PackageOp.AddFn fn ->
         hasInfix fn.body
+        || LibDB.AstTransformer.hasBareNumber fn.body
         || namesATraitMethod fn.body
         || (Dependencies.extractFromFn fn
             |> List.exists (fun d -> d.itemKind = PT.ItemKind.Trait))
@@ -563,11 +628,15 @@ let private worthChecking
       // so this is not about speed; it is about the value meaning the same thing after
       // someone else's implementation arrives.
       | PT.PackageOp.AddValue value ->
-        hasInfix value.body || namesATraitMethod value.body
+        hasInfix value.body
+        || LibDB.AstTransformer.hasBareNumber value.body
+        || namesATraitMethod value.body
       // A test body calls bounded generics and operators like any fn, and resolving them
       // is what lets the test runner prove it effect-free and run it in-process.
       | PT.PackageOp.AddTest test ->
-        hasInfix test.body || namesATraitMethod test.body
+        hasInfix test.body
+        || LibDB.AstTransformer.hasBareNumber test.body
+        || namesATraitMethod test.body
       | _ -> false)
 
   if cheaply then
@@ -602,19 +671,29 @@ let private worthChecking
 ///
 /// <param branchId> separately from <param pm>, because `pm` carries the branch's names and
 /// not its deprecations. <param reload> is the build a package reload runs on, None for a save:
-/// a reload's batch is already in the store, which lets it be checked in parallel, and the build
-/// keys its cache.
+/// the build keys the reload's cache. <param storeHoldsOps>: the batch is already in the store,
+/// as a reload's is, which lets it be checked in parallel. <param again>: a reload's second look,
+/// cached in the first look's environment, each body under the key of its first-look copy.
+/// <param literalsOnly>: write only what
+/// the bare numbers are, leaving every call as it was saved.
 let private resolveIn
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (pm : PT.PackageManager)
   (reload : Option<string>)
+  (again : Option<string * Map<string, string>>)
+  (storeHoldsOps : bool)
+  (literalsOnly : bool)
   (ops : List<PT.PackageOp>)
-  : Task<List<PT.PackageOp> * Set<PT.Hash>> =
-  let storeHoldsOps = Option.isSome reload
+  : Task<List<PT.PackageOp> *
+    Set<PT.Hash> *
+    Set<PT.Hash> *
+    Map<PT.Hash, List<Resolution>> *
+    Option<string>>
+  =
   let worth = worthChecking pm ops
   if not worth then
-    Task.FromResult(ops, Set.empty)
+    Task.FromResult(ops, Set.empty, Set.empty, Map.empty, None)
   else
     // A deprecated implementation is not a candidate at run time, so it must not be one
     // here either: `dark constraints` tells you to deprecate one of two rivals, and resolving
@@ -660,9 +739,17 @@ let private resolveIn
     // checker reported, and a later report replaces an earlier one, chunk after chunk and
     // inside the checker's own fold, so that is the last.
     let environment =
-      reload
-      |> Option.map (fun build ->
-        environmentOf exeState build branchId deprecated storedStamps ops)
+      match again with
+      | Some(environment, _) -> Some environment
+      | None ->
+        reload
+        |> Option.map (fun build ->
+          environmentOf exeState build branchId deprecated storedStamps ops)
+    // A second look's answers sit beside the first look's, under keys of their own.
+    let storedAs (key : string) : Option<string> =
+      match again with
+      | Some(_, keys) -> Map.tryFind key keys |> Option.map (fun k -> "again " + k)
+      | None -> Some key
     let cached =
       match environment with
       | Some environment -> LibDB.TraitCallCache.load environment
@@ -677,7 +764,8 @@ let private resolveIn
       lastCopies
       |> Map.toList
       |> List.choose (fun (key, (hash, body)) ->
-        Map.tryFind key cached
+        storedAs key
+        |> Option.bind (fun k -> Map.tryFind k cached)
         |> Option.bind (fun (entry : LibDB.TraitCallCache.Entry) ->
           let positions = Positions.ofBody body
           if List.length positions <> entry.nodes then
@@ -686,9 +774,21 @@ let private resolveIn
             Encoding.decode positions entry.resolutions
             |> Option.map (fun resolutions -> (key, (hash, resolutions)))))
       |> Map.ofList
+    // A body with a second-look answer could not be checked on the tree as written last time,
+    // and cannot be now: the same body, against the same checker. Leave it to the second look.
+    let deferred =
+      if Option.isSome again then
+        Set.empty
+      else
+        lastCopies
+        |> Map.toList
+        |> List.choose (fun (key, (hash, _)) ->
+          if Map.containsKey ("again " + key) cached then Some hash else None)
+        |> Set.ofList
     let isReused (op : PT.PackageOp) =
       match Positions.bodyOf op with
-      | Some(key, _, _) -> Map.containsKey key reused
+      | Some(key, hash, _) ->
+        Map.containsKey key reused || Set.contains hash deferred
       | None -> false
     let toCheck = ops |> List.filter (isReused >> not)
     let nothingToCheck =
@@ -703,25 +803,48 @@ let private resolveIn
         max 256 (List.length toCheck / 32 + 1)
       else
         max 1 (List.length toCheck)
+    let batches = if nothingToCheck then [] else List.chunkBySize size toCheck
+    // An authoring batch is one chunk, checked right here: a save's later rewrites wait for it
+    // where they stand (`retype`).
     let chunks =
       if nothingToCheck then
         System.Threading.Tasks.Task.FromResult [||]
+      else if not storeHoldsOps then
+        batches
+        |> List.map (askChecker exeState branchId)
+        |> System.Threading.Tasks.Task.WhenAll
       else
-        toCheck
-        |> List.chunkBySize size
+        batches
         |> List.map (fun chunk ->
           System.Threading.Tasks.Task.Run<Option<Map<PT.Hash, List<Resolution>> *
+          Set<PT.Hash> *
           Set<PT.Hash>>>
             (fun () -> askChecker exeState branchId chunk))
         |> System.Threading.Tasks.Task.WhenAll
     chunks
     |> Task.map (fun chunks ->
+      let answers = chunks |> Array.choose identity
       let answered =
-        chunks
-        |> Array.choose identity
-        |> Array.map fst
+        answers
+        |> Array.map (fun (a, _, _) -> a)
         |> Array.fold (Map.foldBack Map.add) Map.empty
-      let failed = chunks |> Array.choose identity |> Array.map snd |> Set.unionMany
+      let failed = answers |> Array.map (fun (_, f, _) -> f) |> Set.unionMany
+      // A chunk the checker did not answer at all was not checked either.
+      let unanswered =
+        Array.zip (Array.ofList batches) chunks
+        |> Array.choose (fun (batch, answer) ->
+          match answer with
+          | None ->
+            batch
+            |> List.choose Positions.bodyOf
+            |> List.map (fun (_, h, _) -> h)
+            |> Set.ofList
+            |> Some
+          | Some _ -> None)
+      let unchecked =
+        Array.append (answers |> Array.map (fun (_, _, u) -> u)) unanswered
+        |> Set.unionMany
+        |> Set.union deferred
       let resolved =
         reused
         |> Map.fold
@@ -739,18 +862,25 @@ let private resolveIn
             if Map.containsKey key reused then
               None
             else
-              Map.tryFind hash answered
-              |> Option.bind (fun resolutions ->
+              Option.map2
+                (fun k r -> (k, r))
+                (storedAs key)
+                (Map.tryFind hash answered)
+              |> Option.bind (fun (stored, resolutions) ->
                 let positions = Positions.ofBody body
                 Encoding.encode positions resolutions
                 |> Option.map (fun text ->
-                  (key,
+                  (stored,
                    ({ nodes = List.length positions; resolutions = text }
                    : LibDB.TraitCallCache.Entry)))))
+        // A second look adds to the cache; a first look keeps the second look's answers.
         let kept =
           cached
           |> Map.toList
-          |> List.filter (fun (key, _) -> Map.containsKey key reused)
+          |> List.filter (fun (key, _) ->
+            Option.isSome again
+            || Map.containsKey key reused
+            || key.StartsWith "again ")
         try
           LibDB.TraitCallCache.replace environment (kept @ fresh)
         with e ->
@@ -761,7 +891,7 @@ let private resolveIn
       environment |> Option.iter saveCache
 
       if Map.isEmpty resolved then
-        (ops, failed)
+        (ops, failed, unchecked, answered, environment)
       else
 
         /// The winner among the implementations that apply, and the fn it names for the method.
@@ -883,13 +1013,24 @@ let private resolveIn
                 | _ -> (bounds))
               Map.empty
 
-          if Map.isEmpty impls && Map.isEmpty bounds then
+          let literals =
+            resolutions
+            |> List.choose (function
+              | Literal(at, typ) -> Some(at, typ)
+              | _ -> None)
+            |> Map.ofList
+
+          let (impls, bounds) =
+            if literalsOnly then (Map.empty, Map.empty) else (impls, bounds)
+
+          if Map.isEmpty impls && Map.isEmpty bounds && Map.isEmpty literals then
             None
           else
             Some
               { LibDB.AstTransformer.emptyMapping with
                   resolvedImpls = impls
-                  boundImpls = bounds }
+                  boundImpls = bounds
+                  literalTypes = literals }
 
         let mappings =
           resolved
@@ -963,7 +1104,91 @@ let private resolveIn
               with
               | Some rewritten -> rewritten
               | None -> after)
-        (rewritten, failed))
+        (rewritten, failed, unchecked, answered, environment))
+
+
+/// What the bare numbers in <param ops> are, written onto them: for a save's later rewrites, a
+/// draft whose names just resolved or a dependent a propagation moves. Calls stay as saved.
+let retype
+  (exeState : RT.ExecutionState)
+  (branchId : PT.BranchId)
+  (pm : PT.PackageManager)
+  (ops : List<PT.PackageOp>)
+  : List<PT.PackageOp> =
+  let numbered =
+    ops
+    |> List.indexed
+    |> List.filter (fun (_, op) ->
+      match op with
+      | PT.PackageOp.AddFn fn -> LibDB.AstTransformer.hasBareNumber fn.body
+      | PT.PackageOp.AddValue v -> LibDB.AstTransformer.hasBareNumber v.body
+      | PT.PackageOp.AddTest t -> LibDB.AstTransformer.hasBareNumber t.body
+      | _ -> false)
+  if List.isEmpty numbered then
+    ops
+  else
+    let (retyped, _, _, _, _) =
+      resolveIn exeState branchId pm None None false true (List.map snd numbered)
+      |> Exe.now
+    let replaced = List.zip (List.map fst numbered) retyped |> Map.ofList
+    ops |> List.mapi (fun i op -> Map.tryFind i replaced |> Option.defaultValue op)
+
+
+/// <fn resolveTraitCalls> for a package reload, which checks the tree while the store holds it
+/// unresolved: the checker runs that code as written. With the hashes of the bodies it could not
+/// check, to be checked again once the code is stored resolved (<fn recheckForReload>), and the
+/// cache's key.
+let resolveForReload
+  (exeState : RT.ExecutionState)
+  (pm : PT.PackageManager)
+  (build : string)
+  (ops : List<PT.PackageOp>)
+  : Task<List<PT.PackageOp> * Set<PT.Hash> * Option<string>> =
+  resolveIn exeState PT.BranchId.Main pm (Some build) None true false ops
+  |> Task.map (fun (ops, _, unchecked, _, environment) ->
+    (ops, unchecked, environment))
+
+
+/// <fn resolveForReload>'s second look: <param retry>, the bodies it could not check, now that
+/// the store holds the tree resolved. Each answer is cached under the body it was first asked
+/// about, its copy in <param originals>, so the next reload finds it and needs no second look.
+let recheckForReload
+  (exeState : RT.ExecutionState)
+  (pm : PT.PackageManager)
+  (environment : Option<string>)
+  (originals : List<PT.PackageOp>)
+  (retry : List<PT.PackageOp>)
+  : Task<List<PT.PackageOp> * Set<PT.Hash>> =
+  // The two copies differ only in the hashes they name, so their nodes are in the same places.
+  let keys =
+    List.zip retry originals
+    |> List.choose (fun (again, original) ->
+      match Positions.bodyOf again, Positions.bodyOf original with
+      | Some(key, _, _), Some(firstKey, _, _) -> Some(key, firstKey)
+      | _ -> None)
+    |> Map.ofList
+  resolveIn
+    exeState
+    PT.BranchId.Main
+    pm
+    None
+    (environment |> Option.map (fun e -> (e, keys)))
+    true
+    false
+    retry
+  |> Task.map (fun (ops, _, unchecked, _, _) -> (ops, unchecked))
+
+
+/// Every bare number given a type in a report of the checker's, by node: what `dark eval` and a
+/// script are run with.
+let literalTypesIn (report : Dval) : Map<id, PT.TypeReference> =
+  Decode.report report
+  |> Map.values
+  |> Seq.concat
+  |> Seq.choose (function
+    | Literal(at, typ) -> Some(at, typ)
+    | _ -> None)
+  |> Map.ofSeq
 
 
 // --------------------
@@ -1048,8 +1273,8 @@ let resolveTraitCalls
   (reload : Option<string>)
   (ops : List<PT.PackageOp>)
   : Task<List<PT.PackageOp> * List<string * List<UnresolvedCall>>> =
-  resolveIn exeState branchId pm reload ops
-  |> Task.map (fun (resolved, failed) ->
+  resolveIn exeState branchId pm reload None (Option.isSome reload) false ops
+  |> Task.map (fun (resolved, failed, _, _, _) ->
 
     // A reload has its own report.
     if Option.isSome reload then

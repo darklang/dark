@@ -402,6 +402,7 @@ let y(): Int64 = leaf() + right()
           let! (_, after) = source moduleName "leaf"
           match
             Builtins.Matter.Libs.PM.Packages.repoint
+              (fun ops -> ops)
               PT.BranchId.Main
               leaf
               PT.ItemKind.Fn

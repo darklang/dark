@@ -1006,6 +1006,7 @@ let private runCli (args : string[]) : int =
             $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
 
       1
+    | Ok(RT.DUInt8 i) -> int i
     | Ok(RT.DInt64 i) -> bigIntToExitCode (RT.DarkBigInt.Finite i)
     | Ok(RT.DBigInt i) -> bigIntToExitCode i
     | Ok dval ->

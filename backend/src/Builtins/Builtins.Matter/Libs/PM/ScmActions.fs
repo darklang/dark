@@ -298,7 +298,14 @@ let private resolve
             | "impl" -> PT.ItemKind.TraitImpl
             | "test" -> PT.ItemKind.Test
             | _ -> PT.ItemKind.Fn
-          let _ = Packages.repoint (branch b) location kind losers chosen
+          let _ =
+            Packages.repoint
+              (TraitCalls.retype exeState (branch b) pm)
+              (branch b)
+              location
+              kind
+              losers
+              chosen
           ok ())
 
   | DEnum(_, _, _, "TakeRemoval", [ DUuid b; DString id; previous ]) ->
@@ -429,6 +436,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           // One repoint, on the branch: a whole propagation, as an edit there would make.
           let repointOn (b : System.Guid) (rp : Actions.Repoint) : unit =
             Packages.repoint
+              (TraitCalls.retype exeState (branch b) pm)
               (branch b)
               rp.dependency
               rp.kind

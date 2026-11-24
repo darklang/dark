@@ -13,10 +13,11 @@ type Approval =
   | Skip
 
 
-/// Unit succeeds; BigInt and Int64 supply the script's exit code.
+/// Unit succeeds; a UInt8, Int64 or BigInt supplies the script's exit code.
 let exitCode(value: LanguageTools.RuntimeTypes.Dval): Result<Int64, ExecutionError.ExecutionError> =
   match value with
   | DUnit -> Result.Ok(0)
+  | DUInt8(code) -> Result.Ok(Stdlib.Int64.fromUInt8(code))
   | DInt64(code) -> Result.Ok(code)
   // a `BigInt` past Int64 is no exit code the OS could carry, so it fails like any other
   | DBigInt(code) -> Result.Ok(Stdlib.BigInt.toInt64(code) |> Stdlib.Option.withDefault(1))
@@ -86,7 +87,7 @@ let splitArgumentsAfter(
 /// Whether <param arg> starts with a `-`. By its first byte, not its first character, so a `-`
 /// that a combining mark follows still counts, as it does for the host.
 let isFlag(arg: String): Bool =
-  arg != "-" && Stdlib.String.getByteAt(arg, 0) == Option.Some(45u8)
+  arg != "-" && Stdlib.String.getByteAt(arg, 0) == Option.Some(45)
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -436,7 +437,7 @@ let handleResult(state: AppState, result: Result<Int64, ExecutionError.Execution
   match result with
   | Ok(exitCode) when exitCode >= 0 && exitCode <= 255 ->
     // The script chose this code and printed its own reason, as a program in any language does.
-    { state with exitCode = exitCode }
+    { state with exitCode = Stdlib.UInt8.fromInt64(exitCode) |> Stdlib.Option.withDefault(1) }
   | Ok(exitCode) ->
     // the OS keeps only the low 8 bits, so 256 would read as success
     Stdlib.printErrorLine(

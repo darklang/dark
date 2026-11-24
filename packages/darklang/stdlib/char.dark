@@ -70,7 +70,7 @@ let isASCII(c: Char): Bool =
 /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}
 let toAsciiCode(c: Char): Option<UInt8> =
   match toCodepoint(c) with
-  | Some(code) -> if code < 128u32 then UInt8.fromUInt32(code) else Option.None
+  | Some(code) -> if code < 128 then UInt8.fromUInt32(code) else Option.None
   | None -> Option.None
 
 

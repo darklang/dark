@@ -66,9 +66,9 @@ stops the run before any test starts:
 ## Results and exit codes
 
 Expressions run in order. Each must return Unit, except the last, which may return
-an Int64 exit code from 0 to 255: 0 for success, anything else a failure. A
-number outside 0-255 fails the run with exit 1. A final Unit means success, so
-this is a complete script:
+an exit code from 0 to 255: 0 for success, anything else a failure. A UInt8 or an
+Int64; an Int64 outside 0-255 fails the run with exit 1. A final Unit means success,
+so this is a complete script:
 
   Stdlib.printLine("Hello")
 

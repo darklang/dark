@@ -5,8 +5,17 @@ let sourceFileAtWidth(
   width: Int64,
   source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
-  // The parser supplies the owner separately, so print names from the root.
-  let ctx = { Context.forModule(branchId, []) with width = width }
+  // The parser supplies the owner separately, so print names from the root. Which numbers need
+  // their suffix is worked out for the file at once: its declarations call each other.
+  let ctx =
+    { Context.forModule(branchId, []) with
+        width = width
+        bareNumbers =
+          Option.Some(
+            LanguageTools.AtRestTypeChecker.Suffixes.droppable(
+              branchId,
+              sourceFileOps(source.declarations))) }
+
   let declsPart =
     Stdlib.List.fold(source.declarations, [], fun(acc, decl) ->
       match decl with
@@ -42,6 +51,33 @@ let sourceFileAtWidth(
   [ declsPart, exprsPart ]
   |> Stdlib.List.flatten
   |> Stdlib.String.join("\n\n")
+
+
+/// <param declarations> as the ops that would add them.
+let sourceFileOps(
+  declarations: List<LanguageTools.ProgramTypes.SourceFile.Declaration>)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  let ofDefinitions(
+    d: LanguageTools.ProgramTypes.Definitions)
+    : List<LanguageTools.ProgramTypes.PackageOp> =
+    Stdlib.List.flatten(
+      [ Stdlib.List.map(d.types, fun t -> LanguageTools.ProgramTypes.PackageOp.AddType(t))
+        Stdlib.List.map(d.values, fun v -> LanguageTools.ProgramTypes.PackageOp.AddValue(v))
+        Stdlib.List.map(d.fns, fun f -> LanguageTools.ProgramTypes.PackageOp.AddFn(f))
+        Stdlib.List.map(d.traits, fun t -> LanguageTools.ProgramTypes.PackageOp.AddTrait(t))
+        Stdlib.List.map(d.impls, fun i -> LanguageTools.ProgramTypes.PackageOp.AddTraitImpl(i)) ])
+
+  declarations
+  |> Stdlib.List.map(fun d ->
+    match d with
+    | Module(defs) -> ofDefinitions(defs)
+    | Type(t) -> [ LanguageTools.ProgramTypes.PackageOp.AddType(t) ]
+    | Value(v) -> [ LanguageTools.ProgramTypes.PackageOp.AddValue(v) ]
+    | Function(f) -> [ LanguageTools.ProgramTypes.PackageOp.AddFn(f) ]
+    | Trait(t) -> [ LanguageTools.ProgramTypes.PackageOp.AddTrait(t) ]
+    | Impl(i) -> [ LanguageTools.ProgramTypes.PackageOp.AddTraitImpl(i) ]
+    | Test(t) -> [ LanguageTools.ProgramTypes.PackageOp.AddTest(t) ])
+  |> Stdlib.List.flatten
 
 
 /// The width `.dark` source is written to: what `dark view --raw` and `dark edit` print at,

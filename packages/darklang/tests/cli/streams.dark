@@ -10,7 +10,7 @@ let plain(text: String): String =
 
 
 /// A command's exit code, stdout and stderr, trimmed and without colour.
-let plainStreams(i: Instance.T, args: List<String>): (Int64 * String * String) =
+let plainStreams(i: Instance.T, args: List<String>): (UInt8 * String * String) =
   let (code, out, err) = Instance.streams(i, args)
   (code, plain(out), plain(err))
 
@@ -168,7 +168,7 @@ let streamFault(
 /// The top-level commands in the forms people type, in order, each with its exit code and what
 /// lands on stdout and stderr. The rows build on each other: the fn saved first is the one `view`,
 /// `deps` and `rename` name later.
-val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
+val streamRows: List<(List<String> * UInt8 * Stream * Stream)> =
   [ ([ "branches" ], 0, Stream.Silent, Stream.Says("no branches"))
     (
       [ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 1" ],

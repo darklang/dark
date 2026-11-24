@@ -30,6 +30,7 @@ let isWarning(code: IssueCode): Bool =
   | NonExhaustiveMatch
   | UnreachableMatchCase
   | UnsupportedConstruct -> true
+  | NumberOutOfRange
   | TypeMismatch
   | OccursCheckFailed
   | UnknownVariable
@@ -66,6 +67,32 @@ let isWarning(code: IssueCode): Bool =
 /// Create an error finding whose expected or actual types may still be unknown.
 /// Items decides whether those unknowns make the error too uncertain to report
 /// as a definite failure.
+/// The values a bare number can take in each integer type, as Int64s: a bare number is never
+/// past Int64's range. None for a type that isn't an integer.
+let integerRange(t: Model.Ty): Option<(Int64 * Int64)> =
+  match t with
+  | TInt8 -> Option.Some((-128, 127))
+  | TUInt8 -> Option.Some((0, 255))
+  | TInt16 -> Option.Some((-32768, 32767))
+  | TUInt16 -> Option.Some((0, 65535))
+  | TInt32 -> Option.Some((-2147483648, 2147483647))
+  | TUInt32 -> Option.Some((0, 4294967295))
+  | TInt64 | TInt128 | TBigInt -> Option.Some((-9223372036854775808, 9223372036854775807))
+  | TUInt64 | TUInt128 -> Option.Some((0, 9223372036854775807))
+  | _ -> Option.None
+
+
+/// The largest value of an integer type, written out.
+let integerMax(t: Model.Ty): String =
+  match t with
+  | TUInt64 -> "18446744073709551615"
+  | TUInt128 -> "340282366920938463463374607431768211455"
+  | _ ->
+    integerRange(t)
+    |> Stdlib.Option.map(fun((_, max)) -> Stdlib.display(max))
+    |> Stdlib.Option.withDefault("")
+
+
 let error(
   code: IssueCode,
   at: Option<Int64>,

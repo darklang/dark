@@ -71,7 +71,7 @@ let readLines(path: String): Result<List<String>, Posix.Error> =
 
 let __countNewlines(blob: Bytes): Int64 =
   let countFrom(start: Int64, count: Int64): Int64 =
-    match Bytes.indexOfFrom(blob, 10u8, start) with
+    match Bytes.indexOfFrom(blob, 10, start) with
     | Some(i) -> countFrom(i + 1, count + 1)
     | None -> count
 
@@ -80,7 +80,7 @@ let __countNewlines(blob: Bytes): Int64 =
 
 /// Everything after the first newline in <param bytes>; empty if there is none.
 let __dropThroughFirstNewline(bytes: Bytes): Bytes =
-  match Bytes.indexOf(bytes, 10u8) with
+  match Bytes.indexOf(bytes, 10) with
   | Some(i) -> Bytes.drop(bytes, i + 1)
   | None -> Bytes.empty
 
@@ -805,34 +805,34 @@ let __globKnownClass(name: String): Bool =
 
 
 let __globNamedClass(name: String, c: UInt8): Bool =
-  let upper = c >= 65u8 && c <= 90u8
-  let lower = c >= 97u8 && c <= 122u8
-  let digit = c >= 48u8 && c <= 57u8
-  let space = c == 32u8 || c >= 9u8 && c <= 13u8
+  let upper = c >= 65 && c <= 90
+  let lower = c >= 97 && c <= 122
+  let digit = c >= 48 && c <= 57
+  let space = c == 32 || c >= 9 && c <= 13
   if name == "alnum" then
     upper || lower || digit
   else if name == "alpha" then
     upper || lower
   else if name == "blank" then
-    c == 32u8 || c == 9u8
+    c == 32 || c == 9
   else if name == "cntrl" then
-    c < 32u8 || c == 127u8
+    c < 32 || c == 127
   else if name == "digit" then
     digit
   else if name == "graph" then
-    c >= 33u8 && c <= 126u8
+    c >= 33 && c <= 126
   else if name == "lower" then
     lower
   else if name == "print" then
-    c >= 32u8 && c <= 126u8
+    c >= 32 && c <= 126
   else if name == "punct" then
-    c >= 33u8 && c <= 126u8 && Bool.not(upper || lower || digit)
+    c >= 33 && c <= 126 && Bool.not(upper || lower || digit)
   else if name == "space" then
     space
   else if name == "upper" then
     upper
   else if name == "xdigit" then
-    digit || c >= 65u8 && c <= 70u8 || c >= 97u8 && c <= 102u8
+    digit || c >= 65 && c <= 70 || c >= 97 && c <= 102
   else
     false
 
@@ -840,7 +840,7 @@ let __globNamedClass(name: String, c: UInt8): Bool =
 /// Return a named character class and the bytes after its closing ':]'.
 let __globClassEnd(bytes: List<UInt8>, reversedName: List<UInt8>): Option<(String * List<UInt8>)> =
   match bytes with
-  | [58u8, 93u8, ...rest] ->
+  | [58, 93, ...rest] ->
     let name = Utf8.decodeWithReplacement(Bytes.fromList(List.reverse(reversedName)))
     Option.Some((name, rest))
   | [c, ...rest] -> __globClassEnd(rest, List.prepend(reversedName, c))
@@ -849,14 +849,14 @@ let __globClassEnd(bytes: List<UInt8>, reversedName: List<UInt8>): Option<(Strin
 
 /// Interpret an escaped byte or a single-byte collating/equivalence symbol.
 let __globClassChar(c: UInt8, rest: List<UInt8>): (UInt8 * List<UInt8>) =
-  if c == 92u8 then
+  if c == 92 then
     match rest with
     | [escaped, ...after] -> (escaped, after)
     | [] -> (c, rest)
-  else if c == 91u8 then
+  else if c == 91 then
     match rest with
-    | [marker, symbol, closing, 93u8, ...after] ->
-      if (marker == 46u8 || marker == 61u8) && closing == marker then
+    | [marker, symbol, closing, 93, ...after] ->
+      if (marker == 46 || marker == 61) && closing == marker then
         (symbol, after)
       else
         (c, rest)
@@ -874,7 +874,7 @@ let __globClassItems(
   : Option<(List<UInt8> * Bool * Bool)> =
   match bytes with
   | [] -> Option.None
-  | [91u8, 58u8, ...name] ->
+  | [91, 58, ...name] ->
     match __globClassEnd(name, []) with
     | None -> Option.None
     | Some((name, after)) ->
@@ -885,12 +885,12 @@ let __globClassItems(
         matched || __globNamedClass(name, c),
         valid && __globKnownClass(name))
   | [head, ...rest] ->
-    if head == 93u8 && Bool.not(first) then
+    if head == 93 && Bool.not(first) then
       Option.Some((rest, matched, valid))
     else
       let (low, next) = __globClassChar(head, rest)
       match next with
-      | [45u8, highHead, ...highTail] when highHead != 93u8 ->
+      | [45, highHead, ...highTail] when highHead != 93 ->
         let (high, after) = __globClassChar(highHead, highTail)
         __globClassItems(after, c, false, matched || c >= low && c <= high, valid)
       | _ -> __globClassItems(next, c, false, matched || c == low, valid)
@@ -899,7 +899,7 @@ let __globClassItems(
 let __globBracket(bytes: List<UInt8>, c: UInt8): Option<(List<UInt8> * Bool)> =
   let inverted =
     match bytes with
-    | [first, ...] -> first == 33u8 || first == 94u8
+    | [first, ...] -> first == 33 || first == 94
     | [] -> false
 
   let items = if inverted then List.drop(bytes, 1) else bytes
@@ -912,30 +912,29 @@ let __globBracket(bytes: List<UInt8>, c: UInt8): Option<(List<UInt8> * Bool)> =
 let __globMatchBytes(pattern: List<UInt8>, text: List<UInt8>, pathname: Bool): Bool =
   match pattern with
   | [] -> text == []
-  | [42u8, ...rest] ->
+  | [42, ...rest] ->
     // Adjacent stars are equivalent; collapse them before backtracking.
-    let after = List.dropWhile(rest, fun c -> c == 42u8)
+    let after = List.dropWhile(rest, fun c -> c == 42)
     if __globMatchBytes(after, text, pathname) then
       true
     else
       match text with
-      | [c, ...tail] ->
-        (Bool.not(pathname) || c != 47u8) && __globMatchBytes(pattern, tail, pathname)
+      | [c, ...tail] -> (Bool.not(pathname) || c != 47) && __globMatchBytes(pattern, tail, pathname)
       | [] -> false
   | [p, ...rest] ->
     match text with
     | [] -> false
     | [c, ...tail] ->
-      if p == 63u8 then
-        (Bool.not(pathname) || c != 47u8) && __globMatchBytes(rest, tail, pathname)
-      else if p == 92u8 then
+      if p == 63 then
+        (Bool.not(pathname) || c != 47) && __globMatchBytes(rest, tail, pathname)
+      else if p == 92 then
         match rest with
         | [escaped, ...after] -> escaped == c && __globMatchBytes(after, tail, pathname)
         | [] -> false
-      else if p == 91u8 then
+      else if p == 91 then
         match __globBracket(rest, c) with
         | Some((after, matched)) ->
-          matched && (Bool.not(pathname) || c != 47u8) && __globMatchBytes(after, tail, pathname)
+          matched && (Bool.not(pathname) || c != 47) && __globMatchBytes(after, tail, pathname)
         | None -> p == c && __globMatchBytes(rest, tail, pathname)
       else
         p == c && __globMatchBytes(rest, tail, pathname)

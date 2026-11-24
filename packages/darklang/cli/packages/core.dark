@@ -708,7 +708,7 @@ let saveAuthored(
         |> Stdlib.Option.toList
         |> Stdlib.List.iter(fun((_, message)) -> Stdlib.printLine(message))
 
-        let sourceShift = Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64)
+        let sourceShift = Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0)
         AtRestCheck.printUnresolvedTraitCalls(committed.unresolvedTraitCalls, sourceShift)
         match ownIssue with
         | Some(why) ->

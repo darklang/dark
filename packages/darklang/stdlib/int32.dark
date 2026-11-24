@@ -262,12 +262,12 @@ impl Display for Int32 =
 
 impl Zero for Int32 =
   let zero(): Int32 =
-    0s32
+    0
 
 
 impl One for Int32 =
   let one(): Int32 =
-    1s32
+    1
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -276,14 +276,14 @@ impl One for Int32 =
 /// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
 let checkedAdd(a: Int32, b: Int32): Result<Int32, Math.Overflow> =
   let sum = a + b
-  let wrapped = if b < 0s32 then sum > a else sum < a
+  let wrapped = if b < 0 then sum > a else sum < a
   if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(a: Int32, b: Int32): Result<Int32, Math.Overflow> =
   let difference = a - b
-  let wrapped = if b < 0s32 then difference < a else difference > a
+  let wrapped = if b < 0 then difference < a else difference > a
   if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
 
 
@@ -298,18 +298,15 @@ let checkedMultiply(a: Int32, b: Int32): Result<Int32, Math.Overflow> =
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int32): Result<Int32, Math.Overflow> =
-  if a == -2147483648s32 then
-    Result.Error(Math.Overflow.Overflow)
-  else
-    Result.Ok(-a)
+  if a == -2147483648 then Result.Error(Math.Overflow.Overflow) else Result.Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int32): Result<Int32, Math.Overflow> =
-  if a == -2147483648s32 then
+  if a == -2147483648 then
     Result.Error(Math.Overflow.Overflow)
-  else if a < 0s32 then
+  else if a < 0 then
     Result.Ok(-a)
   else
     Result.Ok(a)
@@ -318,12 +315,12 @@ let checkedAbsoluteValue(a: Int32): Result<Int32, Math.Overflow> =
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(base: Int32, exponent: Int32): Result<Int32, Math.PowerError> =
-  if exponent < 0s32 then
+  if exponent < 0 then
     Result.Error(Math.PowerError.NegativeExponent)
-  else if base == 0s32 || base == 1s32 || base == -1s32 then
+  else if base == 0 || base == 1 || base == -1 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
     Result.Ok(base ** exponent)
-  else if exponent >= 32s32 then
+  else if exponent >= 32 then
     // any other base is at least 2 from zero, and 2 ** 32 is past the Int32 range
     Result.Error(Math.PowerError.Overflow)
   else
@@ -340,9 +337,9 @@ let checkedPower(base: Int32, exponent: Int32): Result<Int32, Math.PowerError> =
 /// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the
 /// minimum value divided by -1, where `/` wraps back to the minimum.
 let checkedDivide(a: Int32, b: Int32): Result<Int32, Math.DivisionError> =
-  if b == 0s32 then
+  if b == 0 then
     Result.Error(Math.DivisionError.DivisionByZero)
-  else if b == -1s32 && a == -2147483648s32 then
+  else if b == -1 && a == -2147483648 then
     Result.Error(Math.DivisionError.Overflow)
   else
     Result.Ok(a / b)
@@ -353,7 +350,7 @@ let checkedDivide(a: Int32, b: Int32): Result<Int32, Math.DivisionError> =
 /// {{Error DivisionByZero}} if <param divisor> is {{0}}.
 /// Use <fn Int32.checkedMod> to wrap around into {{0 <= res < b}} instead.
 let checkedRemainder(value: Int32, divisor: Int32): Result<Int32, Math.DivisionError> =
-  if divisor == 0s32 then
+  if divisor == 0 then
     Result.Error(Math.DivisionError.DivisionByZero)
   else
     Result.Ok(value - value / divisor * divisor)
@@ -362,9 +359,9 @@ let checkedRemainder(value: Int32, divisor: Int32): Result<Int32, Math.DivisionE
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: Int32, b: Int32): Result<Int32, Math.ModulusError> =
-  if b == 0s32 then
+  if b == 0 then
     Result.Error(Math.ModulusError.ZeroModulus)
-  else if b < 0s32 then
+  else if b < 0 then
     Result.Error(Math.ModulusError.NegativeModulus)
   else
     Result.Ok(a % b)

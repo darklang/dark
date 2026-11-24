@@ -21,25 +21,25 @@ module Weekday =
   /// The ISO 8601 number of <param day>, from Monday = {{1}} to Sunday = {{7}}
   let toNumber(day: Weekday): UInt8 =
     match day with
-    | Monday -> 1u8
-    | Tuesday -> 2u8
-    | Wednesday -> 3u8
-    | Thursday -> 4u8
-    | Friday -> 5u8
-    | Saturday -> 6u8
-    | Sunday -> 7u8
+    | Monday -> 1
+    | Tuesday -> 2
+    | Wednesday -> 3
+    | Thursday -> 4
+    | Friday -> 5
+    | Saturday -> 6
+    | Sunday -> 7
 
 
   /// The weekday numbered <param n> by ISO 8601 (Monday = {{1}} to Sunday = {{7}}), or {{None}} for any other number
   let fromNumber(n: UInt8): Option<Weekday> =
     match n with
-    | 1u8 -> Option.Some(Weekday.Monday)
-    | 2u8 -> Option.Some(Weekday.Tuesday)
-    | 3u8 -> Option.Some(Weekday.Wednesday)
-    | 4u8 -> Option.Some(Weekday.Thursday)
-    | 5u8 -> Option.Some(Weekday.Friday)
-    | 6u8 -> Option.Some(Weekday.Saturday)
-    | 7u8 -> Option.Some(Weekday.Sunday)
+    | 1 -> Option.Some(Weekday.Monday)
+    | 2 -> Option.Some(Weekday.Tuesday)
+    | 3 -> Option.Some(Weekday.Wednesday)
+    | 4 -> Option.Some(Weekday.Thursday)
+    | 5 -> Option.Some(Weekday.Friday)
+    | 6 -> Option.Some(Weekday.Saturday)
+    | 7 -> Option.Some(Weekday.Sunday)
     | _ -> Option.None
 
 
@@ -76,35 +76,35 @@ module Month =
   /// The number of <param month>, from January = {{1}} to December = {{12}}
   let toNumber(month: Month): UInt8 =
     match month with
-    | January -> 1u8
-    | February -> 2u8
-    | March -> 3u8
-    | April -> 4u8
-    | May -> 5u8
-    | June -> 6u8
-    | July -> 7u8
-    | August -> 8u8
-    | September -> 9u8
-    | October -> 10u8
-    | November -> 11u8
-    | December -> 12u8
+    | January -> 1
+    | February -> 2
+    | March -> 3
+    | April -> 4
+    | May -> 5
+    | June -> 6
+    | July -> 7
+    | August -> 8
+    | September -> 9
+    | October -> 10
+    | November -> 11
+    | December -> 12
 
 
   /// The month numbered <param n> (January = {{1}} to December = {{12}}), or {{None}} for any other number
   let fromNumber(n: UInt8): Option<Month> =
     match n with
-    | 1u8 -> Option.Some(Month.January)
-    | 2u8 -> Option.Some(Month.February)
-    | 3u8 -> Option.Some(Month.March)
-    | 4u8 -> Option.Some(Month.April)
-    | 5u8 -> Option.Some(Month.May)
-    | 6u8 -> Option.Some(Month.June)
-    | 7u8 -> Option.Some(Month.July)
-    | 8u8 -> Option.Some(Month.August)
-    | 9u8 -> Option.Some(Month.September)
-    | 10u8 -> Option.Some(Month.October)
-    | 11u8 -> Option.Some(Month.November)
-    | 12u8 -> Option.Some(Month.December)
+    | 1 -> Option.Some(Month.January)
+    | 2 -> Option.Some(Month.February)
+    | 3 -> Option.Some(Month.March)
+    | 4 -> Option.Some(Month.April)
+    | 5 -> Option.Some(Month.May)
+    | 6 -> Option.Some(Month.June)
+    | 7 -> Option.Some(Month.July)
+    | 8 -> Option.Some(Month.August)
+    | 9 -> Option.Some(Month.September)
+    | 10 -> Option.Some(Month.October)
+    | 11 -> Option.Some(Month.November)
+    | 12 -> Option.Some(Month.December)
     | _ -> Option.None
 
 

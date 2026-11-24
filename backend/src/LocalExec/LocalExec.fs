@@ -114,17 +114,75 @@ module HandleCommand =
       $"The checker runs {Set.count checkerFiles} source file(s) outside the build hash:"
     for file in checkerFiles do
       print $"  {file}"
-    let chosen, _ =
+    let chosen, unchecked, environment =
       LibExecution.HostEvents.runHere (fun () ->
-        Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
-          exeState
-          BranchId.Main
-          PM.pt
-          (Some build)
-          ops)
+        Builtins.Matter.Libs.PM.TraitCalls.resolveForReload exeState PM.pt build ops)
     // The choices are written at the hashes in hand, then moved by the rehash, exactly as the
     // authoring path does it.
     let resolved = LibDB.HashStabilization.computeRealHashes chosen
+
+    // The checker ran on the tree as written. A body it could not check, because code the
+    // checker runs only means what it means once checked (a bare number does), is checked
+    // again on the tree stored resolved, until none is left or none moves.
+    let bodyHash (op : PackageOp) : Option<Hash> =
+      match op with
+      | PackageOp.AddFn f -> Some f.hash
+      | PackageOp.AddValue v -> Some v.hash
+      | PackageOp.AddTest t -> Some t.hash
+      | _ -> None
+    let uncheckedIn (checkedOps : List<int * PackageOp>) (unchecked : Set<Hash>) =
+      checkedOps
+      |> List.choose (fun (i, op) ->
+        match bodyHash op with
+        | Some h when Set.contains h unchecked -> Some i
+        | _ -> None)
+    let asParsed = Array.ofList ops
+    let rec settle (current : List<PackageOp>) (pending : List<int>) =
+      if List.isEmpty pending then
+        current
+      else
+        fill false current
+        let all = Array.ofList current
+        let retry = pending |> List.map (fun i -> (i, all[i]))
+        let retyped, unchecked =
+          LibExecution.HostEvents.runHere (fun () ->
+            Builtins.Matter.Libs.PM.TraitCalls.recheckForReload
+              exeState
+              PM.pt
+              environment
+              (pending |> List.map (fun i -> asParsed[i]))
+              (List.map snd retry))
+        let replaced = List.zip pending retyped |> Map.ofList
+        let next =
+          current
+          |> List.mapi (fun i op -> Map.tryFind i replaced |> Option.defaultValue op)
+          |> LibDB.HashStabilization.computeRealHashes
+        let left = uncheckedIn retry unchecked
+        if List.length left = List.length pending then
+          let names =
+            let at = left |> List.choose (fun i -> bodyHash all[i]) |> Set.ofList
+            current
+            |> List.choose (function
+              | PackageOp.SetName(loc, Reference.PackageFn h, _)
+              | PackageOp.SetName(loc, Reference.PackageValue h, _)
+              | PackageOp.SetName(loc, Reference.PackageTest h, _) when
+                Set.contains h at
+                ->
+                Some(String.concat "." (loc.owner :: loc.modules @ [ loc.name ]))
+              | _ -> None)
+            |> List.truncate 5
+            |> String.concat ", "
+          print
+            $"The checker could not check {List.length left} bodies, even on the resolved tree: {names}"
+          next
+        else
+          settle next left
+    let firstUnchecked = uncheckedIn (List.indexed ops) unchecked
+    // Each one costs a refill and a second look, so a slow reload says why.
+    if not (List.isEmpty firstUnchecked) then
+      print
+        $"The checker could not check {List.length firstUnchecked} bodies on the tree as written; checking them again once it is stored resolved"
+    let resolved = settle resolved firstUnchecked
     // Ops, not items: recording the implementation changes the item's content hash, and every
     // caller's hash moves with it, so the count is larger than the number of calls resolved.
     let changed (after : List<PackageOp>) =

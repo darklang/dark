@@ -11,10 +11,12 @@ module BindingIds =
     LanguageTools.ProgramTypes.Expr.ELet(
       1,
       LanguageTools.ProgramTypes.LetPattern.LPVariable(2, "x"),
+      Option.None,
       intExpr(3, 1),
       LanguageTools.ProgramTypes.Expr.ELet(
         4,
         LanguageTools.ProgramTypes.LetPattern.LPVariable(secondId, "y"),
+        Option.None,
         LanguageTools.ProgramTypes.Expr.EString(
           6,
           [ LanguageTools.ProgramTypes.StringSegment.StringText("s") ]),
@@ -71,7 +73,7 @@ module BindingIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(2u64),
+              Stdlib.Option.Option.Some(2),
               "Multiple let bindings share a pattern node ID; their types cannot be checked") ]) ])
 
 
@@ -97,6 +99,7 @@ module InferenceIds =
         LanguageTools.ProgramTypes.LetPattern.LPVariable(3, "a"),
         LanguageTools.ProgramTypes.LetPattern.LPVariable(4, "b"),
         []),
+      Option.None,
       LanguageTools.ProgramTypes.Expr.ETuple(
         5,
         projection(10),
@@ -128,7 +131,7 @@ module InferenceIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(10u64),
+              Stdlib.Option.Option.Some(10),
               "Multiple inference nodes share an ID; their types cannot be checked") ]) ])
 
 
@@ -195,6 +198,7 @@ module ConstructorDeclarations =
        LanguageTools.ProgramTypes.Expr.ELet(
          3,
          LanguageTools.ProgramTypes.LetPattern.LPWildcard(4),
+         Option.None,
          construction,
          intExpr(5, 1))
      checkFunctionAst([ typ ], oneArg(tUnit(), tInt(), body)))
@@ -235,6 +239,7 @@ module LambdaArgumentSlots =
             LanguageTools.ProgramTypes.Expr.ELet(
               13,
               LanguageTools.ProgramTypes.LetPattern.LPWildcard(14),
+              Option.None,
               lambda(),
               unitExpr(15))))
         |> Stdlib.Test.equal("failed:InvalidArgumentIndex")

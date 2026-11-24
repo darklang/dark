@@ -535,12 +535,12 @@ module Invariants =
       [ check(
           "val f = fun x -> (Builtin.unwrap(x) + 1, match x with | Some(y) -> if y then 1 else 0 | _ -> 0)",
           "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
         check(
           "val f = fun x -> ((match x with | Ok(y) -> if y then 1 else 0 | _ -> 0), Builtin.unwrap(x) + 1)",
           "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
         check(
           "val f = fun x -> (Builtin.unwrap(x) + 1, match x with | Some(y) -> y + 1 | _ -> 0)",

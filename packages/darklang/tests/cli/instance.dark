@@ -194,14 +194,14 @@ let tryCall(
       e)
 
 
-/// A command's exit code and both streams. `-1`, with the reason on stderr, when it could not
-/// start at all.
+/// A command's exit code and both streams. `127`, as in a shell, with the reason on stderr,
+/// when it could not start at all.
 let call(i: T, c: Call): Stdlib.Cli.Process.Output =
   match tryCall(i, c) with
   | Ok(out) -> out
   | Error(e) ->
     Stdlib.Cli.Process.Output
-      { exitCode = -1, stdout = "", stderr = $"could not run: {e}" }
+      { exitCode = 127, stdout = "", stderr = $"could not run: {e}" }
 
 
 let run(
@@ -212,7 +212,7 @@ let run(
 
 
 /// A command with `source` piped into it: its exit code and both streams. See `ran`.
-let runWithStdin(i: T, args: List<String>, source: String): (Int64 * String) =
+let runWithStdin(i: T, args: List<String>, source: String): (UInt8 * String) =
   let out =
     call(i, { command(args) with stdin = Stdlib.Option.Option.Some(source) })
 
@@ -263,7 +263,7 @@ let expectContains(
 
 
 /// Asserts a command's exit code.
-let expectExit(i: T, args: List<String>, expected: Int64): Stdlib.Test.Result =
+let expectExit(i: T, args: List<String>, expected: UInt8): Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")
   match run(i, args) with
   | Error(e) -> Stdlib.Test.fail($"`{cmd}` could not run: {e}")
@@ -279,19 +279,19 @@ let expectExit(i: T, args: List<String>, expected: Int64): Stdlib.Test.Result =
 /// A command's exit code and everything it printed, both streams in that order.
 ///
 /// Both streams because a refusal and its advice can land on either, and a test
-/// about what a person sees should not depend on which. `-1` when the command could
-/// not start at all.
-let ran(i: T, args: List<String>): (Int64 * String) =
+/// about what a person sees should not depend on which. 127 when the command could
+/// not start at all, as in a shell.
+let ran(i: T, args: List<String>): (UInt8 * String) =
   match run(i, args) with
-  | Error(e) -> (-1, $"could not run: {e}")
+  | Error(e) -> (127, $"could not run: {e}")
   | Ok(out) -> (out.exitCode, out.stdout + out.stderr)
 
 
 /// A command's exit code, stdout and stderr, each trimmed and kept apart: `said` and `output`
 /// join them, so they can't tell which stream a line went to.
-let streams(i: T, args: List<String>): (Int64 * String * String) =
+let streams(i: T, args: List<String>): (UInt8 * String * String) =
   match run(i, args) with
-  | Error(e) -> (-1, "", $"could not run: {e}")
+  | Error(e) -> (127, "", $"could not run: {e}")
   | Ok(out) ->
     (
       out.exitCode,
@@ -321,7 +321,7 @@ let doesNotSay(out: String, needle: String, why: String): Stdlib.Test.Result =
 
 
 /// A command exited with `expected`; `why` names the case.
-let exitedWith(code: Int64, expected: Int64, why: String): Stdlib.Test.Result =
+let exitedWith(code: UInt8, expected: UInt8, why: String): Stdlib.Test.Result =
   if code == expected then
     Stdlib.Test.Result.Pass
   else

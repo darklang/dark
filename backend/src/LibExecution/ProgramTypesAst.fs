@@ -44,7 +44,7 @@ let rec subExprs (expr : Expr) : List<Expr> =
     arg
     :: (cases |> List.collect (fun c -> Option.toList c.whenCondition @ [ c.rhs ]))
   | EPipe(_, lhs, parts) -> lhs :: List.collect pipeSubExprs parts
-  | ELet(_, _, value, body) -> [ value; body ]
+  | ELet(_, _, _, value, body) -> [ value; body ]
   | EStatement(_, first, next) -> [ first; next ]
 
   | EList(_, items) -> items
@@ -118,7 +118,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   | EVariable(_, var) -> Set.singleton var
   | EArg(_, _) -> Set.empty
 
-  | ELet(_, _, rhs, next) -> Set.union (r rhs) (r next)
+  | ELet(_, _, _, rhs, next) -> Set.union (r rhs) (r next)
 
 
   // flow control
@@ -231,7 +231,7 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
   | EVariable _ -> Set.empty
   | EArg _ -> Set.empty
 
-  | ELet(_, _, rhs, next) -> Set.union (r rhs) (r next)
+  | ELet(_, _, _, rhs, next) -> Set.union (r rhs) (r next)
 
 
   // flow control

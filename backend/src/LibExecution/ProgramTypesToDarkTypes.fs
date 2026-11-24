@@ -1009,8 +1009,13 @@ module Expr =
           DList(VT.known (knownType ()), Items(List.map toDT fields)) ]
 
       // declaring and accessing variables
-      | PT.ELet(id, lp, expr, body) ->
-        "ELet", [ DInt64(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
+      | PT.ELet(id, lp, typ, expr, body) ->
+        "ELet",
+        [ DInt64(int64 id)
+          LetPattern.toDT lp
+          C2DT.Option.toDT TypeReference.toDT (TypeReference.knownType ()) typ
+          toDT expr
+          toDT body ]
 
       | PT.ERecordFieldAccess(id, expr, fieldName) ->
         "ERecordFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
@@ -1241,8 +1246,14 @@ module Expr =
       )
 
     // declaring and accessing variables
-    | DEnum(_, _, [], "ELet", [ DInt64 id; lp; expr; body ]) ->
-      PT.ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
+    | DEnum(_, _, [], "ELet", [ DInt64 id; lp; typ; expr; body ]) ->
+      PT.ELet(
+        uint64 id,
+        LetPattern.fromDT lp,
+        C2DT.Option.fromDT TypeReference.fromDT typ,
+        fromDT expr,
+        fromDT body
+      )
 
     | DEnum(_, _, [], "ERecordFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
       PT.ERecordFieldAccess(uint64 id, fromDT expr, fieldName)

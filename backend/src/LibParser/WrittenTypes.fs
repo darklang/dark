@@ -338,6 +338,7 @@ and Expr =
   | ELet of
     Range *
     LetPattern *
+    typeAnnotation : Option<TypeReference> *
     expr : Expr *
     body : Expr *
     keywordLet : Range *
@@ -672,7 +673,7 @@ let exprRange (e : Expr) : Range =
   | EVariable(r, _)
   | EFnName(r, _)
   | EInfix(r, _, _, _)
-  | ELet(r, _, _, _, _, _)
+  | ELet(r, _, _, _, _, _, _)
   | EUnwrap(r, _, _)
   | EApply(r, _, _, _)
   | EList(r, _, _, _)

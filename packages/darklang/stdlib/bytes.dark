@@ -46,9 +46,9 @@ let __readBits(bytes: Bytes, offset: Int64, width: Int64, endianness: Endianness
       | LittleEndian -> List.reverse(List.range(offset, offset + width - 1))
 
     Option.Some(
-      List.fold(indexes, 0u64, fun(acc, i) ->
-        let byte = getAt(bytes, i) |> Result.withDefault(0u8)
-        Builtin.bitwiseOr(acc << 8u64, UInt64.fromUInt8(byte))))
+      List.fold(indexes, 0, fun(acc, i) ->
+        let byte = getAt(bytes, i) |> Result.withDefault(0)
+        Builtin.bitwiseOr(acc << 8, UInt64.fromUInt8(byte))))
 
 
 /// <param bits> read as a two's-complement number <param width> bytes wide.
@@ -201,16 +201,16 @@ let readFloat32(
 
 /// The IEEE 754 binary64 number whose bits are <param bits>. A NaN's payload is not kept.
 let __float64OfBits(bits: UInt64): Float64 =
-  let sign = if bits >> 63u64 == 1u64 then -1.0 else 1.0
-  let exponent = Builtin.bitwiseAnd(bits >> 52u64, 2047u64)
-  let fraction = Builtin.bitwiseAnd(bits, 4503599627370495u64)
-  if exponent == 2047u64 then
-    if fraction == 0u64 then sign / 0.0 else 0.0 / 0.0
-  else if exponent == 0u64 then
+  let sign = if bits >> 63 == 1 then -1.0 else 1.0
+  let exponent = Builtin.bitwiseAnd(bits >> 52, 2047)
+  let fraction = Builtin.bitwiseAnd(bits, 4503599627370495)
+  if exponent == 2047 then
+    if fraction == 0 then sign / 0.0 else 0.0 / 0.0
+  else if exponent == 0 then
     sign * UInt64.toFloat64(fraction) * 2.0 ** -1074.0
   else
     // the implicit leading 1 sits at bit 52; every step here is exact
-    let mantissa = UInt64.toFloat64(fraction + 4503599627370496u64)
+    let mantissa = UInt64.toFloat64(fraction + 4503599627370496)
     sign * mantissa * 2.0 ** (UInt64.toFloat64(exponent) - 1075.0)
 
 

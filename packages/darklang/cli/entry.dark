@@ -4,7 +4,7 @@
 /// Part of `Darklang.Cli`.
 module Darklang.Cli
 
-let executeCliCommand(args: List<String>): Int64 =
+let executeCliCommand(args: List<String>): UInt8 =
   let initialState = initState()
   // `dark --plain ls` is `dark ls --plain`.
   let leading = args |> Stdlib.List.takeWhile(fun a -> Stdlib.List.contains(Output.flags, a))

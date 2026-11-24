@@ -439,7 +439,7 @@ module Test =
   /// What <param e> evaluates to, past its `let`s and statements.
   let __resultExpr(e: ProgramTypes.Expr): ProgramTypes.Expr =
     match e with
-    | ELet(_, _, _, next) -> __resultExpr(next)
+    | ELet(_, _, _, _, next) -> __resultExpr(next)
     | EStatement(_, _, next) -> __resultExpr(next)
     | _ -> e
 

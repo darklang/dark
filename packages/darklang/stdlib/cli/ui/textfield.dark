@@ -102,8 +102,7 @@ let isTypeable(c: String): Bool =
   // By code point: CRLF is one Char, and `contains` would not find the "\r" inside it.
   c != ""
   && Bool.not(
-    List.any(String.toCodepoints(c), fun cp ->
-      cp == 9u32 || cp == 10u32 || cp == 13u32 || cp == 27u32))
+    List.any(String.toCodepoints(c), fun cp -> cp == 9 || cp == 10 || cp == 13 || cp == 27))
 
 
 let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
