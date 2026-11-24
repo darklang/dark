@@ -35,9 +35,12 @@ let parseWith(kind: LanguageTools.Parser.FileKind, code: String): Parsed =
       { range = fileRange
         declarations = Stdlib.List.filterMap(items, fun d -> Decls.sourceFileDeclaration(d))
         exprsToEval = Stdlib.List.concat(exprs, Stdlib.List.flatten(Stdlib.List.map(items, fun d -> Decls.assertionExprs(d)))) }
+  // in source order; equal positions keep the order they were found in
   let syntax =
     Stdlib.List.concat(Stdlib.List.map(lexed.diagnostics, fun d -> lexDiagnostic(d)), parseDiagnostics)
-    |> Stdlib.List.sortBy(fun d -> (d.range.start.row, d.range.start.column))
+    |> Stdlib.List.indexedMap(fun(i, d) -> (i, d))
+    |> Stdlib.List.sortBy(fun((i, d)) -> (d.range.start.row, d.range.start.column, i))
+    |> Stdlib.List.map(fun((_, d)) -> d)
   // the tree's own rules only once it parsed cleanly: recovery nodes would mislead them
   let diagnostics =
     match (syntax, kind) with
