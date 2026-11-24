@@ -1,0 +1,71 @@
+/// CLI tests: `dark config`, each in its own instance.
+module Darklang.Cli.Tests.Config
+
+test configSetIsWhatConfigGetReadsBack = Instance.withInstance(fun i ->
+  let set = Instance.ran(i, [ "config", "set", "instance.name", "hello" ])
+  let got = Instance.said(i, [ "config", "get", "instance.name" ])
+  let unset = Instance.ran(i, [ "config", "unset", "instance.name" ])
+  let gone = Instance.said(i, [ "config", "get", "instance.name" ])
+  let (idCode, id) = Instance.ran(i, [ "config", "unset", "instance.id" ])
+  let (typoCode, typo) = Instance.ran(i, [ "config", "unset", "trace.recrod" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(Stdlib.Tuple2.first(set), 0, "set works")
+      Instance.says(Stdlib.Tuple2.second(set), "instance.name", "and says what it set")
+      Instance.says(got, "hello", "get reads it back")
+      Instance.says(
+        Instance.said(i, [ "config", "get", "trace.maxMb" ]),
+        "trace.maxMb is not set (default: 256)",
+        "an unset key is not an empty value, and get says what applies")
+      Instance.exitedWith(Stdlib.Tuple2.first(unset), 0, "unset works")
+      Instance.says(
+        Stdlib.Tuple2.second(unset),
+        "instance.name is back to its default (this machine's hostname)",
+        "and says what applies now")
+      Instance.says(gone, "instance.name is not set", "get no longer finds it")
+      Instance.says(
+        Instance.said(i, [ "config", "get", "exec.spreadPredict" ]),
+        "exec.spreadPredict is not set",
+        "a key with no listed default is just not set")
+      Instance.exitedWith(idCode, 1, $"instance.id cannot be unset: {id}")
+      Instance.says(id, "cannot be unset", "instance.id has no default to go back to")
+      Instance.doesNotSay(id, "back to its default", "and does not claim it went back")
+      Instance.exitedWith(typoCode, 1, $"a typo is refused: {typo}")
+      Instance.says(typo, "Did you mean trace.record?", "unset names the key meant")
+      Instance.doesNotSay(typo, "back to its default", "and unsets nothing") ]))
+
+
+/// The key list is closed: nothing reads a key it does not name, so storing one would only hide
+/// a typo. A refusal names the key meant when one is obvious, and a value is checked on `set`.
+/// Each row is the key, the value, and what the refusal says.
+test configSetRefusesAKeyNothingReadsAndAValueTheBootCannotUse =
+  Instance.withInstance(fun i ->
+    let refused =
+      [ ("trace.recrod", "on", "Did you mean trace.record?")
+        ("loopback", "on", "Did you mean http.loopback?")
+        ("tests.workspace", "hello", "is not a config key")
+        ("exec.policy", "Zzz.Nope.nope", "is not one on main")
+        ("exec.policy", "", "config unset exec.policy")
+        ("exec.spreadPredict", "maybe", "on or off")
+        ("instance.id", "x", "cannot be set") ]
+      |> Stdlib.List.map(fun((key, value, reason)) ->
+        let (code, out) = Instance.ran(i, [ "config", "set", key, value ])
+        Stdlib.Test.all(
+          [ Instance.exitedWith(code, 1, $"set {key} '{value}' is refused: {out}")
+            Instance.says(out, reason, $"set {key} '{value}' says why")
+            Instance.doesNotSay(out, "Set ", $"set {key} '{value}' claims nothing") ]))
+
+    let noGuess = Instance.said(i, [ "config", "set", "tests.workspace", "hello" ])
+    let (policyCode, policy) =
+      Instance.ran(
+        i,
+        [ "config"
+          "set"
+          "exec.policy"
+          "Darklang.LanguageTools.Exec.Policy.roundRobin" ])
+
+    Stdlib.Test.all(
+      Stdlib.List.flatten(
+        [ refused
+          [ Instance.doesNotSay(noGuess, "Did you mean", "no guess when none is obvious")
+            Instance.exitedWith(policyCode, 0, $"a policy that resolves is stored: {policy}")
+            Instance.says(policy, "Set exec.policy", "and set says so") ] ])))

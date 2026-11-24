@@ -44,3 +44,16 @@ test noColorLeavesNoStrayReset = Instance.withInstance(fun i ->
 test argumentsReachTheTerminalIntact = Instance.withInstance(fun i ->
   let out = onTerminal(i, [], [ "eval", "Stdlib.String.length(\"it's a b\")" ])
   Instance.says(out, "8", "the whole expression was evaluated"))
+
+
+test noColorFlagTakesTheColourOut = Instance.withInstance(fun i ->
+  let env = [ ("NO_COLOR", ""), ("CLICOLOR_FORCE", "") ]
+  let plain = onTerminal(i, env, [ "status" ])
+  let before = onTerminal(i, env, [ "--no-color", "status" ])
+  let after = onTerminal(i, env, [ "status", "--no-color" ])
+  Stdlib.Test.all(
+    [ Instance.says(plain, "\u001b[32m", "status is coloured on a terminal")
+      Instance.says(before, "On branch main", "status answers")
+      Instance.doesNotSay(before, "\u001b[32m", "--no-color before the command")
+      Instance.says(after, "On branch main", "status answers")
+      Instance.doesNotSay(after, "\u001b[32m", "--no-color after the command") ]))

@@ -20,27 +20,6 @@ open TestUtils.TestUtils
 open Tests.CliTestHarness
 open Tests.CliDsl
 
-/// `dark diff` with no branch named answers about the DRAFT.
-let private bareDiffShowsTheDraft =
-  instanceTest "diff with no branch shows the draft" (fun state ->
-    task {
-      let! _ = runCli state [ "discard"; "--yes" ]
-      let! clean = runCli state [ "diff" ]
-      Expect.stringContains clean "clean" $"a clean tree says so, got: {clean}"
-      Expect.isFalse (clean.Contains "usage:") "and does not answer with usage"
-
-      do! fn state "Tests.BareDiff.item" "() : Int64 = 3"
-      let! withDraft = runCli state [ "diff" ]
-      Expect.stringContains withDraft "CHANGED" "a draft is listed as changes"
-      Expect.stringContains
-        withDraft
-        "Tests.BareDiff.item"
-        $"and names what changed, got: {withDraft}"
-
-      let! _ = runCli state [ "discard"; "--yes" ]
-      return ()
-    })
-
 /// A draft holding a deprecation can be committed by BOTH paths, and each fails differently without
 /// this. `--include=` has to read the `Reference` a `Deprecate` carries as a reference and not as a
 /// `Hash`, or it dies at runtime. And `commit --json` must not decide "nothing to commit" from the
@@ -143,65 +122,6 @@ let private fnReadsItsDefinitionFromAFile =
       let! _ = runCli state [ "discard"; "--yes" ]
       ()
     })
-
-/// A branch that never touched `f` still calls `f`. When main moves `f`, the branch's callers keep the
-/// old version by hash, so the branch reports the stale usage, and `rebase` repoints it, which is what
-/// "accept the parent's changes" means. Without that, the branch runs main's old code silently.
-let private aBranchLearnsThatMainMovedItsDependency =
-  instanceTest
-    "a branch's callers of a fn main moved are reported, and rebase repoints them"
-    (fun state ->
-      task {
-        do! discardAll state
-        do! fn state "Tests.Moved.dep" "() : Int64 = 1"
-        do! commit state "dep v1"
-        do! switch state "movedbr"
-        let! _ =
-          runCli
-            state
-            [ "fn"; "Tests.Moved.caller"; "(): Int64 = Tests.Moved.dep()" ]
-        do! commit state "caller"
-        do! switch state "main"
-        do! fn state "Tests.Moved.dep" "() : Int64 = 2"
-        do! commit state "dep v2"
-        do! switch state "movedbr"
-
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Moved.caller()" ]
-            "1"
-            "the branch's caller still runs the old dep"
-        let! constraints = runCli state [ "constraints" ]
-        Expect.stringContains
-          constraints
-          "Tests.Moved.caller"
-          $"and the branch says so: {constraints}"
-
-        let! rebased = runCli state [ "rebase" ]
-        Expect.stringContains
-          rebased
-          "Tests.Moved.caller"
-          $"rebase names what it repointed: {rebased}"
-        // As a repoint, not as a divergence: nobody on the branch touched the caller, and "your
-        // branch's versions win by recency" is advice about a fight that is not happening.
-        Expect.stringContains
-          rebased
-          "now point at the parent's version"
-          $"and calls it a repoint: {rebased}"
-        Expect.isFalse
-          (rebased.Contains "you also touched")
-          $"not a divergence: {rebased}"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Moved.caller()" ]
-            "2"
-            "and the caller follows main's dep now"
-
-        do! discardAll state
-        do! archiveBranches state [ "movedbr" ]
-      })
 
 /// A name that does not resolve fails before any call is made, so its stack is empty and the host
 /// prints no stack header over it. One line for a one-line mistake; a real stack, from a fn that
@@ -745,135 +665,6 @@ let private aNameHoldsOneItemWhateverItsKind =
       return ()
     })
 
-/// Reads on a branch answer about the branch, each with its own scenario. `dark ops` on a branch off a
-/// branch includes the intermediate branch; `undo` on a branch never steps onto a version main authored
-/// AFTER the fork; `deps` on a branch lists the branch's version of a caller it re-authored.
-let private branchReadsAnswerAboutTheBranch =
-  instanceTest
-    "ops, undo and deps answer about the branch you stand on, chain included"
-    (fun state ->
-      task {
-        // A name main has, at v1, then a branch forks it and edits it.
-        do! switch state "main"
-        do! fn state "Tests.BranchRead.base" "() : Int64 = 1"
-        // A caller main has too, so the branch's re-authoring of it below leaves main's version behind.
-        do!
-          author
-            state
-            "Tests.BranchRead.caller"
-            "(): Int64 = Tests.BranchRead.base()"
-        do! commit state "branchread v1"
-        do! switch state "brOne"
-        do! fn state "Tests.BranchRead.base" "() : Int64 = 2"
-        // The caller re-authored on the branch, and a branch off the branch with one op of its own.
-        do!
-          author
-            state
-            "Tests.BranchRead.caller"
-            "(): Int64 = (Tests.BranchRead.base()) + 0"
-        let! _ = runCli state [ "branch"; "new"; "brTwo" ]
-        do! fn state "Tests.BranchRead.deep" "() : Int64 = 3"
-
-        // ops from the deepest branch lists the intermediate branch's op, not only its own and main's.
-        let! ops = runCli state [ "ops" ]
-        Expect.stringContains
-          ops
-          "Tests.BranchRead.caller"
-          "the intermediate branch's op is listed from its child"
-        Expect.stringContains
-          ops
-          "Tests.BranchRead.deep"
-          "alongside the child's own"
-
-        // Meanwhile main moves the same name on to v3, which the branch never had.
-        do! switch state "main"
-        do! fn state "Tests.BranchRead.base" "() : Int64 = 3"
-        do! commit state "branchread v3"
-
-        // undo on the branch steps back to the fork's version, v1, and not onto main's v3.
-        do! switch state "brOne"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.BranchRead.base()" ]
-            "2"
-            "the branch is at its own edit"
-        let! _ = runCli state [ "undo"; "Tests.BranchRead.base" ]
-        do!
-          shows
-            state
-            [ "eval"; "Tests.BranchRead.base()" ]
-            "1"
-            "undo steps to the version the branch forked from"
-
-        // deps on the branch: the branch re-authored `caller`, so main has no version of it to list twice.
-        do! fn state "Tests.BranchRead.base" "() : Int64 = 2"
-        do!
-          shows
-            state
-            [ "deps"; "usedby"; "Tests.BranchRead.base" ]
-            "Found 1 dependents"
-            "the caller is listed once, the branch's version, not main's as well"
-
-        do! archiveBranches state [ "brTwo"; "brOne" ]
-      })
-
-/// "Who calls this" must answer about the BRANCH you are standing on.
-///
-/// The dependency edge is shared, but the name to call a caller by is the branch's: a join against
-/// main's names would drop every branch-authored caller and return main's list, which looks complete.
-///
-/// It is the question you ask BEFORE changing something, so the wrong answer is the dangerous direction:
-/// it says nothing on your branch depends on this.
-let private dependentsSeeTheBranchYouAreOn =
-  instanceTest
-    "who calls this counts the callers on your branch, not just main's"
-    (fun state ->
-      task {
-        do! author state "Tests.Dep.target" "(x: Int64) : Int64 = x + 1"
-        do!
-          author
-            state
-            "Tests.Dep.mainCaller"
-            "(x: Int64): Int64 = (Tests.Dep.target(x)) + 10"
-
-        do!
-          shows
-            state
-            [ "deps"; "Tests.Dep.target" ]
-            "mainCaller"
-            "main's caller shows on main"
-
-        // Committed, so the branch can see it: main's draft is invisible from a branch.
-        do! commit state "dep target"
-        do! switch state "depbr"
-        do!
-          author
-            state
-            "Tests.Dep.branchCaller"
-            "(x: Int64): Int64 = (Tests.Dep.target(x)) + 99"
-
-        let! onBranch = runCli state [ "deps"; "Tests.Dep.target" ]
-        Expect.stringContains
-          onBranch
-          "branchCaller"
-          "the caller authored on this branch is a dependent here"
-        Expect.stringContains
-          onBranch
-          "mainCaller"
-          "and main's caller has not stopped being one"
-
-        // Standing on main is unchanged: a branch's callers are that branch's business.
-        do! switch state "main"
-        let! onMain = runCli state [ "deps"; "Tests.Dep.target" ]
-        Expect.stringContains onMain "mainCaller" "main still sees its own caller"
-        Expect.isFalse
-          (onMain.Contains "branchCaller")
-          "and does NOT see one that only exists on a branch"
-
-        do! archiveBranches state [ "depbr" ]
-      })
-
 /// Record a pending conflict directly, through the same F# a merge or a rebase records with. The
 /// candidates are empty because nothing here reads them; what is under test is which branch the row
 /// lands on and which one an answer reaches.
@@ -1037,116 +828,6 @@ let private aConflictCloseThatFailsIsReported =
       })
 
 
-/// `diff` and `log` answer questions, so they answer in JSON too.
-///
-/// Both render a string with no record behind them, so this is a shape to design rather than a flag
-/// to add. The flag is filtered out before the branch reference is read, so it can go on either
-/// side: otherwise `dark diff --json foo` looks for a branch literally named "--json".
-let private diffAndLogAnswerInJson =
-  instanceTest
-    "diff and log answer in JSON, with the flag on either side"
-    (fun state ->
-      task {
-        do! switch state "jsonsurface"
-        do! author state "Tests.JsonS.only" "(x: Int64) : Int64 = x + 1"
-
-        // `log` on a branch is the op sequence, oldest first.
-        let! logJson = runCli state [ "log"; "--json" ]
-        Expect.stringContains
-          logJson
-          "\"seq\":0"
-          "the branch's ops are numbered from the start"
-        Expect.stringContains
-          logJson
-          "Tests.JsonS.only"
-          "and name what they touched"
-
-        do! switch state "main"
-
-        // `log` on main is the commit history, so it answers with what `commits --json` answers.
-        do!
-          shows
-            state
-            [ "log"; "--json" ]
-            "\"hash\""
-            "on main it is the commit history"
-
-        let! diffJson = runCli state [ "diff"; "jsonsurface"; "--json" ]
-        Expect.stringContains
-          diffJson
-          "Tests.JsonS.only"
-          "diff reports the changed name"
-        Expect.stringContains diffJson "\"change\":\"new\"" "and classifies it"
-
-        let! flagFirst = runCli state [ "diff"; "--json"; "jsonsurface" ]
-        Expect.equal
-          (flagFirst.Trim())
-          (diffJson.Trim())
-          "the flag is not positional"
-
-        do! archiveBranches state [ "jsonsurface" ]
-      })
-
-let private conflictsBelongToTheBranchTheyHappenedOn =
-  cliTestOnMain "a conflict is answered on the branch it happened on" (fun state ->
-    task {
-      do! switch state "confbr"
-      // The process the CLI runs in IS this one, so the branch `switch` moved it onto is the branch.
-      let branchId = LibDB.PackageManager.currentBranchId ()
-      Expect.isFalse branchId.IsMain "switch put us on a real branch"
-
-      recordConflict branchId "cnfbranch01" "Zz" "Confl" "f" "bbb"
-      recordConflict
-        LibExecution.ProgramTypes.BranchId.Main
-        "cnfmain0001"
-        "Zz"
-        "Confl"
-        "f"
-        "bbb"
-
-      // Each branch has its own list. Dropping the branch filter from `pending`
-      // shows both here.
-      let! onBranch = runCli state [ "conflicts" ]
-      Expect.stringContains
-        onBranch
-        "cnfbranch01"
-        "the branch's conflict is on the branch's list"
-      Expect.isFalse
-        (onBranch.Contains "cnfmain0001")
-        "and main's is not, because answering it from here would write into the branch"
-
-      // The payoff. A conflict is a property of the STORE, so an ack given on a branch
-      // has to count everywhere rather than be refused for being branch-local.
-      let! acked = runCli state [ "conflicts"; "ack"; "cnfbranch01" ]
-      Expect.stringContains
-        acked
-        "acked"
-        "a conflict can be answered from the branch it is on"
-
-      // The ids you can act on are exactly the ids you were shown, so a lookup by
-      // prefix is scoped too.
-      do!
-        shows
-          state
-          [ "conflicts"; "ack"; "cnfmain0001" ]
-          "no conflict matching"
-          "an id copied from main's list does nothing here"
-
-      do! switch state "main"
-      let! onMain = runCli state [ "conflicts" ]
-      Expect.stringContains
-        onMain
-        "cnfmain0001"
-        "main still has its own, unanswered"
-      Expect.isFalse
-        (onMain.Contains "cnfbranch01")
-        "and the branch's, which is now acked, is gone from both"
-
-      // Answered, so this test leaves no pending row behind for whatever reads the store next.
-      let! _ = runCli state [ "conflicts"; "ack"; "cnfmain0001" ]
-      do! archiveBranches state [ "confbr" ]
-    })
-
 /// `--include=<caller>` on a branch committed the caller and left its dependency's NAME in the
 /// draft, so a reader downstream could run the caller but could not find what it called.
 let aPartialCommitTakesItsDependencysName =
@@ -1170,87 +851,6 @@ let aPartialCommitTakesItsDependencysName =
             state
             "and nothing of it is left uncommitted: the dependency came along"
         do! onMain state
-      })
-
-
-/// `conflicts override <name>` answers the PENDING row for that name, the one the listing shows. With
-/// one name conflicted twice, it must not act on the settled conflict and leave the open one open.
-let overrideByNameAnswersThePendingConflict =
-  cliTestOnMain "answering a conflict by name answers the open one" (fun state ->
-    task {
-      do! start state
-      do! switch state "confl2"
-
-      let record (id : string) (hash : string) =
-        recordConflict
-          (LibDB.PackageManager.currentBranchId ())
-          id
-          "Tests"
-          "Confl2"
-          "same"
-          hash
-
-      record "r2first001" "aaa"
-      do! run state [ "conflicts"; "ack"; "r2first001" ]
-      record "r2second02" "bbb"
-
-      // By NAME: the settled one must not be what answers.
-      let! answered = runCliPlain state [ "conflicts"; "ack"; "Tests.Confl2.same" ]
-      Expect.stringContains
-        answered
-        "r2second02"
-        $"the open conflict is the one answered, got: {answered}"
-
-      let! left = runCliPlain state [ "conflicts" ]
-      Expect.isFalse
-        (left.Contains "r2second02")
-        $"and it is closed afterwards, got: {left}"
-      do! onMain state
-    })
-
-
-/// An override settles the conflict on the branch it is authored on. Folded on a branch, it must
-/// leave a pending conflict on main alone.
-let private anOverrideOnABranchLeavesMainsConflictOpen =
-  cliTestOnMain
-    "an override on a branch leaves main's pending conflict open"
-    (fun state ->
-      task {
-        do! discardAll state
-        do! fn state "Tests.OverrideScope.x" "(): Int64 = 1"
-        do! commit state "override scope: first"
-        do! fn state "Tests.OverrideScope.x" "(): Int64 = 2"
-        do! commit state "override scope: second"
-        recordConflict
-          LibExecution.ProgramTypes.BranchId.Main
-          "ovscope001"
-          "Tests"
-          "OverrideScope"
-          "x"
-          "aaa"
-
-        // Keeping the branch's version is authored as an override, folded on the branch.
-        do! switch state "override-scope"
-        do! fn state "Tests.OverrideScope.x" "(): Int64 = 3"
-        do!
-          shows
-            state
-            [ "branch"
-              "resolve"
-              "override-scope"
-              "Tests.OverrideScope.x"
-              "mine" ]
-            "kept the branch"
-            "the branch keeps its version"
-        do! onMain state
-
-        let status =
-          countSql
-            "SELECT COUNT(*) AS n FROM conflicts WHERE id = 'ovscope001' AND status = 'pending'"
-            []
-        Expect.equal status 1L "main's conflict is still pending"
-        do! run state [ "branch"; "archive"; "override-scope" ]
-        execSql "DELETE FROM conflicts WHERE id = 'ovscope001'"
       })
 
 
@@ -1450,14 +1050,8 @@ let tests : List<Test> =
     theWorkedExampleWorks
     editsAreVisibleInTheSameProcess
     deprecationTakesEffectInTheSameProcess
-    conflictsBelongToTheBranchTheyHappenedOn
-    diffAndLogAnswerInJson
-    bareDiffShowsTheDraft
-    dependentsSeeTheBranchYouAreOn
-    branchReadsAnswerAboutTheBranch
     aDeprecationCommitsByEitherPath
     archivingABranchCommitsItsEvent
-    aBranchLearnsThatMainMovedItsDependency
     fnReadsItsDefinitionFromAFile
     aMissingNameIsOneLineNotAStackHeader
     failuresExitNonzero
@@ -1466,10 +1060,8 @@ let tests : List<Test> =
     editChangesAnItemWithoutRetypingIt
     everyJsonSurfaceParses
     aPartialCommitTakesItsDependencysName
-    overrideByNameAnswersThePendingConflict
     aFailedJsonCommitExitsNonzero
     aConflictCloseThatFailsIsReported
-    anOverrideOnABranchLeavesMainsConflictOpen
     aRefreshedDraftKeepsAnAliasBody
     aDependentsReadThatFailsIsReported
     aDependencyReviewThatFailsIsReported

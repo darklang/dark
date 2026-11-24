@@ -43,7 +43,7 @@ test aBranchOffABranchSeesItsParentsCommits =
       saveNumber(dark, "Tests.App.featDraft", "2")
       says(
         dark,
-        [ "switch", "child" ],
+        [ "switch", "-c", "child" ],
         "(off \"feat\")",
         "switching from a branch starts the new one off it")
 
@@ -184,8 +184,7 @@ test archivingABranchThrowsAwayItsUnmergedWork =
         "`commits --json` lists it even without --all") ])
 
 
-// Odd, but today's behaviour: switching to the name of a merged branch starts a fresh branch
-// with the same name.
+// A merged branch's name is free again: `switch -c` starts a fresh branch with it.
 test switchingToAMergedBranchsNameStartsAFreshBranch =
   scenario(fun dark ->
     [ switch(dark, "feat")
@@ -195,7 +194,7 @@ test switchingToAMergedBranchsNameStartsAFreshBranch =
       merge(dark, "feat")
       says(
         dark,
-        [ "switch", "feat" ],
+        [ "switch", "-c", "feat" ],
         "this one is fresh",
         "switch says the name is being reused")
 
@@ -210,6 +209,24 @@ test switchingToAMergedBranchsNameStartsAFreshBranch =
         "Tests.App.a()",
         "1",
         "and sees the merged work through main") ])
+
+
+test switchToANewNameStartsNothing = scenario(fun dark ->
+  [ switch(dark, "feature")
+    switch(dark, "main")
+    refuses(
+      dark,
+      [ "switch", "featur" ],
+      "There is no branch named `featur`. Did you mean `feature`?",
+      "a typo is refused, naming the branch it is close to")
+
+    says(dark, [ "switch", "mian" ], "dark switch -c mian", "and says how to start one")
+    same(branches(dark), [ "feature <- main" ], "nothing was started")
+    says(dark, [ "branch" ], "on main", "nor were we moved")
+    says(dark, [ "switch", "-c", "mian" ], "started branch \"mian\"", "-c starts it")
+    switch(dark, "main")
+    refuses(dark, [ "switch", "-c", "feature" ], "already exists", "-c refuses a taken name")
+    says(dark, [ "branch" ], "on main", "and does not switch onto it") ])
 
 
 test aBranchSubcommandWithNoArgumentsCreatesNothing = scenario(fun dark ->
@@ -409,7 +426,7 @@ test committingOnABranchLeavesMainsDraftUncollapsed = scenario(fun dark ->
     setup,
     [ says(
         dark,
-        [ "switch", "cli-collapse-branch" ],
+        [ "switch", "-c", "cli-collapse-branch" ],
         "cli-collapse-branch",
         "the test is on the branch")
 

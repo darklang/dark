@@ -109,6 +109,18 @@ let exp(a: Float32): Float32 =
   fromFloat64(Float64.exp(toFloat64(a)))
 
 
+/// <param x> rounded to <param places> decimal places as <fn Float64.roundTo> does, then
+/// read back as the nearest Float32. Rounds the exact value held, so
+/// {{Float32.roundTo(1.15f32, 1) == 1.1f32}}: 1.15f32 is 1.14999997615814208984375.
+let roundTo(x: Float32, places: Int64): Float32 =
+  if isFinite(x) then
+    match parse(Float64.__roundToText(toFloat64(x), places)) with
+    | Ok(r) -> r
+    | Error(_) -> x
+  else
+    x
+
+
 impl Add for Float32 =
   /// Add <type Float32> <param a> to <type Float32> <param b>
   let add(a: Float32, b: Float32): Float32 =

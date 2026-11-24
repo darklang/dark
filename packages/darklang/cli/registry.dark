@@ -197,7 +197,7 @@ module Registry =
 
   let acceptsBranches(): Accepts.Accepts = Accepts.flagsOnly([ "--all", "--json" ])
 
-  let acceptsSwitch(): Accepts.Accepts = Accepts.upTo(1, [])
+  let acceptsSwitch(): Accepts.Accepts = Accepts.upTo(1, [ "-c", "--create" ])
 
   let acceptsDiff(): Accepts.Accepts = Accepts.upTo(1, [ "--source", "--json" ])
 
@@ -761,7 +761,9 @@ module Registry =
     let globalFlags =
       [ "Global flags:"
         "  --branch <name>       run on that branch, this time only"
+        "  --json                answer as JSON, on commands that answer"
         "  --no-input            never prompt (same as DARK_NO_INPUT=1)"
+        "  --no-color            no colour (same as NO_COLOR=1)"
         "  --plain               one record per line, as when piped"
         "  --pretty              for a person, even when piped"
         "  --trace, --no-trace   record a trace of this run, or don't"

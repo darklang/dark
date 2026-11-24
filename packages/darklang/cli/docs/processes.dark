@@ -170,6 +170,5 @@ other commands, such as `status` and `ls`, are never recorded.
   config set exec.maxInstructions <n>  expert: stop a process past this many instructions
   config set exec.maxBytes <n>         expert: ... or this many bytes allocated
 
-The design is `docs/processes.md` in the repository; the live half of the
-story is `docs live`.
+The live half of the story is `docs live`.
 """
