@@ -46,7 +46,7 @@ cannot starve another, even on one worker.
 An open page reloads itself. Under `--live` every HTML response carries a
 small script that waits for word that the router moved, and survives the
 server restarting rather than going blank. A JSON or an image response is
-untouched. Not for production, and `docs/live.md` has the mechanism.
+untouched. Not for production.
 
 ## Live values in the editor
 
@@ -70,6 +70,5 @@ error: ...`. Fix it and the band goes.
 
 The rule underneath: reload is name resolution. A save binds a name to a new
 hash, the old hash stays, a host resolves its entries again on the next
-change. `docs processes` is the other half; the design is `docs/live.md` in
-the repository.
+change. `docs processes` is the other half.
 """

@@ -23,14 +23,13 @@ Three layers, and the separation is the whole point:
    `TerminalSession` holds `{ status, previousView, terminalSize }`, decides full-repaint vs diff,
    writes exactly once, and knows how to restore the terminal.
 
-  packages/darklang/stdlib/cli/tui/
-    core.dark             View, Size, Cursor, ViewMode  (types only)
-    text.dark             widths, clipping, wrapping, SGR sanitizing
-    layout.dark           blankRows / fitRows / viewport
-    frame.dark            fullscreen diffing, absolute addressing
-    inlineFrame.dark      inline diffing, cursor-relative addressing
-    terminalSession.dark  lifecycle, alt-screen, restore guards
-    terminalSupport.dark  "can we even run a TUI here"
+  Stdlib.Cli.Tui          View, Size, Cursor, ViewMode  (types only)
+    Text                  widths, clipping, wrapping, SGR sanitizing
+    Layout                blankRows / fitRows / viewport
+    Frame                 fullscreen diffing, absolute addressing
+    InlineFrame           inline diffing, cursor-relative addressing
+    TerminalSession       lifecycle, alt-screen, restore guards
+    TerminalSupport       "can we even run a TUI here"
 
 ## What sits on top
 
@@ -51,19 +50,19 @@ two shapes to know:
    owns the session: starting the terminal, presenting on every transition, tearing down, and re-taking the
    surface after another page borrowed it. Nothing should hand-write that again.
 
-  packages/darklang/stdlib/cli/ui/
-    widget.dark           the shared vocabulary: KeyPress, Outcome
-    layout.dark           Region / Span / SizeRequest, vstack, hstack
-    canvas.dark           spans -> rows (the bridge back down to a View)
-    box.dark              a bordered, titled pane
-    splitpane.dark        two of those, side by side
-    listview.dark         a scrolling list body with a scrollbar
-    picker.dark           a list you choose from, emits an index
-    textfield.dark        one line of text, with a cursor and a scrolling window
-    editor.dark           a multiline buffer (pure edit/motion ops)
-    confirm.dark          a yes/no over the current screen
-    chrome.dark           the title / help / message frame around an app
-    colors.dark           the palette, and the one-shot colourisers
+  Stdlib.Cli.UI
+    Widget                the shared vocabulary: KeyPress, Outcome
+    Layout                Region / Span / SizeRequest, vstack, hstack
+    Canvas                spans -> rows (the bridge back down to a View)
+    Box                   a bordered, titled pane
+    SplitPane             two of those, side by side
+    ListView              a scrolling list body with a scrollbar
+    Picker                a list you choose from, emits an index
+    TextField             one line of text, with a cursor and a scrolling window
+    Editor                a multiline buffer (pure edit/motion ops)
+    Confirm               a yes/no over the current screen
+    Chrome                the title / help / message frame around an app
+    Colors                the palette, and the one-shot colourisers
 
 The rule that keeps this honest: a widget is pure and knows nothing about a terminal. If you find yourself
 printing inside one, you've broken the diffing, because the renderer may call `view` again to compare
