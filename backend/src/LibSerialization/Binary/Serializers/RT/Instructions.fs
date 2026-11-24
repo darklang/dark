@@ -12,6 +12,7 @@ open LibSerialization.Binary.Serializers.RT.Common
 
 module LetPattern =
   let rec write (w : BinaryWriter) (pat : LetPattern) =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match pat with
     | LPVariable(extractTo, name) ->
       w.Write 0uy
@@ -27,6 +28,7 @@ module LetPattern =
 
   /// <param version> is the blob's format. Before v11 a variable had no name.
   let rec read (version : uint32) (r : BinaryReader) : LetPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match r.ReadByte() with
     | 0uy ->
       let extractTo = r.ReadInt32()
@@ -44,6 +46,7 @@ module LetPattern =
 
 module MatchPattern =
   let rec write (w : BinaryWriter) (pat : MatchPattern) =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match pat with
     | MPUnit -> w.Write 0uy
     | MPBool value ->
@@ -133,6 +136,7 @@ module MatchPattern =
         fields
 
   let rec read (r : BinaryReader) : MatchPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match r.ReadByte() with
     | 0uy -> MPUnit
     | 1uy -> MPBool(r.ReadBoolean())
@@ -190,6 +194,7 @@ module MatchPattern =
 
 module LambdaImpl =
   let write (w : BinaryWriter) (l : LambdaImpl) =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     w.Write(l.exprId : uint64)
     NEList.write
       LetPattern.write
@@ -206,6 +211,7 @@ module LambdaImpl =
 
 
   let read (version : uint32) (r : BinaryReader) : LambdaImpl =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let exprId = r.ReadUInt64()
     let patterns = NEList.read (LetPattern.read version) r |> NEList.toList
     let registersToCloseOver =

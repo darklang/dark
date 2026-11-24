@@ -227,6 +227,7 @@ let writeTypeReference
   (w : BinaryWriter)
   (t : PT.TypeReference)
   : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match t with
   | PT.TInt64 -> w.Write 0uy
   | PT.TUInt64 -> w.Write 1uy
@@ -283,6 +284,7 @@ let writeTypeReference
 // =====================
 
 let writeLetPattern (w : BinaryWriter) (pattern : PT.LetPattern) =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match pattern with
   | PT.LPVariable(_id, name) ->
     w.Write 0uy
@@ -297,6 +299,7 @@ let writeLetPattern (w : BinaryWriter) (pattern : PT.LetPattern) =
 
 
 let writeMatchPattern (w : BinaryWriter) (pattern : PT.MatchPattern) =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match pattern with
   | PT.MPVariable(_id, name) ->
     w.Write 0uy
@@ -454,6 +457,7 @@ let writePipeExpr (mode : HashRefMode) (w : BinaryWriter) (pipeExpr : PT.PipeExp
 
 
 let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match expr with
   | PT.EInt64(_id, value) ->
     w.Write 0uy

@@ -45,6 +45,7 @@ check "Lint the shell scripts" scripts/linting/shellchecker
 check "Check formatting" format_check
 check "No thread blocks on a task" scripts/linting/blocking-waits
 check "Builtins draw random values from the run's source" scripts/linting/random-sources
+check "Recursive walks check the stack" scripts/linting/stack-checks
 check "Code cites no issue or PR numbers" scripts/linting/issue-refs
 check "Test the build's planning and readiness logic" scripts/testing/test-build-planning.py
 check "Test CI diagnostic collection" python3 .circleci/test_collect_diagnostics.py

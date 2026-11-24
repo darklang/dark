@@ -556,6 +556,7 @@ type TypeReference =
 
   member this.isConcrete() : bool =
     let rec isConcrete (t : TypeReference) : bool =
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       match t with
       | TUnit
       | TBool
@@ -4366,6 +4367,7 @@ module Dval =
         byValue.AddOrUpdate(vt, result)
         result
     | DTuple(first, second, theRest) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       ValueType.Known(
         KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
       )
@@ -4423,6 +4425,7 @@ module Dval =
   let rec hasValueType (vt : ValueType) (dv : Dval) : bool =
     match dv with
     | DTuple(first, second, theRest) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       match vt with
       | ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
         hasValueType vFirst first
@@ -4462,6 +4465,7 @@ module Dval =
   /// the reflected `Dval` holds Bytes and is itself a key type. See docs/bytes.md.
   /// A NaN is not equal to itself, so it is not a key, nor is a value holding one.
   let rec isUsableDictKey (dv : Dval) : bool =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match dv with
     | DApplicable _
     | DStream _
@@ -4500,6 +4504,7 @@ module Dval =
 
   /// Whether <param dv> is or holds a NaN, looking where a key comparison would.
   let rec private holdsNaN (dv : Dval) : bool =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match dv with
     | DFloat64 f -> System.Double.IsNaN f
     | DFloat32 f -> System.Single.IsNaN f
@@ -4548,6 +4553,7 @@ module Dval =
     let inline same (a : obj) (b : obj) = obj.ReferenceEquals(a, b)
 
     let rec go (dv : Dval) : Dval =
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       let substituted = f dv
       match substituted with
       | Some dv' -> dv'
@@ -4871,6 +4877,7 @@ module DebugSymbols =
     (instrs : List<Instruction>)
     : struct (List<Instruction> * DebugSymbols) =
     let rec go lambdas (instrs : List<Instruction>) =
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       stripFrom instrs lambdas (fun lambdas instr ->
         match instr with
         | CreateLambda(createTo, lambda) ->
@@ -6898,6 +6905,7 @@ module TypeReference =
     (tst : TypeSymbolTable)
     (typeRef : TypeReference)
     : ValueType =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match unwrapAlias types typeRef with
     | TStream inner -> ValueType.Known(KTStream(toVT types tst inner))
 
@@ -6926,6 +6934,7 @@ module TypeReference =
 
   /// Convert a KnownType back to a TypeReference
   let rec fromKnownType (kt : KnownType) : TypeReference =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let fromVT (vt : ValueType) : TypeReference =
       match vt with
       | ValueType.Unknown -> TVariable "_"
@@ -6969,6 +6978,7 @@ module TypeReference =
     (tst : TypeSymbolTable)
     (typ : TypeReference)
     : TypeReference =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let r = resolveTypeVariables tst
     match typ with
     | TUnit

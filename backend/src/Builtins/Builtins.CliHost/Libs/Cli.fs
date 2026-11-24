@@ -950,6 +950,10 @@ let private guestTry
     with
     | RuntimeErrorException(rte) ->
       return resultError (ExecutionError.toDT (toError rte))
+    // e.g. storing a deep result in the trace, which happens after the run
+    | e when Exe.isOutOfStack e ->
+      let rte = RT.RuntimeError.UncaughtException(Exe.outOfStackMessage, [])
+      return resultError (ExecutionError.toDT (toError rte))
     | e ->
       // A store condition raised before the run starts (the approved-version check sits in
       // lowering) is the same refusal it would be during the run, not an `Unhandled` crash.

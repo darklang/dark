@@ -1,0 +1,62 @@
+# Recursive functions scripts/linting/stack-checks lets through: a path, then the function's name.
+# Each one's depth doesn't follow the depth of its input.
+
+# A loop over a string, a list, an array or a count.
+backend/src/LibExecution/RuntimeTypes.fs foldNameWords
+backend/src/LibExecution/RuntimeTypes.fs allFrom
+backend/src/LibExecution/RuntimeTypes.fs firstKept
+backend/src/LibExecution/RuntimeTypes.fs addAll
+backend/src/LibExecution/TypeChecker.fs listElementType
+backend/src/LibExecution/TypeChecker.fs dictEntryTypes
+backend/src/LibExecution/TypeChecker.fs updateTypeArgs
+backend/src/LibExecution/TypeChecker.fs updateTypeArgValues
+backend/src/LibExecution/TypeChecker.fs checkEnumFields
+backend/src/LibExecution/TypeChecker.fs enumFields
+backend/src/LibExecution/TypeChecker.fs caseWithArity
+backend/src/LibExecution/TypeChecker.fs findFieldIn
+backend/src/LibExecution/TypeChecker.fs checkRecordFields
+backend/src/LibExecution/TypeChecker.fs namedBefore
+backend/src/LibExecution/TypeChecker.fs updateRecordFields
+backend/src/LibExecution/TypeChecker.fs holdsRead
+backend/src/Builtins/Builtins.Pure/Libs/Json.fs lineStart
+backend/src/Builtins/Builtins.Pure/Libs/Json.fs columnAt
+backend/src/LibSerialization/Binary/Serializers/Common.fs readInto
+backend/src/LibSerialization/Binary/Serializers/Common.fs writeFrom
+backend/src/LibSerialization/Binary/Serializers/Common.fs readFrom
+backend/src/LibSerialization/Binary/Serializers/RT/PackageFn.fs readEntries
+backend/src/LibSerialization/Binary/Serializers/RT/PackageFn.fs readLambdas
+backend/src/LibSerialization/Hashing/Hashing.fs popComponent
+
+# A balanced tree: the depth is the log of its size.
+backend/src/LibExecution/RuntimeTypes.fs check
+backend/src/LibExecution/RuntimeTypes.fs add
+backend/src/LibExecution/RuntimeTypes.fs tryFind
+backend/src/LibExecution/RuntimeTypes.fs spliceOutMin
+backend/src/LibExecution/RuntimeTypes.fs remove
+backend/src/LibExecution/RuntimeTypes.fs ofSorted
+backend/src/LibExecution/RuntimeTypes.fs fold
+backend/src/LibExecution/RuntimeTypes.fs foldBack
+backend/src/LibExecution/RuntimeTypes.fs forall
+backend/src/LibExecution/RuntimeTypes.fs map
+
+# A tail call, which uses no stack.
+backend/src/LibExecution/RuntimeTypes.fs elemType
+backend/src/Builtins/Builtins.Pure/Libs/Json.fs unalias
+
+# Calls itself again only later, from a callback (a read landing, a spawned process).
+backend/src/LibExecution/TypeChecker.fs list
+backend/src/LibExecution/TypeChecker.fs dict
+backend/src/LibExecution/TypeChecker.fs optionSome
+backend/src/LibExecution/TypeChecker.fs enum
+backend/src/LibExecution/TypeChecker.fs record
+backend/src/LibExecution/TypeChecker.fs recordUpdate
+backend/src/LibDB/Tracing.fs tracing
+backend/src/LibDB/Tracing.fs executionTracingFor
+backend/src/LibDB/Tracing.fs tracingFor
+backend/src/LibDB/Tracing.fs viewTracing
+
+# Recurses once at most: the alias is unwrapped first.
+backend/src/LibExecution/TypeChecker.fs resolveType
+
+# Not recursive: two cases, neither holding another.
+backend/src/LibSerialization/Binary/Serializers/RT/Common.fs write

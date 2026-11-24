@@ -207,7 +207,7 @@ let exitIfOutOfMemory (ex : exn) : unit =
     exit 4
 
 /// Recognize exceptions from stack checks, including wrappers added by sort comparers.
-let rec private isOutOfStack (ex : exn) : bool =
+let rec isOutOfStack (ex : exn) : bool =
   match ex with
   | :? System.InsufficientExecutionStackException -> true
   | _ -> not (isNull ex.InnerException) && isOutOfStack ex.InnerException

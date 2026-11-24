@@ -27,6 +27,7 @@ and writeValueTypeImpl (w : BinaryWriter) (vt : ValueType) =
     writeKnownType w kt
 
 and writeKnownType (w : BinaryWriter) (kt : KnownType) =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match kt with
   | KTUnit -> w.Write 0uy
   | KTBool -> w.Write 1uy
@@ -130,6 +131,7 @@ and writeTypeSymbolTable (w : BinaryWriter) (tst : TypeSymbolTable) =
   Map.write String.write writeValueType w (TST.toList tst |> Map.ofList)
 
 and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match dval with
   | DUnit -> w.Write 0uy
   | DBool value ->
@@ -264,6 +266,7 @@ and readValueTypeImpl (r : BinaryReader) : ValueType =
   | b -> raiseFormatError $"Invalid ValueType tag: {b}"
 
 and readKnownType (r : BinaryReader) : KnownType =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match r.ReadByte() with
   | 0uy -> KTUnit
   | 1uy -> KTBool
@@ -363,6 +366,7 @@ and readTypeSymbolTable (r : BinaryReader) : TypeSymbolTable =
   Map.read String.read readValueType r |> Map.toList |> TST.ofList
 
 and readDvalImpl (r : BinaryReader) : Dval =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match r.ReadByte() with
   | 0uy -> DUnit
   | 1uy -> DBool(r.ReadBoolean())

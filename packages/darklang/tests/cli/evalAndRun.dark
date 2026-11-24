@@ -794,6 +794,39 @@ test aCrashShowsTheDarklangFunctionItHappenedIn = Instance.withInstance(fun i ->
         "no user code: Darklang's") ]))
 
 
+/// A script that builds a value 10,000 levels deep and then does `last` with it.
+let runDeep(i: Instance.T, name: String, last: String): (Int64 * String) =
+  let source =
+    "type Chain =\n  | End\n  | Link(Chain)\n\nlet deep =\n  Stdlib.List.fold(Stdlib.List.range(1, 10000), Chain.End, fun(acc, _i) -> Chain.Link(acc))\n"
+    + last
+    + "\n"
+
+  Instance.ran(i, [ "run", script(i, name, source) ])
+
+
+/// A value nested deeper than the stack allows is an "Out of stack" error when it is shown,
+/// written as JSON or stored as the run's answer, not a crashed process.
+test aDeepValueRunsOutOfStackWithoutACrash = Instance.withInstance(fun i ->
+  let outcomes =
+    [ runDeep(i, "display.dark", "Stdlib.printLine($\"{deep}\")")
+
+      runDeep(
+        i,
+        "json.dark",
+        "Stdlib.printLine(Stdlib.Json.serialize<Chain>(deep))")
+
+      runDeep(i, "result.dark", "deep") ]
+
+  outcomes
+  |> Stdlib.List.map(fun((code, out)) ->
+    Stdlib.Test.all(
+      [ Instance.says(out, "Out of stack", "the error says why")
+        Stdlib.Test.expect(
+          code == 1,
+          $"a script error, not a crash: exit {code}") ]))
+  |> Stdlib.Test.all)
+
+
 /// Two nested lambdas in a script stay two lines, each named by the line it starts on.
 test scriptLambdaFramesGiveTheirLines = Instance.withInstance(fun i ->
   let path = $"{Instance.home(i)}/lambdas.dark"

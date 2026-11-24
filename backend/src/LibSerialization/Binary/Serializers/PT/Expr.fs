@@ -87,6 +87,7 @@ module Infix =
 
 module LetPattern =
   let rec write (w : BinaryWriter) (pattern : LetPattern) =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match pattern with
     | LPVariable(id, name) ->
       w.Write 0uy
@@ -106,6 +107,7 @@ module LetPattern =
       w.Write id
 
   let rec read (r : BinaryReader) : LetPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match r.ReadByte() with
     | 0uy ->
       let id = r.ReadUInt64()
@@ -128,6 +130,7 @@ module LetPattern =
 
 module MatchPattern =
   let rec write (w : BinaryWriter) (pattern : MatchPattern) =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match pattern with
     | MPVariable(id, name) ->
       w.Write 0uy
@@ -248,6 +251,7 @@ module MatchPattern =
         fields
 
   let rec read (r : BinaryReader) : MatchPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match r.ReadByte() with
     | 0uy ->
       let id = r.ReadUInt64()
@@ -482,6 +486,7 @@ module PipeExpr =
 
 module Expr =
   let rec write (w : BinaryWriter) (expr : Expr) =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match expr with
     | EInt64(id, value) ->
       w.Write 0uy
@@ -692,6 +697,7 @@ module Expr =
       w.Write index
 
   let rec read (r : BinaryReader) : Expr =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match r.ReadByte() with
     | 0uy ->
       let id = r.ReadUInt64()
