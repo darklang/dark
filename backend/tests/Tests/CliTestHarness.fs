@@ -513,7 +513,15 @@ let withState (f : Target -> Task<'a>) : Task<'a> =
 /// suites mix these with `instanceTest`s, which run beside everything else. Prefer
 /// `instanceTest` for anything that only reads what a command printed.
 let cliTest (name : string) (body : Target -> Task<unit>) : Test =
-  testSequenced (testTask name { do! withState body })
+  testSequenced (
+    testTask name {
+      do! withState body
+      Expect.equal
+        (LibDB.StoreHealth.counts ()).danglingBindings
+        0L
+        "no name is bound to a hash with no body"
+    }
+  )
 
 /// `cliTest`, but the commands run as a child against a store of this test's own.
 ///
@@ -521,6 +529,18 @@ let cliTest (name : string) (body : Target -> Task<unit>) : Test =
 /// rest of the suite. The body cannot reach F# state; a test that needs to stays on
 /// `cliTest`.
 let instanceTest (name : string) (body : Target -> Task<unit>) : Test =
+  testTask name {
+    let i = Tests.CliInstance.create ()
+    try
+      do! body (Instance i)
+      Tests.CliInstance.checkBindings i
+    finally
+      Tests.CliInstance.dispose i
+  }
+
+/// `instanceTest` for a test that breaks its own store by hand, so the bindings check at the end
+/// would only report the damage the test made.
+let damagedTest (name : string) (body : Target -> Task<unit>) : Test =
   testTask name {
     let i = Tests.CliInstance.create ()
     try

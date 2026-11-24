@@ -235,7 +235,22 @@ let output(i: T, args: List<String>): String =
       if stderr == "" then "" else $"ERROR: {stderr}"
 
 
-/// Runs `f` against a fresh instance and disposes it, whatever `f` decided.
+/// Fails if the instance's store binds a name to a hash with no body, as it is or after a
+/// re-fold of its log.
+let checkBindings(i: T): Stdlib.Test.Result =
+  let out =
+    Stdlib.Cli.Unix.executeInDirectoryWithOutput(
+      ".",
+      $"scripts/testing/check-store-bindings {i.dir}/data.db {seedFrom()} {i.cli}")
+
+  if out.exitCode == 0 then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"the store's bindings are broken: {out.stdout}{out.stderr}")
+
+
+/// Runs `f` against a fresh instance and disposes it, whatever `f` decided. A store that `f`
+/// left with a name bound to no body fails the test.
 ///
 /// Ordinary results dispose immediately. A runtime error escapes to the enclosing
 /// isolation worker, whose host also removes these nested instance directories.
@@ -243,7 +258,10 @@ let withInstance(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
   match create() with
   | Error(e) -> Stdlib.Test.fail(e)
   | Ok(i) ->
-    let result = f(i)
+    let result =
+      match f(i) with
+      | Pass -> checkBindings(i)
+      | failed -> failed
     let _ = dispose(i)
     result
 

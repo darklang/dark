@@ -175,6 +175,29 @@ let create () : T =
     copyDir policy (System.IO.Path.Combine(dir, "policy"))
   { dir = dir; cli = cliPath () }
 
+/// Fails the test if <param i>'s store binds a name to a hash with no body, as it is or after a
+/// re-fold of its log.
+let checkBindings (i : T) : unit =
+  let psi =
+    System.Diagnostics.ProcessStartInfo(
+      System.IO.Path.Combine(
+        LibConfig.Dirs.sourceRootDir,
+        "scripts/testing/check-store-bindings"
+      )
+    )
+  psi.ArgumentList.Add(System.IO.Path.Combine(i.dir, "data.db"))
+  psi.ArgumentList.Add(fst (template.Force()))
+  psi.ArgumentList.Add i.cli
+  psi.UseShellExecute <- false
+  psi.RedirectStandardOutput <- true
+  psi.RedirectStandardError <- true
+  use p = System.Diagnostics.Process.Start psi
+  let out = p.StandardOutput.ReadToEndAsync()
+  let err = p.StandardError.ReadToEnd()
+  p.WaitForExit()
+  if p.ExitCode <> 0 then
+    Expecto.Tests.failtestf "the store's bindings are broken: %s%s" out.Result err
+
 let dispose (i : T) : unit =
   try
     System.IO.Directory.Delete(homeOf i.dir, true)
@@ -321,6 +344,7 @@ let instanceTest (name : string) (body : T -> Task<unit>) : Expecto.Test =
     let i = create ()
     try
       do! body i
+      checkBindings i
     finally
       dispose i
   }

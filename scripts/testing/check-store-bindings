@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Fail if a store binds a live name to a hash with no body, as it is or after a re-fold of its log.
+#
+# The live store can keep a body that its log no longer carries, so the re-fold is what shows an
+# op that was lost. <base> is the store <store> was copied from: while its log is still the start of
+# <store>'s, its projections are that part's fold and only the rest needs folding.
+#
+# Usage: check-store-bindings <store.db> <base.db> <cli>
+set -euo pipefail
+
+STORE="${1:?usage: check-store-bindings <store.db> <base.db> <cli>}"
+BASE="${2:?usage: check-store-bindings <store.db> <base.db> <cli>}"
+CLI="${3:?usage: check-store-bindings <store.db> <base.db> <cli>}"
+
+# Same list as LibDB.Seed.projectionTables.
+PROJECTIONS="package_functions package_types package_values package_traits package_trait_impls
+package_tests locations package_dependencies deprecations location_docs"
+
+dangling() {
+  sqlite3 -readonly -cmd ".timeout 10000" "$1" \
+    "SELECT l.branch_id || ' ' || l.owner || '.' || CASE WHEN l.modules = '' THEN '' ELSE l.modules || '.' END
+            || l.name || ' -> ' || l.item_type || ' ' || l.item_hash
+     FROM locations l
+     WHERE l.live = 1 AND l.item_hash <> ''
+       AND NOT EXISTS (SELECT 1 FROM package_functions f WHERE l.item_type = 'fn' AND f.hash = l.item_hash)
+       AND NOT EXISTS (SELECT 1 FROM package_types t WHERE l.item_type = 'type' AND t.hash = l.item_hash)
+       AND NOT EXISTS (SELECT 1 FROM package_values v WHERE l.item_type = 'value' AND v.hash = l.item_hash)
+       AND NOT EXISTS (SELECT 1 FROM package_traits tr WHERE l.item_type = 'trait' AND tr.hash = l.item_hash)
+       AND NOT EXISTS (SELECT 1 FROM package_trait_impls i WHERE l.item_type = 'impl' AND i.hash = l.item_hash)
+       AND NOT EXISTS (SELECT 1 FROM package_tests t WHERE l.item_type = 'test' AND t.hash = l.item_hash)"
+}
+
+live=$(dangling "$STORE")
+if [[ -n "$live" ]]; then
+  printf 'names bound to a hash with no body:\n%s\n' "$live" >&2
+  exit 1
+fi
+
+home=$(mktemp -d)
+trap 'rm -rf "$home"' EXIT
+mkdir "$home/.darklang"
+db="$home/.darklang/data.db"
+sqlite3 -cmd ".timeout 10000" "$STORE" ".backup '$db'"
+
+changed=$(sqlite3 "$db" "ATTACH '$BASE' AS base;
+  SELECT count(*) FROM base.package_ops b
+  WHERE NOT EXISTS (SELECT 1 FROM package_ops p
+    WHERE p.seq = b.seq AND p.id = b.id AND p.branch_id = b.branch_id AND p.commit_hash IS b.commit_hash
+      AND p.op_blob = b.op_blob)")
+{
+  echo "PRAGMA synchronous=OFF;"
+  if [[ "$changed" == 0 ]]; then
+    echo "ATTACH '$BASE' AS base;"
+    for t in $PROJECTIONS; do
+      echo "DELETE FROM $t; INSERT INTO $t SELECT * FROM base.$t;"
+    done
+    echo "DELETE FROM package_ops_unapplied; INSERT INTO package_ops_unapplied SELECT * FROM base.package_ops_unapplied;"
+    echo "UPDATE package_ops_applied_through SET seq = (SELECT seq FROM base.package_ops_applied_through);"
+  else
+    for t in $PROJECTIONS; do
+      echo "DELETE FROM $t;"
+    done
+    echo "DELETE FROM package_ops_unapplied; UPDATE package_ops_applied_through SET seq = 0;"
+  fi
+} | sqlite3 "$db"
+
+if ! out=$(HOME="$home" USERPROFILE="$home" DARK_CONFIG_DB_NAME=data.db \
+  DARK_CONFIG_TELEMETRY_EXPORTER=none "$CLI" branches 2>&1); then
+  printf 'the re-fold failed:\n%s\n' "$out" >&2
+  exit 1
+fi
+
+refolded=$(dangling "$db")
+if [[ -n "$refolded" ]]; then
+  printf 'after a re-fold of the log, names bound to a hash with no body:\n%s\n' "$refolded" >&2
+  exit 1
+fi

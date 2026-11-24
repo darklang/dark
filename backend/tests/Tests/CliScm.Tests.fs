@@ -903,7 +903,7 @@ let private aRefreshedDraftKeepsAnAliasBody =
 /// indexed name for the callee makes the caller's names ambiguous, so the read needs the caller's
 /// stored body, and the body is gone.
 let private aDependentsReadThatFailsIsReported =
-  instanceTest "deps usedby reports a caller it cannot read" (fun state ->
+  damagedTest "deps usedby reports a caller it cannot read" (fun state ->
     task {
       do! fn state "Tests.DepFail.callee" "(): Int64 = 1"
       do! fn state "Tests.DepFail.caller" "(): Int64 = Tests.DepFail.callee() + 1"
@@ -957,7 +957,7 @@ let private aDependentsReadThatFailsIsReported =
 /// second indexed name for the callee makes the caller's names ambiguous, so the review reads the
 /// caller's stored body, and the body is gone.
 let private aDependencyReviewThatFailsIsReported =
-  instanceTest "constraints reports a dependency review that fails" (fun state ->
+  damagedTest "constraints reports a dependency review that fails" (fun state ->
     task {
       do! fn state "Tests.DepFail.callee" "(): Int64 = 1"
       do! fn state "Tests.DepFail.caller" "(): Int64 = Tests.DepFail.callee() + 1"
@@ -1015,7 +1015,7 @@ let private aDependencyReviewThatFailsIsReported =
 
 /// A store whose deprecation query fails says what SQLite said and exits 1.
 let private aFailingDeprecationQueryIsAStoreError =
-  instanceTest "a deprecation query that fails names the SQL failure" (fun state ->
+  damagedTest "a deprecation query that fails names the SQL failure" (fun state ->
     task {
       let dir =
         match state with

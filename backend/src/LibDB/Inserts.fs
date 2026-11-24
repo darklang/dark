@@ -440,6 +440,36 @@ let placeholderHashViolation (ops : List<PT.PackageOp>) : Option<string> =
   |> Option.map (fun (PT.Hash h) ->
     $"cannot store package ops with the placeholder hash \"{h}\"; stabilize them first (WrittenTypesToProgramTypes.stabilizePackageOps)")
 
+/// A rejection reason when an op binds a name to content that neither <param ops> declares nor the
+/// store holds: the name would resolve and find nothing. `None` means every binding has its body.
+let missingContentViolation (ops : List<PT.PackageOp>) : Option<string> =
+  let declared = ops |> List.choose PT.declaredReference |> Set.ofList
+  let stored (target : PT.Reference) =
+    let table =
+      match target.kind with
+      | PT.ItemKind.Fn -> "package_functions"
+      | PT.ItemKind.Type -> "package_types"
+      | PT.ItemKind.Value -> "package_values"
+      | PT.ItemKind.Trait -> "package_traits"
+      | PT.ItemKind.TraitImpl -> "package_trait_impls"
+      | PT.ItemKind.Test -> "package_tests"
+    let (Hash h) = target.hash
+    Sql.query $"SELECT 1 FROM {table} WHERE hash = @hash"
+    |> Sql.parameters [ "hash", Sql.string h ]
+    |> Sql.executeExists
+  ops
+  |> List.collect PT.packageOpBindingEffects
+  |> List.choose (fun effect ->
+    match effect with
+    | PT.PackageOp.SetName(_, target, _)
+    | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Override target) -> Some target
+    | _ -> None)
+  |> List.distinct
+  |> List.tryFind (fun target -> not (Set.contains target declared || stored target))
+  |> Option.map (fun target ->
+    let (Hash h) = target.hash
+    $"cannot bind a name to {target.kind.toString ()} {h}: no such content is stored")
+
 let insertAndApplyOps (ops : List<PT.PackageOp>) : int64 =
   authorOn PT.BranchId.Main "op" ops
 
@@ -453,10 +483,11 @@ let private insertCheckedOps
   // repairs them before a merge.
   let reserved = if reservedOwnersAllowed then None else reservedOwnerViolation ops
   let violation =
-    if branch.IsMain then
-      Option.orElse (placeholderHashViolation ops) reserved
-    else
-      reserved
+    (if branch.IsMain then
+       Option.orElse (placeholderHashViolation ops) reserved
+     else
+       reserved)
+    |> Option.orElseWith (fun () -> missingContentViolation ops)
   match violation with
   | Some reason -> Error reason
   | None ->

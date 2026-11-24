@@ -287,6 +287,8 @@ let private dropOpsOn
 /// Move every op of <param b> onto <param target> and fold them there, in authoring order: what a
 /// merge does. The branch's rows in the layered projections go; the ops write the target's.
 /// An op the target already holds stays the target's and is not folded again; the branch's copy goes.
+/// Except when the target holds it only in its draft and the branch committed it: then the branch's
+/// copy lands, or a discard of that draft would take it out from under what merged.
 let private moveOpsOn
   (conn : SqliteConnection)
   (b : PT.BranchId)
@@ -298,6 +300,13 @@ let private moveOpsOn
       "SELECT id, op_blob FROM package_ops WHERE branch_id = @b ORDER BY origin_ts, rowid"
       [ "@b", box (string b) ]
       (fun r -> (r.GetString 0, r.GetFieldValue<byte[]> 1))
+  let draftOnly =
+    ids
+      conn
+      "SELECT id FROM package_ops WHERE branch_id = @t AND commit_hash IS NULL
+         AND id IN (SELECT id FROM package_ops WHERE branch_id = @b AND commit_hash IS NOT NULL)"
+      [ "@b", box (string b); "@t", box (string target) ]
+  let _ = dropOpsOn conn target draftOnly
   let already =
     ids
       conn
