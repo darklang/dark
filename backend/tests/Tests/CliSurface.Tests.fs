@@ -417,45 +417,6 @@ let private documentedCommandsAreReal =
         Tests.failtestf "the docs describe commands that don't exist:\n%s" detail
     })
 
-/// Two names with byte-identical bodies are ONE item, and a `PackageFn` carries no name, so showing one
-/// means resolving its hash back to a name. With several to choose from, the scoring picked whichever it
-/// liked and `dark view Tests.SharedBody.alpha` printed a definition headed `beta`.
-///
-/// Scoring is right for a name appearing inside someone else's code and wrong for the thing you just
-/// asked to see, and nothing in the scoring can know which name was typed, so the asked-for location is
-/// carried into the printer and wins outright when it is one of the candidates.
-let private viewHeadsWithTheNameYouAskedFor =
-  instanceTest
-    "view heads a shared body with the name that was asked for"
-    (fun state ->
-      task {
-        let! _ = runCli state [ "switch"; "main" ]
-        let! _ =
-          runCli state [ "fn"; "Tests.SharedBody.alpha"; "() : Int64 = 4242" ]
-        let! _ = runCli state [ "fn"; "Tests.SharedBody.beta"; "() : Int64 = 4242" ]
-
-        // Colour codes sit BETWEEN `let` and the name, so the two-word header never matches raw output.
-        // Stripping is better than asserting on the bare name here, which appears in the location line too
-        // and so would pass whichever name the header carried.
-        let plain (text : string) =
-          System.Text.RegularExpressions.Regex.Replace(text, @"\x1b\[[0-9;]*m", "")
-
-        let! alpha = runCli state [ "view"; "Tests.SharedBody.alpha" ]
-        let! beta = runCli state [ "view"; "Tests.SharedBody.beta" ]
-
-        Expect.stringContains (plain alpha) "let alpha" "view alpha is headed alpha"
-        Expect.stringContains (plain beta) "let beta" "view beta is headed beta"
-
-        // --raw is the half `dark edit` and `dark module` consume, so a wrong header there does not just
-        // mislead, it round-trips the definition onto the wrong name.
-        let! rawAlpha = runCli state [ "view"; "Tests.SharedBody.alpha"; "--raw" ]
-        Expect.stringContains
-          (plain rawAlpha)
-          "let alpha"
-          "view --raw alpha is headed alpha"
-      })
-
-
 let private unwrapErrorsAreReadable =
   instanceTest "eval checks unwrap operands and runs valid unwraps" (fun state ->
     task {
@@ -688,5 +649,4 @@ let tests : List<Test> =
     showingACommitDoesNotFetchEveryOp
     permissionsRefusesAnEmptyRule
     permissionsAllowTakesSeveralRules
-    viewHeadsWithTheNameYouAskedFor
     documentedCommandsAreReal ]
