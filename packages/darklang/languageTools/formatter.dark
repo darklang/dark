@@ -797,8 +797,12 @@ let stored(d: Declaration): String =
   // Stabilizing rehashes only an item bound to a name, so each gets one.
   let bound =
     opsIn([ d ])
-    |> Stdlib.List.map(fun op ->
-      let at = ProgramTypes.PackageLocation { owner = "Format", modules = [], name = "item" }
+    |> Stdlib.List.indexedMap(fun(i, op) ->
+      // an impl's methods are several items, so each gets its own name
+      let at =
+        ProgramTypes.PackageLocation
+          { owner = "Format", modules = [], name = $"item{Stdlib.display(i)}" }
+
       match op with
       | AddFn(fn) ->
         [ op
@@ -821,8 +825,7 @@ let stored(d: Declaration): String =
       | _ -> [ op ])
     |> Stdlib.List.flatten
 
-  match d.item with
-  | Fn(_, _) | Value(_, _) | Test(_, _) ->
+  let hashes = fun () ->
     let (resolved, _) = PackageManager.resolveTraitCalls(bound)
     PackageManager.stabilizeHashes(resolved)
     |> Stdlib.List.filterMap(fun op ->
@@ -833,6 +836,12 @@ let stored(d: Declaration): String =
       | _ -> Option.None)
     |> Stdlib.List.map(ProgramTypes.hashToString)
     |> Stdlib.String.join(" ")
+
+  match d.item with
+  | Fn(_, _) | Value(_, _) | Test(_, _) -> hashes()
+  // the impl's own header, then its declared methods as their fns are stored
+  | Impl(implementation, _, _) ->
+    Stdlib.inspect({ implementation with hash = ProgramTypes.Hash.Hash("") }) + " " + hashes()
   | _ -> d.meaning
 
 
