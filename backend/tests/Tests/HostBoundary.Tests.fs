@@ -46,7 +46,8 @@ let private bannedHostSubsystemTypes =
       "LibExecution.HostKernel"
       "LibExecution.HostPosix"
       "LibExecution.HostProcess"
-      "LibExecution.HostSecurity" ]
+      "LibExecution.HostSecurity"
+      "LibExecution.HostSqlite" ]
 
 /// The POSIX host members an effect-free host-fact builtin may call
 /// directly: process facts and constants that name no resource (docs/effects.md,
@@ -78,7 +79,8 @@ let private hostModules =
       "LibExecution", "LibExecution.HostProcess"
       "LibExecution", "LibExecution.HostRegistry"
       "LibExecution", "LibExecution.HostDescriptors"
-      "LibExecution", "LibExecution.HostSecurity" ]
+      "LibExecution", "LibExecution.HostSecurity"
+      "LibExecution", "LibExecution.HostSqlite" ]
 
 /// Known holdouts, one entry per (assembly, top-level type), shrinking as
 /// families migrate through the checked boundary. Every entry is a type whose

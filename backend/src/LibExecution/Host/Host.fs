@@ -1000,6 +1000,13 @@ let private resolve (op : Operation) : Result<Resolved, string> =
           )
         | Ok address -> bindHttpServer address port))
   | Operation.Posix op -> resolvePosix None op
+  | Operation.Sqlite(path, write, sql, parameters) ->
+    // a database is a file: reading it needs a file read, changing it a file write. SQLite's
+    // own side files (-wal, -shm, -journal) go with it.
+    let access = if write then Permission.AccessKind.Write else read
+    resolveFile access path (fun path ->
+      Pooled(fun () ->
+        Ok(Response.Sqlite(HostSqlite.run write path sql parameters))))
   | Operation.ChildStart _
   | Operation.ChildDescriptors _
   | Operation.ChildPoll _

@@ -142,6 +142,24 @@ type PosixOp =
 [<RequireQualifiedAccess>]
 type HttpProfile = | Guest
 
+/// One SQLite value: a column of a row, or a bound parameter.
+[<RequireQualifiedAccess>]
+type SqliteValue =
+  | Null
+  | Integer of int64
+  | Real of float
+  | Text of string
+  | Blob of byte[]
+
+/// The rows of a query, or what a write changed.
+type SqliteAnswer =
+  { rows : List<List<string * SqliteValue>>
+    rowsAffected : int64
+    lastInsertRowid : int64 }
+
+/// SQLite's extended result code and message; code -1 when the failure is not SQLite's.
+type SqliteError = { code : int; message : string }
+
 /// One host action, with everything needed to both check and perform it.
 [<RequireQualifiedAccess>]
 type Operation =
@@ -199,6 +217,12 @@ type Operation =
     prepare : (string -> Result<ProcessWorkspace, string>) *
     timeoutMs : int
   | Posix of PosixOp
+  /// SQL on the database file at `path`: read-only unless `write`.
+  | Sqlite of
+    path : string *
+    write : bool *
+    sql : string *
+    parameters : List<SqliteValue>
 
 // HTTP wire data. The error shape is inspired by Elm's HttpError
 // (https://package.elm-lang.org/packages/elm/http/latest/Http#Error); the
@@ -285,6 +309,8 @@ type Response =
   /// typed errors, not runtime errors, so they ride inside the response.
   | Http of Result<HttpResponse, HttpRequestError>
   | HttpStream of Result<HttpStreamHead, HttpRequestError>
+  /// SQLite's own failures ride inside the response, like HTTP's.
+  | Sqlite of Result<SqliteAnswer, SqliteError>
   /// A raw file descriptor (posix open).
   | Fd of int
   | Descriptor of bigint
@@ -430,6 +456,8 @@ let describeOperation (op : Operation) : string =
   | Operation.ProcessRunInWorkspace _ -> "process-run-in-workspace"
   | Operation.FileSnapshot _ -> "file-snapshot"
   | Operation.Posix p -> $"posix {posix p}"
+  | Operation.Sqlite(path, write, _, _) ->
+    if write then $"sqlite-write {path}" else $"sqlite-read {path}"
 
 /// Remove secrets from outcome details before they reach the default audit
 /// log. A denial or host failure can repeat a URL that the summary redacted.
