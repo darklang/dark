@@ -106,7 +106,7 @@ let testsFollowEditsAcrossOwners =
       do!
         shows
           state
-          [ "test"; "run"; "Tests.TestFollow" ]
+          [ "test"; "run"; "--verbose"; "Tests.TestFollow" ]
           "PASS Tests.TestFollow.halfOf8"
           "the test starts against the current function"
       do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 3)"
@@ -254,7 +254,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
       do!
         showsAll
           state
-          [ "test"; "run"; "Tests.CacheT" ]
+          [ "test"; "run"; "--verbose"; "Tests.CacheT" ]
           [ "PASS Tests.CacheT.outerOf1"; "1 ran, 0 cached" ]
           "a change to something the test calls directly reruns it"
       do! discardAll state
@@ -443,7 +443,7 @@ test plain = Stdlib.Test.expect(true, "plain")
       do!
         showsAll
           state
-          [ "test"; "run"; "Tests.Grouped" ]
+          [ "test"; "run"; "--verbose"; "Tests.Grouped" ]
           [ "PASS Tests.Grouped › parsing › empty"
             "FAIL Tests.Grouped › parsing › spaces"
             "PASS Tests.Grouped.plain"
@@ -453,7 +453,7 @@ test plain = Stdlib.Test.expect(true, "plain")
         do!
           showsAll
             state
-            [ "test"; "run"; filter ]
+            [ "test"; "run"; "--verbose"; filter ]
             [ "PASS Tests.Grouped › parsing › empty"
               "2 tests: 1 passed, 1 failed" ]
             $"the filter {filter} picks the group"
@@ -492,7 +492,7 @@ test halves =
       do!
         showsAll
           state
-          [ "test"; "run"; "Tests.Table" ]
+          [ "test"; "run"; "--verbose"; "Tests.Table" ]
           [ "PASS Tests.Table.lengths › (\"a\", 1)"
             "FAIL Tests.Table.lengths › (\"abc\", 4)"
             "  Stdlib.Test.expect(Stdlib.String.length(s) == n, \"wrong length\")"
@@ -506,7 +506,7 @@ test halves =
         do!
           showsAll
             state
-            [ "test"; "run"; filter ]
+            [ "test"; "run"; "--verbose"; filter ]
             [ "PASS Tests.Table.lengths › (\"ab\", 2)"
               "1 test: 1 passed, 0 failed" ]
             $"the filter {filter} keeps that row"
@@ -536,7 +536,7 @@ test halves =
       do!
         showsAll
           state
-          [ "test"; "run"; "Tests.GroupedTable" ]
+          [ "test"; "run"; "--verbose"; "Tests.GroupedTable" ]
           [ "PASS Tests.GroupedTable › strings › lengths › (\"a\", 1)"
             "FAIL Tests.GroupedTable › strings › lengths › (\"abc\", 4)"
             "  Stdlib.Test.expect(Stdlib.String.length(s) == n, \"wrong length\")"
@@ -545,7 +545,10 @@ test halves =
       do!
         showsAll
           state
-          [ "test"; "run"; "Tests.GroupedTable › strings › lengths › (\"a\", 1)" ]
+          [ "test"
+            "run"
+            "--verbose"
+            "Tests.GroupedTable › strings › lengths › (\"a\", 1)" ]
           [ "PASS Tests.GroupedTable › strings › lengths › (\"a\", 1)"
             "1 test: 1 passed, 0 failed" ]
           "a filter with the group and arguments keeps that row"
@@ -651,7 +654,7 @@ let testAddAuthorsATest =
       do!
         showsAll
           state
-          [ "test"; "run"; "Tests.AddT" ]
+          [ "test"; "run"; "--verbose"; "Tests.AddT" ]
           [ "PASS Tests.AddT.doubles"; "1 passed" ]
           "and it runs"
       do!
@@ -999,7 +1002,7 @@ test writer =
         let! output, code =
           runCliWithStatus
             (Instance { instance with cli = wrapper })
-            [ "test"; "run"; "--force"; "Tests.Readers" ]
+            [ "test"; "run"; "--force"; "--verbose"; "Tests.Readers" ]
         Expect.equal code 0 $"the run succeeds: {output}"
         Expect.stringContains
           output

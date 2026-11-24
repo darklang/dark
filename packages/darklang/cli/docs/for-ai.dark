@@ -23,7 +23,7 @@ Saved code lives in a persistent package tree, not in files. Use your own namesp
     test hello = MyApp.Greet.greeting("Ada") |> Stdlib.Test.equal("Hello, Ada")
   EOF
   run MyApp.Greet.main Ada               # args = ["Ada"]; stdin is piped in as usual
-  test run --brief MyApp.Greet
+  test run MyApp.Greet
   edit MyApp.Greet.greeting --patch - <<'PATCH'   # lines exactly as `view <name> --raw` shows
   @@
    let greeting(name: String): String =

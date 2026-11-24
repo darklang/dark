@@ -93,7 +93,7 @@ let testJson(name: String, outcome: Outcome, cached: Bool): TestJson =
 
 
 val usage =
-  "Usage: test run [--force] [--brief] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | - [--description <text>]"
+  "Usage: test run [--force] [--brief | --verbose] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | - [--description <text>]"
 
 
 let fullPath(
@@ -447,7 +447,7 @@ let runTests(state: AppState, args: List<String>): AppState =
     RunOptions
       { force = false
         json = false
-        brief = false
+        brief = Stdlib.Bool.not(Stdlib.Cli.Sys.isTerminal(1))
         jobs = if cores < 16 then cores else 16
         seed = Option.None
         filters = [] }
@@ -605,7 +605,8 @@ type RunOptions =
   { force: Bool
     /// Print one JSON answer instead of a line per test.
     json: Bool
-    /// Show failures and the final counts without progress or passing rows.
+    /// Show failures and the final counts without progress or passing rows. On by default when
+    /// stdout is not a terminal.
     brief: Bool
     jobs: Int64
     seed: Option<Int64>
@@ -618,6 +619,7 @@ let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions,
   | ["--force", ...rest] -> parseRunOptions({ options with force = true }, rest)
   | ["--json", ...rest] -> parseRunOptions({ options with json = true }, rest)
   | ["--brief", ...rest] -> parseRunOptions({ options with brief = true }, rest)
+  | ["--verbose", ...rest] -> parseRunOptions({ options with brief = false }, rest)
   | ["--jobs", value, ...rest] ->
     match Stdlib.Int64.parse(value) with
     | Ok(jobs) when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
@@ -1221,7 +1223,8 @@ let help(_state: AppState): String =
     "Tests run in parallel, one per core, up to 16 at once. A test that analysis"
     "shows is pure (no effect, only pure builtins) runs inside this process;"
     "any other gets a fresh process and its own store copy."
-    "Use --brief to print failures and the final counts."
+    "When stdout is not a terminal, only failures and the final counts are printed,"
+    "as with --brief; --verbose prints every test, as at a terminal."
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
     "Tests start in name order; results are printed as they finish. --json prints"
     "one answer at the end instead: each test's name, status (passed, failed or"
@@ -1274,7 +1277,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
   | [] -> [ "run", "count", "add" ] |> Stdlib.List.map(Completion.simple)
   | ["run", ...runArgs] ->
     let partial = Stdlib.Option.withDefault(Stdlib.List.last(runArgs), "")
-    [ "--force", "--brief", "--json", "--jobs" ]
+    [ "--force", "--brief", "--verbose", "--json", "--jobs" ]
     |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, partial))
     |> Stdlib.List.map(Completion.simple)
   | ["add", ...] -> []

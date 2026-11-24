@@ -90,7 +90,9 @@ test aDeletedTestIsNotCountedOrRun = Instance.withInstance(fun i ->
     Instance.ran(i, [ "delete", "Me.Counted.plain", "--yes" ])
 
   let counted = Instance.output(i, [ "test", "count", "Me.Counted" ])
-  let (ran, runOut) = Instance.ran(i, [ "test", "run", "Me.Counted" ])
+  let (ran, runOut) =
+    Instance.ran(i, [ "test", "run", "--verbose", "Me.Counted" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(deleted, 0, out)
       Instance.says(
@@ -101,3 +103,18 @@ test aDeletedTestIsNotCountedOrRun = Instance.withInstance(fun i ->
       Instance.exitedWith(ran, 0, runOut)
       Instance.says(runOut, "usesF", "a live test runs")
       Instance.doesNotSay(runOut, "plain", "the deleted test does not") ]))
+
+
+test runIsBriefWithoutATerminal = Instance.withInstance(fun i ->
+  let _ = define(i)
+  let (code, out) = Instance.ran(i, [ "test", "run", "Me.Counted" ])
+
+  let (_, verbose) =
+    Instance.ran(i, [ "test", "run", "--verbose", "Me.Counted" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, out)
+      Instance.doesNotSay(out, "PASS", "no line per passing test")
+      Instance.doesNotSay(out, "Running:", "no progress lines")
+      Instance.says(out, "4 passed", "the counts")
+      Instance.says(verbose, "PASS Me.Counted", "--verbose shows each test") ]))
