@@ -175,7 +175,16 @@ let executeStdinScript(
   | Error(message) ->
     printErr(message)
     failed(state)
-  | Ok(source) -> runScriptMeasured(state, "-", source, args, options, Approval.Offer, stats)
+  | Ok(source) ->
+    runScriptMeasured(
+      state,
+      "-",
+      source,
+      args,
+      options,
+      Approval.Offer,
+      stats,
+      ExecutionError.Entry.Script)
 
 
 let isNotFound(e: Stdlib.Cli.Posix.Error): Bool =
@@ -203,7 +212,15 @@ let executeScript(
     { state with exitCode = 1 }
   | Ok(script) ->
     let scriptSourceCode = Stdlib.Utf8.decodeWithReplacement(script)
-    runScriptMeasured(state, scriptPath, scriptSourceCode, args, options, Approval.Offer, stats)
+    runScriptMeasured(
+      state,
+      scriptPath,
+      scriptSourceCode,
+      args,
+      options,
+      Approval.Offer,
+      stats,
+      ExecutionError.Entry.Script)
 
 
 /// Run the package function <param name> the way a script runs: under the same policy, with
@@ -250,7 +267,15 @@ let executePackageFn(
       match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
       | [] | [TUnit] -> runNullary(state, name, fnName, args, options, stats)
       | [TList(TString)] ->
-        runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, Approval.Offer, stats)
+        runScriptMeasured(
+          state,
+          fnName,
+          $"{fnName}(args)",
+          args,
+          options,
+          Approval.Offer,
+          stats,
+          ExecutionError.Entry.Call)
       | _ ->
         let modulePath = Stdlib.List.prepend(location.modules, location.owner)
         let ctx = Packages.Signatures.rootContext(branchId, modulePath)
@@ -265,7 +290,15 @@ let executePackageFn(
 
         { state with exitCode = 1 }
     | None ->
-      runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, Approval.Offer, stats)
+      runScriptMeasured(
+        state,
+        fnName,
+        $"{fnName}(args)",
+        args,
+        options,
+        Approval.Offer,
+        stats,
+        ExecutionError.Entry.Call)
 
 
 /// <fn executePackageFn> for a function that takes nothing.
@@ -278,7 +311,16 @@ let runNullary(
   stats: Bool)
   : AppState =
   match args with
-  | [] -> runScriptMeasured(state, fnName, $"{fnName}()", args, options, Approval.Offer, stats)
+  | [] ->
+    runScriptMeasured(
+      state,
+      fnName,
+      $"{fnName}()",
+      args,
+      options,
+      Approval.Offer,
+      stats,
+      ExecutionError.Entry.Call)
   | _ ->
     Stdlib.printErrorLine($"{name} takes no arguments")
     { state with exitCode = 1 }
@@ -340,7 +382,11 @@ let askPermission(request: (String * List<String>)): Int64 =
     0
 
 
-let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppState =
+let printScriptError(
+  state: AppState,
+  e: ExecutionError.ExecutionError,
+  entry: ExecutionError.Entry)
+  : AppState =
   match e with
   // The prompt already said so.
   | Cancelled -> ()
@@ -348,9 +394,11 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
     Stdlib.printErrorLine(
       ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e))
   | _ ->
-    ExecutionError.printCallStack(state.currentBranchId, e)
     let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)
     Stdlib.printErrorLine($"Script error: {pretty}")
+    Stdlib.List.iter(
+      ExecutionError.whereLines(state.currentBranchId, e, entry),
+      fun line -> Stdlib.printErrorLine(line))
 
   { state with exitCode = 1 }
 
@@ -371,7 +419,15 @@ let runScript(
         sandbox = options.sandbox
         grants = LanguageTools.Permissions.Policy { allow = [], deny = [] } }
 
-  runScriptMeasured(state, scriptPath, code, args, invocation, approval, false)
+  runScriptMeasured(
+    state,
+    scriptPath,
+    code,
+    args,
+    invocation,
+    approval,
+    false,
+    ExecutionError.Entry.Script)
 
 
 /// <fn runScript>, and with <param stats> also what the run cost, the same block `eval --stats`
@@ -384,7 +440,8 @@ let runScriptMeasured(
   args: List<String>,
   options: Options,
   approval: Approval,
-  stats: Bool)
+  stats: Bool,
+  entry: ExecutionError.Entry)
   : AppState =
   let run = fun () ->
     parseAndExecute(
@@ -405,7 +462,7 @@ let runScriptMeasured(
     else
       (Option.None, run())
 
-  let newState = handleResult(state, result)
+  let newState = handleResult(state, result, entry)
   noteMisplacedAllow(newState, scriptPath, args)
   match measurement with
   | Some(m) ->
@@ -436,7 +493,11 @@ let noteMisplacedAllow(state: AppState, name: String, args: List<String>): Unit 
 
 
 /// Report the completed run. Permission review happens before the operation.
-let handleResult(state: AppState, result: Result<Int64, ExecutionError.ExecutionError>): AppState =
+let handleResult(
+  state: AppState,
+  result: Result<Int64, ExecutionError.ExecutionError>,
+  entry: ExecutionError.Entry)
+  : AppState =
   match result with
   | Ok(exitCode) when exitCode >= 0 && exitCode <= 255 ->
     // The script chose this code and printed its own reason, as a program in any language does.
@@ -447,7 +508,7 @@ let handleResult(state: AppState, result: Result<Int64, ExecutionError.Execution
       $"Script returned {Stdlib.display(exitCode)}, but an exit code must be 0-255.")
 
     { state with exitCode = 1 }
-  | Error(e) -> printScriptError(state, e)
+  | Error(e) -> printScriptError(state, e, entry)
 
 
 let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =

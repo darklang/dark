@@ -458,23 +458,98 @@ module ExecutionError =
     | _ -> message
 
 
-  /// Skip entry-only stacks: they add no useful detail to a missing-name error.
-  let hasReadableFrames(frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>): Bool =
-    Stdlib.List.any(frames, fun frame ->
-      match frame with
-      | Function(_) -> true
-      | _ -> false)
+  /// What a run started from, which decides whether its source lines mean anything to the reader.
+  type Entry =
+    /// A script file or `run -`: its lines are the user's, so a crash there is shown by line.
+    | Script
+    /// A saved function or an `eval`: the source is a one-line call the reader did not write.
+    | Call
 
 
-  /// Permission denials already explain the resource and how to allow access.
-  /// Keep their frames in the structured error for diagnostics, without printing
-  /// an internal stack.
-  let printCallStack(branchId: Uuid, error: ExecutionError): Unit =
+  /// One function a crash went through: the user's own, or Darklang's.
+  type Frame =
+    | Yours(String)
+    | Darklang(String)
+
+
+  /// Where a crash happened, innermost first: "  in X", then "  called from Y" for each caller.
+  /// Only the user's own code, plus the Darklang function it called if the crash was inside one.
+  /// A crash with none of the user's code in it, such as one inside Darklang itself, shows
+  /// Darklang's functions instead. Empty for an error that is not a crash.
+  let whereLines(branchId: Uuid, error: ExecutionError, entry: Entry): List<String> =
     match error with
-    | Runtime(_, frames, lambdaLines) when hasReadableFrames(frames) ->
-      let rendered = PrettyPrinter.RuntimeTypes.callStackAt(branchId, frames, lambdaLines)
-      Stdlib.printErrorLine($"{rendered}\n")
-    | _ -> ()
+    | Runtime(_, frames, lambdaLines) ->
+      let fnFrame(hash: LanguageTools.RuntimeTypes.Hash, describe: String -> String): Frame =
+        let name = describe(PrettyPrinter.RuntimeTypes.FQFnName.package(branchId, hash))
+        match
+          LanguageTools.PackageManager.Function.locations(
+            branchId,
+            PrettyPrinter.RuntimeTypes.ptHash(hash))
+        with
+        | [ loc, ... ] ->
+          if loc.owner == "Darklang" then
+            // `Stdlib.Int64.Divide.divide`, as code writes it.
+            Frame.Darklang(
+              Stdlib.String.stripPrefix(name, "Darklang.") |> Stdlib.Option.withDefault(name))
+          else
+            Frame.Yours(name)
+        | [] -> Frame.Yours(name)
+
+      let frameOf(frame: LanguageTools.RuntimeTypes.ExecutionPoint): Option<Frame> =
+        match frame with
+        | Function(Package(hash)) -> Option.Some(fnFrame(hash, fun name -> name))
+        | Lambda(_, _, Some(Function(Package(hash)))) ->
+          Option.Some(fnFrame(hash, fun name -> $"a lambda in {name}"))
+        | Lambda(_, id, Some(Source)) ->
+          match entry with
+          | Call -> Option.None
+          | Script ->
+            match Stdlib.List.findFirst(lambdaLines, fun((lambdaId, _)) -> lambdaId == id) with
+            | Some((_, line)) ->
+              Option.Some(Frame.Yours($"line {Stdlib.display(line)} of the script"))
+            | None -> Option.None
+        | _ -> Option.None
+
+      let isDarklang(frame: Frame): Bool =
+        match frame with
+        | Darklang(_) -> true
+        | Yours(_) -> false
+
+      let nameOf(frame: Frame): String =
+        match frame with
+        | Darklang(name) -> name
+        | Yours(name) -> name
+
+      let innermostFirst = frames |> Stdlib.List.reverse |> Stdlib.List.filterMap(frameOf)
+      let yours = innermostFirst |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(isDarklang(f)))
+      let names =
+        match yours with
+        | [] -> Stdlib.List.map(innermostFirst, nameOf)
+        | _ ->
+          // The Darklang function the user's code called, when the crash was inside it.
+          match Stdlib.List.last(Stdlib.List.takeWhile(innermostFirst, isDarklang)) with
+          | Some(called) -> Stdlib.List.map(Stdlib.List.prepend(yours, called), nameOf)
+          | None -> Stdlib.List.map(yours, nameOf)
+
+      // Consecutive repeats are one line with a count, so deep recursion stays readable.
+      let grouped =
+        names
+        |> Stdlib.List.fold([], fun(acc, name) ->
+          match acc with
+          | [ (last, count), ...rest ] ->
+            if last == name then
+              Stdlib.List.prepend(rest, (last, count + 1))
+            else
+              Stdlib.List.prepend(acc, (name, 1))
+          | [] -> [ (name, 1) ])
+        |> Stdlib.List.reverse
+        |> Stdlib.List.map(fun((name, count)) ->
+          if count == 1 then name else $"{name} (×{Stdlib.display(count)})")
+
+      grouped
+      |> Stdlib.List.indexedMap(fun(index, name) ->
+        if index == 0 then $"  in {name}" else $"  called from {name}")
+    | _ -> []
 
 
 module View =

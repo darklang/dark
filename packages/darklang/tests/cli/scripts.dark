@@ -117,19 +117,42 @@ module CallStack =
     |> Stdlib.Test.equal("Lambda in Source (line 4)")
 
 
-  test entryOnlyStacksAreHidden =
-    let lambda =
+  /// A crash in these frames, as `run` and `eval` see it.
+  let whereLines(
+    frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>,
+    entry: Cli.ExecutionError.Entry)
+    : List<String> =
+    Cli.ExecutionError.whereLines(
+      SCM.Branch.mainBranchId,
+      Cli.ExecutionError.ExecutionError.Runtime(
+        LanguageTools.RuntimeTypes.RuntimeError.Error.DecimalOutOfRange,
+        frames,
+        [ (23u64, 4) ]),
+      entry)
+
+
+  // Only the user's code is shown: a builtin and the source of a one-line call are not.
+  test whereLinesLeaveOutWhatTheUserDidNotWrite =
+    let scriptLambda =
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         source(),
         23u64,
-        Stdlib.Option.Option.None)
+        Stdlib.Option.Option.Some(source()))
 
     Stdlib.Test.all(
-      [ Cli.ExecutionError.hasReadableFrames([ source(), lambda ])
-        |> Stdlib.Test.equal(false)
+      [ whereLines([ source(), builtin() ], Cli.ExecutionError.Entry.Script)
+        |> Stdlib.Test.equal([])
 
-        Cli.ExecutionError.hasReadableFrames([ source(), builtin() ])
-        |> Stdlib.Test.equal(true) ])
+        whereLines([ source(), scriptLambda, builtin() ], Cli.ExecutionError.Entry.Call)
+        |> Stdlib.Test.equal([])
+
+        whereLines([ source(), scriptLambda, builtin() ], Cli.ExecutionError.Entry.Script)
+        |> Stdlib.Test.equal([ "  in line 4 of the script" ])
+
+        whereLines(
+          [ source(), scriptLambda, scriptLambda, builtin() ],
+          Cli.ExecutionError.Entry.Script)
+        |> Stdlib.Test.equal([ "  in line 4 of the script (×2)" ]) ])
 
 
   test processStacksUseTheSharedType =
