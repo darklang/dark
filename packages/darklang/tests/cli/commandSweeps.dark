@@ -154,9 +154,9 @@ let swept(): List<String> =
 let sweepRun(
   i: Instance.T,
   args: List<String>)
-  : (Int64 * String * Stdlib.Option.Option<String>) =
+  : (UInt8 * String * Stdlib.Option.Option<String>) =
   match Instance.run(i, args) with
-  | Error(e) -> (-1, "", Stdlib.Option.Option.Some($"could not run: {e}"))
+  | Error(e) -> (127, "", Stdlib.Option.Option.Some($"could not run: {e}"))
   | Ok(out) ->
     let text = Stdlib.String.trim(out.stdout + out.stderr)
     if text == "" then

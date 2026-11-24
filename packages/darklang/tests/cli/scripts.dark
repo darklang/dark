@@ -16,9 +16,9 @@ test integerExitCodes =
       Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DUInt8(4))
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
 
-      // past 0 to 255 is no exit code the OS carries
+      // past 0 to 255 is no exit code the OS carries; `handleResult` refuses it
       Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DInt64(300))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(300))
 
       Cli.Run.exitCode(
         LanguageTools.RuntimeTypes.Dval.DBigInt(9223372036854775808z))

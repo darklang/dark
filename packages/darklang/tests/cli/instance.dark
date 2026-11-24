@@ -194,14 +194,14 @@ let tryCall(
       e)
 
 
-/// A command's exit code and both streams. `-1`, with the reason on stderr, when it could not
-/// start at all.
+/// A command's exit code and both streams. `127`, as in a shell, with the reason on stderr,
+/// when it could not start at all.
 let call(i: T, c: Call): Stdlib.Cli.Process.Output =
   match tryCall(i, c) with
   | Ok(out) -> out
   | Error(e) ->
     Stdlib.Cli.Process.Output
-      { exitCode = -1, stdout = "", stderr = $"could not run: {e}" }
+      { exitCode = 127, stdout = "", stderr = $"could not run: {e}" }
 
 
 let run(
@@ -212,7 +212,7 @@ let run(
 
 
 /// A command with `source` piped into it: its exit code and both streams. See `ran`.
-let runWithStdin(i: T, args: List<String>, source: String): (Int64 * String) =
+let runWithStdin(i: T, args: List<String>, source: String): (UInt8 * String) =
   let out =
     call(i, { command(args) with stdin = Stdlib.Option.Option.Some(source) })
 
@@ -289,9 +289,9 @@ let ran(i: T, args: List<String>): (UInt8 * String) =
 
 /// A command's exit code, stdout and stderr, each trimmed and kept apart: `said` and `output`
 /// join them, so they can't tell which stream a line went to.
-let streams(i: T, args: List<String>): (Int64 * String * String) =
+let streams(i: T, args: List<String>): (UInt8 * String * String) =
   match run(i, args) with
-  | Error(e) -> (-1, "", $"could not run: {e}")
+  | Error(e) -> (127, "", $"could not run: {e}")
   | Ok(out) ->
     (
       out.exitCode,

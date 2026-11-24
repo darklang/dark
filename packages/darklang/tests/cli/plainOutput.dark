@@ -26,7 +26,7 @@ let authored(i: Instance.T): Unit =
 
 
 /// What a program sees when it runs `args` with no flag: stdout is a pipe.
-let piped(i: Instance.T, args: List<String>): (Int64 * String * String) =
+let piped(i: Instance.T, args: List<String>): (UInt8 * String * String) =
   let out =
     Instance.call(
       i,
@@ -36,7 +36,7 @@ let piped(i: Instance.T, args: List<String>): (Int64 * String * String) =
 
 
 /// Both streams of `args` run at a terminal, which ends its lines with `\r\n`.
-let atTerminal(i: Instance.T, args: List<String>): (Int64 * String) =
+let atTerminal(i: Instance.T, args: List<String>): (UInt8 * String) =
   let out =
     Instance.call(
       i,
