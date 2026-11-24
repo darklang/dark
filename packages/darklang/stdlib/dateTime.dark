@@ -801,9 +801,16 @@ let __sleepNanoseconds(seconds: Int64, nanos: Int64): Result<Unit, Cli.Posix.Err
   __sleepWith(Builtin.syscallNanosleep, seconds, nanos)
 
 
+/// Zero, negative and NaN waits return at once; one past what an Int64 of nanoseconds holds waits
+/// that long.
 let __sleepMilliseconds(milliseconds: Float64): Unit =
-  let nanos = Float64.toInt64(milliseconds * 1000000.0)
+  let nanos =
+    if milliseconds > 0.0 then
+      Int64.fromFloat64(milliseconds * 1000000.0)
+      |> Result.withDefault(9223372036854775807)
+    else
+      0
   if Builtin.runtimeTargetOS() == "browser" then
     Builtin.runtimeDelayTicks(nanos / 100)
   else
-    __sleepNanoseconds(nanos / 1000000000, nanos % 1000000000) |> Builtin.unwrap
+    __sleepNanoseconds(nanos / 1000000000, nanos % 1000000000) |> Result.withDefault(())
