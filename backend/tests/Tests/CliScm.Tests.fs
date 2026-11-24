@@ -998,7 +998,7 @@ let private aDependencyReviewThatFailsIsReported =
         $"couldn't check everything: {why}"
         "naming the check it couldn't run"
       Expect.stringContains
-        (plain out)
+        (plain err)
         "nothing found by the checks that DID run."
         "and not claiming there is nothing to find"
 

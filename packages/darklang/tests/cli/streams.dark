@@ -390,16 +390,24 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Silent,
       Stream.Says("nothing matching zzznope"))
 
-    ([ "constraints" ], 0, Stream.Says("no constraints"), Stream.Silent)
-    ([ "conflicts" ], 0, Stream.Says("no conflicts"), Stream.Silent)
+    ([ "constraints" ], 0, Stream.Silent, Stream.Says("no constraints"))
+    ([ "conflicts" ], 0, Stream.Silent, Stream.Says("no conflicts"))
+    ([ "backups" ], 0, Stream.Silent, Stream.Says("no backups yet"))
+    ([ "backups", "now" ], 0, Stream.Says("copied the store"), Stream.Silent)
     (
-      [ "backups" ],
+      [ "backups", "prune", "0" ],
+      1,
+      Stream.Says("PRUNING"),
+      Stream.Says("Prune not done"))
+
+    (
+      [ "backups", "prune", "0", "-y" ],
       0,
-      Stream.Says("no backups yet"),
-      Stream.Says("`dark backups now`"))
+      Stream.Says("PRUNING"),
+      Stream.Says("deleted 1 backup"))
 
     ([ "ps", "--json" ], 0, Stream.Says("thisInstance"), Stream.Silent)
-    ([ "ack", "--all" ], 0, Stream.Says("nothing to ack"), Stream.Silent)
+    ([ "ack", "--all" ], 0, Stream.Silent, Stream.Says("nothing to ack"))
     (
       [ "branch", "create", "main" ],
       1,
@@ -481,12 +489,17 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Says("back on the version"),
       Stream.Silent)
 
-    ([ "discard" ], 1, Stream.Silent, Stream.Says("DISCARDING"))
+    (
+      [ "discard" ],
+      1,
+      Stream.Says("DISCARDING"),
+      Stream.Says("Discard not done"))
+
     (
       [ "discard", "-y" ],
       0,
-      Stream.Says("discarded"),
-      Stream.Says("DISCARDING"))
+      Stream.Says("DISCARDING"),
+      Stream.Says("discarded"))
 
     ([ "ack" ], 1, Stream.Silent, Stream.Says("dark ack --all"))
     ([ "module" ], 1, Stream.Silent, Stream.Says("needs 2 arguments"))

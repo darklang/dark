@@ -136,7 +136,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
         match SCM.PackageOps.discardDraftName(loc.owner, loc.modules, loc.name) with
         | Ok(n) ->
-          printOk($"dropped {dotted} from your draft ({Text.plural(n, "op")}).")
+          Stderr.ok($"dropped {dotted} from your draft ({Text.plural(n, "op")}).")
           restoreCallers(branchId, loc, discarded)
           match SCM.Constraints.outdatedUsagesOn(branchId) with
           | Ok(findings) ->
@@ -172,9 +172,11 @@ let execute(state: AppState, args: List<String>): AppState =
       Stderr.ok($"nothing to discard -- your draft on {scope} is empty.")
       state
     else
+      // The plan is the answer, on stdout: what goes. The result line under it is a hint.
+      //
       // A WARNING header, not a green one: this listing is what is about to be destroyed, and green
       // reads as "already fine".
-      Stderr.line(
+      Stdlib.printLine(
         Stdlib.Cli.UI.Colors.warning(
           $"  DISCARDING ({Stdlib.display(Stdlib.List.length(changed))}) on {scope}, {Text.plural(ops, "op")}"))
 
@@ -182,7 +184,7 @@ let execute(state: AppState, args: List<String>): AppState =
       // empty listing under a header that promises one.
       let _ =
         if Stdlib.List.isEmpty(changed) then
-          Stderr.line(
+          Stdlib.printLine(
             Stdlib.Cli.UI.Colors.dimText(
               "    (no changed names -- no new version: restores, deprecations, docs, acks)"))
         else
@@ -193,7 +195,7 @@ let execute(state: AppState, args: List<String>): AppState =
         // The FULL name, as `status` and the JSON spell it; a listing of what dies is the wrong place
         // to abbreviate.
         let name = SCM.Conflicts.fqn(b.owner, b.modules, b.name)
-        Stderr.line($"    - {name}"))
+        Stdlib.printLine($"    - {name}"))
 
       // An explicit yes, not the usual default-yes: this is the one command here that destroys work, so a
       // stray Return or a piped stdin must not answer for you.
@@ -210,7 +212,7 @@ let execute(state: AppState, args: List<String>): AppState =
       else
         match SCM.PackageOps.discardDraft() with
         | Ok(n) ->
-          printOk($"discarded {Text.plural(n, "op")} -- {scope} is back to its last commit.")
+          Stderr.ok($"discarded {Text.plural(n, "op")} -- {scope} is back to its last commit.")
           state
         | Error(e) ->
           printErr($"couldn't discard: {e}")

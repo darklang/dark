@@ -22,7 +22,7 @@ let names(): List<String> =
 let executeList(state: AppState): AppState =
   match list() with
   | [] ->
-    printOk("no backups yet.")
+    Stderr.ok("no backups yet.")
     printHint("  One is taken automatically before an upgrade folds a new seed.")
     printHint("  `dark backups now` takes one on demand.")
     state
@@ -104,17 +104,18 @@ let executePrune(state: AppState, keepArg: String, confirm: Confirm): AppState =
       let all = names()
       let doomed = Stdlib.List.drop(all, keep)
       if Stdlib.List.isEmpty(doomed) then
-        printOk(
+        Stderr.ok(
           $"""nothing to prune: {Text.plural(Stdlib.List.length(all), "backup")}, keeping {keepArg}.""")
 
         state
       else
-        Stderr.line(
+        Stdlib.printLine(
           Stdlib.Cli.UI.Colors.warning(
             $"""  PRUNING deletes {Text.plural(Stdlib.List.length(doomed), "backup")}:"""))
 
         doomed
-        |> Stdlib.List.iter(fun name -> Stderr.line(Stdlib.Cli.UI.Colors.dimText($"    - {name}")))
+        |> Stdlib.List.iter(fun name ->
+          Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"    - {name}")))
 
         let confirmed =
           Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Delete them? [y/N]: "))
@@ -137,7 +138,7 @@ let executePrune(state: AppState, keepArg: String, confirm: Confirm): AppState =
                 printErr($"  couldn't delete {name}")
                 Option.None)
 
-          printOk(
+          Stderr.ok(
             $"""deleted {Text.plural(Stdlib.List.length(deleted), "backup")}, kept {keepArg}.""")
 
           exitWith(state, Stdlib.List.length(deleted) == Stdlib.List.length(doomed))
