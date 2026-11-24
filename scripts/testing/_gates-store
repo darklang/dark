@@ -174,7 +174,7 @@ gate_first_day() {
   # inside the release seed as somebody else's mystery op.
   dark --branch main fn /FirstDay.Hello.doomed '() : Int64 = 1' >/dev/null 2>&1 || true
   dark --branch main commit "before deleting" -y >/dev/null 2>&1 || true
-  want "delete deprecates it"   "^ *[Dd]eprecated "  --branch main delete fn FirstDay.Hello.doomed -y
+  want "delete deprecates it"   "^ *Deleted "  --branch main delete fn FirstDay.Hello.doomed -y
   want "and it is committable"  "^ *commit [0-9a-f]{8} -- [0-9]+ op" --branch main commit "retire it" -y
   want "leaving a clean tree"   "^clean:"        --branch main status
 
