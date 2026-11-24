@@ -9,19 +9,33 @@ let checkModule(branchId: Uuid, modules: List<String>): LanguageTools.AtRestType
   LanguageTools.AtRestTypeChecker.checkModule(branchId, modules)
 
 
-/// The name behind a hash in a diagnostic. Types and traits both appear in them -- "no
-/// implementation of X for Y" names a trait and a type -- and a hash in a message a person reads
-/// is no help, so both are looked up.
-let customTypeName(branchId: Uuid, hash: LanguageTools.ProgramTypes.Hash): Option<String> =
-  let nameAt(locations: List<LanguageTools.ProgramTypes.PackageLocation>) =
+/// The name behind a hash in a diagnostic, written by <param render>. Types, traits, values and
+/// functions all appear in them -- "no implementation of X for Y" names a trait and a type -- and a
+/// hash in a message a person reads is no help.
+let nameOf(
+  branchId: Uuid,
+  render: LanguageTools.ProgramTypes.PackageLocation -> String,
+  hash: LanguageTools.ProgramTypes.Hash)
+  : Option<String> =
+  let named = fun locations ->
     LanguageTools.PackageManager.pickLocation(
       LanguageTools.PackageManager.PickContext.empty,
       locations)
-    |> Stdlib.Option.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
+    |> Stdlib.Option.map(render)
 
-  match nameAt(LanguageTools.PackageManager.Type.locations(branchId, hash)) with
+  match named(LanguageTools.PackageManager.Type.locations(branchId, hash)) with
   | Some(name) -> Option.Some(name)
-  | None -> nameAt(LanguageTools.PackageManager.Trait.locations(branchId, hash))
+  | None ->
+    match named(LanguageTools.PackageManager.Trait.locations(branchId, hash)) with
+    | Some(name) -> Option.Some(name)
+    | None ->
+      match named(LanguageTools.PackageManager.Value.locations(branchId, hash)) with
+      | Some(name) -> Option.Some(name)
+      | None -> named(LanguageTools.PackageManager.Function.locations(branchId, hash))
+
+
+let customTypeName(branchId: Uuid, hash: LanguageTools.ProgramTypes.Hash): Option<String> =
+  nameOf(branchId, PrettyPrinter.ProgramTypes.PackageLocation.packageLocation, hash)
 
 
 let staticType(branchId: Uuid, typ: LanguageTools.AtRestTypeChecker.StaticType): String =
@@ -30,13 +44,96 @@ let staticType(branchId: Uuid, typ: LanguageTools.AtRestTypeChecker.StaticType):
     typ)
 
 
-let issueLine(branchId: Uuid, issue: LanguageTools.AtRestTypeChecker.Issue): String =
-  let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
-  let message =
+/// The enum nearest <param modules> (owner first), looking in that module and then each one above
+/// it, that has a case named <param caseName>: its full name and its own name.
+let enumWithCase(
+  branchId: Uuid,
+  modules: List<String>,
+  caseName: String)
+  : Option<(String * String)> =
+  match modules with
+  | [] -> Option.None
+  | _ ->
+    let (_, types, _, _, _, _, _) = Query.allDirectDescendantNamesAndHashes(branchId, modules)
+    let hasCase = fun hash ->
+      match LanguageTools.PackageManager.Type.get(hash) with
+      | Some(typ) ->
+        match typ.declaration.definition with
+        | Enum(cases) -> Stdlib.List.any(cases, fun c -> c.name == caseName)
+        | _ -> false
+      | None -> false
+
+    match Stdlib.List.findFirst(types, fun((_, hash)) -> hasCase(hash)) with
+    | Some((name, _)) ->
+      let path = Stdlib.String.join(Stdlib.List.append(modules, name), ".")
+      Option.Some((path, name))
+    | None -> enumWithCase(branchId, Stdlib.List.dropLast(modules), caseName)
+
+
+/// What a name the checker could not find really is, when the checker's own words would mislead:
+/// a declaration from the same save that did not parse (<param unparsed>: name and line), a case
+/// of an enum near the item (<param near>), or something that is not on the branch at all.
+let explainIssue(
+  branchId: Uuid,
+  near: List<String>,
+  unparsed: List<(String * Int64)>,
+  issue: LanguageTools.AtRestTypeChecker.Issue)
+  : Option<String> =
+  let notParsed = fun name ->
+    Stdlib.List.findFirst(unparsed, fun((n, _)) -> n == name)
+    |> Stdlib.Option.map(fun((_, line)) ->
+      $"`{name}` was not saved: its declaration at line {Stdlib.display(line)} did not parse")
+
+  let unnamed = fun hash -> Stdlib.Option.isNone(customTypeName(branchId, hash))
+  match issue.context with
+  | Identifier(name) when issue.code == LanguageTools.AtRestTypeChecker.IssueCode.UnknownVariable ->
+    match notParsed(name) with
+    | Some(text) -> Option.Some(text)
+    | None ->
+      enumWithCase(branchId, near, name)
+      |> Stdlib.Option.map(fun((path, typeName)) ->
+        $"`{name}` is a case of {path}; write `{typeName}.{name}`")
+  | Unresolved([name]) -> notParsed(name)
+  | ValueUnavailable(Package(hash)) when unnamed(hash) ->
+    Option.Some(
+      "The value used here is not on this branch (was its save refused?), so its type is unknown")
+  | FunctionUnavailable(Package(hash)) when unnamed(hash) ->
+    Option.Some(
+      "The function called here is not on this branch (was its save refused?), so its signature is unknown")
+  | TypeUnavailable(hash) when unnamed(hash) ->
+    Option.Some("A type used here is not on this branch (was its save refused?)")
+  | TraitUnavailable(hash) when unnamed(hash) ->
+    Option.Some("A trait used here is not on this branch (was its save refused?)")
+  | _ -> Option.None
+
+
+/// The issue in words: <fn explainIssue>'s where they apply, else the checker's.
+let issueMessage(
+  branchId: Uuid,
+  near: List<String>,
+  unparsed: List<(String * Int64)>,
+  issue: LanguageTools.AtRestTypeChecker.Issue)
+  : String =
+  match explainIssue(branchId, near, unparsed, issue) with
+  | Some(text) -> text
+  | None ->
     LanguageTools.AtRestTypeChecker.issueToStringWith(
       (fun hash -> customTypeName(branchId, hash)),
       issue)
 
+
+let issueLine(branchId: Uuid, issue: LanguageTools.AtRestTypeChecker.Issue): String =
+  issueLineNear(branchId, [], [], issue)
+
+
+let issueLineNear(
+  branchId: Uuid,
+  near: List<String>,
+  unparsed: List<(String * Int64)>,
+  issue: LanguageTools.AtRestTypeChecker.Issue)
+  : String =
+  let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
+  let message = issueMessage(branchId, near, unparsed, issue)
   let withHint =
     withDisplayHint(
       branchId,
@@ -189,9 +286,36 @@ let printUnresolvedTraitCalls(
 
 
 let issueLines(branchId: Uuid, issues: List<LanguageTools.AtRestTypeChecker.Issue>): List<String> =
+  issueLinesNear(branchId, [], [], issues)
+
+
+/// One item's issues, errors first, explained by what is near it (<fn explainIssue>).
+let itemIssueLines(
+  branchId: Uuid,
+  item: LanguageTools.AtRestTypeChecker.ItemReport,
+  unparsed: List<(String * Int64)>)
+  : List<String> =
+  let near =
+    Typecheck.locationsFor(branchId, item.item)
+    |> Stdlib.List.head
+    |> Stdlib.Option.map(fun loc -> Stdlib.List.prepend(loc.modules, loc.owner))
+    |> Stdlib.Option.withDefault([])
+
+  Stdlib.List.concat(
+    issueLinesNear(branchId, near, unparsed, item.diagnostics),
+    issueLinesNear(branchId, near, unparsed, item.warnings))
+
+
+let issueLinesNear(
+  branchId: Uuid,
+  near: List<String>,
+  unparsed: List<(String * Int64)>,
+  issues: List<LanguageTools.AtRestTypeChecker.Issue>)
+  : List<String> =
   issues
   |> deduplicate
-  |> Stdlib.List.map(fun issue -> (issueLine(branchId, issue), position(issue.nodeId)))
+  |> Stdlib.List.map(fun issue ->
+    (issueLineNear(branchId, near, unparsed, issue), position(issue.nodeId)))
   |> Stdlib.List.groupBy(fun((line, _)) -> line)
   |> Stdlib.List.map(fun((line, occurrences)) ->
     let count = Stdlib.List.length(occurrences)
@@ -230,8 +354,13 @@ let saveHasErrors(report: LanguageTools.AtRestTypeChecker.Report): Bool =
 
 
 /// Report a saved WIP batch. Findings do not stop the save; `commit` enforces
-/// definite errors.
-let printSaveReport(branchId: Uuid, report: LanguageTools.AtRestTypeChecker.Report): Unit =
+/// definite errors. <param unparsed> names the declarations of the same source that did not
+/// parse, with their lines, so a call to one says so.
+let printSaveReport(
+  branchId: Uuid,
+  report: LanguageTools.AtRestTypeChecker.Report,
+  unparsed: List<(String * Int64)>)
+  : Unit =
   match report.verdict with
   | Checked -> ()
   | Failed ->
@@ -240,12 +369,12 @@ let printSaveReport(branchId: Uuid, report: LanguageTools.AtRestTypeChecker.Repo
         Stdlib.Cli.UI.Colors.error(
           "Type check failed. Saved as a draft; "
           + "`dark commit` will refuse it until it is fixed:") ],
-      saveReportDetails(branchId, report))
+      saveReportDetails(branchId, report, unparsed))
     |> Stderr.lines
   | Incomplete ->
     Stdlib.List.concat(
       [ "", Stdlib.Cli.UI.Colors.warning("Type check was incomplete; saved anyway:") ],
-      saveReportDetails(branchId, report))
+      saveReportDetails(branchId, report, unparsed))
     |> Stderr.lines
 
 
@@ -254,13 +383,14 @@ let printSaveReport(branchId: Uuid, report: LanguageTools.AtRestTypeChecker.Repo
 /// items' and stand alone only when the checker produced no items.
 let saveReportDetails(
   branchId: Uuid,
-  report: LanguageTools.AtRestTypeChecker.Report)
+  report: LanguageTools.AtRestTypeChecker.Report,
+  unparsed: List<(String * Int64)>)
   : List<String> =
   match report.items with
   | [] ->
     Stdlib.List.concat(
-      issueLines(branchId, report.diagnostics),
-      issueLines(branchId, report.warnings))
+      issueLinesNear(branchId, [], unparsed, report.diagnostics),
+      issueLinesNear(branchId, [], unparsed, report.warnings))
   | items ->
     items
     |> Stdlib.List.filter(fun item ->
@@ -268,10 +398,7 @@ let saveReportDetails(
     |> Stdlib.List.map(fun item ->
       let label = Typecheck.itemLabel(branchId, item.item)
       let lines =
-        Stdlib.List.concat(
-          issueLines(branchId, item.diagnostics),
-          issueLines(branchId, item.warnings))
-        |> Stdlib.List.map(fun line -> "  " + line)
+        itemIssueLines(branchId, item, unparsed) |> Stdlib.List.map(fun line -> "  " + line)
 
       Stdlib.List.prepend(lines, $"  {label}:"))
     |> Stdlib.List.flatten
@@ -299,11 +426,11 @@ let scriptReport(
     |> Stdlib.Option.map(fun loc ->
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc))
 
-  // A trait's hash appears in these too ("no implementation of X"), so look it up as one.
   let typeName(hash: LanguageTools.ProgramTypes.Hash): Option<String> =
-    match sourceName(LanguageTools.PackageManager.Type.locations(branchId, hash)) with
-    | Some(name) -> Option.Some(name)
-    | None -> sourceName(LanguageTools.PackageManager.Trait.locations(branchId, hash))
+    nameOf(
+      branchId,
+      (fun loc -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc)),
+      hash)
 
   let itemLines(item: LanguageTools.AtRestTypeChecker.ItemReport): List<String> =
     if item.verdict != LanguageTools.AtRestTypeChecker.Verdict.Failed then

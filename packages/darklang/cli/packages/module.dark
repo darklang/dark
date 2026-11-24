@@ -124,6 +124,36 @@ let leftOver(branchId: Uuid, home: List<String>, defined: List<String>): List<(S
   |> Stdlib.List.unique
 
 
+/// The declarations in <param source> that a partial save dropped, as (name, line): what a full
+/// parse recovers that <param kept> does not have.
+let unparsedNames(
+  source: String,
+  kept: List<(List<String> * LanguageTools.WrittenTypes.ModuleDeclaration.Declaration)>)
+  : List<(String * Int64)> =
+  let path = fun((modules, decl)) ->
+    declarationName(decl) |> Stdlib.Option.map(fun name -> Stdlib.List.append(modules, name))
+
+  let keptPaths = Stdlib.List.filterMap(kept, path)
+  match LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, source) with
+  | Some(SourceFile(sourceFile)), _ ->
+    sourceFile.declarations
+    |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
+    |> (fun decls -> collectDecls([], decls))
+    |> Stdlib.List.filterMap(fun((modules, decl)) ->
+      let line =
+        match decl with
+        | Type(typ) -> Option.Some(typ.name.range.start.row)
+        | Function(fn) -> Option.Some(fn.name.range.start.row)
+        | Value(value) -> Option.Some(value.name.range.start.row)
+        | _ -> Option.None
+
+      match path((modules, decl)), line with
+      | Some(p), Some(row) when Stdlib.Bool.not(Stdlib.List.contains(keptPaths, p)) ->
+        Stdlib.List.last(p) |> Stdlib.Option.map(fun name -> (name, row + 1))
+      | _ -> Option.None)
+  | _ -> []
+
+
 let save(state: AppState, modulePath: String, source: String, mode: SaveMode): AppState =
   let bundled = mode == SaveMode.DevBuild
   let moduleCommand = mode == SaveMode.Module
@@ -337,7 +367,8 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
 
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.
-            AtRestCheck.printSaveReport(branchId, report)
+            let unparsed = if parseFailed then unparsedNames(source, declarations) else []
+            AtRestCheck.printSaveReport(branchId, report, unparsed)
             match updatedName, report.verdict with
             | Some(_), Checked -> Propagate.printEditPropagation(followed)
             | _ -> Propagate.printFollowed(followed)

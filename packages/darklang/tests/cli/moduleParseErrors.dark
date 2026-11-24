@@ -45,6 +45,22 @@ test oneBrokenDeclarationCanBeRetriedOnItsOwn = Instance.withInstance(fun i ->
         "the corrected declaration saves on its own") ]))
 
 
+test callerOfUnparsedSiblingSaysSo = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/sibling.dark"
+  let source =
+    "let parseRepo(s: String): String =\n  s + +\nlet count(s: String): Int64 = Stdlib.String.length(parseRepo(s))\n"
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let (_, out) = Instance.ran(i, [ "module", "/Me.Sibling", path ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        out,
+        "`parseRepo` was not saved: its declaration at line 1 did not parse",
+        "the cause")
+
+      Instance.doesNotSay(out, "not in scope", "not a missing variable") ]))
+
+
 test expressionAtModuleScopeDoesNotPreventSavingDeclarations =
   Instance.withInstance(fun i ->
     let path = Instance.home(i) + "/stray.dark"

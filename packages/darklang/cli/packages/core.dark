@@ -432,8 +432,10 @@ let commitAuthored(
               branchId,
               issue,
               PrettyPrinter.ProgramTypes.PackageLocation.packageLocation,
-              LanguageTools.AtRestTypeChecker.issueToStringWith(
-                (fun hash -> AtRestCheck.customTypeName(branchId, hash)),
+              AtRestCheck.issueMessage(
+                branchId,
+                Stdlib.List.prepend(location.modules, location.owner),
+                [],
                 issue))
 
           Option.Some(first)

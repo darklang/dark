@@ -198,17 +198,11 @@ let printItem(
   | Failed ->
     if outputFilter.showFailed then
       Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"failed: {label}"))
-      Stdlib.List.concat(
-        AtRestCheck.issueLines(branchId, item.diagnostics),
-        AtRestCheck.issueLines(branchId, item.warnings))
-      |> Stdlib.printLines
+      AtRestCheck.itemIssueLines(branchId, item, []) |> Stdlib.printLines
   | Incomplete ->
     if outputFilter.showIncomplete then
       Stdlib.printLine(Stdlib.Cli.UI.Colors.warning($"incomplete: {label}"))
-      Stdlib.List.concat(
-        AtRestCheck.issueLines(branchId, item.diagnostics),
-        AtRestCheck.issueLines(branchId, item.warnings))
-      |> Stdlib.printLines
+      AtRestCheck.itemIssueLines(branchId, item, []) |> Stdlib.printLines
 
 
 // The --json rendering. The same data the human view renders, typed: `docs for-ai` promises every
@@ -232,9 +226,7 @@ let jsonReport(
     listed(branchId, scope, outputFilter, report.items)
     |> Stdlib.List.map(fun((label, item)) ->
       let issues =
-        Stdlib.List.concat(
-          AtRestCheck.issueLines(branchId, item.diagnostics),
-          AtRestCheck.issueLines(branchId, item.warnings))
+        AtRestCheck.itemIssueLines(branchId, item, [])
         |> Stdlib.List.map(fun l -> Stdlib.String.trim(l))
 
       Stdlib.AltJson.Json.Object(
