@@ -487,6 +487,64 @@ let capturedAccessCannotWidenCaller =
       "a narrow capture constrains a wide applying frame"
   }
 
+/// In deep recursion through callbacks, each level's permissions are combined with the
+/// previous level's, which has the same restrictions. Adding those again at every level
+/// would make the list grow with the depth.
+let constrainingByRestrictionsAlreadyThereAddsNone =
+  test "constraining by restrictions already in place adds none" {
+    let restricted = Permission.Access.start Permission.Policy.denyAll
+    let first =
+      restricted
+      |> Permission.Access.constrainBy (
+        Permission.Access.start Permission.Policy.allowAll
+      )
+    let size (access : Permission.Access) =
+      Permission.Access.layers access |> List.length
+    // Combine each level with the one before it, as the recursion does
+    let rec deeper
+      (previous : Permission.Access)
+      (current : Permission.Access)
+      depth
+      =
+      if depth = 0 then
+        current
+      else
+        deeper
+          current
+          (current |> Permission.Access.constrainBy previous)
+          (depth - 1)
+    // Only 20 levels: if restrictions were added again, the list would grow so fast that 50
+    // levels would run out of memory instead of failing
+    let deep = deeper restricted first 20
+    Expect.equal
+      (size deep)
+      (size first)
+      "20 levels deep, no restriction was added twice"
+    Expect.isFalse
+      (Permission.Access.allows Permission.Request.clock deep)
+      "and the restrictions still apply"
+  }
+
+let constrainingByCapturePreservesDenialOrder =
+  test "shared restrictions keep the captured denial first" {
+    let captured =
+      Permission.Access.start Permission.Policy.allowAll
+      |> Permission.Access.restrict Permission.Layer.Run Permission.Policy.denyAll
+    let current =
+      captured
+      |> Permission.Access.restrict
+        (Permission.Layer.Value "example")
+        (Permission.Policy.create
+          [ Permission.Rule.All ]
+          [ Permission.Rule.Effect Effect.Effect.Clock ])
+    let combined = current |> Permission.Access.constrainBy captured
+    Expect.equal
+      (Permission.Access.check Permission.Request.clock combined)
+      (Permission.Decision.Denied
+        { layer = Permission.Layer.Run; reason = Permission.PolicyDenial.NotAllowed })
+      "the captured run restriction explains the denial"
+  }
+
 let materializedValuesCaptureCallablesRecursively =
   test "materialized values capture nested callables" {
     let denyAll = Permission.Access.start Permission.Policy.denyAll
@@ -1626,4 +1684,6 @@ let tests =
       httpDenialOffersTheHost
       noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
+      constrainingByRestrictionsAlreadyThereAddsNone
+      constrainingByCapturePreservesDenialOrder
       materializedValuesCaptureCallablesRecursively ]
