@@ -532,30 +532,28 @@ test aMergeRunsNoTestsWhenNoneIsTouchedOrWhenToldNotTo =
 
 
 test aMergeLeavesTouchedTestsOverTheCapToThePerson =
-  let ux = Darklang.Cli.Branch.TouchedTestRun.UpToCap
-  let all = Darklang.Cli.Branch.TouchedTestRun.All
-  let skip = Darklang.Cli.Branch.TouchedTestRun.Skip
+  let ux = Cli.Branch.TouchedTestRun.UpToCap
+  let all = Cli.Branch.TouchedTestRun.All
+  let skip = Cli.Branch.TouchedTestRun.Skip
   Stdlib.Test.all(
     [ same(
-        Darklang.Cli.Branch.overTheCap(ux, 50),
+        Cli.Branch.overTheCap(ux, 50),
         false,
         "50 isolated test groups still run")
 
-      same(Darklang.Cli.Branch.overTheCap(ux, 51), true, "51 are over the cap")
+      same(Cli.Branch.overTheCap(ux, 51), true, "51 are over the cap")
 
       same(
-        Darklang.Cli.Branch.overTheCap(all, 51),
+        Cli.Branch.overTheCap(all, 51),
         false,
         "--run-all-tests runs them anyway")
 
       same(
-        Darklang.Cli.Branch.overTheCap(skip, 51),
+        Cli.Branch.overTheCap(skip, 51),
         false,
         "--skip-tests runs nothing to cap")
 
       same(
-        Darklang.Cli.Branch.testRunCommand(
-          "feat",
-          [ "A.Tests.one", "A.Tests.two" ]),
+        Cli.Branch.testRunCommand("feat", [ "A.Tests.one", "A.Tests.two" ]),
         "dark --branch feat test run A.Tests.one A.Tests.two",
         "the printed command runs exactly the touched tests") ])

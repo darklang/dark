@@ -936,8 +936,9 @@ let runAndReport(
   run: LanguageTools.PackageManager.Test.Run,
   branchId: Uuid,
   options: RunOptions,
-  selected: List<
-    LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
+  selected:
+    List<
+      LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
   : (Counts * Bool) =
   // One analysis for the whole run: the tests share most of what they call.
   let cacheSafe =
@@ -1011,8 +1012,9 @@ let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: AppState,
   options: RunOptions,
-  selected: List<
-    LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
+  selected:
+    List<
+      LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
   : AppState =
   let (counts, printed) = runAndReport(run, state.currentBranchId, options, selected)
   let total = counts.passed + counts.failed

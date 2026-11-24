@@ -149,7 +149,7 @@ let touchedTests(
 
   // A dependents walk that fails leaves only the changed tests themselves.
   let dependents =
-    Cli.Deps.getTransitiveDependentsOn(branchId, changed) |> Stdlib.Result.withDefault([])
+    Deps.getTransitiveDependentsOn(branchId, changed) |> Stdlib.Result.withDefault([])
 
   let names =
     Stdlib.List.concat(changed, dependents)
