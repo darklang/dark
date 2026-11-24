@@ -280,11 +280,12 @@ module OpenFlags =
 
 
 /// Kernel open(): a descriptor for <param path>, or the error number
-extern open(path: String, flags: Int64, mode: Int64): Result<BigInt, Int64>
-  from "kernel"
+extern open(path: String, flags: Int64, mode: Int64): Result<BigInt, Int64> from "kernel"
+
 
 /// Kernel read(): up to <param count> bytes from <param fd>, or the error number
 extern read(fd: BigInt, count: Int64): Result<Bytes, Int64> from "kernel"
+
 
 /// Kernel close(): closes <param fd>, or gives the error number
 extern close(fd: BigInt): Result<Unit, Int64> from "kernel"

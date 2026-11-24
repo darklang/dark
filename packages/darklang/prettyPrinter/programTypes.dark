@@ -3261,7 +3261,11 @@ let packageFnNamed(
   let (keyword, ending) =
     match p.body with
     | EExtern(_, library, symbol, _) ->
-      let name = namePart |> Stdlib.String.split(".") |> Stdlib.List.last
+      let name =
+        namePart
+        |> Stdlib.String.split(".")
+        |> Stdlib.List.last
+
       let symbolPart = if name == Option.Some(symbol) then "" else $" \"{symbol}\""
       ("extern", $"from \"{library}\"{symbolPart}")
     | _ -> ("let", " =")
@@ -3278,7 +3282,7 @@ let packageFnNamed(
             Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, txt(colon))))
 
           typeReferenceDoc(ctx, p.returnType)
-          (if keyword == "extern" then Stdlib.Pretty.empty else txt(ending)) ]))
+          if keyword == "extern" then Stdlib.Pretty.empty else txt(ending) ]))
 
   let headerDoc =
     if keyword == "extern" then
@@ -3310,7 +3314,7 @@ let packageFnNamed(
   let doc =
     if keyword == "extern" then
       headerDoc
-    elif ctx.compactFnBody then
+    else if ctx.compactFnBody then
       let body = lineDoc(contextWithFn, p.body)
       Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.Concat(

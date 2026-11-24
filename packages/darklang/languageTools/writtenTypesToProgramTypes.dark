@@ -1084,6 +1084,7 @@ module Expr =
       let args =
         Stdlib.Dict.values(context.argMap)
         |> Stdlib.List.indexedMap(fun(i, _) -> ProgramTypes.Expr.EArg(gid(), i))
+
       (ProgramTypes.Expr.EExtern(gid(), library, symbol, args), [])
 
 
