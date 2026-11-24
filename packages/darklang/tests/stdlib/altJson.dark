@@ -406,11 +406,6 @@ test objectValues =
       |> Stdlib.Test.equal(parsedOk(Json.Object([ ("", Json.Null) ]))) ])
 
 
-// // name with newline
-// format (Json.Object [ ("a\nb", Json.Null) ])
-// |> Stdlib.Test.equal "{\"a\nb\": null}"
-// parse "{\"a\nb\": null}"
-// |> Stdlib.Test.equal (parsedOk (Json.Object [ ("a\nb", Json.Null) ]))
 // An escaped newline round-trips; a raw newline is not valid JSON.
 test newlineInPropertyName =
   let value = Json.Object([ ("a\nb", Json.Null) ])

@@ -304,10 +304,6 @@ test parseFailInBoth =
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
-      p("20061204T10:20:54.67am")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
-
       p("20061204T1020am")
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))

@@ -41,12 +41,6 @@ module UInt64 =
 
 
     // First number that doesn't fit in an int64
-    // TODO : The two commented tests below are failing due to a bug in the
-    // conversion from a double to a uint64 in dotnet runtime.
-    // The tests pass inside the container, but fail in CI
-    // (Stdlib.Json.parse<UInt64> "18446744073709551616") |> err
-    // |> Stdlib.Test.equal
-    //   (Result.Error "Can't parse JSON `18446744073709551616` as type `UInt64` at path: `root`")
     // A floating-point number in the UInt64 range can parse as UInt64.
     test rejectsFirstOverflow =
       Stdlib.Json.parse<UInt64>("18446744073709551616")

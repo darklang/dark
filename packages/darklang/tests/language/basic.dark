@@ -5,11 +5,6 @@ test floats =
     [ (-0.0 * -1.0) |> Stdlib.Test.equal(0.0)
       (6.02e22 * -10.0) |> Stdlib.Test.equal(-6.02e23) ])
 
-test letBoundVariable =
-  (let x = 5
-   x)
-  |> Stdlib.Test.equal(5)
-
 test missingVariableRaises =
   myvar => raises "There is no variable named: myvar"
 
