@@ -1031,7 +1031,26 @@ let rec private unresolved
           [ Operator(at, op) ]
         | _ -> [])
     | _ -> []
-  here @ (PTAst.subExprs expr |> List.collect (unresolved isBounded))
+  // `$"{x}"` calls `Display.display(x)`. If x has no Display, like a list, it's shown as
+  // `inspect` would show it. That's not a mistake, so it gets no warning.
+  let interpolationDisplay (nr : PT.NameResolution<PT.FQFnName.FQFnName>) =
+    match nr.resolved with
+    | Ok { name = PT.FQFnName.TraitMethod method_ } ->
+      method_.trait_ = PT.Hash(PackageRefs.Trait.Stdlib.display ())
+      && method_.method_ = "display"
+    | _ -> false
+  match expr with
+  | PT.EString(_, segments) ->
+    segments
+    |> List.collect (fun segment ->
+      match segment with
+      | PT.StringText _ -> []
+      | PT.StringInterpolation(PT.EApply(_, PT.EFnName(_, nr, _, _), _, args)) when
+        interpolationDisplay nr
+        ->
+        args |> NEList.toList |> List.collect (unresolved isBounded)
+      | PT.StringInterpolation e -> unresolved isBounded e)
+  | _ -> here @ (PTAst.subExprs expr |> List.collect (unresolved isBounded))
 
 
 /// Resolve trait calls and return any unresolved calls by item name.
