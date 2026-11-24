@@ -2708,6 +2708,31 @@ let private quickOpsFor (instrData : InstrData) : QuickOp[] =
       (quicken generation instrData.instructions).Ops
 
 
+/// <param t> with each alias in it, at any depth, replaced by what it names. `seen` stops an
+/// alias whose target mentions itself, as a recursive type's field can.
+let rec private withoutAliases
+  (types : Types)
+  (seen : Set<FQTypeName.FQTypeName>)
+  (t : TypeReference)
+  : TypeReference =
+  let inner = withoutAliases types seen
+  match t with
+  | TCustomType({ resolved = Ok name } as written, args) when
+    not (Set.contains name seen)
+    ->
+    match Types.find types name |> Option.map _.definition with
+    | Some(TypeDeclaration.Alias _) ->
+      withoutAliases types (Set.add name seen) (TypeReference.unwrapAlias types t)
+    | _ -> TCustomType(written, List.map inner args)
+  | TCustomType(written, args) -> TCustomType(written, List.map inner args)
+  | TTuple(a, b, rest) -> TTuple(inner a, inner b, List.map inner rest)
+  | TList item -> TList(inner item)
+  | TDict(k, v) -> TDict(inner k, inner v)
+  | TStream item -> TStream(inner item)
+  | TFn(args, ret) -> TFn(NEList.map inner args, inner ret)
+  | other -> other
+
+
 /// Cached data needed to enter a package function. Built once per function to
 /// avoid rebuilding its instructions and permission layers on every call.
 let private packageFnCallData
@@ -2720,6 +2745,7 @@ let private packageFnCallData
   else
     let instructions = List.toArray fn.body.instructions
     let thinWrapper = thinWrapperOf exeState fn
+    let paramList = FreeTVars.paramsOfPackage fn
     let d : PackageFnCallData =
       { instrData =
           { instructions = instructions
@@ -2730,8 +2756,13 @@ let private packageFnCallData
             quick = quicken (PackageRefs.currentGeneration ()) instructions }
         policy = { owner = null; name = None; policy = None }
         freeTVars = FreeTVars.ofPackage fn
-        paramList = FreeTVars.paramsOfPackage fn
+        paramList = paramList
         executionPoint = FreeTVars.packageExecutionPoint fn.hash
+        checkedParams =
+          paramList
+          |> List.map (fun p ->
+            { p with typ = withoutAliases exeState.types Set.empty p.typ })
+        checkedReturnType = withoutAliases exeState.types Set.empty fn.returnType
         // The parameters that take a callback. A named type, like `Check`, may be an
         // alias of a function type.
         fnParams =
@@ -3035,7 +3066,7 @@ let private packageFrame
       callData.executionPoint
       access
       callData.instrData
-      (ValueSome fn.returnType)
+      (ValueSome callData.checkedReturnType)
       ValueNone
       tst
       boundImpls
@@ -3265,7 +3296,7 @@ let private callPackageViaFrame
   // no zip.
   let pkgTcAlloc = allocNow vm
   let alreadyApplied = List.length applicable.argsSoFar
-  let pkgParams = callData.paramList |> List.skip alreadyApplied
+  let pkgParams = callData.checkedParams |> List.skip alreadyApplied
   recordStage vm ApplyStage.PkgTypeCheckArgs pkgTcAlloc
 
   let pkgTcRunAlloc = allocNow vm
@@ -3274,7 +3305,8 @@ let private callPackageViaFrame
   tst <- pkgTst
   recordStage vm ApplyStage.PkgTypeCheckRun pkgTcRunAlloc
 
-  // What the quick check left: parameters whose check needs the type store.
+  // What the quick check left: parameters whose check needs the type store. Checked against the
+  // written types, so a failure names what the fn declared.
   let tst =
     if List.isEmpty pkgRestPs || ArgSeq.isEmpty pkgRestArgs then
       tst
@@ -3285,7 +3317,7 @@ let private callPackageViaFrame
         applicable.name
         tst
         pkgNextI
-        pkgRestPs
+        (List.skip pkgNextI callData.paramList)
         (ArgSeq.toList pkgRestArgs)
 
   // A bounded fn: the bounds are part of the declared parameter types, checked here at entry like
@@ -4611,7 +4643,11 @@ let private tryCallKnown
       || not (List.isEmpty fn.bounds)
       || not (Set.isEmpty callData.freeTVars)
       || not (
-        argsFitParams callData.paramList registers newArgRegs.head newArgRegs.tail
+        argsFitParams
+          callData.checkedParams
+          registers
+          newArgRegs.head
+          newArgRegs.tail
       )
       || (exeState.fns.isHarmful exeState.branchId pkg && not exeState.allowHarmful)
     then
@@ -4771,7 +4807,7 @@ let private callPackageKnown
     && List.isEmpty fn.bounds
     && Set.isEmpty callData.freeTVars
     && callData.thinWrapper.IsNone
-    && argsFitParams callData.paramList registers newArgRegs.head newArgRegs.tail
+    && argsFitParams callData.checkedParams registers newArgRegs.head newArgRegs.tail
   then
     let n = NEList.length fn.parameters
     completePackage
@@ -5496,9 +5532,18 @@ let private frameReturnTypeCheckFull
   | Ok _ -> ()
   | Error _path ->
     let expectedVT = TypeReference.toVT exeState.types tst expectedReturnType
+    // A package fn's frame checks against its return type with the aliases resolved; the error
+    // names the type as written.
+    let declared =
+      match fnName with
+      | FQFnName.Package hash ->
+        match exeState.packageFnCallCache.TryGetValue hash with
+        | true, callData -> callData.fn.returnType
+        | _ -> expectedReturnType
+      | _ -> expectedReturnType
     RuntimeError.Applications.FnResultNotExpectedType(
       fnName,
-      Some expectedReturnType,
+      Some declared,
       expectedVT,
       Dval.toValueType resultOfFrame,
       resultOfFrame

@@ -1609,10 +1609,69 @@ module Reload =
       [ check "a found answer" LibDB.Caching.withCache (Some 1)
         check "a remembered miss" LibDB.Caching.withNegativeCache None ]
 
+  let aliasChecksFollowAnEdit =
+    testTask "a fn's checks through an alias follow an edit of the alias" {
+      let author target =
+        authorIntoMain
+          $"module Darklang.{m}.Alias\n\ntype Id = {target}\n\nlet echo(x: Id): Id = x"
+      let callWith (state : RT.ExecutionState) hash arg =
+        LibExecution.Execution.executeApplicable
+          state
+          state.access
+          (applicableFor hash)
+          (NEList.singleton arg)
+      let expectAccepted state hash arg (message : string) =
+        task {
+          match! callWith state hash arg with
+          | Ok result -> Expect.equal result arg message
+          | Error(rte, _) -> failtest $"{message}: the call raised {rte}"
+        }
+      let expectRejected state hash arg (idHash : PT.Hash) =
+        task {
+          let (PT.Hash idHash) = idHash
+          match! callWith state hash arg with
+          | Error(RTE.Apply(RTE.Applications.FnParameterNotExpectedType(_,
+                                                                        _,
+                                                                        _,
+                                                                        Some(RT.TCustomType({ resolved = Ok declared },
+                                                                                            [])),
+                                                                        _,
+                                                                        _,
+                                                                        _)),
+                  _) ->
+            Expect.equal
+              declared
+              (RT.FQTypeName.fqPackage idHash)
+              "the error names the alias as written"
+          | other -> failtest $"expected a parameter type error, got {other}"
+        }
+
+      let state = executionStateFor pmPT false
+      let! v1 = author "Int64"
+      let echo1 = hashBoundTo v1 "echo"
+      do! expectAccepted state echo1 (RT.DInt64 1L) "Id is Int64"
+      do! expectRejected state echo1 (RT.DString "a") (hashBoundTo v1 "Id")
+
+      let! v2 = author "String"
+      let echo2 = hashBoundTo v2 "echo"
+      Expect.notEqual echo1 echo2 "the fn's hash follows the alias's"
+      do! expectAccepted state echo2 (RT.DString "a") "Id is now String"
+      do! expectRejected state echo2 (RT.DInt64 1L) (hashBoundTo v2 "Id")
+
+      do!
+        expectAccepted
+          state
+          echo1
+          (RT.DInt64 1L)
+          "the old version still takes an Int64"
+    }
+
   let tests =
     testList
       "Reload"
-      [ heldReferencesKeepTheirHash; lookupStillRunningAtAnEditIsNotKept ]
+      [ heldReferencesKeepTheirHash
+        lookupStillRunningAtAnEditIsNotKept
+        aliasChecksFollowAnEdit ]
 
 
 /// A bounded fn remembers that its bounds held, so it does not prove them again on every call.
