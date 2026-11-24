@@ -131,8 +131,7 @@ test scriptDeclarationsKeepTheirIdentity = Instance.withInstance(fun i ->
 
       prints(
         i,
-        [ "eval"
-          "type Person = { name: String }\nPerson { name = \"Ada\" }" ],
+        [ "eval", "type Person = { name: String }\nPerson { name = \"Ada\" }" ],
         "Person { name: \"Ada\" }") ]))
 
 
