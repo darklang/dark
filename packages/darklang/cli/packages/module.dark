@@ -124,12 +124,12 @@ let leftOver(branchId: Uuid, home: List<String>, defined: List<String>): List<(S
   |> Stdlib.List.unique
 
 
-/// The declarations in <param source> that a partial save dropped, as (name, line): what a full
-/// parse recovers that <param kept> does not have.
+/// The declarations in <param source> that a partial save dropped, by name: what a full parse
+/// recovers that <param kept> does not have.
 let unparsedNames(
   source: String,
   kept: List<(List<String> * LanguageTools.WrittenTypes.ModuleDeclaration.Declaration)>)
-  : List<(String * Int64)> =
+  : List<String> =
   let path = fun((modules, decl)) ->
     declarationName(decl) |> Stdlib.Option.map(fun name -> Stdlib.List.append(modules, name))
 
@@ -140,16 +140,16 @@ let unparsedNames(
     |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
     |> (fun decls -> collectDecls([], decls))
     |> Stdlib.List.filterMap(fun((modules, decl)) ->
-      let line =
+      let usable =
         match decl with
-        | Type(typ) -> Option.Some(typ.name.range.start.row)
-        | Function(fn) -> Option.Some(fn.name.range.start.row)
-        | Value(value) -> Option.Some(value.name.range.start.row)
-        | _ -> Option.None
+        | Type(_) -> true
+        | Function(_) -> true
+        | Value(_) -> true
+        | _ -> false
 
-      match path((modules, decl)), line with
-      | Some(p), Some(row) when Stdlib.Bool.not(Stdlib.List.contains(keptPaths, p)) ->
-        Stdlib.List.last(p) |> Stdlib.Option.map(fun name -> (name, row + 1))
+      match path((modules, decl)) with
+      | Some(p) when usable && Stdlib.Bool.not(Stdlib.List.contains(keptPaths, p)) ->
+        Stdlib.List.last(p)
       | _ -> Option.None)
   | _ -> []
 

@@ -55,7 +55,7 @@ test callerOfUnparsedSiblingSaysSo = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.says(
         out,
-        "`parseRepo` was not saved: its declaration at line 1 did not parse",
+        "`parseRepo` was not saved because it did not parse",
         "the cause")
 
       Instance.doesNotSay(out, "not in scope", "not a missing variable") ]))
