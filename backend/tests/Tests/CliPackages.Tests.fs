@@ -792,59 +792,6 @@ let isolatedTestDeclarations =
         do! discardAll state
       })
 
-/// `--entry-point` is for ONE invocation. Nothing is stored, so the only thing that can
-/// carry it to the next command is a bug; the test runner relies on that, spawning each
-/// parallel worker as `dark --entry-point #<hash>` (`LibDB.TestProcess`).
-let entryPointOverrideIsForOneInvocation =
-  instanceTest
-    "an --entry-point override applies to that invocation only"
-    (fun state ->
-      task {
-        do! start state
-        let instance =
-          match state with
-          | Instance i -> i
-          | _ -> failtest "requires a disposable CLI instance"
-        let source = System.IO.Path.Combine(instance.dir, "entry-point.dark")
-        System.IO.File.WriteAllText(
-          source,
-          """let alternate(args: List<String>): Int64 =
-  Stdlib.printLine(Stdlib.String.join(args, ","))
-  0
-"""
-        )
-        do!
-          exits
-            state
-            [ "module"; "Tests.EntryPoint"; source ]
-            0L
-            "author an entry point"
-        do!
-          shows
-            state
-            [ "--entry-point"; "Tests.EntryPoint.alternate"; "one"; "two" ]
-            "one,two"
-            "the override gets only its own arguments"
-        do!
-          shows
-            state
-            [ "config"; "list" ]
-            "Common configuration keys"
-            "the next invocation is the shipped CLI again"
-        for args in
-          [ [ "--entry-point" ]
-            [ "--entry-point"; "Tests.EntryPoint.missing" ]
-            [ "--entry-point"; "#invalid" ] ] do
-          let! code, stdout, stderr = Tests.CliInstance.runRaw instance args
-          Expect.equal
-            code
-            1
-            $"a bad entry point fails instead of falling back to the CLI: {stdout} {stderr}"
-          Expect.isFalse
-            (stdout.Contains "one,two")
-            "no fallback for an explicit override"
-      })
-
 /// Pause workers to check that tests run in parallel without exceeding the limit.
 /// When one finishes, the next should start without waiting for the others.
 let packageTestsRespectParallelLimit =
@@ -2323,7 +2270,6 @@ let tests : List<Test> =
     testAddAuthorsATest
     testRunUsesOneStartingStore
     isolatedTestDeclarations
-    entryPointOverrideIsForOneInvocation
     packageTestsRespectParallelLimit
     testsThatOnlyReadRunOnce
     packageTestsRequireRun

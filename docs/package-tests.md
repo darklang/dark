@@ -132,8 +132,9 @@ at the culprit, and so does every later test rather than starting from it.
 The Dark runner passes an explicit run handle to each execution. Test support
 owns that handle and its snapshot; neither is part of interpreter state.
 
-The CLI's `--entry-point` option selects the Dark worker by its exact function
-hash for this invocation. Nothing is stored, so commands launched by the test
+The runner starts each worker as a CLI process whose `DARK_TEST_WORKER`
+variable names the worker function's exact hash. The CLI runs it only if it is
+a bundled function, and clears the variable, so commands launched by the test
 get the ordinary CLI. The worker is a normal
 dependency of the runner, so its changes also invalidate cached results.
 The worker reads the request and writes the result. Native support executes the

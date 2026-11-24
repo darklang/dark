@@ -730,9 +730,8 @@ let withExtraOps
 let mutable private currentBranchIdOpt : Option<PT.BranchId> = None
 
 /// Resolve a dotted package name or an exact #hash. Names follow updates;
-/// hashes pin a caller to one version, which is how the test runner names its worker. Main
-/// only: the boot reads `exec.policy` and `--entry-point` through this, and `configSet` checks
-/// `exec.policy` with it, so a policy is refused on set exactly when the boot could not find it.
+/// hashes pin a caller to one version. Main only: the boot reads `exec.policy` through this, and
+/// `configSet` checks it, so a policy is refused on set exactly when the boot could not find it.
 let resolveFnRef (dotted : string) : Option<RT.FQFnName.FQFnName> =
   if dotted.StartsWith "#" then
     let hash = dotted.Substring 1

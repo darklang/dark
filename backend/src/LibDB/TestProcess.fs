@@ -356,14 +356,13 @@ let private runOnce
           let spec : Host.ProcessWorkspace =
             { program = executable
               arguments =
-                [ "--entry-point"
-                  "#" + workerHash
-                  "--branch"
+                [ "--branch"
                   string branchId
                   path "request.bin"
                   path "result.bin" ]
               environment =
-                [ "DARK_MATTER_WRITE_SECRET", None
+                [ "DARK_TEST_WORKER", Some workerHash
+                  "DARK_MATTER_WRITE_SECRET", None
                   "DARK_BRANCH", None
                   "DARK_CONFIG_DB_NAME", Some "data.db"
                   "HOME", Some dir

@@ -244,7 +244,7 @@ test scriptArgumentsAndExitCodes = Instance.withInstance(fun i ->
       help ]))
 
 
-/// Runner options end at the script path or at `--`; `--branch` and `--entry-point` take the next
+/// Runner options end at the script path or at `--`; `--branch` and `--allow` take the next
 /// argument whatever it is; everything from the path on is the script's.
 test splitArgumentsLikeTheHost =
   let split(args: List<String>): (List<String> * List<String>) =
@@ -263,9 +263,6 @@ test splitArgumentsLikeTheHost =
 
       split([ "--branch", "-v", "s.dark" ])
       |> Stdlib.Test.equal(([ "--branch", "-v" ], [ "s.dark" ]))
-
-      split([ "--entry-point", "--", "s.dark" ])
-      |> Stdlib.Test.equal(([ "--entry-point", "--" ], [ "s.dark" ]))
 
       split([ "--branch" ]) |> Stdlib.Test.equal(([ "--branch" ], []))
 

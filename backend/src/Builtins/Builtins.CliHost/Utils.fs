@@ -13,7 +13,7 @@ module ScriptArguments =
     let rec loop options remaining =
       match remaining with
       | "--" :: rest -> List.rev ("--" :: options), rest
-      | ("--branch" | "--entry-point" | "--allow" as flag) :: value :: rest ->
+      | ("--branch" | "--allow" as flag) :: value :: rest ->
         loop (value :: flag :: options) rest
       | flag :: rest when flag <> "-" && flag.StartsWith "-" ->
         loop (flag :: options) rest
