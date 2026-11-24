@@ -12,6 +12,10 @@
          doing it serially (a type check in 29 pieces: 1.2-1.4x, against 2-2.4x with it off).
          A command's start and footprint are the same either way, measured at AOT. -->
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- The server collector linked in but not chosen, so `DOTNET_gcServer=1` picks it for work
+         spread across the cores (`dark format` over many files). NativeAOT otherwise links only
+         the workstation one and ignores the setting. -->
+    <IlcLinkServerGC>true</IlcLinkServerGC>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Assembly linking - trim framework assemblies too -->

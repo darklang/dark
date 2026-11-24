@@ -48,3 +48,29 @@ dark_format_all() {
     dark_format_skipped "$f" || echo "$f"
   done
 }
+
+# One CPU of each core this process may run on, comma-separated; empty where that can't be told.
+dark_format_cores() {
+  local allowed=() range i
+  for range in $(sed -n 's/^Cpus_allowed_list:\s*//p' /proc/self/status 2>/dev/null | tr , ' '); do
+    for ((i = ${range%-*}; i <= ${range#*-}; i++)); do allowed[i]=1; done
+  done
+  lscpu -p=CPU,CORE 2>/dev/null | grep -v '^#' | while IFS=, read -r cpu core; do
+    [[ -n "${allowed[cpu]:-}" ]] && echo "$core,$cpu"
+  done | sort -t, -k1,1n -s -u | cut -d, -f2 | paste -sd, -
+}
+
+# Run `dark format` with a collector per core, at most 8, on one hardware thread of each core.
+# Formatting many files spreads over the cores, which otherwise wait on the one collector. A
+# core's second thread makes it barely faster and doubles the CPU time it takes, and past 8
+# collectors each collection costs more than it saves.
+dark_format_run() {
+  local cores n
+  cores=$(dark_format_cores)
+  if [[ -n "$cores" ]] && command -v taskset >/dev/null; then
+    n=$(tr , '\n' <<<"$cores" | wc -l)
+    DOTNET_gcServer=1 DOTNET_GCHeapCount=$(printf %x $((n < 8 ? n : 8))) taskset -c "$cores" "$@"
+  else
+    DOTNET_gcServer=1 "$@"
+  fi
+}

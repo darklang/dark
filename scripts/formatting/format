@@ -202,12 +202,10 @@ do_dark() {
   if [[ ${#files[@]} -eq 0 ]]; then
     return 0
   fi
-  # A collector per core: formatting many files spreads over the cores, which otherwise wait on
-  # the one collector. Not the CLI's default, since for a short command it costs more than it saves.
   if [[ 0 -eq "$CHECK" ]]; then
-    DOTNET_gcServer=1 ./scripts/run-cli format --check "${files[@]}"
+    dark_format_run ./scripts/run-cli format --check "${files[@]}"
   else
-    DOTNET_gcServer=1 ./scripts/run-cli format "${files[@]}"
+    dark_format_run ./scripts/run-cli format "${files[@]}"
   fi
 }
 
