@@ -45,6 +45,9 @@ nothing, gets its arguments as `args`, and its last value is the exit code (Unit
 
 Use a module for code you will rerun, test, edit or serve.
 
+Fails or answers wrong? `traces record on`, run it again, then `traces show <fn>`
+(a failure prints the exact line): every value, no prints needed.
+
 ## Permissions
 
 Printing, reading stdin, the clock and random numbers need no permission. Anything else
