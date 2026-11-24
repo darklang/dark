@@ -791,6 +791,43 @@ let private getWhenUp (port : int) : Task<int * string> =
     return! attempt ()
   }
 
+/// Whether <param p> says it is listening on <param port> before its output ends.
+let rec private saysListening
+  (p : System.Diagnostics.Process)
+  (port : int)
+  (token : System.Threading.CancellationToken)
+  : Task<bool> =
+  task {
+    match! p.StandardOutput.ReadLineAsync(token) with
+    | null -> return false
+    | line when line.Contains $"Listening on http://127.0.0.1:{port}" -> return true
+    | _ -> return! saysListening p port token
+  }
+
+/// What <param start> starts on a fresh port, once it says it is listening there. A probed port
+/// is free only until something binds it, and the suite's other servers probe too: one that bound
+/// it first would answer this test's requests. A server that could not bind tries another port.
+let private listeningOnAFreshPort
+  (start : int -> Task<System.Diagnostics.Process>)
+  : Task<int * System.Diagnostics.Process> =
+  let rec attempt (triesLeft : int) =
+    task {
+      let port = Tests.HttpServer.allocateFreePort ()
+      let! p = start port
+      p.ErrorDataReceived.Add(ignore<System.Diagnostics.DataReceivedEventArgs>)
+      p.BeginErrorReadLine()
+      use cts = new System.Threading.CancellationTokenSource(60_000)
+      let! listening = saysListening p port cts.Token
+      if listening then
+        p.StandardOutput.ReadToEndAsync() |> ignore<Task<string>>
+        return (port, p)
+      else
+        CliInstance.stop p
+        if triesLeft = 0 then failtest "no fresh port could be bound"
+        return! attempt (triesLeft - 1)
+    }
+  attempt 3
+
 /// `serve <param flags>` picks up a policy change and an approval made while it runs.
 let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
   CliInstance.instanceTest
@@ -820,16 +857,24 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
           CliInstance.runWithExit i [ "commit"; "Tests.Follow"; "-y" ]
         Expect.equal code 0L $"committed:\n{committed}"
 
-        let port = Tests.HttpServer.allocateFreePort ()
-        let! granted, grantCode =
-          CliInstance.runWithExit
-            i
-            [ "permissions"; "allow"; "http-server"; "127.0.0.1"; string port ]
-        Expect.equal grantCode 0L granted
-        let server =
-          CliInstance.start
-            i
-            ([ "serve"; "Tests.Follow.router"; "--port"; string port ] @ flags)
+        let! port, server =
+          listeningOnAFreshPort (fun port ->
+            task {
+              let! granted, grantCode =
+                CliInstance.runWithExit
+                  i
+                  [ "permissions"
+                    "allow"
+                    "http-server"
+                    "127.0.0.1"
+                    string port ]
+              Expect.equal grantCode 0L granted
+              return
+                CliInstance.startUndrained
+                  i
+                  ([ "serve"; "Tests.Follow.router"; "--port"; string port ]
+                   @ flags)
+            })
         try
           let! (status, body) = getWhenUp port
           Expect.equal
@@ -975,11 +1020,13 @@ let private serveBindsTheGivenPort =
         let! (committed, code) =
           CliInstance.runWithExit i [ "commit"; "Tests.ServePort"; "-y" ]
         Expect.equal code 0L committed
-        let port = Tests.HttpServer.allocateFreePort ()
-        let server =
-          CliInstance.start
-            i
-            [ "serve"; "Tests.ServePort.router"; "--port"; string port ]
+        let! port, server =
+          listeningOnAFreshPort (fun port ->
+            Task.FromResult(
+              CliInstance.startUndrained
+                i
+                [ "serve"; "Tests.ServePort.router"; "--port"; string port ]
+            ))
         try
           let! (status, body) = getWhenUp port
           Expect.equal (status, body) (200, "up") "the server answers"
