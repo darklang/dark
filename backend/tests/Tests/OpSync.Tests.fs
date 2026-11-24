@@ -1492,12 +1492,16 @@ let firstJoinSendsWhatDiffers =
       cmd.CommandText <- "UPDATE sync_journal SET id = lower(hex(randomblob(16)))"
       let entries = cmd.ExecuteNonQuery()
       conn.Close()
-      Expect.isGreaterThan entries 1000 "the stores hold many entries"
+      Expect.isGreaterThan entries 100 "the stores hold a journal worth not sending"
+      let journalOf store = int64 (textIn store "SELECT COUNT(*) FROM sync_journal")
+      let before = journalOf a
       let ids = authorOn a "module Tests.OpSync\nlet joined(): Int64 = 77"
+      let added = journalOf a - before
       let (sent, _) = sync dir a b
-      Expect.isLessThan
+      // what the edit added, whatever size the seed is
+      Expect.isLessThanOrEqual
         sent.journal
-        (int64 entries / 100L)
+        added
         "only what changed goes, not the whole journal"
       Expect.equal
         (heldCount b ids)
