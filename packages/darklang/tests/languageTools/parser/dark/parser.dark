@@ -1,0 +1,228 @@
+module Darklang.LanguageTools.Parser.Dark.Tests
+
+// Each layer of the Dark parser against `Builtin.parse`: the same tree, ranges
+// included, and the same diagnostics.
+
+let sameAs(kind: LanguageTools.Parser.FileKind, source: String): Stdlib.Test.Result =
+  LanguageTools.Parser.Dark.parse(kind, source)
+  |> Stdlib.Test.equal(Builtin.parse(kind, source))
+
+
+let script(source: String): Stdlib.Test.Result =
+  sameAs(LanguageTools.Parser.FileKind.Script, source)
+
+
+let package(source: String): Stdlib.Test.Result =
+  sameAs(LanguageTools.Parser.FileKind.Package, source)
+
+
+module LexerTests =
+  let kinds(source: String): List<LanguageTools.Parser.Dark.Lexer.TokenKind> =
+    (LanguageTools.Parser.Dark.Lexer.lex(source)).tokens
+    |> Stdlib.List.map(fun t -> t.kind)
+
+
+  let columns(source: String): List<(Int64 * Int64)> =
+    (LanguageTools.Parser.Dark.Lexer.lex(source)).tokens
+    |> Stdlib.List.map(fun t -> (t.range.start.column, t.range.end_.column))
+
+
+  test operators =
+    kinds("a |> b ... ** -> == != <= >= && || << >>")
+    |> Stdlib.Test.equal(
+      [ LanguageTools.Parser.Dark.Lexer.TokenKind.TIdent("a")
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TPipe
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TIdent("b")
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TDotDotDot
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TStarStar
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TArrow
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TEqEq
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TNeq
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TLte
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TGte
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TAnd
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TOr
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TShl
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TShr
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TEOF ])
+
+  test numbers =
+    kinds("1 2s8 3u 4z 5u128 -6")
+    |> Stdlib.Test.equal(
+      [ LanguageTools.Parser.Dark.Lexer.TokenKind.TInt64(1)
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TInt8(2s8)
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TUInt64(3u64)
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TBigInt(4z)
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TUInt128(5u128)
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TMinus
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TInt64(6)
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TEOF ])
+
+  test escapes =
+    kinds("\"a\\tb\\u0041\"")
+    |> Stdlib.Test.equal(
+      [ LanguageTools.Parser.Dark.Lexer.TokenKind.TStringLit("a\tbA")
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TEOF ])
+
+  test typeVariableOrChar =
+    kinds("(x: 'a) 'b'")
+    |> Stdlib.Test.equal(
+      [ LanguageTools.Parser.Dark.Lexer.TokenKind.TLParen
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TIdent("x")
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TColon
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TIdent("a")
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TRParen
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TCharLit("b")
+        LanguageTools.Parser.Dark.Lexer.TokenKind.TEOF ])
+
+  test commentsAreTrivia =
+    columns("a // one\n(* two *) b") |> Stdlib.Test.equal([ (0, 1), (10, 11), (11, 11) ])
+
+  test docCommentsAttach =
+    (LanguageTools.Parser.Dark.Lexer.lex("/// says hi\n/// twice\nlet f(): Unit = ()")).tokens
+    |> Stdlib.List.head
+    |> Stdlib.Option.andThen(fun t -> t.docComment)
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("says hi\ntwice"))
+
+  test refusedOperator =
+    (LanguageTools.Parser.Dark.Lexer.lex("a :: b")).diagnostics
+    |> Stdlib.List.map(fun d -> LanguageTools.Parser.Dark.Lexer.problemMessage(d.problem))
+    |> Stdlib.Test.equal([ "'::' is not Dark; a list is `[head, ...tail]`" ])
+
+
+module TypesTests =
+  test types =
+    [ "Int64"
+      "Int"
+      "List<String>"
+      "Dict<String, List<'a>>"
+      "A * B * C"
+      "(A * B)"
+      "Int64 -> String"
+      "(Int64, String) -> Bool"
+      "Stdlib.Option.Option<Int64>"
+      "List<List<Int64>> * Bool"
+      "Result<List<Int64>, String>"
+      "'a" ]
+    |> Stdlib.Test.table(fun t -> script($"type X = {t}"))
+
+  test typeMistakes =
+    [ "Dict<Int64>", "A -> B -> C", "List <Int64>", "(A, B)" ]
+    |> Stdlib.Test.table(fun t -> script($"type X = {t}"))
+
+
+module ExprsTests =
+  test literals =
+    [ "1"
+      "-5"
+      "128s8"
+      "-128s8"
+      "1.5e3"
+      "0.25f32"
+      "19.99dec"
+      "-2.5"
+      "10z"
+      "'c'"
+      "\"a\\nb\""
+      "\"\"\"raw \\n\"\"\""
+      "true"
+      "()" ]
+    |> Stdlib.Test.table(script)
+
+  test precedence =
+    [ "1 + 2 * 3"
+      "1 * 2 + 3"
+      "2 ** 3 ** 2"
+      "a && b || c"
+      "a & b == c"
+      "a |> f(1) |> g"
+      "!a && b"
+      "-f(x) + 1"
+      "x\n- 1"
+      "x\n  - 1" ]
+    |> Stdlib.Test.table(script)
+
+  test forms =
+    [ "f(a, b)"
+      "f()"
+      "f(a)(b)"
+      "parse<Int64>(s)"
+      "Stdlib.List.map(xs, fun x -> x + 1)"
+      "fun(acc, x) -> acc"
+      "fun((a, b)) -> a"
+      "(+)"
+      "(1, 2, 3)"
+      "[1, 2, ...xs]"
+      "[...a, ...b]"
+      "[a, ...b, c]"
+      "Point { x = 1, y = 2 }"
+      "{ p with x = 3 }"
+      "Dict { \"a\": 1 }"
+      "x.y.z?"
+      "t.1.2"
+      "Ok(5)"
+      "Stdlib.Result.Result.Ok(5)"
+      "Type<Int64>.Case"
+      "$\"hi {name}!\""
+      "$\"a {{b}} {f(x, \"y\")}\""
+      "if a then b elif c then d else e"
+      "if a then\n  b\nelse\n  c"
+      "let x = 5\nx"
+      "let f(x: Int64): Int64 = x + 1\nf(2)"
+      "let (a, b) = p\na"
+      "match x with\n| Some(y) -> y\n| None -> 0"
+      "match x with\n| 1 | 2 -> a\n| _ when b -> c"
+      "(a\n b)" ]
+    |> Stdlib.Test.table(script)
+
+  test slips =
+    [ "f a b", "Ok 5", "fun a b -> a", "[1; 2]", "x ?", "{ a = 1 }", "let x: Int64 = 1\nx" ]
+    |> Stdlib.Test.table(script)
+
+
+module PatternsTests =
+  test patterns =
+    [ "Some(x)"
+      "Pair(a, b)"
+      "Some((a, b))"
+      "[h, ...t]"
+      "[a, b, ...]"
+      "1 | 2"
+      "Some(_) as o"
+      "(a, b) as t"
+      "{ name = n, age }"
+      "-4s8"
+      "\"s\""
+      "(a, b)"
+      "a, b"
+      "[]"
+      "Result.Ok(x)" ]
+    |> Stdlib.Test.table(fun p -> script($"match v with\n| {p} -> 1"))
+
+  test patternMistakes =
+    [ "Ok x", "[...t]", "{ }", "(a, b as t)", "Some(x) as o, y" ]
+    |> Stdlib.Test.table(fun p -> script($"match v with\n| {p} -> 1"))
+
+
+module DeclsTests =
+  test declarations =
+    [ "module M.N\n\nlet f(x: Int64, y: String): Int64 = x"
+      "module M\n\nval x = 1"
+      "module M\n\n/// doc\ntype T =\n  | A\n  | B(Int64, label: String)"
+      "module M\n\ntype R = { a: Int64, b: List<String> }"
+      "module M\n\ntype Pair<'a, 'b> = 'a * 'b"
+      "module M\n\nlet g<'a: Show>(x: 'a): String = show(x)"
+      "module M\n\ntrait Show<'a> =\n  let show(value: 'a): String"
+      "module M\n\nimpl Show for Int64 =\n  let show(i: Int64): String = \"\"\n  let other = Stdlib.display"
+      "module M\n\nmodule Inner =\n  val y = 2\n\nval z = 3"
+      "module M\n\ntest adds = Stdlib.Test.equal(1, 1)"
+      "module M\n\ntest fails = f(1) => raises \"boom\"" ]
+    |> Stdlib.Test.table(package)
+
+  test scripts =
+    [ "let x = 1\nx + 1", "let f(x: Int64): Int64 = x\nf(1)", "1 = 1", "type T = | A\nT.A" ]
+    |> Stdlib.Test.table(script)
+
+  test declarationMistakes =
+    [ "module M\n\nlet x = 1", "module M\n\nlet f (a: Int64) (b: Int64): Int64 = a", "module M\n\ntype T = | A of Int64" ]
+    |> Stdlib.Test.table(package)

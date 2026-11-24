@@ -35,9 +35,15 @@ let parseWith(kind: LanguageTools.Parser.FileKind, code: String): Parsed =
       { range = fileRange
         declarations = Stdlib.List.filterMap(items, fun d -> Decls.sourceFileDeclaration(d))
         exprsToEval = Stdlib.List.concat(exprs, Stdlib.List.flatten(Stdlib.List.map(items, fun d -> Decls.assertionExprs(d)))) }
-  let diagnostics =
+  let syntax =
     Stdlib.List.concat(Stdlib.List.map(lexed.diagnostics, fun d -> lexDiagnostic(d)), parseDiagnostics)
     |> Stdlib.List.sortBy(fun d -> (d.range.start.row, d.range.start.column))
+  // the tree's own rules only once it parsed cleanly: recovery nodes would mislead them
+  let diagnostics =
+    match (syntax, kind) with
+    | ([], Script) -> Validation.validate(Validation.Mode.Script, items, exprs)
+    | ([], Package) -> Validation.validate(Validation.Mode.Package, items, exprs)
+    | _ -> syntax
   Parsed
     { parsed = Stdlib.Option.Option.Some(WrittenTypes.ParsedFile.SourceFile(file))
       diagnostics = diagnostics }

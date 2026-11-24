@@ -1,0 +1,268 @@
+/// Checks on a tree that parsed cleanly, before it is lowered: unique binders, or-patterns
+/// that bind the same names, `?` inside a function, and what a script or package may hold.
+module Darklang.LanguageTools.Parser.Dark.Validation
+
+type Range = LanguageTools.Parser.Range
+type Expr = WrittenTypes.Expr
+type MatchPattern = WrittenTypes.MatchPattern
+type LetPattern = WrittenTypes.LetPattern
+type Diagnostic = Core.Diagnostic
+
+
+type Mode =
+  | Script
+  | Package
+
+
+let issue(range: Range, message: String): Diagnostic =
+  detailed(range, message, [], Stdlib.Option.Option.None)
+
+
+let detailed(range: Range, message: String, related: List<(Range * String)>, hint: Option<String>): Diagnostic =
+  Core.Diagnostic
+    { code = Core.Code.Validation
+      range = range
+      message = message
+      related = related
+      hint = hint }
+
+
+let isIgnoredName(name: String): Bool =
+  name == "" || Stdlib.String.startsWith(name, "_")
+
+
+let letBindings(p: LetPattern): List<(String * Range)> =
+  match p with
+  | LPVariable(range, name) -> [ (name, range) ]
+  | LPTuple(_, first, _, second, rest, _, _) ->
+    Stdlib.List.flatten(Stdlib.List.map([ first, second, ...Stdlib.List.map(rest, fun((_, q)) -> q) ], letBindings))
+  | _ -> []
+
+
+let recordFieldPattern(field: ((Range * String) * Option<(Range * MatchPattern)>)): MatchPattern =
+  match field with
+  | (_, Some((_, p))) -> p
+  | ((nameRange, name), None) -> WrittenTypes.MatchPattern.MPVariable(nameRange, name)
+
+
+let matchBindings(p: MatchPattern): List<(String * Range)> =
+  let all = fun ps -> Stdlib.List.flatten(Stdlib.List.map(ps, matchBindings))
+  match p with
+  | MPVariable(range, name) -> [ (name, range) ]
+  | MPList(_, contents, _, _) -> all(Stdlib.List.map(contents, fun((q, _)) -> q))
+  | MPListCons(_, head, tail, _) -> all([ head, tail ])
+  | MPTuple(_, first, _, second, rest, _, _) -> all([ first, second, ...Stdlib.List.map(rest, fun((_, q)) -> q) ])
+  | MPEnum(_, _, fields) -> all(fields)
+  | MPRecord(_, fields, _, _) -> all(Stdlib.List.map(fields, recordFieldPattern))
+  | MPOr(_, [ first, ... ]) -> matchBindings(first)
+  | MPAs(_, inner, _, (nameRange, name)) -> Stdlib.List.append(matchBindings(inner), (name, nameRange))
+  | _ -> []
+
+
+let usableNames(p: MatchPattern): List<String> =
+  matchBindings(p)
+  |> Stdlib.List.map(fun((n, _)) -> n)
+  |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(isIgnoredName(n)))
+  |> Stdlib.List.unique
+
+
+/// A second binding of a name already bound, for each name, in name order.
+let duplicates(bindings: List<(String * Range)>): List<Diagnostic> =
+  bindings
+  |> Stdlib.List.filter(fun((n, _)) -> Stdlib.Bool.not(isIgnoredName(n)))
+  |> Stdlib.List.groupBy(fun((n, _)) -> n)
+  |> Stdlib.List.sortBy(fun((n, _)) -> n)
+  |> Stdlib.List.map(fun((name, group)) ->
+    match group with
+    | [ (_, firstRange), ...rest ] ->
+      Stdlib.List.map(rest, fun((_, r)) ->
+        detailed(
+          r,
+          $"Duplicate binding '{name}' in the same pattern",
+          [ (firstRange, $"'{name}' was first bound here") ],
+          Stdlib.Option.Option.Some("use a different name or '_' for a value you do not need")))
+    | [] -> [])
+  |> Stdlib.List.flatten
+
+
+let duplicatePatternIssues(p: MatchPattern): List<Diagnostic> =
+  match p with
+  | MPOr(_, alternatives) -> Stdlib.List.flatten(Stdlib.List.map(alternatives, duplicatePatternIssues))
+  | other -> duplicates(matchBindings(other))
+
+
+let structuralPatternIssues(p: MatchPattern): List<Diagnostic> =
+  let all = fun ps -> Stdlib.List.flatten(Stdlib.List.map(ps, structuralPatternIssues))
+  match p with
+  | MPOr(range, []) -> [ issue(range, "An or-pattern must have at least one alternative") ]
+  | MPOr(_, [ first, ...rest ]) ->
+    let firstNames = Stdlib.List.sort(usableNames(first))
+    let unequal =
+      Stdlib.List.filterMap(rest, fun alternative ->
+        if Stdlib.List.sort(usableNames(alternative)) == firstNames then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some(
+            detailed(
+              Patterns.mpRange(alternative),
+              "Every branch of an or-pattern must bind the same names",
+              [ (Patterns.mpRange(first), "the first branch binds a different set") ],
+              Stdlib.Option.Option.None)))
+    Stdlib.List.concat(all([ first, ...rest ]), unequal)
+  | MPError(range) -> [ issue(range, "A recovered pattern cannot be lowered") ]
+  | MPList(_, contents, _, _) -> all(Stdlib.List.map(contents, fun((q, _)) -> q))
+  | MPListCons(_, head, tail, _) -> all([ head, tail ])
+  | MPTuple(_, first, _, second, rest, _, _) -> all([ first, second, ...Stdlib.List.map(rest, fun((_, q)) -> q) ])
+  | MPEnum(_, _, fields) -> all(fields)
+  | MPAs(_, inner, _, _) -> structuralPatternIssues(inner)
+  | MPRecord(_, fields, _, _) -> all(Stdlib.List.map(fields, recordFieldPattern))
+  | _ -> []
+
+
+let lambdaIssues(range: Range, pats: List<LetPattern>, body: Expr): List<Diagnostic> =
+  let required =
+    if Stdlib.List.isEmpty(pats) then [ issue(range, "A lambda must have at least one parameter") ] else []
+  Stdlib.List.flatten(
+    [ required
+      duplicates(Stdlib.List.flatten(Stdlib.List.map(pats, letBindings)))
+      exprIssues(true, body) ])
+
+
+let exprIssues(insideFunction: Bool, e: Expr): List<Diagnostic> =
+  let r = fun x -> exprIssues(insideFunction, x)
+  let all = fun xs -> Stdlib.List.flatten(Stdlib.List.map(xs, r))
+  match e with
+  | EError(range) -> [ issue(range, "A recovered expression cannot be lowered") ]
+  | ELambda(range, pats, body, _, _) -> lambdaIssues(range, pats, body)
+  | ELet(_, pat, value, body, _, _) -> Stdlib.List.flatten([ duplicates(letBindings(pat)), r(value), r(body) ])
+  | EMatch(range, value, cases, _, _) ->
+    let required = if Stdlib.List.isEmpty(cases) then [ issue(range, "A match must have at least one case") ] else []
+    let caseIssues =
+      Stdlib.List.map(cases, fun c ->
+        let (_, pat, _) = c.pat
+        Stdlib.List.flatten(
+          [ duplicatePatternIssues(pat)
+            structuralPatternIssues(pat)
+            (match c.whenCondition with
+             | Some((_, g)) -> r(g)
+             | None -> [])
+            r(c.rhs) ]))
+    Stdlib.List.flatten([ required, r(value), ...caseIssues ])
+  | ERecord(range, typeName, fields, _, _) ->
+    let named = if typeName.typ.name == "" then [ issue(range, "Anonymous records are not supported") ] else []
+    Stdlib.List.concat(named, all(Stdlib.List.map(fields, fun((_, _, v)) -> v)))
+  | ERecordUpdate(range, record, updates, _, _, _) ->
+    let required =
+      if Stdlib.List.isEmpty(updates) then
+        [ issue(range, "A record update must contain at least one 'field = value'") ]
+      else
+        []
+    Stdlib.List.flatten([ required, r(record), all(Stdlib.List.map(updates, fun((_, _, v)) -> v)) ])
+  | EString(_, _, segments, _, _) ->
+    Stdlib.List.flatten(
+      Stdlib.List.map(segments, fun s ->
+        match s with
+        | StringText(_, _) -> []
+        | StringInterpolation(_, v, _, _) -> r(v)))
+  | EInfix(_, _, left, right) -> all([ left, right ])
+  | EStatement(_, left, right) -> all([ left, right ])
+  | EApply(_, callee, _, args) -> all([ callee, ...args ])
+  | EList(_, contents, _, _) -> all(Stdlib.List.map(contents, fun((x, _)) -> x))
+  | ETuple(_, first, _, second, rest, _, _) -> all([ first, second, ...Stdlib.List.map(rest, fun((_, x)) -> x) ])
+  | EIf(_, cond, thenE, elseE, _, _, _) ->
+    match elseE with
+    | Some(x) -> all([ cond, thenE, x ])
+    | None -> all([ cond, thenE ])
+  | EUnwrap(range, operand, _) ->
+    let context =
+      if insideFunction then [] else [ issue(range, "Postfix ? requires an enclosing function or lambda") ]
+    Stdlib.List.concat(context, r(operand))
+  | ERecordFieldAccess(_, record, _, _) -> r(record)
+  | EDict(_, entries, _, _, _) -> Stdlib.List.flatten(Stdlib.List.map(entries, fun((_, k, _, v)) -> all([ k, v ])))
+  | EEnum(_, _, _, fields, _) -> all(fields)
+  | EPipe(_, first, parts) ->
+    let partIssues =
+      fun part ->
+        match part with
+        | EPipeLambda(range, pats, body, _, _) -> lambdaIssues(range, pats, body)
+        | EPipeFnCall(_, _, _, args) -> all(args)
+        | EPipeEnum(_, _, _, fields, _) -> all(fields)
+        | EPipeVariableOrFnCall(_, _) -> []
+    Stdlib.List.concat(r(first), Stdlib.List.flatten(Stdlib.List.map(parts, fun((_, p)) -> partIssues(p))))
+  | _ -> []
+
+
+val builtinTypeNames: List<String> =
+  [ "Unit", "Bool", "BigInt", "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Int64", "UInt64"
+    "Int128", "UInt128", "Float64", "Float32", "Decimal", "Char", "String", "DateTime", "Uuid", "Bytes"
+    "Int", "Float", "List", "Dict" ]
+
+
+let fnIssues(fn: WrittenTypes.FnDeclaration.FnDeclaration): List<Diagnostic> =
+  let names =
+    Stdlib.List.filterMap(fn.parameters, fun p ->
+      match p with
+      | Normal(n) -> Stdlib.Option.Option.Some((n.name.name, n.name.range))
+      | Unit(_) -> Stdlib.Option.Option.None)
+  Stdlib.List.concat(duplicates(names), exprIssues(true, fn.body))
+
+
+let structureIssues(d: Decls.Item): List<Diagnostic> =
+  match d with
+  | Fn(fn) -> fnIssues(fn)
+  | Val(v) -> exprIssues(false, v.body)
+  | Test(t) -> exprIssues(false, t.body)
+  | Type(t) ->
+    if Stdlib.List.contains(builtinTypeNames, t.name.name) then
+      [ detailed(
+          t.name.range,
+          $"`{t.name.name}` is a built-in type, so it can't also name a type of your own",
+          [],
+          Stdlib.Option.Option.Some("pick another name")) ]
+    else
+      []
+  | Trait(t) -> duplicates(Stdlib.List.map(t.methods, fun m -> (m.name.name, m.name.range)))
+  | Impl(im) ->
+    let names =
+      Stdlib.List.map(im.members, fun m ->
+        match m with
+        | Method(fn) -> (fn.name.name, fn.name.range)
+        | Alias(a) -> (a.name.name, a.name.range))
+    let methods =
+      Stdlib.List.map(im.members, fun m ->
+        match m with
+        | Method(fn) -> fnIssues(fn)
+        | Alias(_) -> [])
+    Stdlib.List.concat(duplicates(names), Stdlib.List.flatten(methods))
+  | Module(_, _, items, _) -> Stdlib.List.flatten(Stdlib.List.map(items, structureIssues))
+  | Expr(e) -> exprIssues(false, e)
+  | Assertion(_, actual, expected) ->
+    match expected with
+    | Value(e) -> Stdlib.List.concat(exprIssues(false, actual), exprIssues(false, e))
+    | Error(_) -> exprIssues(false, actual)
+
+
+let packageExpression(e: Expr): Diagnostic =
+  issue(Exprs.exprRange(e), "Expressions are not allowed in package files")
+
+
+let purposeIssues(mode: Mode, d: Decls.Item): List<Diagnostic> =
+  match d with
+  | Module(_, _, items, _) -> Stdlib.List.flatten(Stdlib.List.map(items, fun i -> purposeIssues(mode, i)))
+  | Expr(e) ->
+    match mode with
+    | Package -> [ packageExpression(e) ]
+    | Script -> []
+  | Assertion(range, _, _) -> [ issue(range, "Test assertions are only allowed in test files") ]
+  | _ -> []
+
+
+/// The issues of a file: structure first, then what its mode allows.
+let validate(mode: Mode, items: List<Decls.Item>, exprs: List<Expr>): List<Diagnostic> =
+  Stdlib.List.flatten(
+    [ Stdlib.List.flatten(Stdlib.List.map(items, structureIssues))
+      Stdlib.List.flatten(Stdlib.List.map(exprs, fun e -> exprIssues(false, e)))
+      Stdlib.List.flatten(Stdlib.List.map(items, fun i -> purposeIssues(mode, i)))
+      (match mode with
+       | Package -> Stdlib.List.map(exprs, packageExpression)
+       | Script -> []) ])

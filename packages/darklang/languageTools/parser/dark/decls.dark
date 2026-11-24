@@ -31,7 +31,7 @@ type Item =
   | Test(WrittenTypes.TestDeclaration.TestDeclaration)
   | Module(range: Range, name: (Range * String), items: List<Item>, keywordModule: Range)
   | Expr(Expr)
-  | Assertion(actual: Expr, expected: TestExpected)
+  | Assertion(range: Range, actual: Expr, expected: TestExpected)
 
 
 let typeName(inp: Input, st: St, i: Int64, what: String): (WrittenTypes.TypeIdentifier * St) =
@@ -715,7 +715,9 @@ let exprItem(inp: Input, st: St, declsRev: List<Item>, exprsRev: List<Expr>): (L
   let k2 = st1.index
   if Core.tok(inp, k2) == TokenKind.TEquals then
     let (expected, st2) = testExpected(inp, Core.at(st1, k2 + 1))
-    ([ Item.Assertion(e, expected), ...declsRev ], exprsRev, st2, false)
+    let k3 = st2.index
+    let endR = if k3 > 0 then Core.rng(inp, k3 - 1) else Core.rng(inp, k2)
+    ([ Item.Assertion(Core.span(Exprs.exprRange(e), endR), e, expected), ...declsRev ], exprsRev, st2, false)
   else
     (declsRev, [ e, ...exprsRev ], st1, false)
 
@@ -797,7 +799,7 @@ let moduleDeclaration(d: Item): List<WrittenTypes.ModuleDeclaration.Declaration>
   | Test(t) -> [ WrittenTypes.ModuleDeclaration.Declaration.Test(t) ]
   | Module(range, name, items, kw) -> [ WrittenTypes.ModuleDeclaration.Declaration.SubModule(moduleOf(range, name, items, kw)) ]
   | Expr(e) -> [ WrittenTypes.ModuleDeclaration.Declaration.Expr(e) ]
-  | Assertion(actual, expected) ->
+  | Assertion(_, actual, expected) ->
     match expected with
     | Value(e) -> [ WrittenTypes.ModuleDeclaration.Declaration.Expr(actual), WrittenTypes.ModuleDeclaration.Declaration.Expr(e) ]
     | Error(_) -> [ WrittenTypes.ModuleDeclaration.Declaration.Expr(actual) ]
@@ -822,14 +824,14 @@ let sourceFileDeclaration(d: Item): Option<WrittenTypes.SourceFile.SourceFileDec
   | Module(range, name, items, kw) ->
     Stdlib.Option.Option.Some(WrittenTypes.SourceFile.SourceFileDeclaration.Module(moduleOf(range, name, items, kw)))
   | Expr(_) -> Stdlib.Option.Option.None
-  | Assertion(_, _) -> Stdlib.Option.Option.None
+  | Assertion(_, _, _) -> Stdlib.Option.Option.None
 
 
 /// An assertion at the top of a file shows up as its expressions.
 let assertionExprs(d: Item): List<Expr> =
   match d with
   | Expr(e) -> [ e ]
-  | Assertion(actual, expected) ->
+  | Assertion(_, actual, expected) ->
     match expected with
     | Value(e) -> [ actual, e ]
     | Error(_) -> [ actual ]

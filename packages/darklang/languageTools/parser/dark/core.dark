@@ -26,6 +26,7 @@ type Code =
   | Interpolation
   | Bound
   | Lex
+  | Validation
 
 
 type Diagnostic =

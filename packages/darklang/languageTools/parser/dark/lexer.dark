@@ -226,17 +226,24 @@ let operatorAt(src: Source, i: Int64): Option<(Int64 * TokenKind)> =
 
 type Source =
   { cps: List<UInt32>
-    length: Int64 }
+    length: Int64
+    /// the Chars, when each is one codepoint, so text can be cut from them directly
+    chars: Option<List<Char>> }
 
 
 let source(text: String): Source =
   let cps = Stdlib.String.toCodepoints(text)
-  Source { cps = cps, length = Stdlib.List.length(cps) }
+  let length = Stdlib.List.length(cps)
+  let chars = Stdlib.String.toList(text)
+  Source
+    { cps = cps
+      length = length
+      chars = if Stdlib.List.length(chars) == length then Stdlib.Option.Option.Some(chars) else Stdlib.Option.Option.None }
 
 
 /// The codepoint at <param i>, or 0 past the end.
 let at(src: Source, i: Int64): UInt32 =
-  match Stdlib.List.getAt(src.cps, i) with
+  match Builtin.listGetAt(src.cps, i) with
   | Some(c) -> c
   | None -> 0u32
 
@@ -301,11 +308,14 @@ let isTypeVarChar(c: UInt32): Bool =
 
 /// The text of codepoints [<param from>, <param to>).
 let text(src: Source, from: Int64, to: Int64): String =
-  src.cps
-  |> Stdlib.List.drop(from)
-  |> Stdlib.List.take(to - from)
-  |> Stdlib.List.filterMap(fun c -> Stdlib.Char.fromCodepoint(c))
-  |> Stdlib.String.fromList
+  match src.chars with
+  | Some(chars) -> Stdlib.String.fromList(Builtin.listTake(Builtin.listDrop(chars, from), to - from))
+  | None ->
+    src.cps
+    |> Stdlib.List.drop(from)
+    |> Stdlib.List.take(to - from)
+    |> Stdlib.List.filterMap(fun c -> Stdlib.Char.fromCodepoint(c))
+    |> Stdlib.String.fromList
 
 
 let startsWith(src: Source, i: Int64, s: String): Bool =
@@ -334,6 +344,10 @@ let advance(src: Source, pos: Point, from: Int64, to: Int64): Point =
 
 let scanWhile(src: Source, i: Int64, keep: UInt32 -> Bool): Int64 =
   if i < src.length && keep(at(src, i)) then scanWhile(src, i + 1, keep) else i
+
+
+let identEnd(src: Source, i: Int64): Int64 =
+  if i < src.length && isIdentChar(at(src, i)) then identEnd(src, i + 1) else i
 
 
 let lineEnd(src: Source, i: Int64): Int64 =
@@ -732,9 +746,12 @@ let lex(input: String): Lexed =
   let diagnostics = Stdlib.List.reverse(final.diagnosticsRev)
   let flagged = Stdlib.List.map(diagnostics, fun d -> d.range)
   let tokens =
-    Stdlib.List.reverse(final.tokensRev)
-    |> Stdlib.List.map(fun t ->
-      if Stdlib.List.contains(flagged, t.range) then { t with lexError = true } else t)
+    if Stdlib.List.isEmpty(flagged) then
+      Stdlib.List.reverse(final.tokensRev)
+    else
+      Stdlib.List.reverse(final.tokensRev)
+      |> Stdlib.List.map(fun t ->
+        if Stdlib.List.contains(flagged, t.range) then { t with lexError = true } else t)
 
   Lexed { tokens = tokens, diagnostics = diagnostics }
 
@@ -775,6 +792,15 @@ let lastRange(st: State): Range =
   | [] -> Range { start = st.pos, end_ = st.pos }
 
 
+/// Past the spaces, tabs and line breaks from <param i>, and the position there.
+let skipSpaces(src: Source, i: Int64, row: Int64, column: Int64): (Int64 * Point) =
+  let c = at(src, i)
+  if i >= src.length then (i, Point { row = row, column = column })
+  else if c == nl then skipSpaces(src, i + 1, row + 1, 0)
+  else if c == 32u32 || c == 9u32 || c == 13u32 then skipSpaces(src, i + 1, row, column + 1)
+  else (i, Point { row = row, column = column })
+
+
 let skipTrivia(src: Source, st: State): State =
   let i = st.index
   if i >= src.length then
@@ -782,7 +808,8 @@ let skipTrivia(src: Source, st: State): State =
   else
     let c = at(src, i)
     if c == 32u32 || c == 9u32 || c == 13u32 || c == nl then
-      skipTrivia(src, { st with index = i + 1, pos = advance(src, st.pos, i, i + 1) })
+      let (e, pos) = skipSpaces(src, i, st.pos.row, st.pos.column)
+      skipTrivia(src, { st with index = e, pos = pos })
     else if at(src, i) == cSlash && at(src, i + 1) == cSlash then
       let e = lineEnd(src, i)
       let isDoc = at(src, i + 2) == cSlash && Stdlib.Bool.not(at(src, i + 3) == cSlash)
@@ -874,7 +901,7 @@ let step(src: Source, st: State, i: Int64): State =
       let e = lineEnd(src, i + 1)
       emitBad(src, st, TokenKind.TIdent(text(src, i + 1, e)), e, Problem.UnterminatedBacktick)
   else if isLetter(c) || c == underscore then
-    let e = scanWhile(src, i + 1, isIdentChar)
+    let e = identEnd(src, i + 1)
     let word = text(src, i, e)
     let kind =
       keywordKind(word)
