@@ -509,6 +509,9 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
     Sql.query "DELETE FROM branches WHERE id = @id"
     |> Sql.parameters [ "id", Sql.string (string branch) ]
     |> Sql.executeStatement
+    Sql.query "DELETE FROM sync_journal WHERE branch = @id"
+    |> Sql.parameters [ "id", Sql.string (string branch) ]
+    |> Sql.executeStatement
   }
 
 let committedBindingsSurviveMainDraftSuppression =

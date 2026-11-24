@@ -1492,24 +1492,16 @@ let firstJoinSendsWhatDiffers =
       cmd.CommandText <- "UPDATE sync_journal SET id = lower(hex(randomblob(16)))"
       let entries = cmd.ExecuteNonQuery()
       conn.Close()
-      Expect.isGreaterThan entries 0 "the stores hold journal entries"
+      Expect.isGreaterThan entries 100 "the stores hold a journal worth not sending"
       let journalOf store = int64 (textIn store "SELECT COUNT(*) FROM sync_journal")
-      // The shared test store can hold entries for rows another test removed behind the journal's
-      // back; those say something `b` lacks, so they go, edit or not.
-      let alreadyDiffers =
-        let have = System.IO.Path.Combine(dir, "have-before.db")
-        let bundle = System.IO.Path.Combine(dir, "bundle-before.db")
-        match OpSync.writeHave b have with
-        | Error reason -> failtest reason
-        | Ok() -> ()
-        (ok (OpSync.export a have bundle)).journal
       let before = journalOf a
       let ids = authorOn a "module Tests.OpSync\nlet joined(): Int64 = 77"
       let added = journalOf a - before
       let (sent, _) = sync dir a b
+      // what the edit added, whatever size the seed is
       Expect.isLessThanOrEqual
         sent.journal
-        (alreadyDiffers + added)
+        added
         "only what changed goes, not the whole journal"
       Expect.equal
         (heldCount b ids)

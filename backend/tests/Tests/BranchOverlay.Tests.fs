@@ -307,6 +307,8 @@ let private cleanupBranch (branchId : PT.BranchId) : Task<unit> =
     del "DELETE FROM branch_name_bases WHERE branch_id = @b"
     del "DELETE FROM commits WHERE branch_id = @b"
     del "DELETE FROM branches WHERE id = @b"
+    // the product never deletes a branch, so nothing journals it: its entries go with it
+    del "DELETE FROM sync_journal WHERE branch = @b"
     LibDB.Caching.invalidateAll ()
   }
 
@@ -1009,6 +1011,8 @@ let branchNamesResolveButDontShadowMain =
       execSql "DELETE FROM locations WHERE modules = 'LnMainName'"
       execSql
         "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = 'ln main name')"
+      execSql
+        "DELETE FROM sync_journal WHERE kind = 'commit' AND commit_hash IN (SELECT hash FROM commits WHERE message = 'ln main name')"
       execSql "DELETE FROM commits WHERE message = 'ln main name'"
 
     do! cleanupBranch b
@@ -1551,6 +1555,9 @@ let private dropCommitsAndOps
   task {
     execSqlP
       "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = @m)"
+      [ "m", Sql.string message ]
+    execSqlP
+      "DELETE FROM sync_journal WHERE kind = 'commit' AND commit_hash IN (SELECT hash FROM commits WHERE message = @m)"
       [ "m", Sql.string message ]
     execSqlP "DELETE FROM commits WHERE message = @m" [ "m", Sql.string message ]
     for id in opIds do
