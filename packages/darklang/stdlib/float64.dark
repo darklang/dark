@@ -90,6 +90,62 @@ let exp(a: Float64): Float64 =
   Builtin.float64Exp(a)
 
 
+/// <param x> rounded to <param places> decimal places, a tie going to the even neighbour
+/// as in <fn Float64.round>: {{Float64.roundTo(37.777777, 2) == 37.78}},
+/// {{Float64.roundTo(0.125, 2) == 0.12}}. A negative <param places> rounds to tens,
+/// hundreds and so on: {{Float64.roundTo(1250.0, -2) == 1200.0}}. NaN and the infinities
+/// come back unchanged, and a result too large for a Float64 is an infinity.
+///
+/// It rounds the exact value <param x> holds, which is not always the decimal it prints
+/// as: 2.675 is held as 2.67499999999999982236431605997495353221893310546875, so
+/// {{Float64.roundTo(2.675, 2) == 2.67}}, as in Python. {{Decimal.round(2.675dec, 2)}}
+/// is {{Ok(2.68dec)}}.
+let roundTo(x: Float64, places: Int64): Float64 =
+  if isFinite(x) then
+    match parse(__roundToText(x, places)) with
+    | Ok(r) -> r
+    | Error(_) -> x
+  else
+    x
+
+
+/// The exact value of a finite <param x> rounded to <param places> places, ties to even,
+/// as text the parsers read back, such as {{"-3778e-2"}}
+let __roundToText(x: Float64, places: Int64): String =
+  // past 1074 places every Float64 is exact, and past -309 every one rounds to zero
+  let places = if places > 1074 then 1074 else if places < -309 then -309 else places
+  let bits = BigInt.fromUInt64(toBits(x))
+  let unit = 2z ** 52z
+  let biased = bits / unit % 2048z
+  let fraction = bits % unit
+
+  let (mantissa, exponent) =
+    if biased == 0z then
+      (fraction, -1074z)
+    else
+      (fraction + unit, biased - 1075z)
+
+  // x * 10^places as the fraction num / den
+  let p = BigInt.fromInt64(places)
+  let num2 = if exponent > 0z then 2z ** exponent else 1z
+  let den2 = if exponent < 0z then 2z ** (0z - exponent) else 1z
+  let num10 = if p > 0z then 10z ** p else 1z
+  let den10 = if p < 0z then 10z ** (0z - p) else 1z
+  let num = mantissa * num2 * num10
+  let den = den2 * den10
+
+  let kept = num / den
+  let twice = num % den * 2z
+  let kept =
+    if twice > den || twice == den && kept % 2z == 1z then
+      kept + 1z
+    else
+      kept
+
+  let sign = if bits >= 2z ** 63z then "-" else ""
+  $"{sign}{kept}e{0 - places}"
+
+
 impl Add for Float64 =
   /// Add <type Float64> <param a> to <type Float64> <param b>
   let add(a: Float64, b: Float64): Float64 =
