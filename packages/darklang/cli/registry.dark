@@ -415,6 +415,16 @@ module Registry =
     Accepts.flagsOnly([ "--live" ])
 
 
+  let acceptsAlias(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("ls", Accepts.nothing())
+        ("list", Accepts.nothing())
+        ("add", Accepts.between(2, 2, [ "--pin" ]))
+        ("rm", Accepts.upTo(1, [ "--all" ]))
+        ("remove", Accepts.upTo(1, [ "--all" ])) ],
+      Accepts.nothing())
+
+
   let allCommands(): List<CommandHandler> =
     [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
       (
@@ -954,6 +964,15 @@ module Registry =
 
       ("ops", "Read this instance's op log", [], acceptsOps, Ops.execute, Ops.help, Ops.complete)
       (
+        "alias",
+        "Put your own functions on your PATH as commands",
+        [ "aliases" ],
+        acceptsAlias,
+        Aliases.execute,
+        Aliases.help,
+        Aliases.complete)
+
+      (
         "ps",
         "What is running: this instance's processes, then other Darks on this machine",
         [ "processes" ],
@@ -1167,7 +1186,7 @@ module Registry =
           "ops" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
-      ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])
+      ("Execution", [ "run-script", "eval", "alias", "ps", "traces", "serve", "format" ])
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "effects", "permissions" ])
       (
