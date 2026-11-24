@@ -129,34 +129,18 @@ test dottedMissSuggestsFullNames = Instance.withInstance(fun i ->
         "no per-word counts") ]))
 
 
-/// Darklang's own tools stay out of a search that finds anything else.
-test toolsLeftOutUnlessAsked = Instance.withInstance(fun i ->
-  let plain =
-    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "search", "printLine" ]))
+/// Darklang's own tools still show, after the Stdlib matches.
+test toolsRankAfterStdlib = Instance.withInstance(fun i ->
+  let out =
+    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "search", "json escape" ]))
 
-  let everywhere =
-    Stdlib.Cli.Tui.Text.stripSgr(
-      Instance.said(i, [ "search", "printLine", "--everywhere" ]))
+  let at = fun name ->
+    Stdlib.String.indexOf(out, name) |> Stdlib.Option.withDefault(-1)
 
-  let onlyTools =
-    Stdlib.Cli.Tui.Text.stripSgr(
-      Instance.said(i, [ "search", "captureOutputAnd" ]))
-
+  let stdlib = at("Darklang.Stdlib.AltJson.Format.escapeBytes")
+  let cli = at("Darklang.Cli.jsonEscape")
   Stdlib.Test.all(
-    [ Instance.says(plain, "Darklang.Stdlib.printLine", "Stdlib stays")
-      Instance.doesNotSay(
-        plain,
-        "Darklang.PrettyPrinter",
-        "the printer is left out")
-
-      Instance.says(plain, "--everywhere shows them", "and it says so")
-
-      Instance.says(
-        everywhere,
-        "Darklang.PrettyPrinter",
-        "--everywhere shows it")
-
-      Instance.says(
-        onlyTools,
-        "Darklang.Cli.Workbench",
-        "a tools-only match still shows") ]))
+    [ Instance.says(out, "Darklang.Cli.jsonEscape", "the CLI's own fn shows")
+      Stdlib.Test.expect(
+        stdlib >= 0 && stdlib < cli,
+        $"Stdlib ranks first:\n{out}") ]))

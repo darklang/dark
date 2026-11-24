@@ -337,13 +337,24 @@ let usageKey(uses: Dict<String, Int64>, path: String): String =
   Stdlib.String.padStart(Stdlib.display(999999 - capped), '0', 6)
 
 
+// A match rank as one sort key digit: Darklang's own code (the CLI, the tools) after every
+// other name match, though before what matches only in its docs.
+let matchKey(rank: Int64, owner: String, modules: List<String>): Int64 =
+  if rank == 4 then
+    8
+  else if tier(owner, modules) == "2" then
+    rank + 4
+  else
+    rank
+
+
 // Sort key: match quality first, then whether the module is named by the query,
 // then the tier, then how many items call it, and finally the full path for
 // deterministic ordering. Each part is fixed-width, so plain string ordering under
 // `sortBy` gives the intended result.
 let rankKey(ranker: Ranker, owner: String, modules: List<String>, name: String): String =
   let lowerName = Stdlib.String.toLowercase(name)
-  let mr = Stdlib.display(rankInModule(ranker, modules, lowerName))
+  let mr = Stdlib.display(matchKey(rankInModule(ranker, modules, lowerName), owner, modules))
   let mh = Stdlib.display(moduleHit(ranker, modules, lowerName))
   let path =
     [ [ owner ], modules, [ name ] ]
@@ -994,7 +1005,6 @@ type ParsedArgs =
     deprecated: Query.Deprecated
     internal: Query.Internal
     includeTests: Bool
-    everywhere: Bool
     asJson: Bool
     mode: DisplayMode
     parseErrors: List<FlagParser.ParseError> }
@@ -1017,7 +1027,6 @@ val argSpec =
           ("--include-deprecated", [])
           ("--include-internal", [])
           ("--include-tests", [])
-          ("--everywhere", [])
           ("--json", []) ]
       valueFlags = [ ("--limit", []) ] }
 
@@ -1059,13 +1068,12 @@ let parseArgs(args: List<String>): ParsedArgs =
       deprecated = Query.Deprecated.showIf(FlagParser.hasFlag(p, "--include-deprecated"))
       internal = Query.Internal.showIf(FlagParser.hasFlag(p, "--include-internal"))
       includeTests = FlagParser.hasFlag(p, "--include-tests")
-      everywhere = FlagParser.hasFlag(p, "--everywhere")
       asJson = FlagParser.hasFlag(p, "--json")
       parseErrors = p.errors }
 
 
 val usage =
-  "Usage: search <query> [--batch] [--limit N] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--brief] [--include-deprecated] [--include-internal] [--include-tests] [--everywhere]"
+  "Usage: search <query> [--batch] [--limit N] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--brief] [--include-deprecated] [--include-internal] [--include-tests]"
 
 
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
@@ -1225,66 +1233,6 @@ let hiddenTestsHint(count: Int64): Unit =
     Stdlib.printErrorLine(
       Stdlib.Cli.UI.Colors.hint(
         $"  ({Stdlib.display(count)} {noun} matched; --include-tests shows them)"))
-  else
-    ()
-
-
-/// Whether <param modulePath> (owner first) is in Darklang's own tools: Darklang, but not Stdlib.
-let inTools(modulePath: List<String>): Bool =
-  match modulePath with
-  | ["Darklang", "Stdlib", ...] -> false
-  | ["Darklang", ...] -> true
-  | _ -> false
-
-
-let outsideTools(
-  items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
-  : List<LanguageTools.ProgramTypes.LocatedItem<'a>> =
-  items
-  |> Stdlib.List.filter(fun i ->
-    Stdlib.Bool.not(inTools(Stdlib.List.prepend(i.location.modules, i.location.owner))))
-
-
-/// <param results> without Darklang's own tools, and how many that left out. They stay when the
-/// search is inside them, or when nothing else has a word of the query in its name.
-let withoutTools(
-  currentModule: List<String>,
-  ranker: Ranker,
-  results: LanguageTools.ProgramTypes.Search.SearchResults)
-  : (LanguageTools.ProgramTypes.Search.SearchResults * Int64) =
-  let kept =
-    { results with
-        types = outsideTools(results.types)
-        values = outsideTools(results.values)
-        fns = outsideTools(results.fns)
-        traits = outsideTools(results.traits)
-        impls = outsideTools(results.impls)
-        tests = outsideTools(results.tests)
-        submodules =
-          results.submodules |> Stdlib.List.filter(fun m -> Stdlib.Bool.not(inTools(m))) }
-
-  let names =
-    Stdlib.List.flatten(
-      [ kept.types |> Stdlib.List.map(fun i -> i.location.name)
-        kept.values |> Stdlib.List.map(fun i -> i.location.name)
-        kept.fns |> Stdlib.List.map(fun i -> i.location.name)
-        kept.traits |> Stdlib.List.map(fun i -> i.location.name)
-        kept.impls |> Stdlib.List.map(fun i -> i.location.name)
-        kept.submodules |> Stdlib.List.filterMap(fun m -> Stdlib.List.last(m)) ])
-
-  let nameMatches = Stdlib.List.any(names, fun n -> rankName(ranker, n) < 4)
-  if inTools(currentModule) || Stdlib.Bool.not(nameMatches) then
-    (results, 0)
-  else
-    let all = itemCount(results) + Stdlib.List.length(results.submodules)
-    (kept, all - itemCount(kept) - Stdlib.List.length(kept.submodules))
-
-
-let hiddenToolsHint(count: Int64): Unit =
-  if count > 0 then
-    Stdlib.printErrorLine(
-      Stdlib.Cli.UI.Colors.hint(
-        $"  ({Stdlib.display(count)} more in Darklang's own tools; --everywhere shows them)"))
   else
     ()
 
@@ -1632,18 +1580,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
               "Matching deprecated modules are hidden. Use --include-deprecated to show them.")
 
         let results = { results with submodules = visibleModules }
-        let (results, hiddenTools) =
-          if parsed.everywhere then
-            (results, 0)
-          else
-            withoutTools(
-              currentModule,
-              rankerWith(
-                searchText,
-                synonyms |> Stdlib.List.map(fun((_, target)) -> target),
-                Stdlib.Dict.empty),
-              results)
-
         // `bytes to string`: the Stdlib functions by what they take and return. They
         // print in a section of their own, so they leave the name matches.
         let wantsFns =
@@ -1818,7 +1754,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           | Some(note) -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(note))
           | None -> ()
 
-          hiddenToolsHint(hiddenTools)
           if parsed.mode == DisplayMode.Detailed then Stdlib.printLine("")
           match typeQuery(searchText) with
           | Some((source, target)) when Stdlib.Bool.not(Stdlib.List.isEmpty(typed)) ->
@@ -2035,8 +1970,6 @@ let help(state: AppState): String =
     "  --with-docs            Also show doc comments"
     "  --include-deprecated   Include items deprecated with no live callers"
     "  --include-internal     Include internal helpers (names starting with __)"
-    "  --everywhere           Include Darklang's own tools (the CLI, parser, printer...),"
-    "                         left out when anything else matches"
     "  --json                 The results, typed, for an agent"
     ""
     "Examples:"
@@ -2085,8 +2018,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
         "--with-docs"
         "--include-deprecated"
         "--include-internal"
-        "--include-tests"
-        "--everywhere" ]
+        "--include-tests" ]
       |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, lastArg))
       |> Stdlib.List.map(Completion.simple)
     else

@@ -101,7 +101,6 @@ module Registry =
           "--brief"
           "--include-deprecated"
           "--include-internal"
-          "--everywhere"
           "--json" ]))
 
 
