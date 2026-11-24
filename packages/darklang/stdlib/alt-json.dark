@@ -85,9 +85,12 @@ module Format =
 
   /// Each character with an escape of its own, and that escape. The backslash
   /// is first, so the backslashes the others write are not escaped again.
+  /// `\r\n` is one character to `String.replaceAll`, so it has a row of its own,
+  /// ahead of `\r` and `\n`.
   val namedEscapes =
     [ ("\\", "\\\\")
       ("\"", "\\\"")
+      ("\r\n", "\\r\\n")
       ("\b", "\\b")
       ("\f", "\\f")
       ("\n", "\\n")

@@ -464,6 +464,9 @@ test escapes =
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Ok(Json.String("\b\f\x1F\u2028/\\\"")))
 
+      // a CRLF is one character to the string functions; both halves are escaped
+      format(Json.String("a\r\nb\rc")) |> Stdlib.Test.equal("\"a\\r\\nb\\rc\"")
+
       parse("\"\\x41\"") |> Stdlib.Test.equal(parseError(ParseError.NotJson))
 
       parse("\"\u0301\"")
