@@ -263,7 +263,7 @@ Merged
 "pending":1
 yo x
 later x
-Deprecated fn
+Deleted fn
 discarded
 51
 back on the version
