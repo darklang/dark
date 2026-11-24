@@ -260,8 +260,7 @@ let rootFn(branchId: Uuid, trace: Tracing.Trace): Option<String> =
       | None -> false)
   | None ->
     named
-    |> Stdlib.List.findFirst(fun fn ->
-      Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
+    |> Stdlib.List.findFirst(fun fn -> Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
 
 
 /// Under a failed `eval` or `run`: the trace it left and how to look at it. Nothing when

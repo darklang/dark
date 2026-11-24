@@ -134,7 +134,9 @@ test unknownPartsAreNamed = Instance.withInstance(fun i ->
 // `Stdlib.inspect`, and that lists, tuples and Unit have no `Display`. If that changes, the
 // sentence needs changing.
 test displayAdviceHolds = Instance.withInstance(fun i ->
-  let (code, out) = Instance.ran(i, [ "--no-trace", "eval", "Stdlib.display([1, 2])" ])
+  let (code, out) =
+    Instance.ran(i, [ "--no-trace", "eval", "Stdlib.display([1, 2])" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "a list has no Display")
       Stdlib.String.trim(out)
