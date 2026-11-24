@@ -49,6 +49,7 @@ CHECK_DATABASES = {
   "gate-backups-restore": homes("backups-test"),
   "gate-old-store-resets": homes("old-store-test"),
   "gate-reload-is-reproducible": homes("reload-reproducible"),
+  "gate-package-edits-apply": homes("package-edits"),
   "gate-trait-choice-survives-rival": homes("trait-rival"),
   "gate-trait-choice-any-batching": homes("trait-batching"),
   "gate-trait-checker-vs-dispatch": homes("trait-deprecated", "trait-argfit-int-first",
