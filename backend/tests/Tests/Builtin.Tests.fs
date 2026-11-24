@@ -574,14 +574,14 @@ let movedParamsHaveSupportedTypes =
 /// is a regression net, not the rule: a builtin nobody marks `Pure` is isolated already.
 let private hiddenStateBuiltins : Set<string> =
   set
-    [ "syscallGetpid"
-      "syscallGetuid"
+    [ "kernel.getpid"
+      "kernel.getuid"
       "kernel.read"
-      "syscallWrite"
-      "syscallLseek"
+      "kernel.write"
+      "kernel.lseek"
       "kernel.close"
-      "syscallGetdents"
-      "syscallFlock"
+      "kernel.getdents"
+      "kernel.flock"
       "interpreterStatsReset"
       "interpreterStatsEnableDetailedTiming"
       "interpreterStatsGet"
@@ -791,6 +791,9 @@ let private builtinRaiseSites (names : List<string>) : Map<string, List<string>>
   // `fn "name" 0` in a record, or a constructor such as `make "name"` or `policyFn` above it.
   // Both patterns need the quoted name, so a file without it is not searched.
   let declaration (name : string) =
+    // an extern's provider is declared by its symbol: `kernel "open"`
+    let name, prefix =
+      if name.StartsWith "kernel." then name.Substring 7, "kernel" else name, "fn"
     let quoted = $"\"{name}\""
     let find (pattern : string) =
       files
@@ -800,10 +803,13 @@ let private builtinRaiseSites (names : List<string>) : Map<string, List<string>>
         else
           let m = Regex.Match(text, pattern, RegexOptions.Multiline)
           if m.Success then Some(path, m.Index) else None)
-    find $@"\bfn\s+""{name}""\s+\d"
-    |> Option.orElse (
-      find $@"^\s*(?:\[\s*)?(?:\{{\s*\(\s*)?(?:[a-z]\w*\s+)?""{name}"""
-    )
+    if prefix = "kernel" then
+      find $@"\bkernel\s+""{name}"""
+    else
+      find $@"\bfn\s+""{name}""\s+\d"
+      |> Option.orElse (
+        find $@"^\s*(?:\[\s*)?(?:\{{\s*\(\s*)?(?:[a-z]\w*\s+)?""{name}"""
+      )
   let declared = names |> List.map (fun name -> name, declaration name)
   let helpersIn =
     files

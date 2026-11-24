@@ -178,8 +178,13 @@ test copyWriteAt =
       Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(4)), abc, 0)
       |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply))
 
-      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Error(28)), abc, 0)
-      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.__fromErrno(28))) ])
+      Stdlib.Cli.File.__copyWriteAt(
+        (fun(_, _) ->
+           Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(28))),
+        abc,
+        0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(28))) ])
 
 
 // __copyBuffered reads 64 KiB chunks from the offset until an empty read
@@ -187,14 +192,18 @@ test copyBuffered =
   Stdlib.Cli.File.__copyBuffered(
     (fun(count, offset) ->
        if count != 65536 then
-         Error(22)
+         Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(22))
        else if offset == 2 then
          Ok(Stdlib.Utf8.encode("abc"))
        else if offset == 5 then
          Ok(Stdlib.Bytes.empty)
        else
-         Error(22)),
-    (fun(_, offset) -> if offset >= 2 && offset < 5 then Ok(1) else Error(22)),
+         Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(22))),
+    (fun(_, offset) ->
+       if offset >= 2 && offset < 5 then
+         Stdlib.Result.Result.Ok(1)
+       else
+         Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(22))),
     2)
   |> Stdlib.Test.equal(Ok())
 

@@ -19,8 +19,10 @@ let private perform kt vm op shape =
     | Ok response -> (Dval.resultOk kt KTInt64 (shape response))
     | Error e -> (Dval.resultError kt KTInt64 (Dval.dint64 (int64 e.errno))))
 
+let private kernel = Builtins.Cli.Libs.Posix.kernel
+
 let private make name parameters result _kt body : BuiltInFn =
-  { name = fn name 0
+  { name = name
     typeParams = []
     parameters = parameters
     returnType = TypeReference.result result TInt64
@@ -92,7 +94,7 @@ let private poll name constructor =
 
 let fns () : List<BuiltInFn> =
   [ { (make
-        "syscallKqueue"
+        (kernel "kqueue")
         [ Param.make "unit" TUnit "" ]
         TBigInt
         KTBigInt
@@ -107,7 +109,7 @@ let fns () : List<BuiltInFn> =
           | _ -> incorrectArgs ())) with
         callEffects = Set.empty }
     make
-      "syscallKeventVnode"
+      (kernel "keventVnode")
       [ descriptor "queue"
         Param.make
           "changes"
@@ -141,7 +143,7 @@ let fns () : List<BuiltInFn> =
             bytes
         | _ -> incorrectArgs ())
     make
-      "syscallInotifyInit1"
+      (kernel "inotifyInit1")
       [ integer "flags" ]
       TBigInt
       KTBigInt
@@ -155,7 +157,7 @@ let fns () : List<BuiltInFn> =
             (fun response -> Dval.bigInt (Host.expectDescriptor response))
         | _ -> incorrectArgs ())
     make
-      "syscallInotifyAddWatch"
+      (kernel "inotifyAddWatch")
       [ descriptor "fd"; Param.make "path" TString "Checked path"; integer "mask" ]
       TInt64
       KTInt64
@@ -172,18 +174,18 @@ let fns () : List<BuiltInFn> =
             ))
             written
         | _ -> incorrectArgs ())
-    poll "syscallPpoll" Op.PosixOp.Ppoll
-    poll "syscallPollDarwin" Op.PosixOp.PollDarwin
-    { (clock "syscallClockGettime" [ integer "clock" ] (fun _ vm values ->
+    poll (kernel "ppoll") Op.PosixOp.Ppoll
+    poll (kernel "pollDarwin") Op.PosixOp.PollDarwin
+    { (clock (kernel "clockGettime") [ integer "clock" ] (fun _ vm values ->
         match values with
         | [| DInt64 id |] ->
           perform KTBytes vm (Op.PosixOp.ClockGettime(int64ToInt32 id)) bytes
         | _ -> incorrectArgs ())) with
         callEffects = set [ Effect.Clock; Effect.Raise ] }
-    clockUnit "syscallGettimeofday" Op.PosixOp.Gettimeofday
-    clockUnit "syscallMachAbsoluteTime" Op.PosixOp.MachAbsoluteTime
-    clockUnit "syscallMachTimebaseInfo" Op.PosixOp.MachTimebaseInfo
-    { name = fn "syscallNanosleep" 0
+    clockUnit (kernel "gettimeofday") Op.PosixOp.Gettimeofday
+    clockUnit (kernel "machAbsoluteTime") Op.PosixOp.MachAbsoluteTime
+    clockUnit (kernel "machTimebaseInfo") Op.PosixOp.MachTimebaseInfo
+    { name = kernel "nanosleep"
       typeParams = []
       parameters = [ integer "seconds"; integer "nanos" ]
       returnType = TTuple(TInt64, TBytes, [])
@@ -204,10 +206,10 @@ let fns () : List<BuiltInFn> =
       previewable = Impure
       callEffects = set [ Effect.Clock ]
       deprecated = NotDeprecated }
-    timestamp "syscallUtimensAt" Op.PosixOp.UtimensAt
-    timestamp "syscallSetattrlistTimes" Op.PosixOp.SetattrlistTimes
+    timestamp (kernel "utimensAt") Op.PosixOp.UtimensAt
+    timestamp (kernel "setattrlistTimes") Op.PosixOp.SetattrlistTimes
     { (make
-        "syscallUname"
+        (kernel "uname")
         [ Param.make "unit" TUnit "" ]
         TBytes
         KTBytes
@@ -216,13 +218,18 @@ let fns () : List<BuiltInFn> =
           | [| DUnit |] -> perform KTBytes vm Op.PosixOp.UnameBytes bytes
           | _ -> incorrectArgs ())) with
         callEffects = Set.empty }
-    make "syscallFcntlGetPath" [ descriptor "fd" ] TBytes KTBytes (fun _ vm values ->
-      match values with
-      | [| DBigInt fd |] ->
-        perform KTBytes vm (Op.PosixOp.FcntlGetPath(bigIntToDescriptor fd)) bytes
-      | _ -> incorrectArgs ())
     make
-      "syscallSysctl"
+      (kernel "fcntlGetPath")
+      [ descriptor "fd" ]
+      TBytes
+      KTBytes
+      (fun _ vm values ->
+        match values with
+        | [| DBigInt fd |] ->
+          perform KTBytes vm (Op.PosixOp.FcntlGetPath(bigIntToDescriptor fd)) bytes
+        | _ -> incorrectArgs ())
+    make
+      (kernel "sysctl")
       [ Param.make "mib" (TList TInt64) "Read-only numeric key"; integer "count" ]
       TBytes
       KTBytes
@@ -237,7 +244,7 @@ let fns () : List<BuiltInFn> =
           perform KTBytes vm (Op.PosixOp.SysctlBytes(mib, int64ToInt32 count)) bytes
         | _ -> incorrectArgs ())
     make
-      "syscallSchedGetaffinity"
+      (kernel "schedGetaffinity")
       [ integer "pid"; integer "count" ]
       TBytes
       KTBytes
@@ -251,7 +258,7 @@ let fns () : List<BuiltInFn> =
             bytes
         | _ -> incorrectArgs ())
     { (make
-        "syscallGetentropy"
+        (kernel "getentropy")
         [ integer "count" ]
         TBytes
         KTBytes
@@ -262,7 +269,7 @@ let fns () : List<BuiltInFn> =
           | _ -> incorrectArgs ())) with
         callEffects = set [ Effect.Random; Effect.Raise ] }
     make
-      "syscallCopyFileRange"
+      (kernel "copyFileRange")
       [ descriptor "source"; descriptor "destination"; integer "count" ]
       TInt64
       KTInt64
@@ -278,7 +285,7 @@ let fns () : List<BuiltInFn> =
           perform KTInt64 vm op offset
         | _ -> incorrectArgs ())
     make
-      "syscallCloneFile"
+      (kernel "cloneFile")
       [ descriptor "source"; descriptor "destination" ]
       TUnit
       KTUnit
@@ -295,7 +302,7 @@ let fns () : List<BuiltInFn> =
             unit
         | _ -> incorrectArgs ())
     make
-      "syscallFclonefileAt"
+      (kernel "fclonefileAt")
       [ descriptor "source"
         Param.make "destination" TString "Checked destination path"
         integer "flags" ]
@@ -315,7 +322,7 @@ let fns () : List<BuiltInFn> =
             unit
         | _ -> incorrectArgs ())
     make
-      "syscallFtruncate"
+      (kernel "ftruncate")
       [ descriptor "fd"; integer "length" ]
       TUnit
       KTUnit
@@ -329,7 +336,7 @@ let fns () : List<BuiltInFn> =
             unit
         | _ -> incorrectArgs ())
     make
-      "syscallFchmod"
+      (kernel "fchmod")
       [ descriptor "fd"; integer "mode" ]
       TUnit
       KTUnit
@@ -342,13 +349,13 @@ let fns () : List<BuiltInFn> =
             (Op.PosixOp.Fchmod(bigIntToDescriptor fd, int64ToInt32 mode))
             unit
         | _ -> incorrectArgs ())
-    make "syscallFstat" [ descriptor "fd" ] TBytes KTBytes (fun _ vm values ->
+    make (kernel "fstat") [ descriptor "fd" ] TBytes KTBytes (fun _ vm values ->
       match values with
       | [| DBigInt fd |] ->
         perform KTBytes vm (Op.PosixOp.Fstat(bigIntToDescriptor fd)) bytes
       | _ -> incorrectArgs ())
     make
-      "syscallPread"
+      (kernel "pread")
       [ descriptor "fd"; integer "count"; integer "offset" ]
       TBytes
       KTBytes
@@ -362,7 +369,7 @@ let fns () : List<BuiltInFn> =
             bytes
         | _ -> incorrectArgs ())
     make
-      "syscallPwrite"
+      (kernel "pwrite")
       [ descriptor "fd"; bytesParam "bytes"; integer "offset" ]
       TInt64
       KTInt64

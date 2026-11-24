@@ -60,7 +60,7 @@ let private fileWriteEffect = set [ Effect.FileWrite ]
 let private nativeEffects = set [ Effect.Native ]
 
 /// What an `extern … from "kernel"` declaration in the Posix package calls.
-let private kernel (symbol : string) : FQFnName.Builtin =
+let kernel (symbol : string) : FQFnName.Builtin =
   let provider = LibExecution.ProgramTypes.Expr.externProvider "kernel" symbol
   { name = provider.name; version = provider.version }
 
@@ -100,7 +100,7 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "syscallStatAt" 0
+    { name = kernel "statAt"
       typeParams = []
       parameters = [ Param.make "path" TString "Checked, no-follow entry" ]
       returnType = TypeReference.result TBytes TInt64
@@ -115,7 +115,7 @@ let fns () : List<BuiltInFn> =
       callEffects = fileReadEffect
       deprecated = NotDeprecated }
 
-    { name = fn "syscallGetdents" 0
+    { name = kernel "getdents"
       typeParams = []
       parameters =
         [ Param.make "fd" TBigInt "Directory descriptor"
@@ -137,7 +137,7 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
-    { name = fn "syscallGetcwd" 0
+    { name = kernel "getcwd"
       typeParams = []
       parameters = [ Param.make "count" TInt64 "Maximum raw bytes" ]
       returnType = TypeReference.result TBytes TInt64
@@ -156,7 +156,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallChdir" 0
+    { name = kernel "chdir"
       typeParams = []
       parameters = [ Param.make "path" TString "Directory to change to" ]
       returnType = TypeReference.result TUnit TInt64
@@ -173,7 +173,7 @@ let fns () : List<BuiltInFn> =
 
 
 
-    { name = fn "syscallMkdir" 0
+    { name = kernel "mkdir"
       typeParams = []
       parameters =
         [ Param.make "path" TString "The directory path to create"
@@ -191,7 +191,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallUnlinkAt" 0
+    { name = kernel "unlinkAt"
       typeParams = []
       parameters =
         [ Param.make "path" TString "The entry to remove"
@@ -212,7 +212,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallRename" 0
+    { name = kernel "rename"
       typeParams = []
       parameters =
         [ Param.make "oldpath" TString "Current path"
@@ -230,7 +230,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallChmod" 0
+    { name = kernel "chmod"
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path"
@@ -248,7 +248,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallSymlink" 0
+    { name = kernel "symlink"
       typeParams = []
       parameters =
         [ Param.make "target" TString "Path the symlink points to"
@@ -269,7 +269,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallReadlinkAt" 0
+    { name = kernel "readlinkAt"
       typeParams = []
       parameters =
         [ Param.make "path" TString "Symlink path to read"
@@ -304,7 +304,7 @@ let fns () : List<BuiltInFn> =
 
 
 
-    { name = fn "syscallKill" 0
+    { name = kernel "kill"
       typeParams = []
       parameters =
         [ Param.make "pid" TInt64 "Process ID"
@@ -346,7 +346,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallLseek" 0
+    { name = kernel "lseek"
       typeParams = []
       parameters =
         [ Param.make "fd" TBigInt "File descriptor to reposition"
@@ -375,7 +375,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallWrite" 0
+    { name = kernel "write"
       typeParams = []
       parameters =
         [ Param.make "fd" TBigInt "File descriptor to write to"
@@ -442,7 +442,7 @@ let fns () : List<BuiltInFn> =
 
 
 
-    { name = fn "syscallGetpid" 0
+    { name = kernel "getpid"
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt64
@@ -456,7 +456,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallGetuid" 0
+    { name = kernel "getuid"
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt64
@@ -492,7 +492,7 @@ let fns () : List<BuiltInFn> =
 
 
 
-    { name = fn "syscallFlock" 0
+    { name = kernel "flock"
       typeParams = []
       parameters =
         [ Param.make "fd" TBigInt "File descriptor"

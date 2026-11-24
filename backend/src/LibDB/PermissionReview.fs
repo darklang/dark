@@ -45,11 +45,11 @@ let preflight
       Known.Text method :: Known.Text url :: _ ->
       add entry (P.Request.http method url)
     | "runtimeAuthorizeReadPath", Known.Text path :: _
-    | "syscallStatAt", Known.Text path :: _
-    | "syscallChdir", Known.Text path :: _
-    | "syscallReadlinkAt", Known.Text path :: _ ->
+    | "kernel.statAt", Known.Text path :: _
+    | "kernel.chdir", Known.Text path :: _
+    | "kernel.readlinkAt", Known.Text path :: _ ->
       add entry (P.Request.file P.AccessKind.Read path)
-    | ("syscallMkdir" | "syscallUnlinkAt" | "syscallChmod"), Known.Text path :: _ ->
+    | ("kernel.mkdir" | "kernel.unlinkAt" | "kernel.chmod"), Known.Text path :: _ ->
       add entry (P.Request.file P.AccessKind.Write path)
     | "kernel.open", Known.Text path :: Known.Number flags :: _ ->
       if

@@ -35,10 +35,10 @@ let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
     |> PT.Hash
   { hash = uniqueHash; body = body; description = ""; typ = None }
 
-/// `Builtin.syscallGettimeofday ()`: the cheapest host effect that still needs a
+/// the kernel's `gettimeofday`: the cheapest host effect that still needs a
 /// permission, so the test asserts the check and not the cost of the effect.
 let private clockCall : PT.Expr =
-  eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ]
+  eApply (eBuiltinFn "kernel.gettimeofday" 0) [] [ eUnit () ]
 
 /// Store a value as WIP so its row exists with `rt_dval` NULL -- the state an
 /// imported or folded-in op leaves behind for evaluation to find.

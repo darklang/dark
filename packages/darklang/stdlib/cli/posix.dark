@@ -291,6 +291,195 @@ extern read(fd: BigInt, count: Int64): Result<Bytes, Int64> from "kernel"
 extern close(fd: BigInt): Result<Unit, Int64> from "kernel"
 
 
+/// Kernel stat of <param path>, not following a final symlink: the raw record
+extern statAt(path: String): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel getdents64 (getdirentries64 on macOS): up to <param count> bytes of raw directory records
+extern getdents(fd: BigInt, count: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel getcwd(): the working directory, in a buffer of <param count> bytes
+extern getcwd(count: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel chdir()
+extern kernelChdir(path: String): Result<Unit, Int64> from "kernel" "chdir"
+
+
+/// Kernel mkdir()
+extern kernelMkdir(path: String, mode: Int64): Result<Unit, Int64> from "kernel" "mkdir"
+
+
+/// Kernel unlinkat()
+extern unlinkAt(path: String, flags: Int64): Result<Unit, Int64> from "kernel"
+
+
+/// Kernel rename()
+extern kernelRename(oldpath: String, newpath: String): Result<Unit, Int64> from "kernel" "rename"
+
+
+/// Kernel chmod()
+extern kernelChmod(path: String, mode: Int64): Result<Unit, Int64> from "kernel" "chmod"
+
+
+/// Kernel symlink(): <param linkpath> points at <param target>
+extern kernelSymlink(target: String, linkpath: String): Result<Unit, Int64> from "kernel" "symlink"
+
+
+/// Kernel readlinkat(): up to <param count> bytes of the link's target
+extern readlinkAt(path: String, count: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel kill()
+extern kernelKill(pid: Int64, signal: Int64): Result<Unit, Int64> from "kernel" "kill"
+
+
+/// Kernel lseek(): the new offset
+extern lseek(fd: BigInt, offset: Int64, whence: Int64): Result<Int64, Int64> from "kernel"
+
+
+/// Kernel write(): how many of <param bytes> were written
+extern write(fd: BigInt, bytes: Bytes): Result<Int64, Int64> from "kernel"
+
+
+/// Kernel getpid()
+extern getpid(): Int64 from "kernel"
+
+
+/// Kernel getuid()
+extern getuid(): Int64 from "kernel"
+
+
+/// Kernel flock()
+extern kernelFlock(fd: BigInt, operation: Int64): Result<Unit, Int64> from "kernel" "flock"
+
+
+/// Kernel kqueue() (macOS): a new event queue
+extern kqueue(): Result<BigInt, Int64> from "kernel"
+
+
+/// Kernel kevent() (macOS) for vnode filters: <param changes> are fd, flags and note mask; the raw events
+extern keventVnode(
+  queue: BigInt,
+  changes: List<(BigInt * Int64 * Int64)>,
+  capacity: Int64,
+  timeoutMs: Int64)
+  : Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel inotify_init1() (Linux)
+extern inotifyInit1(flags: Int64): Result<BigInt, Int64> from "kernel"
+
+
+/// Kernel inotify_add_watch() (Linux): the watch number
+extern inotifyAddWatch(fd: BigInt, path: String, mask: Int64): Result<Int64, Int64> from "kernel"
+
+
+/// Kernel ppoll() (Linux) over fd and requested events: the raw records
+extern ppoll(descriptors: List<(BigInt * Int64)>, timeoutMs: Int64): Result<Bytes, Int64>
+  from "kernel"
+
+
+/// Kernel poll() (macOS) over fd and requested events: the raw records
+extern pollDarwin(descriptors: List<(BigInt * Int64)>, timeoutMs: Int64): Result<Bytes, Int64>
+  from "kernel"
+
+
+/// Kernel clock_gettime(): the raw timespec
+extern clockGettime(clock: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel gettimeofday(): the raw timeval
+extern gettimeofday(): Result<Bytes, Int64> from "kernel"
+
+
+/// mach_absolute_time() (macOS): the raw tick count
+extern machAbsoluteTime(): Result<Bytes, Int64> from "kernel"
+
+
+/// mach_timebase_info() (macOS): the raw numerator and denominator
+extern machTimebaseInfo(): Result<Bytes, Int64> from "kernel"
+
+
+/// One kernel nanosleep(): the raw status and the remaining timespec
+extern nanosleep(seconds: Int64, nanos: Int64): (Int64 * Bytes) from "kernel"
+
+
+/// Kernel utimensat() (Linux)
+extern utimensAt(
+  path: String,
+  accessSeconds: Int64,
+  accessNanos: Int64,
+  modifySeconds: Int64,
+  modifyNanos: Int64)
+  : Result<Unit, Int64> from "kernel"
+
+
+/// Kernel setattrlist() (macOS) for access and modify times
+extern setattrlistTimes(
+  path: String,
+  accessSeconds: Int64,
+  accessNanos: Int64,
+  modifySeconds: Int64,
+  modifyNanos: Int64)
+  : Result<Unit, Int64> from "kernel"
+
+
+/// Kernel uname(): the raw record
+extern kernelUname(): Result<Bytes, Int64> from "kernel" "uname"
+
+
+/// Kernel fcntl(F_GETPATH) (macOS): the path <param fd> names
+extern fcntlGetPath(fd: BigInt): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel sysctl() (macOS), read-only: up to <param count> bytes
+extern sysctl(mib: List<Int64>, count: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel sched_getaffinity() (Linux): the raw CPU mask
+extern schedGetaffinity(pid: Int64, count: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel getentropy(): up to <param count> random bytes
+extern getentropy(count: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel copy_file_range() (Linux): how many bytes were copied
+extern copyFileRange(source: BigInt, destination: BigInt, count: Int64): Result<Int64, Int64>
+  from "kernel"
+
+
+/// Kernel FICLONE ioctl (Linux): <param destination> shares <param source>'s blocks
+extern cloneFile(source: BigInt, destination: BigInt): Result<Unit, Int64> from "kernel"
+
+
+/// Kernel fclonefileat() (macOS)
+extern fclonefileAt(source: BigInt, destination: String, flags: Int64): Result<Unit, Int64>
+  from "kernel"
+
+
+/// Kernel ftruncate()
+extern ftruncate(fd: BigInt, length: Int64): Result<Unit, Int64> from "kernel"
+
+
+/// Kernel fchmod()
+extern fchmod(fd: BigInt, mode: Int64): Result<Unit, Int64> from "kernel"
+
+
+/// Kernel fstat(): the raw record
+extern fstat(fd: BigInt): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel pread(): up to <param count> bytes at <param offset>
+extern pread(fd: BigInt, count: Int64, offset: Int64): Result<Bytes, Int64> from "kernel"
+
+
+/// Kernel pwrite(): how many of <param bytes> were written at <param offset>
+extern pwrite(fd: BigInt, bytes: Bytes, offset: Int64): Result<Int64, Int64> from "kernel"
+
+
 /// Open a file. Read-only opens follow symlinks when the target is permitted; writes do not.
 /// Returns a file descriptor or an I/O error. Permission denials raise.
 let openFile(path: String, flags: Int64, mode: FileMode): Result<Fd, Error> =
@@ -307,10 +496,7 @@ let fdRead(fd: Fd, count: Int64): Result<Bytes, Error> =
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
 let fdWrite(fd: Fd, bytes: Bytes): Result<Int64, Error> =
-  __writeAll(
-    (fun chunk -> Builtin.syscallWrite(fd.__fd, chunk) |> Result.mapError(__fromErrno)),
-    bytes,
-    0)
+  __writeAll((fun chunk -> __writeOnce(fd, chunk)), bytes, 0)
 
 
 /// Close an open file descriptor.
@@ -331,12 +517,12 @@ let fdReadAll(fd: Fd, acc: List<Bytes>): Result<Bytes, Error> =
 
 /// Seek to a byte offset from the start of an open file.
 let fdSeekFromStart(fd: Fd, offset: Int64): Result<Int64, Error> =
-  Builtin.syscallLseek(fd.__fd, offset, 0) |> Result.mapError(__fromErrno)
+  lseek(fd.__fd, offset, 0) |> Result.mapError(__fromErrno)
 
 
 /// Stat a file. Returns mode, size, and modification time.
 let stat(path: String): Result<StatResult, Error> =
-  Builtin.syscallStatAt(path)
+  statAt(path)
   |> Result.mapError(__fromErrno)
   |> Result.andThen(__kernelMetadata)
   |> Result.map(fun metadata ->
@@ -350,32 +536,32 @@ let getCwd(): Result<String, Error> =
 
 /// Change the current working directory
 let chdir(path: String): Result<Unit, Error> =
-  Builtin.syscallChdir(path) |> Result.mapError(__fromErrno)
+  kernelChdir(path) |> Result.mapError(__fromErrno)
 
 
 /// Create a directory
 let mkdir(path: String, mode: FileMode): Result<Unit, Error> =
-  Builtin.syscallMkdir(path, mode.__mode) |> Result.mapError(__fromErrno)
+  kernelMkdir(path, mode.__mode) |> Result.mapError(__fromErrno)
 
 
 /// Remove an empty directory
 let rmdir(path: String): Result<Unit, Error> =
-  Builtin.syscallUnlinkAt(path, __abiRemoveDirectory()) |> Result.mapError(__fromErrno)
+  unlinkAt(path, __abiRemoveDirectory()) |> Result.mapError(__fromErrno)
 
 
 /// Remove a file
 let unlink(path: String): Result<Unit, Error> =
-  Builtin.syscallUnlinkAt(path, 0) |> Result.mapError(__fromErrno)
+  unlinkAt(path, 0) |> Result.mapError(__fromErrno)
 
 
 /// Rename/move a file or directory
 let rename(oldpath: String, newpath: String): Result<Unit, Error> =
-  Builtin.syscallRename(oldpath, newpath) |> Result.mapError(__fromErrno)
+  kernelRename(oldpath, newpath) |> Result.mapError(__fromErrno)
 
 
 /// Change file permissions
 let chmod(path: String, mode: FileMode): Result<Unit, Error> =
-  Builtin.syscallChmod(path, mode.__mode) |> Result.mapError(__fromErrno)
+  kernelChmod(path, mode.__mode) |> Result.mapError(__fromErrno)
 
 
 /// Update atime and mtime to now.
@@ -383,16 +569,16 @@ let utimesNow(path: String): Result<Unit, Error> =
   let result =
     if __abiMac() then
       let seconds = DateTime.toSeconds(DateTime.now())
-      Builtin.syscallSetattrlistTimes(path, seconds, 0, seconds, 0)
+      setattrlistTimes(path, seconds, 0, seconds, 0)
     else
-      Builtin.syscallUtimensAt(path, 0, 1073741823, 0, 1073741823)
+      utimensAt(path, 0, 1073741823, 0, 1073741823)
 
   result |> Result.mapError(__fromErrno)
 
 
 /// Create a symbolic link
 let symlink(target: String, linkpath: String): Result<Unit, Error> =
-  Builtin.syscallSymlink(target, linkpath) |> Result.mapError(__fromErrno)
+  kernelSymlink(target, linkpath) |> Result.mapError(__fromErrno)
 
 
 /// Read the target of a symbolic link
@@ -437,12 +623,12 @@ let flock(fd: Fd, lock: Lock): Result<Unit, Error> =
     | Exclusive -> 2
     | Unlock -> 8
 
-  Builtin.syscallFlock(fd.__fd, operation) |> Result.mapError(__fromErrno)
+  kernelFlock(fd.__fd, operation) |> Result.mapError(__fromErrno)
 
 
 /// Get the owner username of a file.
 let fileOwner(path: String): Result<String, Error> =
-  Builtin.syscallStatAt(path)
+  statAt(path)
   |> Result.mapError(__fromErrno)
   |> Result.andThen(__kernelMetadata)
   |> Result.map(fun metadata ->
@@ -505,7 +691,7 @@ impl Display for Signal =
 
 /// Send <param signal> to the process <param pid>
 let kill(pid: Pid, signal: Signal): Result<Unit, Error> =
-  Builtin.syscallKill(Pid.toInt64(pid), Signal.toInt64(signal)) |> Result.mapError(__fromErrno)
+  kernelKill(Pid.toInt64(pid), Signal.toInt64(signal)) |> Result.mapError(__fromErrno)
 
 
 module Errno =
@@ -572,7 +758,7 @@ let isDirectory(path: String): Bool =
 /// Signal 0 checks process existence without sending a signal.
 let isProcessRunning(pid: Pid): Bool =
   // EPERM means the process exists but we lack permission to signal it
-  match Builtin.syscallKill(Pid.toInt64(pid), 0) |> Result.mapError(__fromErrno) with
+  match kernelKill(Pid.toInt64(pid), 0) |> Result.mapError(__fromErrno) with
   | Ok(_) -> true
   | Error(e) -> Error.kind(e) == ErrorKind.PermissionDenied
 
@@ -792,7 +978,7 @@ let __kernelEntries(bytes: Bytes, reversed: List<String>): Result<List<String>, 
 
 /// Directory iteration and record decoding over single-call kernel primitives.
 let __directoryReadAll(fd: Fd, reversed: List<String>): Result<List<String>, Error> =
-  match Builtin.syscallGetdents(fd.__fd, 32768) with
+  match getdents(fd.__fd, 32768) with
   | Error(4) -> __directoryReadAll(fd, reversed)
   | Error(e) -> Error(__fromErrno(e))
   | Ok(bytes) ->
@@ -833,7 +1019,7 @@ let __pathReadlinkWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Resul
 
 
 let __pathReadlink(path: String): Result<String, Error> =
-  __pathReadlinkWith((fun count -> Builtin.syscallReadlinkAt(path, count)), 256)
+  __pathReadlinkWith((fun count -> readlinkAt(path, count)), 256)
   |> Result.map(Utf8.decodeWithReplacement)
 
 
@@ -863,7 +1049,7 @@ let __pathGetCwd(): Result<String, Error> =
       match open(".", __abiOpenDirectory(), 0) with
       | Error(e) -> Result.Error(__fromErrno(e))
       | Ok(fd) ->
-        let result = Builtin.syscallFcntlGetPath(fd)
+        let result = fcntlGetPath(fd)
         let closed = close(fd)
         match result with
         | Error(e) -> Error(__fromErrno(e))
@@ -872,7 +1058,7 @@ let __pathGetCwd(): Result<String, Error> =
           | Error(e) -> Error(__fromErrno(e))
           | Ok(_) -> Ok(bytes)
     else
-      __pathCwdWith(Builtin.syscallGetcwd, 256)
+      __pathCwdWith(getcwd, 256)
 
   bytes |> Result.map(__pathPathText)
 
@@ -917,6 +1103,117 @@ let __os(): Os =
 
 
 /// An error number the host's kernel returned
+/// The current user's id
+let __uid(): Int64 =
+  getuid()
+
+
+/// This process's id
+let __pid(): Int64 =
+  getpid()
+
+
+/// One write of <param bytes> to <param fd>: how many were written
+let __writeOnce(fd: Fd, bytes: Bytes): Result<Int64, Error> =
+  write(fd.__fd, bytes) |> Result.mapError(__fromErrno)
+
+
+/// One poll of <param descriptors> (fd and requested events), waiting up to <param timeoutMs>
+let __poll(descriptors: List<(BigInt * Int64)>, timeoutMs: Int64): Result<Bytes, Error> =
+  let result =
+    if __abiMac() then
+      pollDarwin(descriptors, timeoutMs)
+    else
+      ppoll(descriptors, timeoutMs)
+
+  result |> Result.mapError(__fromErrno)
+
+
+let __pread(fd: BigInt, count: Int64, offset: Int64): Result<Bytes, Error> =
+  pread(fd, count, offset) |> Result.mapError(__fromErrno)
+
+
+let __pwrite(fd: BigInt, bytes: Bytes, offset: Int64): Result<Int64, Error> =
+  pwrite(fd, bytes, offset) |> Result.mapError(__fromErrno)
+
+
+let __copyFileRange(source: BigInt, destination: BigInt, count: Int64): Result<Int64, Error> =
+  copyFileRange(source, destination, count) |> Result.mapError(__fromErrno)
+
+
+let __cloneFile(source: BigInt, destination: BigInt): Result<Unit, Error> =
+  cloneFile(source, destination) |> Result.mapError(__fromErrno)
+
+
+let __fclonefileAt(source: Fd, destination: String, flags: Int64): Result<Unit, Error> =
+  fclonefileAt(source.__fd, destination, flags) |> Result.mapError(__fromErrno)
+
+
+let __ftruncate(fd: Fd, length: Int64): Result<Unit, Error> =
+  ftruncate(fd.__fd, length) |> Result.mapError(__fromErrno)
+
+
+let __fchmod(fd: Fd, mode: Int64): Result<Unit, Error> =
+  fchmod(fd.__fd, mode) |> Result.mapError(__fromErrno)
+
+
+/// What fstat says about the open file <param fd>
+let __fdMetadata(fd: Fd): Result<__KernelMetadata, Error> =
+  fstat(fd.__fd)
+  |> Result.mapError(__fromErrno)
+  |> Result.andThen(__kernelMetadata)
+
+
+let __inotifyInit1(flags: Int64): Result<BigInt, Error> =
+  inotifyInit1(flags) |> Result.mapError(__fromErrno)
+
+
+let __inotifyAddWatch(fd: BigInt, path: String, mask: Int64): Result<Int64, Error> =
+  inotifyAddWatch(fd, path, mask) |> Result.mapError(__fromErrno)
+
+
+let __kqueue(): Result<BigInt, Error> =
+  kqueue() |> Result.mapError(__fromErrno)
+
+
+let __keventVnode(
+  queue: BigInt,
+  changes: List<(BigInt * Int64 * Int64)>,
+  capacity: Int64,
+  timeoutMs: Int64)
+  : Result<Bytes, Error> =
+  keventVnode(queue, changes, capacity, timeoutMs) |> Result.mapError(__fromErrno)
+
+
+let __sysctl(mib: List<Int64>, count: Int64): Result<Bytes, Error> =
+  sysctl(mib, count) |> Result.mapError(__fromErrno)
+
+
+let __schedGetaffinity(pid: Int64, count: Int64): Result<Bytes, Error> =
+  schedGetaffinity(pid, count) |> Result.mapError(__fromErrno)
+
+
+let __clockGettime(clock: Int64): Result<Bytes, Error> =
+  clockGettime(clock) |> Result.mapError(__fromErrno)
+
+
+let __gettimeofday(): Result<Bytes, Error> =
+  gettimeofday() |> Result.mapError(__fromErrno)
+
+
+let __machAbsoluteTime(): Result<Bytes, Error> =
+  machAbsoluteTime() |> Result.mapError(__fromErrno)
+
+
+let __machTimebaseInfo(): Result<Bytes, Error> =
+  machTimebaseInfo() |> Result.mapError(__fromErrno)
+
+
+/// One nanosleep: the raw status and the remaining timespec
+let __nanosleep(seconds: Int64, nanos: Int64): (Int64 * Bytes) =
+  nanosleep(seconds, nanos)
+
+
 let __fromErrno(code: Int64): Error =
   Error.Os(Errno { os = __os(), code = code })
 
@@ -1242,7 +1539,7 @@ let __tempEntropy(remaining: Int64, reversed: List<Bytes>): Result<Bytes, Error>
   if remaining == 0 then
     Ok(Bytes.concatAll(List.reverse(reversed)))
   else
-    match Builtin.syscallGetentropy(remaining) with
+    match getentropy(remaining) with
     | Error(4) -> __tempEntropy(remaining, reversed)
     | Error(e) -> Error(__fromErrno(e))
     | Ok(bytes) ->
@@ -1298,7 +1595,7 @@ let __uname(): Result<(String * String * String), Error> =
         |> Result.andThen(fun host ->
           Sys.__sysctlText([ 6, 1 ]) |> Result.map(fun machine -> (os, host, machine))))
     else
-      Builtin.syscallUname()
+      kernelUname()
       |> Result.mapError(__fromErrno)
       |> Result.andThen(fun bytes ->
         if Bytes.length(bytes) < 390 then

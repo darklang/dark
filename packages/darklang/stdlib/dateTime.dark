@@ -1017,17 +1017,14 @@ let __realtimeNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
     let ticks = Builtin.runtimeRealtimeTicks()
     Ok((ticks / 10000000, ticks % 10000000 * 100))
   else if Cli.Posix.__abiMac() then
-    Builtin.syscallGettimeofday()
-    |> Result.mapError(Cli.Posix.__fromErrno)
+    Cli.Posix.__gettimeofday()
     |> Result.andThen(fun bytes ->
       Cli.Posix.__kernelSignedField(bytes, 0, 8)
       |> Result.andThen(fun seconds ->
         Cli.Posix.__kernelSignedField(bytes, 8, 4)
         |> Result.map(fun micros -> (seconds, micros * 1000))))
   else
-    Builtin.syscallClockGettime(0)
-    |> Result.mapError(Cli.Posix.__fromErrno)
-    |> Result.andThen(__timespec)
+    Cli.Posix.__clockGettime(0) |> Result.andThen(__timespec)
 
 
 let __monotonicNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
@@ -1038,13 +1035,11 @@ let __monotonicNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
     else
       Ok((ticks / frequency, ticks % frequency * 1000000000 / frequency))
   else if Cli.Posix.__abiMac() then
-    Builtin.syscallMachAbsoluteTime()
-    |> Result.mapError(Cli.Posix.__fromErrno)
+    Cli.Posix.__machAbsoluteTime()
     |> Result.andThen(fun bytes ->
       Cli.Posix.__kernelField(bytes, 0, 8)
       |> Result.andThen(fun ticks ->
-        Builtin.syscallMachTimebaseInfo()
-        |> Result.mapError(Cli.Posix.__fromErrno)
+        Cli.Posix.__machTimebaseInfo()
         |> Result.andThen(fun base ->
           Cli.Posix.__kernelField(base, 0, 4)
           |> Result.andThen(fun numerator ->
@@ -1058,9 +1053,7 @@ let __monotonicNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
 
                 Ok((nanos / 1000000000, nanos % 1000000000)))))))
   else
-    Builtin.syscallClockGettime(1)
-    |> Result.mapError(Cli.Posix.__fromErrno)
-    |> Result.andThen(__timespec)
+    Cli.Posix.__clockGettime(1) |> Result.andThen(__timespec)
 
 
 /// When the clock syscall fails, the runtime's own clock answers.
@@ -1104,7 +1097,7 @@ let __sleepWith(
 
 
 let __sleepNanoseconds(seconds: Int64, nanos: Int64): Result<Unit, Cli.Posix.Error> =
-  __sleepWith(Builtin.syscallNanosleep, seconds, nanos)
+  __sleepWith(Cli.Posix.__nanosleep, seconds, nanos)
 
 
 /// Zero, negative and NaN waits return at once; one past what an Int64 of nanoseconds holds waits
