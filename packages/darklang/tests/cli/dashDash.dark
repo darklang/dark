@@ -58,7 +58,7 @@ test runReadsTheScriptFromStdin = Instance.withInstance(fun i ->
   let source =
     "Stdlib.printLine(\"from stdin: \" + Stdlib.String.join(args, \",\"))\n3"
 
-  let (code, out) = Edit.runWithStdin(i, [ "run", "-", "a", "-b" ], source)
+  let (code, out) = Instance.runWithStdin(i, [ "run", "-", "a", "-b" ], source)
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 3, "the script's exit code")
       Instance.says(
