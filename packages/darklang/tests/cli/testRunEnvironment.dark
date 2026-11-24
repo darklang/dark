@@ -15,7 +15,7 @@ test isolatedTestsRunWithAnUnwritableTempDir = Instance.withInstance(fun i ->
     Instance.call(
       i,
       Instance.Call
-        { args = [ "test", "run", "Me.Printer" ]
+        { args = [ "test", "run", "--verbose", "Me.Printer" ]
           stdin = Stdlib.Option.Option.None
           env = [ ("TMPDIR", notADir) ]
           tty = false })
