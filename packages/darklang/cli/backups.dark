@@ -114,7 +114,8 @@ let executePrune(state: AppState, keepArg: String, confirm: Confirm): AppState =
             $"""  PRUNING deletes {Text.plural(Stdlib.List.length(doomed), "backup")}:"""))
 
         doomed
-        |> Stdlib.List.iter(fun name -> Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"    - {name}")))
+        |> Stdlib.List.iter(fun name ->
+          Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"    - {name}")))
 
         let confirmed =
           Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Delete them? [y/N]: "))
