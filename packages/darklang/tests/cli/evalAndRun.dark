@@ -989,12 +989,12 @@ test getAtNoneIsStillNone = Instance.withInstance(fun i ->
 /// command that shows it.
 test failedRunsNameTheirTrace = Cli.Tests.Traces.withTraces(fun i ->
   let (evalCode, evalOut, evalErr) = Instance.streams(i, [ "eval", "1 / 0" ])
-  let evalId = Darklang.Cli.Tests.Traces.startedId(evalErr)
+  let evalId = Cli.Tests.Traces.startedId(evalErr)
   let path =
     script(i, "boom.dark", "let boom(n: Int64): Int64 = n / 0\nboom(1)")
 
   let (runCode, runOut, runErr) = Instance.streams(i, [ "run", path ])
-  let runId = Darklang.Cli.Tests.Traces.startedId(runErr)
+  let runId = Cli.Tests.Traces.startedId(runErr)
   Stdlib.Test.all(
     [ Instance.exitedWith(evalCode, 1, "the eval failed")
       Stdlib.Test.expect(

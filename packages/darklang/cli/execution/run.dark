@@ -446,7 +446,7 @@ let runScriptMeasured(
   let traceId = Stdlib.Uuid.generate()
   // A resume (`Skip`) records under the trace it resumes, and says so itself.
   match approval with
-  | Offer -> Cli.Tracing.printStartedTrace(traceId)
+  | Offer -> Tracing.printStartedTrace(traceId)
   | Skip -> ()
 
   let run = fun () ->
@@ -472,7 +472,7 @@ let runScriptMeasured(
   let newState = handleResult(state, result, entry)
   match result with
   | Error(Cancelled) | Ok(_) -> ()
-  | Error(_) -> Cli.Tracing.printFailedTrace(state.currentBranchId, traceId)
+  | Error(_) -> Tracing.printFailedTrace(state.currentBranchId, traceId)
 
   noteMisplacedAllow(newState, scriptPath, args)
   match measurement with

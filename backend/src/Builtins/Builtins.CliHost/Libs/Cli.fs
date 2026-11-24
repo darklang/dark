@@ -1020,7 +1020,7 @@ let rec private runInOrder
 /// Write a recorded run's log as it goes, once a second, so `dark traces follow` and
 /// `traces show` can read a long run before it ends. A run under a second writes nothing until
 /// it ends. Answers what stops it, which waits for a write in progress.
-let private flushWhileRunning (tracer : Tracing.T) : unit -> unit =
+let private flushWhileRunning (tracer : Tracing.T) : unit -> Task =
   let flushing = new System.Threading.CancellationTokenSource()
   let rec flushEverySecond (from : int) : Task =
     Task
@@ -1037,7 +1037,7 @@ let private flushWhileRunning (tracer : Tracing.T) : unit -> unit =
   let flusher = flushEverySecond 0
   fun () ->
     flushing.Cancel()
-    flusher.Wait()
+    flusher
 
 
 /// `execute`, with the tracer handed in rather than chosen here.
@@ -1175,7 +1175,7 @@ let executeWith
     let stopFlushing =
       match executionId with
       | Some _ -> flushWhileRunning tracer
-      | None -> fun () -> ()
+      | None -> fun () -> Task.CompletedTask
 
     match mod'.exprs with
     | [] ->
@@ -1263,7 +1263,7 @@ let executeWith
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder runEntry exprInstrs
           with ex ->
-            stopFlushing ()
+            do! stopFlushing ()
             executionId
             |> Option.iter (fun id ->
               if LibDB.Traces.Foreground.clear id then
@@ -1277,7 +1277,7 @@ let executeWith
                 LibDB.Traces.setStatus id status)
             return raise ex
         }
-      stopFlushing ()
+      do! stopFlushing ()
       // A run a suspend took out of the foreground stores nothing more: the log and the row are
       // what the suspend left, for `resume`. A resume refused at a step it cannot reproduce is
       // left as it was too, log and status: storing would write the replayed prefix over the

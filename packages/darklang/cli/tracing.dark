@@ -374,8 +374,8 @@ let execute(state: AppState, args: List<String>): AppState =
   // one `--full` should quietly fight.
   let wantsFull = Stdlib.List.contains(args, "--full")
   let wantsFindInspect = Stdlib.List.contains(args, "--inspect")
-  // `--plain`: one trace a line, its whole id first, for a pipe.
-  let wantsPlain = Stdlib.List.contains(args, "--plain")
+  // plain (`--plain`, or a pipe): one trace a line, its whole id first.
+  let wantsPlain = state.output == Output.Mode.Plain
   // `--iteration map:2` picks which iteration of a loop the page shows, for `show`. Taken out
   // of `args` here with its value, the same way the boolean flags are, so the positional
   // patterns below do not have to know it can appear.
@@ -387,12 +387,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let args =
     args
     |> Stdlib.List.filter(fun a ->
-      a != "--yes"
-      && a != "-y"
-      && a != "--json"
-      && a != "--inspect"
-      && a != "--full"
-      && a != "--plain")
+      a != "--yes" && a != "-y" && a != "--json" && a != "--inspect" && a != "--full")
 
   // `--full` without `--json` is refused rather than ignored. The page caps a value at sixty
   // characters so it fits beside the code, which is a layout limit; lifting it there would wrap
