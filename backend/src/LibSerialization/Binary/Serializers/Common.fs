@@ -172,21 +172,9 @@ module Int16 =
   let write (w : BinaryWriter) (value : int16) = w.Write(value)
   let read (r : BinaryReader) : int16 = r.ReadInt16()
 
-module UInt16 =
-  let writeUInt16 (w : BinaryWriter) (value : uint16) = w.Write(value)
-  let readUInt16 (r : BinaryReader) : uint16 = r.ReadUInt16()
-
 module Int32 =
   let writeInt32 (w : BinaryWriter) (value : int32) = w.Write(value)
   let readInt32 (r : BinaryReader) : int32 = r.ReadInt32()
-
-module UInt32 =
-  let writeUInt32 (w : BinaryWriter) (value : uint32) = w.Write(value)
-  let readUInt32 (r : BinaryReader) : uint32 = r.ReadUInt32()
-
-module Int64 =
-  let writeInt64 (w : BinaryWriter) (value : int64) = w.Write(value)
-  let readInt64 (r : BinaryReader) : int64 = r.ReadInt64()
 
 module UInt64 =
   let writeUInt64 (w : BinaryWriter) (value : uint64) = w.Write(value)

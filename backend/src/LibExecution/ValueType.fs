@@ -8,8 +8,6 @@ open RuntimeTypes
 // some helpers to reduce typing elsewhere
 let unknown = ValueType.Unknown
 let unknownTODO = ValueType.Unknown
-let unknownDbTODO = ValueType.Unknown
-let typeArgsTODO = []
 
 let known inner = ValueType.Known inner
 

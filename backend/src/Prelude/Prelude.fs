@@ -247,19 +247,6 @@ let assertFn2 (msg : string) (fn : 'a -> 'b -> bool) (arg1 : 'a) (arg2 : 'b) : u
       $"Function failure: {msg}"
       [ "arg1", arg1 :> obj; "arg2", arg2 :> obj ]
 
-let assertFn3
-  (msg : string)
-  (fn : 'a -> 'b -> 'c -> bool)
-  (arg1 : 'a)
-  (arg2 : 'b)
-  (arg3 : 'c)
-  : unit =
-  if not (fn arg1 arg2 arg3) then
-    Exception.raiseInternal
-      $"Function failure: {msg}"
-      [ "arg1", arg1 :> obj; "arg2", arg2 :> obj; "arg3", arg3 :> obj ]
-
-
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = System.Text.RegularExpressions.Regex.Match(input, pattern)
   if m.Success then
@@ -459,13 +446,6 @@ type NodaTime.Instant with
 // seed. Better to use a True random number generator.
 type RNG = System.Security.Cryptography.RandomNumberGenerator
 
-// return a System.Random PRNG with a truly random seed. This allows using the
-// System.Random methods which have many more options.
-let randomSeeded () : System.Random =
-  let seed = RNG.GetInt32(System.Int32.MaxValue)
-  System.Random(seed)
-
-
 let gid () : uint64 =
   try
     // From the OS generator behind `Guid.NewGuid`, not `RNG`: on Linux `RNG` is OpenSSL, and
@@ -483,8 +463,6 @@ let gid () : uint64 =
     rand64 &&& mask
   with e ->
     Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
-
-let guuid () : uuid = System.Guid.NewGuid()
 
 let randomString (length : int) : string =
   let result =

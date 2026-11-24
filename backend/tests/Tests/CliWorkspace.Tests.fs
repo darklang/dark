@@ -1908,25 +1908,6 @@ let private devErrorPageCarriesTheListener =
               })
       })
 
-/// The Dark source for an annotated print of a function: its live values, one per call at a
-/// line position, as `// = value` after the code.
-let private annotatedPrint (owner : string) (modul : string) (name : string) =
-  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}", modules = ["{modul}"], name = "{name}" }}
-let bid = Darklang.SCM.Branch.mainBranchId
-let values =
-  match Darklang.LanguageTools.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
-  | Some(v) -> v.byExpr |> Darklang.Stdlib.Dict.map(fun(_, d) -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
-  | None -> Darklang.Stdlib.Dict.empty
-let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule(bid, ["{owner}", "{modul}"])
-let ctx = {{ base with liveValues = values }}
-match Darklang.LanguageTools.PackageManager.Function.find(bid, loc) with
-| Some(hash) ->
-  match Darklang.LanguageTools.PackageManager.Function.get(hash) with
-  | Some(fn) -> Darklang.PrettyPrinter.ProgramTypes.packageFn(ctx, fn)
-  | None -> "no fn"
-| None -> "no hash"
-"""
-
 /// The Dark source for two prints of one function under the EDITOR's context: the plain one and
 /// the annotated one, joined by a marker. The LSP finds its hints by zipping these line for line,
 /// so they must have the same number of lines whatever the code is.

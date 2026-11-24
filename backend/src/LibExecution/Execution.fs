@@ -259,13 +259,6 @@ let executeExpr
   : Task<RT.ExecutionResult> =
   execute exeState (None, instrs)
 
-let executeToplevel
-  (exeState : RT.ExecutionState)
-  (tlid : tlid)
-  (instrs : RT.Instructions)
-  : Task<RT.ExecutionResult> =
-  execute exeState (Some tlid, instrs)
-
 /// What a run with no reason to wait answered: a value, a printer over values with no read in
 /// flight, a scheduler's policy. One that has to wait anyway is a bug, raised here rather than
 /// waited for: the thread that would wait may be the one that has to finish it.

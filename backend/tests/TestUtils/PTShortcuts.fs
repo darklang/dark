@@ -26,8 +26,6 @@ let euInt128 (i : System.UInt128) : Expr = EUInt128(gid (), i)
 let eFloat64 (sign : Sign) (whole : string) (fraction : string) : Expr =
   EFloat64(gid (), sign, whole, fraction)
 
-let eChar (c : string) : Expr = EChar(gid (), c)
-
 let strText (str : string) : StringSegment = StringText str
 let strInterp (expr : Expr) : StringSegment = StringInterpolation expr
 let eStr (segments : List<StringSegment>) : Expr = EString(gid (), segments)

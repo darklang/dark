@@ -90,11 +90,6 @@ let push (head : 'a) (l : NEList<'a>) : NEList<'a> =
 let pushBack (tail : 'a) (l : NEList<'a>) : NEList<'a> =
   { head = l.head; tail = l.tail @ [ tail ] }
 
-let prependList (list : List<'a>) (l : NEList<'a>) : NEList<'a> =
-  match list with
-  | [] -> l
-  | head :: tail -> { head = head; tail = tail @ toList l }
-
 let reverse (l : NEList<'a>) : NEList<'a> =
   match l |> toList |> List.rev with
   | [] -> Exception.raiseInternal "Unexpected empty NEList" []

@@ -326,10 +326,6 @@ let private extract (roots : List<Work>) : List<Dependency> =
   List.rev dependencies
 
 
-/// Extract all references from an expression without recursive stack use.
-let extractFromExpr (expr : PT.Expr) : List<Dependency> = extract [ Expr expr ]
-
-
 /// A bound `'a: Show<X>` references the trait and its type args.
 let private traitRefDeps (t : PT.TraitRef) : List<Dependency> =
   (extractFromNameResolution

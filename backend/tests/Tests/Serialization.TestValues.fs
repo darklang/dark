@@ -28,7 +28,6 @@ let uuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
 
 let id : id = 123UL
 let tlid : tlid = 777777928475UL
-let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
   let fqTypeNames : List<RT.FQTypeName.FQTypeName> = [ RT.FQTypeName.Package hashRT ]
@@ -379,49 +378,6 @@ module ProgramTypes =
   let fqFnNames : List<FQFnName.FQFnName> =
     [ FQFnName.Builtin { name = "int64Increment"; version = 1 }
       FQFnName.Package hashPT ]
-
-
-  let letPatterns : List<LetPattern> =
-    [ LPVariable(id, "test")
-      LPTuple(
-        id,
-        LPVariable(id, "x0"),
-        LPTuple(id, LPVariable(id, "x1"), LPVariable(id, "x2"), []),
-        [ LPTuple(id, LPVariable(id, "x3"), LPVariable(id, "x4"), []) ]
-      ) ]
-
-
-  let matchPatterns : List<MatchPattern> =
-    [ MPVariable(id, "var8481")
-      MPEnum(id, "None", [])
-      MPInt64(id, 84871728L)
-      MPUInt64(id, 84871728UL)
-      MPInt8(id, 127y)
-      MPUInt8(id, 255uy)
-      MPInt16(id, 32767s)
-      MPUInt16(id, 65535us)
-      MPInt32(id, 2147483647l)
-      MPUInt32(id, 4294967295ul)
-      MPInt128(id, 170141183460469231731687303715884105727Q)
-      MPUInt128(id, 340282366920938463463374607431768211455Z)
-      MPBigInt(id, System.Numerics.BigInteger.Parse "123456789012345678901234567890")
-      MPBool(id, false)
-      MPChar(id, "w")
-      MPString(id, "testing testing 123")
-      MPFloat64(id, Positive, "123", "456")
-      MPFloat32(id, Negative, "1", "5")
-      MPDecimal(id, 1.10m)
-      MPUnit(id)
-      MPTuple(id, MPInt64(id, 123), MPBool(id, true), [ MPUnit(id) ])
-      MPList(id, [ MPInt64(id, 123) ])
-      MPListCons(
-        id,
-        MPString(id, "val1"),
-        MPListCons(id, MPString(id, "val2"), MPList(id, [ MPString(id, "val3") ]))
-      )
-      MPOr(id, NEList.ofList (MPBool(id, true)) [ MPBool(id, false) ])
-      MPAs(id, MPEnum(id, "None", []), "whole")
-      MPRecord(id, [ ("name", MPVariable(id, "name")); ("age", MPInt64(id, 30L)) ]) ]
 
 
   // Note: This is aimed to contain all cases of `TypeReference`

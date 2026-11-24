@@ -577,10 +577,6 @@ let createInMemoryOver
           tests = wanted PT.Search.EntityType.Test testsWithLocs } }
 
 
-let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
-  createInMemoryOver None ops
-
-
 /// Combine two PackageManagers: check `overlay` first, then fall back to `fallback`.
 /// This is used to layer transient/uncommitted definitions on top of persistent ones.
 let combine

@@ -295,66 +295,6 @@ let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>
         })
       values)
 
-let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) =
-  testList
-    name
-    (List.mapi
-      (fun i (input, expected) ->
-        testTask $"{name} - {i}" {
-          let! result = fn input
-          Expect.equal result expected ""
-        })
-      values)
-
-let testMany2Task
-  (name : string)
-  (fn : 'a -> 'b -> Task<'c>)
-  (values : List<'a * 'b * 'c>)
-  =
-  testList
-    name
-    (List.mapi
-      (fun i (input1, input2, expected) ->
-        testTask (caseName $"{name}[{i}]: ({input1}, {input2}) -> {expected}") {
-          let! result = fn input1 input2
-          Expect.equal result expected ""
-        })
-      values)
-
-
-
-// Allow reusing property-test definitions with test cases found by fuzzing
-let testListUsingProperty
-  (name : string)
-  (prop : 'a -> bool)
-  (list : (string * 'a) list)
-  =
-  testList
-    name
-    (List.map
-      (fun (doc, testCase) ->
-        let doc = if doc = "" then testCase.ToString() else doc
-        testTask $"{name} {doc}" { return (Expect.isTrue (prop testCase) "") })
-      list)
-
-let testListUsingPropertyAsync
-  (name : string)
-  (prop : 'a -> Task<bool>)
-  (list : (string * 'a) list)
-  =
-  testList
-    name
-    (List.map
-      (fun (doc, testCase) ->
-        let doc = if doc = "" then testCase.ToString() else doc
-        testTask $"{name} {doc}" {
-          let! result = prop testCase
-          return (Expect.isTrue result "")
-        })
-      list)
-
-
-
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   // Nothing interesting right now
@@ -623,11 +563,6 @@ module Expect =
       | DStream _, _
       | DPromise _, _ -> check path actual expected
 
-
-    let dvalEquality (left : Dval) (right : Dval) : bool =
-      let mutable success = true
-      dvalEqualityBaseFn [] left right (fun _ _ _ -> success <- false)
-      success
 
     let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
       dvalEqualityBaseFn [] actual expected (fun path a e ->
@@ -940,58 +875,6 @@ module Expect =
       | EUnwrap _, _
       | EStatement _, _
       | ESelf _, _ -> check path actual expected
-
-
-    let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
-      exprEqualityBaseFn false [] actual expected (fun path a e ->
-        Expect.equal a e (formatMsg "" path actual))
-
-let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
-  let mutable state = []
-  let f dv = state <- f dv :: state
-  let rec visit dv : unit =
-    match dv with
-    | DList(_, Items(items)) -> List.map visit items |> ignore<List<unit>>
-    | DDict(_, _, entries) ->
-      entries
-      |> DictMap.iter (fun k v ->
-        visit k
-        visit v)
-    | DTuple(first, second, theRest) ->
-      List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-
-    | DRecord(_, _, _, fields) -> RecordFields.iter (fun _ v -> visit v) fields
-
-    | DEnum(_, _, _, _, fields) -> fields |> List.map visit |> ignore<List<unit>>
-
-    // Keep for exhaustiveness checking
-    | DUnit
-    | DBool _
-    | DInt8 _
-    | DUInt8 _
-    | DInt16 _
-    | DUInt16 _
-    | DInt32 _
-    | DUInt32 _
-    | DInt64 _
-    | DUInt64 _
-    | DInt128 _
-    | DUInt128 _
-    | DBigInt _
-    | DFloat64 _
-    | DFloat32 _
-    | DDecimal _
-    | DChar _
-    | DStr _
-    | DUuid _
-    | DDateTime _
-    | DApplicable _
-    | DBytes _
-    | DStream _
-    | DPromise _ -> f dv
-    f dv
-  visit dv
-  state
 
 
 let interestingStrings : List<string * string> =

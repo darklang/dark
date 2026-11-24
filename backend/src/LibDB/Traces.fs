@@ -647,10 +647,6 @@ module Foreground =
 
   let set (t : T) : unit = lock sync (fun () -> current <- Some t)
 
-  /// The foreground run's id, if one is registered.
-  let currentId () : Option<System.Guid> =
-    lock sync (fun () -> current |> Option.map (fun t -> t.id))
-
   /// Unregister `id` at the end of its run. False when it was not registered any more: a
   /// suspend took it, and the run's own ending must then leave the row and the stored log as
   /// the suspend left them (the CLI has exited by then; a test's run goes on).
