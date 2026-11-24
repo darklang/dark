@@ -273,14 +273,15 @@ let printStartedTrace(traceId: Uuid): Unit =
 
 
 /// Under a failed `eval` or `run`: the trace it left and how to look at it. With recording
-/// off there is no trace, so it says how to get one, at most once a day.
+/// off there is no trace, so it tells a person at a terminal how to get one, at most once a day.
 let printFailedTrace(branchId: Uuid, traceId: Uuid): Unit =
   let id = Stdlib.display(traceId)
   match Tracing.Store.get(id) with
   | None ->
-    let today = Stdlib.DateTime.toStringISO8601BasicDate(Stdlib.DateTime.today())
+    let today = Stdlib.DateTime.toStringISO8601BasicDate(Stdlib.DateTime.now())
     if
       Stdlib.Bool.not(Tracing.Store.enabled())
+      && Stdlib.Cli.Sys.isTerminal(2)
       && LanguageTools.LocalStore.configGet("trace.offHintShown") != Option.Some(today)
     then
       let _ = LanguageTools.LocalStore.configSet("trace.offHintShown", today)

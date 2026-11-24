@@ -29,7 +29,7 @@ let count(out: String, needle: String): Int64 =
 
 test noColorLeavesNoStrayReset = Instance.withInstance(fun i ->
   let env = [ ("NO_COLOR", "1"), ("CLICOLOR_FORCE", "") ]
-  let value = onTerminal(i, env, [ "eval", "1" ])
+  let value = onTerminal(i, env, [ "--no-trace", "eval", "1" ])
   let status = onTerminal(i, env, [ "status" ])
   let resets = count(status, "\u001b[0m")
   let styles = count(status, "\u001b[") - resets

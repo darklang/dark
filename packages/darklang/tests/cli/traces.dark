@@ -77,16 +77,17 @@ let ranTrace(i: Instance.T, args: List<String>): (Stdlib.Test.Result * String) =
   (Instance.exitedWith(code, 0, $"`dark {cmd}` ({out} {err})"), startedId(err))
 
 
-/// Run <param script> in a shell, with this instance's environment: `dark` is the CLI, `$db`
-/// its store and `$err` a file for a run's stderr, so a test can drive a run in the background
-/// while it looks at it.
+/// Run <param script> in a shell, with this instance's environment: `dark` is the CLI (and
+/// `$darkcmd` the same as text, for `script`), `$db` its store and `$err` a file for a run's
+/// stderr, so a test can drive a run in the background while it looks at it.
 let inShell(i: Instance.T, script: String): String =
   let env =
     Instance.env(i)
     |> Stdlib.List.map(fun((k, v)) -> $"{k}={v}")
     |> Stdlib.String.join(" ")
 
-  let prelude = $"dark() {{ env {env} {i.cli} \"$@\"; }}; db={i.dir}/data.db; err={i.dir}/run.err; "
+  let prelude =
+    $"darkcmd='env {env} {i.cli}'; dark() {{ $darkcmd \"$@\"; }}; db={i.dir}/data.db; err={i.dir}/run.err; "
   (Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", prelude + script)).stdout
 
 
@@ -1055,12 +1056,20 @@ test anUnrecordedRunNamesNoTrace = Instance.withInstance(fun i ->
   Stdlib.Test.equal(startedId(err), ""))
 
 
-// With recording off, a failed run says how to record, once a day.
+// With recording off, a failed run at a terminal says how to record, once a day. Redirected, it
+// says nothing.
 test aFailedRunSaysHowToRecordOnce = Instance.withInstance(fun i ->
-  let (_, _, first) = Instance.streams(i, [ "--no-trace", "eval", "1 / 0" ])
-  let (_, _, second) = Instance.streams(i, [ "--no-trace", "eval", "1 / 0" ])
+  let (_, _, redirected) = Instance.streams(i, [ "--no-trace", "eval", "1 / 0" ])
+  let atATerminal = "script -qec \"$darkcmd --no-trace eval '1 / 0'\" /dev/null"
+  let out = inShell(i, $"{atATerminal}; echo '== second'; {atATerminal}")
+  let (first, second) =
+    match Stdlib.String.split(out, "== second") with
+    | [a, b] -> (a, b)
+    | _ -> (out, "")
+
   Stdlib.Test.all(
-    [ Instance.says(first, "dark traces record on", "the first failure says how")
+    [ Instance.doesNotSay(redirected, "dark traces record on", "redirected, nothing")
+      Instance.says(first, "dark traces record on", $"the first failure says how: {out}")
       Instance.doesNotSay(second, "dark traces record on", "the second does not") ]))
 
 

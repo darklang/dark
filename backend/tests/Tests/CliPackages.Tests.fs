@@ -583,13 +583,17 @@ let cachedPassesRequireTheSameBuildAndJudge =
           "0 ran, 1 cached"
           "same build and judge"
       let! key =
-        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime()" ]
+        runCliPlain
+          state
+          [ "--no-trace"; "eval"; "Darklang.Cli.Packages.Test.cacheRuntime()" ]
       let parts = key.Trim().Split(':')
       Expect.equal parts.Length 2 $"build and judge identities: {key}"
       Expect.equal parts[0].Length 64 "the runtime identity is a SHA-256 hash"
       Expect.isTrue (parts[0] |> Seq.forall System.Uri.IsHexDigit) "hex hash"
       let! again =
-        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime()" ]
+        runCliPlain
+          state
+          [ "--no-trace"; "eval"; "Darklang.Cli.Packages.Test.cacheRuntime()" ]
       Expect.equal again key "the build identity survives a new CLI process"
       // Keep a real stored pass, but associate it with another runtime or judge.
       for oldKey in [ "old-build:" + parts[1]; parts[0] + ":old-judge" ] do

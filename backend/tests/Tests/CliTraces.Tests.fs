@@ -226,6 +226,8 @@ let private testReplayGivesBackTheRecordedAnswer =
             with _ ->
               ()
           }
+        // The guest HTTP guard refuses loopback; opened for the runs, as `http.loopback` does.
+        LibExecution.HostHttp.setGuestConfig LibExecution.HostHttp.devLoopbackConfig
         let url = $"http://127.0.0.1:{port}/fresh"
         let runs =
           [ "Stdlib.printLine(\"x\")"
@@ -243,15 +245,16 @@ let private testReplayGivesBackTheRecordedAnswer =
             [ "permissions"
               "allow"
               $"file read+write {file}; process /usr/bin/date; http GET {url}" ]
-        let! _ = runCli state [ "config"; "set"; "http.loopback"; "on" ]
+        let printed = System.Collections.Generic.List<string>()
         try
           for code in runs do
-            let! _ = runCli state [ "eval"; code ]
-            ()
+            let! out = runCli state [ "eval"; code ]
+            printed.Add out
         finally
           System.IO.File.Delete file
           origin.Stop()
           answering.Wait()
+          installTestHttpConfig ()
         let recorded = Traces.list 50
         Expect.equal
           (List.length recorded)
@@ -300,7 +303,10 @@ let private testReplayGivesBackTheRecordedAnswer =
             $"{run.entry}: every uuid it made is its own"
           match run.result, replayed with
           | Some(RT.DEnum(_, _, _, "Error", _) as answer), _ ->
-            failtestf "%s: the request itself failed: %A" run.entry answer
+            failtestf
+              "the request itself failed: %A\n%s"
+              answer
+              (String.concat "\n" printed)
           | Some answer, Ok again -> Expect.equal again answer run.entry
           | None, Error(Builtins.CliHost.Libs.Cli.ReplayStop.Raised _) -> ()
           | answer, again ->
