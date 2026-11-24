@@ -14,12 +14,6 @@ let ofBytesUnsafe (input : byte array) : string =
 // an incorrect assumption.
 let toBytes (input : string) : byte array = utf8EncodingWithExceptions.GetBytes input
 
-let toBytesOpt (input : string) : byte array option =
-  try
-    Some(toBytes input)
-  with e ->
-    None
-
 let ofBytesOpt (input : byte array) : string option =
   try
     Some(ofBytesUnsafe input)

@@ -24,12 +24,6 @@ let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
 let mergeFavoringLeft (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
   Map.fold (fun acc k v -> Map.add k v acc) m2 m1
 
-let ofNEList (l : NEList.NEList<'k * 'v>) : Map<'k, 'v> =
-  NEList.fold (fun m (k, v) -> Map.add k v m) Map.empty l
-
-let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
-  List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
-
 let fromList (l : List<'k * 'v>) : Map<'k, 'v> = Map.ofList l
 
 let filterWithIndex (f : 'a -> 'b -> bool) (m : Map<'a, 'b>) : Map<'a, 'b> =
@@ -70,5 +64,3 @@ let update
   (m : Map<'a, 'b>)
   : Map<'a, 'b> =
   Map.change key f m
-
-let iterWithIndex (f : 'k -> 'v -> unit) (m : Map<'k, 'v>) : unit = Map.iter f m

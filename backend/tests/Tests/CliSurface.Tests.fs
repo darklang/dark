@@ -289,10 +289,6 @@ let private showingACommitDoesNotFetchEveryOp =
 // that, by name. Where a command departs from it, the departure is written down beside the test
 // with what the command does instead, and that is asserted too, or said plainly not to run.
 
-/// A Dark string literal holding <param s>.
-let private darkString (s : string) : string =
-  "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n") + "\""
-
 /// An empty grant is not a grant, and must not report that it is.
 let private permissionsRefusesAnEmptyRule =
   instanceTest

@@ -43,10 +43,6 @@ let checkFilename (root : Dirs.Root) (mode : Mode) (f : string) =
     f
 
 
-let fileExists root f : bool =
-  let f = checkFilename root Check f
-  System.IO.File.Exists f
-
 let lsdir (root : Dirs.Root) (dir : string) : string list =
   let absoluteDir = checkFilename root Dir dir
 

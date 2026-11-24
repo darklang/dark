@@ -115,12 +115,6 @@ let tuple2 (dFirst : Dval -> 'a) (dSecond : Dval -> 'b) (dv : Dval) : 'a * 'b =
   | DTuple(first, second, _) -> (dFirst first, dSecond second)
   | _ -> f "('a * 'b)" dv
 
-let tuple3 (dv : Dval) : Dval * Dval * Dval =
-  match dv with
-  | DTuple(first, second, [ third ]) -> (first, second, third)
-  | _ -> f "('a * 'b * 'c)" dv
-
-
 let list (m : Dval -> 'a) (dv : Dval) : List<'a> =
   match dv with
   | DList(_, Items(l)) -> List.map m l

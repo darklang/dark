@@ -76,17 +76,6 @@ let private darkStringList (code : string) : Task<List<string>> =
 let private darkBranch (branchId : PT.BranchId) : string =
   $"(Stdlib.Uuid.parse(\"{branchId}\") |> Builtin.unwrap)"
 
-/// Run a Dark call answering `Result<Int64, String>`, as the count these assertions expect.
-let private darkIntResult (code : string) : Task<int64> =
-  task {
-    match! evalDarkExpr code with
-    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DInt64 n ])) -> return n
-    | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString e ])) ->
-      return failtest $"the Dark call failed: {e}"
-    | Ok other -> return failtest $"unexpected result shape: {other}"
-    | Error(rte, _) -> return failtest $"the Dark call raised: {rte}"
-  }
-
 /// MERGE a branch into its parent through the action every caller uses, and answer how many ops it
 /// moved. Into main that flips and folds; into a branch it retags.
 let private mergeIntoParent (branchId : PT.BranchId) : Task<int64> =
@@ -317,19 +306,6 @@ let private freshBranch (label : string) (name : string) : Task<PT.BranchId> =
     let b = testBranch label
     do! cleanupBranch b
     Branches.createBranch b name PT.BranchId.Main
-    return b
-  }
-
-/// `freshBranch`, but forked off <param parent> rather than main.
-let private freshBranchOff
-  (parent : PT.BranchId)
-  (label : string)
-  (name : string)
-  : Task<PT.BranchId> =
-  task {
-    let b = testBranch label
-    do! cleanupBranch b
-    Branches.createBranch b name parent
     return b
   }
 

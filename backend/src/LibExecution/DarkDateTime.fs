@@ -12,8 +12,6 @@ let toZonedDateTime (dt : T) = ZonedDateTime(dt, utc, Offset.Zero)
 
 let toInstant (dt : T) = (toZonedDateTime dt).ToInstant()
 
-let toDateTimeUtc (dt : T) = (toInstant dt).ToDateTimeUtc()
-
 let fromInstant (i : Instant) : T = i.toUtcLocalTimeZone ()
 
 let fromDateTime (dt : System.DateTime) : T =

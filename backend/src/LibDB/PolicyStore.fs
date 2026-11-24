@@ -342,9 +342,6 @@ let namedApprovals accountID : Map<string, Approval> =
 let packagePolicies accountID : Map<string, P.Policy> =
   namedApprovals accountID |> Map.map (fun approval -> approval.policy)
 
-let approvedVersions accountID : Map<string, string> =
-  namedApprovals accountID |> Map.map (fun approval -> approval.hash)
-
 let approvedVersion accountID location : Option<string> =
   namedApprovals accountID |> Map.tryFind location |> Option.map _.hash
 
@@ -466,12 +463,6 @@ let rememberReviewed
         fingerprint = fingerprint
         explicitRules = true }
     { store with approvals = Map.add key approval store.approvals })
-
-let explicitApproval accountID name : Option<P.Policy> =
-  namedApprovals accountID
-  |> Map.tryFind name
-  |> Option.bind (fun approval ->
-    if approval.explicitRules then Some approval.policy else None)
 
 // ── guest execution ───────────────────────────────────────────────────────────
 

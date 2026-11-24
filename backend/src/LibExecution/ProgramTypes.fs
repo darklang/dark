@@ -7,9 +7,6 @@ open Prelude
 type NameValidator<'name> = 'name -> unit
 type NamePrinter<'name> = 'name -> string
 
-// Lowercase starting letter for modules and users
-let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
-//let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
@@ -642,10 +639,6 @@ module InfixFnName =
       StringConcat
       ComparisonEquals
       ComparisonNotEquals ]
-
-  /// Recognize the infix operator implemented by a builtin.
-  let tryFromBuiltinName (builtinName : string) : Option<InfixFnName> =
-    all |> List.tryFind (fun name -> toBuiltinName name = builtinName)
 
   /// The unary `!` builtin the parser lowers boolean NOT to.
   let boolNotBuiltinName = "boolNot"

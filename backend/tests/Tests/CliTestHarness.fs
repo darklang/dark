@@ -301,24 +301,6 @@ let runCliCatching
       return Error(e.Message.Split('\n')[0])
   }
 
-/// `runCliCatching`, keeping the exit code.
-///
-/// The sweeps judge a command by what it printed AND by what it told the shell, and those are two
-/// different findings: a command that prints an answer and exits 1 is as wrong as one that
-/// refuses and exits 0. `runCliCatching` threw the status away, so every sweep built on it could
-/// only see half of what it was looking at.
-let runCliCatchingWithStatus
-  (target : Target)
-  (args : string list)
-  : Task<Result<string * int, string>> =
-  task {
-    try
-      let! outcome = runCliWithStatus target args
-      return Ok outcome
-    with e ->
-      return Error(e.Message.Split('\n')[0])
-  }
-
 /// Author a fn through the CLI (`fn <name> <decl>`), discarding the output.
 /// For sites that assert on the authoring output itself, use `runCli` directly.
 let author (target : Target) (name : string) (decl : string) : Task<unit> =
@@ -548,27 +530,6 @@ let damagedTest (name : string) (body : Target -> Task<unit>) : Test =
     finally
       Tests.CliInstance.dispose i
   }
-
-/// `countSql`, against the store the target drives: an instance's own file, opened read-only
-/// through SQLite so whatever is still in its WAL counts, or this process's store.
-///
-/// What lets a test that checks a row or two run on an instance rather than in-process.
-let countSqlIn (target : Target) (sql : string) : Task<int64> =
-  match target with
-  | InProcess _ -> Task.FromResult(countSql sql [])
-  | Instance i ->
-    task {
-      let path = System.IO.Path.Combine(i.dir, "data.db")
-      use conn =
-        new Microsoft.Data.Sqlite.SqliteConnection(
-          $"Data Source={path};Mode=ReadOnly"
-        )
-      conn.Open()
-      use cmd = conn.CreateCommand()
-      cmd.CommandText <- sql
-      let! n = cmd.ExecuteScalarAsync()
-      return System.Convert.ToInt64 n
-    }
 
 /// For a test that must start on main and might not end there. The precondition is ASSERTED, not
 /// arranged: a test that silently switched itself back to main would hide whichever earlier test left

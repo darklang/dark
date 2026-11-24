@@ -104,18 +104,6 @@ module Expressions =
         (eTuple (eInt64 1) (eInt64 2) [])
         (eVar "x")
 
-    /// `let (a, b) = 1 in a`
-    let tupleNotTuple =
-      eLet (lpTuple (lpVar "a") (lpVar "b") []) (eInt64 1) (eVar "a")
-
-    /// `let (a, b) = (1, 2, 3) in a`
-    let tupleIncorrectLen =
-      eLet
-        (lpTuple (lpVar "a") (lpVar "b") [])
-        (eTuple (eInt64 1) (eInt64 2) [ eInt64 3 ])
-        (eVar "a")
-
-
     /// `let (a, (b, c)) = (1, (2, 3)) in b`
     let tupleNested =
       eLet
@@ -297,60 +285,6 @@ module Expressions =
                     ) ]
               )
             whenCondition = None
-            rhs = eStr [ strText "first branch" ] }
-          { pat = PT.MPVariable(gid (), "_")
-            whenCondition = None
-            rhs = eStr [ strText "second branch" ] } ]
-
-    //match (2, 1) with\n| (1, 2) | (2, 1) -> \"first branch\"\n| _ -> \"second branch\"
-    let combinedPatternsSecondPatMatches =
-      eMatch
-        (eTuple (eInt64 2) (eInt64 1) [])
-        [ { pat =
-              PT.MPOr(
-                gid (),
-                NEList.ofList
-                  (PT.MPTuple(
-                    gid (),
-                    PT.MPInt64(gid (), 1),
-                    PT.MPInt64(gid (), 2),
-                    []
-                  ))
-                  [ PT.MPTuple(
-                      gid (),
-                      PT.MPInt64(gid (), 2),
-                      PT.MPInt64(gid (), 1),
-                      []
-                    ) ]
-              )
-            whenCondition = None
-            rhs = eStr [ strText "first branch" ] }
-          { pat = PT.MPVariable(gid (), "_")
-            whenCondition = None
-            rhs = eStr [ strText "second branch" ] } ]
-
-    // match (1, 2) with\n| (1, 2) | (2, 1) when false -> \"first branch\"\n| _ -> \"second branch\"
-    let combinedPatternsWithWhenCond =
-      eMatch
-        (eTuple (eInt64 1) (eInt64 2) [])
-        [ { pat =
-              PT.MPOr(
-                gid (),
-                NEList.ofList
-                  (PT.MPTuple(
-                    gid (),
-                    PT.MPInt64(gid (), 1),
-                    PT.MPInt64(gid (), 2),
-                    []
-                  ))
-                  [ PT.MPTuple(
-                      gid (),
-                      PT.MPInt64(gid (), 2),
-                      PT.MPInt64(gid (), 1),
-                      []
-                    ) ]
-              )
-            whenCondition = Some(eBool false)
             rhs = eStr [ strText "first branch" ] }
           { pat = PT.MPVariable(gid (), "_")
             whenCondition = None
@@ -705,9 +639,6 @@ module Expressions =
           Fns.Package.MyFnThatReturnsUnit.applied
           Fns.Package.MyFnThatReturnsUnit.applied)
         (eStatement Fns.Package.MyFnThatReturnsUnit.applied (eInt64 0))
-
-    let shouldError = eStatement (eInt64 1) (eBool true)
-
 
 // Build a PM with test packages
 let pm : PT.PackageManager =
