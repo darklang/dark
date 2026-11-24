@@ -413,7 +413,7 @@ test docOnlyMatchesAreFlagged =
       |> Stdlib.Test.equal(false) ])
 
 
-test searchSuggestsMatchesAfterDroppingAWord = Instance.withInstance(fun i ->
+test searchSuggestsClosestMatchesForAMiss = Instance.withInstance(fun i ->
   let query = "read environment variable"
   let (code, out) = Instance.ran(i, [ "search", "--fn", "--brief", query ])
 
@@ -424,16 +424,61 @@ test searchSuggestsMatchesAfterDroppingAWord = Instance.withInstance(fun i ->
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "a miss can suggest alternatives")
-      Instance.says(out, "Without `read`", "names the word dropped")
+      Instance.says(
+        out,
+        "Closest, matching some of the words",
+        "says what it shows")
 
       Instance.says(
         out,
         "Stdlib.Cli.Posix.getenv",
         "suggests the environment reader")
 
-      Instance.doesNotSay(exact, "Without", "exact search stays exact")
+      Instance.doesNotSay(exact, "Closest", "exact search stays exact")
 
       Instance.doesNotSay(
         nonsense,
-        "Without",
+        "Closest",
         "a nonsense query has no alternatives") ]))
+
+
+/// Questions asked while building small tools, and the function each one needed.
+/// Search must show that function in its first three results.
+test plainQuestionsFindTheFunctionNeeded = Instance.withInstance(fun i ->
+  [ (
+      "run a shell command and get its output",
+      "Darklang.Stdlib.Cli.Process.run")
+
+    ("run an external program", "Darklang.Stdlib.Cli.Process.run")
+    ("read environment variable", "Darklang.Stdlib.Cli.Env.get")
+    ("round a number to decimal places", "Darklang.Stdlib.Decimal.round")
+    ("round to 2 decimals", "Darklang.Stdlib.Decimal.round")
+    ("list files in a directory", "Darklang.Stdlib.Cli.Dir.list")
+    ("read a text file", "Darklang.Stdlib.Cli.File.readText")
+    ("write text to a file", "Darklang.Stdlib.Cli.File.writeText")
+    ("parse csv", "Darklang.Stdlib.Csv.parse")
+    ("escape html", "Darklang.Stdlib.Html.escapeHtml")
+    ("format a date as text", "Darklang.Stdlib.DateTime.format")
+    ("split a string into lines", "Darklang.Stdlib.String.split")
+    ("sleep for some milliseconds", "Darklang.Stdlib.Cli.Posix.sleep")
+    ("base64 encode bytes", "Darklang.Stdlib.Base64.encode")
+    ("get a value from a dictionary", "Darklang.Stdlib.Dict.get")
+    ("sort a list", "Darklang.Stdlib.List.sort") ]
+  |> Stdlib.List.map(fun((question, wanted)) ->
+    let out =
+      Instance.said(
+        i,
+        [ "search", "--fn", "--brief", "--limit", "3", question ])
+
+    let shown =
+      Stdlib.String.split(out, "\n")
+      |> Stdlib.List.filter(fun line ->
+        Stdlib.String.contains(line, "Darklang."))
+      |> Stdlib.List.take(3)
+
+    Stdlib.Test.expect(
+      Stdlib.List.any(shown, fun line ->
+        Stdlib.String.contains(line, wanted + " ")
+        || Stdlib.String.endsWith(line, wanted)),
+      $"`search {question}` should show {wanted} in the first three:\n{out}"))
+  |> Stdlib.Test.all)

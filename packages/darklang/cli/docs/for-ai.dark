@@ -75,6 +75,14 @@ Always give a value:
   Stdlib.Int64.random(1, 6)                                      // both ends included
   Stdlib.DateTime.now()   Stdlib.DateTime.subtractMs(later, earlier)    // the gap in ms, an Int64
   Stdlib.Cli.Posix.sleep(1000.0)                                 // ms, as a Float64
+  Stdlib.Decimal.round(19.999dec, 2)      // Ok(20.00dec). To round, use Decimal
+  Stdlib.List.indexedMap(xs, fun(i, x) -> $"{i}: {x}")   Stdlib.max(a, b)   Stdlib.abs(n)
+
+Less often, and easy to miss:
+  Stdlib.Cli.Process.run("git", ["status"])      // Result; out.exitCode, out.stdout, no shell
+  Stdlib.Csv.parse(text)   Stdlib.Crypto.sha256(bytes)   Stdlib.Html.escapeHtml(s)
+  Stdlib.Cli.Dir.createRecursive(path)   Stdlib.Cli.FileSystem.listDirectory(dir)  // full paths
+  Stdlib.DateTime.format(d, "%Y-%m-%d")          // % directives, not yyyy-MM-dd
 
 ## Common slips
 

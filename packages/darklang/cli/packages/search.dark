@@ -684,10 +684,80 @@ type NothingFound =
     wordCounts: List<(String * Int64)>
     // Each word that finds nothing, and the names it may be a typo of.
     didYouMean: List<(String * List<String>)>
-    fallback: Option<FallbackSuggestions> }
+    fallback: Option<FallbackSuggestions>
+    // Closest matches when nothing has every word: each name, with the words it matched.
+    partial: List<(String * List<String>)> }
 
 
-val nothingToTry = NothingFound { wordCounts = [], didYouMean = [], fallback = Option.None }
+val nothingToTry =
+  NothingFound { wordCounts = [], didYouMean = [], fallback = Option.None, partial = [] }
+
+
+// TODO: this only helps when nothing has every word. Searches like "parse json text" or
+// "convert string to integer" still miss the function people want. Ideas, cheapest first:
+// 1. Add the words people type to the docs of the functions missed (`Int64.parse`,
+//    `DateTime.now`, `Json.parse`, `List.any`...), and add those questions to the test
+//    `plainQuestionsFindTheFunctionNeeded`.
+// 2. Score every search the same way (e.g. BM25): rarer words count more, the name more than
+//    the docs. This function does a rough version of that for misses only.
+// 3. A few synonyms, like integer -> Int64 and directory -> Dir. It's a list to maintain,
+//    so keep it short.
+/// The closest matches when nothing has every word: items matching two or more of the words,
+/// best first. Rarer words count for more, so `shell` (26 matches) outweighs `and` (1,372).
+let bestPartialMatches(
+  ranker: Ranker,
+  perWord: List<(String * LanguageTools.ProgramTypes.Search.SearchResults)>,
+  limit: Int64)
+  : List<(String * List<String>)> =
+  // The commonest word in the query weighs 1, a word matching a quarter as many items 2.
+  let commonest =
+    perWord
+    |> Stdlib.List.map(fun((_, results)) -> itemCount(results))
+    |> Stdlib.List.fold(1, fun(acc, n) -> Stdlib.max(acc, n))
+    |> Stdlib.Int64.toFloat64
+
+  // Each match: the item's tier, its sort key, its name, the word, and what the word scores.
+  // A word in the item's name, not just its docs, counts double.
+  let scored(
+    word: String,
+    weight: Float64,
+    item: LanguageTools.ProgramTypes.LocatedItem<'a>)
+    : (String * (String * String * String * Float64)) =
+    let loc = item.location
+    let (key, name) = suggestionWithSortKey(ranker, item)
+    let inName =
+      Stdlib.String.contains(Stdlib.String.toLowercase(loc.name), Stdlib.String.toLowercase(word))
+
+    (name, (tier(loc.owner, loc.modules), key, word, if inName then weight * 2.0 else weight))
+
+  let matches =
+    perWord
+    |> Stdlib.List.map(fun((word, results)) ->
+      let count = Stdlib.Int64.toFloat64(Stdlib.max(itemCount(results), 1))
+      let weight = Stdlib.Float64.sqrt(commonest / count)
+      Stdlib.List.flatten(
+        [ results.fns |> Stdlib.List.map(fun item -> scored(word, weight, item))
+          results.types |> Stdlib.List.map(fun item -> scored(word, weight, item))
+          results.values |> Stdlib.List.map(fun item -> scored(word, weight, item)) ]))
+    |> Stdlib.List.flatten
+
+  matches
+  |> Stdlib.List.fold(Dict {}, fun(acc, entry) ->
+    let (name, (itemTier, key, word, weight)) = entry
+    let (_, _, words, score) =
+      Stdlib.Dict.get(acc, name) |> Stdlib.Option.withDefault((itemTier, key, [], 0.0))
+
+    if Stdlib.List.contains(words, word) then
+      acc
+    else
+      Stdlib.Dict.set(acc, name, (itemTier, key, Stdlib.List.append(words, word), score + weight)))
+  |> Stdlib.Dict.toList
+  |> Stdlib.List.filter(fun((_, (_, _, words, _))) -> Stdlib.List.length(words) >= 2)
+  // The standard library first, as in an ordinary search, then the best score.
+  |> Stdlib.List.sortBy(fun((name, (itemTier, key, _, score))) ->
+    (itemTier, 0.0 - score, key, name))
+  |> Stdlib.List.take(limit)
+  |> Stdlib.List.map(fun((name, (_, _, words, _))) -> (name, words))
 
 
 // What to try when <param query> found nothing. Each word of a several-word query
@@ -698,21 +768,24 @@ let nothingFound(
   query: LanguageTools.ProgramTypes.Search.SearchQuery)
   : NothingFound =
   let words = queryWords(query.text)
-  let countFor = fun word ->
+  let resultsFor = fun word ->
     let found =
       LanguageTools.PackageManager.Search.search(branchId, { query with text = word })
       |> Query.withoutInternal
 
     let (kept, _) = withoutTestHelpers(found)
-    itemCount(kept)
+    kept
 
   let several = Stdlib.List.length(words) > 1
+  let perWord = if several then words |> Stdlib.List.map(fun w -> (w, resultsFor(w))) else []
+
   let counts =
     if several then
-      words |> Stdlib.List.map(fun w -> (w, countFor(w)))
+      perWord |> Stdlib.List.map(fun((w, results)) -> (w, itemCount(results)))
     else
       [ (query.text, 0) ]
 
+  let partial = if several then bestPartialMatches(rankerFor(query.text), perWord, 5) else []
   let didYouMean =
     match Stdlib.List.filter(counts, fun((_, n)) -> n == 0) with
     | [] -> []
@@ -725,7 +798,10 @@ let nothingFound(
         | near -> Option.Some((w, near)))
 
   NothingFound
-    { wordCounts = if several then counts else [], didYouMean = didYouMean, fallback = Option.None }
+    { wordCounts = if several then counts else []
+      didYouMean = didYouMean
+      fallback = Option.None
+      partial = partial }
 
 
 // <type NothingFound> as hint lines.
@@ -753,6 +829,17 @@ let nothingFoundLines(found: NothingFound): List<String> =
       let forWord = if several then $" (for `{w}`)" else ""
       $"  Did you mean {shown}?{forWord}")
 
+  let partial =
+    match found.partial with
+    | [] -> []
+    | matches ->
+      let rows =
+        matches
+        |> Stdlib.List.map(fun((name, words)) ->
+          $"    {name}  (matches {Stdlib.String.join(words, ", ")})")
+
+      Stdlib.List.prepend(rows, "  Closest, matching some of the words:")
+
   match found.fallback with
   | Some(matches) ->
     let names =
@@ -761,7 +848,7 @@ let nothingFoundLines(found: NothingFound): List<String> =
       |> Stdlib.String.join(", ")
 
     [ $"  Without `{matches.dropped}`: {names}" ]
-  | None -> Stdlib.List.concat(alone, typos)
+  | None -> Stdlib.List.flatten([ partial, alone, typos ])
 
 
 let docBlock(desc: String, indent: String): String =
@@ -1053,7 +1140,18 @@ let jsonOutput(
           alsoSearched |> Stdlib.List.map(fun q -> Stdlib.AltJson.Json.String(q))))
 
       ("wordCounts", Stdlib.AltJson.Json.Array(wordCountRows))
-      ("didYouMean", Stdlib.AltJson.Json.Array(didYouMeanRows)) ]
+      ("didYouMean", Stdlib.AltJson.Json.Array(didYouMeanRows))
+      (
+        "partial",
+        Stdlib.AltJson.Json.Array(
+          found.partial
+          |> Stdlib.List.map(fun((name, words)) ->
+            Stdlib.AltJson.Json.Object(
+              [ ("name", Stdlib.AltJson.Json.String(name))
+                (
+                  "matched",
+                  Stdlib.AltJson.Json.Array(
+                    words |> Stdlib.List.map(fun w -> Stdlib.AltJson.Json.String(w)))) ])))) ]
 
   Stdlib.AltJson.format(Stdlib.AltJson.Json.Object(Stdlib.List.concat(fields, fallbackFields)))
 
@@ -1510,18 +1608,24 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           if totalResults > 0 then
             nothingToTry
           else
-            let fallback = fallbackSuggestions(query, resultCap, fun text ->
-              let (visible, _, _) =
-                visibleResults(
-                  LanguageTools.PackageManager.Search.search(
-                    state.currentBranchId,
-                    { query with text = text }))
+            // The closest matches weigh every word; dropping one word at a time is the older
+            // fallback, used when they find nothing.
+            let missed = nothingFound(state.currentBranchId, query)
+            if Stdlib.Bool.not(Stdlib.List.isEmpty(missed.partial)) then
+              missed
+            else
+              let fallback = fallbackSuggestions(query, resultCap, fun text ->
+                let (visible, _, _) =
+                  visibleResults(
+                    LanguageTools.PackageManager.Search.search(
+                      state.currentBranchId,
+                      { query with text = text }))
 
-              visible)
+                visible)
 
-            match fallback with
-            | Some(_) -> { nothingToTry with fallback = fallback }
-            | None -> nothingFound(state.currentBranchId, query)
+              match fallback with
+              | Some(_) -> { nothingToTry with fallback = fallback }
+              | None -> missed
 
         if parsed.asJson then
           let shownTyped =
