@@ -16,7 +16,8 @@ The following changes are likely safe, and require very minor rework
 - remove a field from a record (do not change the index of the other fields)
 - adding a new variant at the end of an Enum
 
-The following changes are likely unsafe (and would require migrating data):
+The following changes are likely unsafe, and need a `BaseFormat.CurrentVersion` bump (a store
+in another version is refused, not migrated):
 - adding a new variant to an Enum that is not at the end
 - removing a variant in an Enum that is not at the end
 - reorder variants in an Enum

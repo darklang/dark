@@ -1,25 +1,13 @@
 /// SQLite schema bootstrap.
 ///
-/// `backend/migrations/schema/*.sql` is the canonical from-scratch shape of every table,
-/// concatenated in FILENAME ORDER. Today that is one file, `00-initial-schema.sql`, edited in
-/// place; the glob and the ordering stay because a later change may add a stamped file beside it. We hash that concatenation and compare against
-/// `schema_state_v0.hash`; if they differ (or the table is missing), drop the REGENERABLE
-/// PROJECTION tables only (`Seed.projectionTables`) and replay. The canonical op log, blobs,
-/// branches and commits survive, and the log re-folds into the fresh projections at startup -- so a
-/// schema change costs CPU, not your authored work.
+/// `backend/migrations/schema/*.sql` is the shape of every table, concatenated in FILENAME ORDER. We
+/// hash that concatenation and compare against `schema_state_v0.hash`; if they differ (or the table
+/// is missing), drop the REGENERABLE PROJECTION tables only (`Seed.projectionTables`) and replay. The
+/// canonical op log, blobs, branches and commits survive, and the log re-folds into the fresh
+/// projections at startup -- so a schema change to a projection costs CPU, not your authored work.
 ///
-/// The corollary is the trap: because the canonical tables are NOT dropped, `CREATE TABLE IF NOT
-/// EXISTS` no-ops on them, and a change to a canonical table's SHAPE (a new column, a new PK) NEVER
-/// reaches an existing store from these files. That belongs in a step in `LibDB.Releases`, which is
-/// the ONLY other mechanism -- there used to be a second one (`migrations/incremental/*.sql`) and
-/// the rule for choosing between them was nowhere, which is how the same migration got written
-/// twice and failed in both directions. A `.sql` file cannot look at the store before acting, and
-/// every shape change has to.
-///
-/// So: `schema/` DECLARES the shape a new store is born with; `LibDB.Releases` is how any change
-/// reaches a store that already exists.
-///
-/// Synchronous on purpose: the bootstrap and the release steps run strictly in order.
+/// A change to a canonical table's shape is not carried: `CREATE TABLE IF NOT EXISTS` leaves the old
+/// table as it is, so the store is refused and has to be made again.
 module LocalExec.Migrations
 
 open System.IO
@@ -123,11 +111,16 @@ let private writeHash (hash : string) : unit =
   |> Sql.executeStatement
 
 
-/// The TABLES from the schema, and the hash dance around them. Indexes are NOT applied here:
-/// they go in a pass of their own after the release steps, because an index may name a column a
-/// step has just added. `Releases` splits the file for exactly this, and the shipped CLI's
-/// bootstrap (`Cli/EmbeddedResources.fs`) has always done it in three passes; this one used to
-/// run the whole file at once, which made a schema file unable to index anything the steps own.
+/// Stop at a canonical table whose shape the schema changed: it cannot be carried in place.
+let private refuseMismatch (sql : string) (ops : int) : unit =
+  match LibDB.StoreSchema.mismatch sql with
+  | None -> ()
+  | Some reason ->
+    print $"this store's tables don't match the schema: {reason}."
+    print
+      $"  Delete rundir/data.db and build again; its {ops} op(s) are not carried across."
+    Exception.raiseInternal "store schema mismatch" [ "reason", reason ]
+
 let private runSchemaBootstrap (sql : string) : unit =
   let want = computeHash sql
 
@@ -135,32 +128,20 @@ let private runSchemaBootstrap (sql : string) : unit =
   | Some have when have = want -> ()
   | Some have ->
     // Preserve-and-refold: drop only regenerable projections, replay the schema,
-    // mark ops unapplied for the next `growIfNeeded`. Shape changes to canonical
-    // tables can't take this path -- see the module doc.
+    // mark ops unapplied for the next `growIfNeeded`.
     let ops = opCount ()
     print
       $"the schema changed (hash {have[0..7]} → {want[0..7]}); preserving {ops} op(s), \
         rebuilding projections."
     dropProjectionTables ()
-    // A canonical-table shape change surfaces here as a raw SQLite error; say what
-    // it means and how to recover instead of the bare error.
-    try
-      LibDB.Releases.applySchemaTables sql
-    with e ->
-      print
-        "the schema changed the SHAPE of a canonical table, which this bootstrap can't apply in place."
-      print
-        $"  Your {ops} op(s) are intact. Take a copy of rundir/data.db, delete it,"
-      print
-        "  then start again. (A data-preserving migrator is designed and not built, and there is"
-      print "  no import command to bring the old ops across.)"
-      reraise ()
+    refuseMismatch sql ops
+    LibDB.StoreSchema.apply sql
     markOpsUnapplied ()
     writeHash want
   | None ->
-    // A store with no schema-hash stamp (fresh, or predates hash tracking): create the missing
-    // tables (`IF NOT EXISTS` no-ops the ones already there), then stamp.
-    LibDB.Releases.applySchemaTables sql
+    // A store with no schema-hash stamp: create the tables, then stamp.
+    refuseMismatch sql (opCount ())
+    LibDB.StoreSchema.apply sql
     writeHash want
 
 
@@ -168,12 +149,4 @@ let private runSchemaBootstrap (sql : string) : unit =
 // Entry point
 // ---------------------
 
-let run () : unit =
-  let sql = schemaSql ()
-  let _ = LibDB.Releases.resetIfOlderShape LibConfig.Config.dbPath
-  // Three passes, and the order is the whole point. Tables first, so everything exists. Then the
-  // release steps, which are the only thing that can add a COLUMN to a table that already exists.
-  // Then the indexes, which may name a column a step has just added.
-  runSchemaBootstrap sql
-  LibDB.Releases.runPending ()
-  LibDB.Releases.applySchemaIndexes sql
+let run () : unit = runSchemaBootstrap (schemaSql ())

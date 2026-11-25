@@ -69,7 +69,7 @@
     <Compile Include="ScmActions.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="UpgradeKeep.fs" />
-    <Compile Include="Releases.fs" />
+    <Compile Include="StoreSchema.fs" />
     <Compile Include="Seed.fs" />
     <Compile Include="Raises.fs" />
     <Compile Include="PackagePermissions.fs" />

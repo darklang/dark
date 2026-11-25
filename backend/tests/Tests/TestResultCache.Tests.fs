@@ -1,8 +1,4 @@
-/// The `dark test run` result cache (`package_test_results`) is part of the store schema.
-///
-/// A store may already hold this table and its rows, created by the test runner from Dark, so the
-/// schema's declaration has to be the same shape and has to leave the existing one, and the passes
-/// in it, alone.
+/// The `dark test run` result cache (`package_test_results`).
 module Tests.TestResultCache
 
 open Expecto
@@ -16,17 +12,6 @@ open Microsoft.Data.Sqlite
 module TestResults = LibDB.TestResults
 
 
-/// Verbatim what `Cli.Packages.Test.ensureCache` ran before the table moved into the schema.
-let private oldRunnerDdl =
-  "CREATE TABLE IF NOT EXISTS package_test_results (
-     test_hash TEXT NOT NULL,
-     runtime_hash TEXT NOT NULL,
-     branch_id TEXT NOT NULL,
-     result_type_hash TEXT NOT NULL,
-     outcome_json TEXT NOT NULL,
-     PRIMARY KEY (test_hash, runtime_hash, branch_id, result_type_hash)
-   )"
-
 let private schemaSql () : string =
   System.IO.Directory.GetFiles(
     System.IO.Path.Combine(LibConfig.Dirs.migrationsDir, "schema"),
@@ -36,24 +21,14 @@ let private schemaSql () : string =
   |> Array.map System.IO.File.ReadAllText
   |> String.concat "\n"
 
-let private exec (dbPath : string) (sql : string) : unit =
-  use conn = new SqliteConnection($"Data Source={dbPath}")
-  conn.Open()
-  use cmd = conn.CreateCommand()
-  cmd.CommandText <- sql
-  cmd.ExecuteNonQuery() |> ignore<int>
-
-/// Each column of the table as (name, type, notnull, pk position).
-let private shape (dbPath : string) : List<string * string * int64 * int64> =
-  use conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly")
-  conn.Open()
-  use cmd = conn.CreateCommand()
-  cmd.CommandText <-
-    "SELECT name, type, \"notnull\", pk FROM pragma_table_info('package_test_results') ORDER BY cid"
-  use reader = cmd.ExecuteReader()
-  [ while reader.Read() do
-      yield
-        reader.GetString 0, reader.GetString 1, reader.GetInt64 2, reader.GetInt64 3 ]
+/// A fresh store at <param dbPath>, made from the schema, for <param f>.
+let private withStore (dbPath : string) (f : unit -> unit) : unit =
+  LibDB.Sqlite.Sql.useStoreForTesting dbPath
+  try
+    LibDB.StoreSchema.apply (schemaSql ())
+    f ()
+  finally
+    LibDB.Sqlite.Sql.resetStoreForTesting ()
 
 let private withScratchDir (f : string -> Task<unit>) : Task<unit> =
   task {
@@ -77,67 +52,17 @@ let private key : TestResults.Key =
     resultType = "result-type-hash" }
 
 
-let schemaMatchesWhatTheRunnerCreated =
-  testTask "the schema declares the table the test runner used to create" {
+let storedResultsReadBack =
+  testTask "a stored result reads back, and storing again replaces it" {
     do!
       withScratchDir (fun dir ->
         task {
-          let old = System.IO.Path.Combine(dir, "old.db")
-          let fresh = System.IO.Path.Combine(dir, "fresh.db")
-          exec old oldRunnerDdl
-          // Create the store in the same order as startup: tables, release steps,
-          // then indexes. New indexes may need columns added by a release step.
-          LibDB.Sqlite.Sql.useStoreForTesting fresh
-          try
-            let schema = schemaSql ()
-            LibDB.Releases.applySchemaTables schema
-            LibDB.Releases.applySchemaTables schema
-            // The dated schema declares the column without relying on release steps.
-            use conn =
-              new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={fresh}")
-            conn.Open()
-            use command = conn.CreateCommand()
-            command.CommandText <-
-              "SELECT COUNT(*) FROM pragma_table_info('package_ops') WHERE name = 'op_kind'"
+          withStore (System.IO.Path.Combine(dir, "data.db")) (fun () ->
+            TestResults.put key "\"Passed\""
             Expect.equal
-              (command.ExecuteScalar() |> unbox<int64>)
-              1L
-              "schema columns exist before migrations and tolerate replay"
-            LibDB.Releases.runPending ()
-            LibDB.Releases.applySchemaIndexes schema
-          finally
-            LibDB.Sqlite.Sql.resetStoreForTesting ()
-          let freshShape = shape fresh
-          Expect.isNonEmpty freshShape "a fresh store has the table"
-          Expect.equal
-            freshShape
-            (shape old)
-            "same columns, types, NOT NULLs and primary key as the runner's table"
-        })
-  }
-
-
-/// A store from before the move: the runner made the table, and there is a pass in it. Bringing
-/// the store forward runs the schema's tables against it, and the pass must still be there and
-/// readable through the new path, and writable again.
-let oldStoreKeepsItsResults =
-  testTask "a store whose runner made the table keeps its results" {
-    do!
-      withScratchDir (fun dir ->
-        task {
-          let dbPath = System.IO.Path.Combine(dir, "data.db")
-          exec dbPath oldRunnerDdl
-          exec
-            dbPath
-            $"INSERT INTO package_test_results VALUES
-                ('{key.test}', '{key.runtime}', '{key.branch}', '{key.resultType}', '\"Passed\"')"
-
-          LibDB.Sqlite.Sql.useStoreForTesting dbPath
-          try
-            LibDB.Releases.applySchemaTables (schemaSql ())
-
-            let stored = TestResults.get key
-            Expect.equal stored (Some "\"Passed\"") "the old pass is read back"
+              (TestResults.get key)
+              (Some "\"Passed\"")
+              "the pass is read back"
 
             let other =
               TestResults.get { key with runtime = "another-build:judge-hash" }
@@ -148,9 +73,7 @@ let oldStoreKeepsItsResults =
             Expect.equal
               replaced
               (Some "{\"Failed\":[[\"no\"]]}")
-              "storing under the same key replaces the outcome"
-          finally
-            LibDB.Sqlite.Sql.resetStoreForTesting ()
+              "storing under the same key replaces the outcome")
         })
   }
 
@@ -162,10 +85,7 @@ let manyMatchesOneAtATime =
     do!
       withScratchDir (fun dir ->
         task {
-          let dbPath = System.IO.Path.Combine(dir, "data.db")
-          exec dbPath oldRunnerDdl
-          LibDB.Sqlite.Sql.useStoreForTesting dbPath
-          try
+          withStore (System.IO.Path.Combine(dir, "data.db")) (fun () ->
             let other = { key with test = "other-test-hash" }
             TestResults.put key "\"Passed\""
             TestResults.put other "{\"Failed\":[[\"no\"]]}"
@@ -187,9 +107,7 @@ let manyMatchesOneAtATime =
                 Some "{\"Failed\":[[\"no\"]]}" ]
               "in the order asked"
             let none = TestResults.getMany []
-            Expect.equal none [] "no keys, no results"
-          finally
-            LibDB.Sqlite.Sql.resetStoreForTesting ()
+            Expect.equal none [] "no keys, no results")
         })
   }
 
@@ -197,7 +115,5 @@ let manyMatchesOneAtATime =
 let tests =
   testList
     "TestResultCache"
-    [ testSequenced schemaMatchesWhatTheRunnerCreated
-      // Repoints the process-wide store, so nothing else may run beside it.
-      testSequenced oldStoreKeepsItsResults
-      testSequenced manyMatchesOneAtATime ]
+    // Each repoints the process-wide store, so nothing else may run beside it.
+    [ testSequenced storedResultsReadBack; testSequenced manyMatchesOneAtATime ]

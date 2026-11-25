@@ -6,35 +6,25 @@ of these areas are in `docs/agent-traps.md`.
 
 ## Changing the schema
 
-**`migrations/schema/00-initial-schema.sql` is ONE file, edited in place.** It declares the shape a
-FRESH store is born with. A store older than the current schema is not supported: `dark` tells you
-to delete it and start again rather than pretending to upgrade it.
+**`migrations/schema/00-initial-schema.sql` is ONE file, edited in place.** It declares every table
+and index, and nothing migrates a store:
 
-So:
+- A NEW TABLE or INDEX reaches an existing store, since every statement is `IF NOT EXISTS`
+  (`LibDB.StoreSchema.apply`). A FK target must be declared before the table that references it.
+- Any other change to a table (a column added, dropped or renamed) makes existing stores differ from
+  the schema, and `dark` refuses such a store and says to start a fresh one
+  (`LibDB.StoreSchema.mismatch`).
 
-- A NEW TABLE or INDEX goes in a stamped file beside it (`scripts/migrations/new` makes one), or
-  straight into `00-initial-schema.sql`. Filename order is still the apply
-  order, and a FK target must be declared before the table that references it.
-- A NEW COLUMN takes BOTH halves, and this is the one to get right:
-  - declare it on the table in `00-initial-schema.sql`, for fresh stores;
-  - carry it to existing stores with a step in `LibDB/Releases.fs`.
-  A schema file only ever runs `CREATE TABLE` / `CREATE INDEX` / `INSERT OR IGNORE`
-  (`Releases.applySchemaTables`), so it cannot `ALTER`, and a step is the only thing that can.
-
-**Skipping the first half is invisible until somebody collapses the schema.** `addColumnIfMissing`
-runs on a FRESH store too -- the table exists, the column does not, so it adds it -- which means a
-column declared ONLY in a step still appears in a new store, and nothing ever says the schema file is
-incomplete. If you add a column, grep the schema file for it before you call it done.
-
-Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
-expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
+A changed schema hash drops and re-folds the projection tables in a dev store, so a change to a
+projection's columns costs a re-fold there; a change to a canonical table means deleting
+`rundir/data.db`.
 
 ## SCM and branches
 
 `package_ops` is canonical: one row per op per branch, and an op's id IS its content hash. Everything
 else -- `locations`, `deprecations`, `location_docs`, `package_functions`, `package_dependencies` -- is a
 projection you can drop and re-fold from the log. That is why a schema change to a projection costs
-nothing and a change to a canonical table needs `LibDB/Releases.fs`.
+nothing and a change to a canonical table means making the store again.
 
 Every write to the SCM tables is an ACTION in F#: commit, discard, the branch lifecycle (start, rename,
 switch, archive), merge, rebase, and settling a conflict, one builtin each (`scmCommit`, `scmBranch`,
@@ -63,7 +53,7 @@ path from Dark into the store; the reads are typed builtins too (`scmOps`, `scmB
     LibDB/ScmDetect.fs         # conflict detection, beside the rule it names winners by
     LibDB/Branches.fs          # the branch registry: ids, names, parents, lookups
     LibDB/Propagation.fs       # the cascade: who depends on what moved
-    LibDB/Releases.fs          # shape changes to canonical tables on existing stores
+    LibDB/StoreSchema.fs       # the schema against an existing store: add what is new, refuse a changed shape
 
 **Last-writer-wins lives in `LibExecution/Lww.fs`, and asking it twice is the bug.** Two different things need
 the rule: the fold decides which binding survives, and conflict detection decides which side to NAME as the

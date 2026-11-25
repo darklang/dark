@@ -17,7 +17,7 @@ Surface (most relevant first):
 - `Propagation.fs`: the cascade. Which dependents follow a moved item, and the ops that repoint them.
 - `WipRefresh.fs`: re-resolving and rewriting main's draft.
 - `Seed.fs`: seed export, and the startup grow that folds pending ops and evaluates values.
-- `Releases.fs`: shape changes to canonical tables on stores that already exist, which `CREATE TABLE IF NOT EXISTS` cannot carry.
+- `StoreSchema.fs`: the schema against an existing store. Adds new tables and indexes, and names a table whose shape differs, which is refused rather than migrated.
 - `Caching.fs`: in-process caches over the store, and the one call that drops them all when ops fold.
 - `Tracing.fs`: the per-execution trace recorder. Writes the trace row plus fn_call rows; `Builtins.Matter/Libs/Traces.fs` reads them back.
 

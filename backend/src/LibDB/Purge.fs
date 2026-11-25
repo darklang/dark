@@ -55,17 +55,7 @@ let tables : List<string> =
 
 
 let purge () : unit =
-  let tableExists (tableName : string) : bool =
-    Sql.query
-      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = @tableName"
-    |> Sql.parameters [ "tableName", Sql.string tableName ]
-    |> Sql.executeExists
-
-  // Existence-filtered: this runs against stores whose migrations haven't caught up.
-  let statements =
-    tables
-    |> List.filter tableExists
-    |> List.map (fun table -> ($"DELETE FROM {table}", [ [] ]))
-
-  if not (List.isEmpty statements) then
-    statements |> Sql.executeTransactionSync |> ignore<List<int>>
+  tables
+  |> List.map (fun table -> ($"DELETE FROM {table}", [ [] ]))
+  |> Sql.executeTransactionSync
+  |> ignore<List<int>>
