@@ -370,6 +370,16 @@ test fromCodepoint =
       Stdlib.Char.fromCodepoint(255u32)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some('ÿ'))
 
+      // NFC replaces U+2000 (8192) with U+2002 (8194)
+      Stdlib.Char.fromCodepoint(8192u32)
+      |> Stdlib.Option.map(Stdlib.Char.toCodepoint)
+      |> Stdlib.Test.equal(
+        Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(8194u32)))
+
+      Stdlib.Char.fromCodepoint(8192u32)
+      |> Stdlib.Option.map(fun c -> Stdlib.String.fromChar(c) == "\u2002")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
+
       Stdlib.Char.fromCodepoint(55295u32)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some('\uD7FF'))
 
