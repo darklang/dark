@@ -3,7 +3,7 @@ module Darklang.Stdlib.Math.Tests
 // Expected values are rounded. Use an absolute tolerance of 1e-12 for zero
 // and 1e-10 for the other values here.
 let near(actual: Float64, expected: Float64): Stdlib.Test.Result =
-  let tolerance = if expected == 0.0 then 0.000000000001 else 0.0000000001
+  let tolerance = if expected == 0.0 then 1e-12 else 1e-10
   Stdlib.abs(actual - expected) < tolerance |> Stdlib.Test.equal(true)
 
 
@@ -215,7 +215,7 @@ test logarithms =
 
       // Close to 1, cancellation in the exponent adjustment would cost precision.
       Stdlib.Math.log2(1.0 + 2.0 ** -52.0)
-      |> withinSomeUlps(0.0000000000000003203426503814917, 1u64)
+      |> withinSomeUlps(3.203426503814917e-16, 1u64)
 
       Stdlib.Math.log2(0.7094335970396186)
       |> withinSomeUlps(-0.49526044048864576, 1u64)
@@ -224,10 +224,10 @@ test logarithms =
       Stdlib.Math.log10(-1.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
       // log(1.0 + 1e-20) would round the 1e-20 away
-      Stdlib.Math.logOnePlus(0.00000000000000000001)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.00000000000000000001))
+      Stdlib.Math.logOnePlus(1e-20)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1e-20))
 
-      Stdlib.Math.logOnePlus(0.0000000001) |> nearSome(0.000000000099999999995)
+      Stdlib.Math.logOnePlus(1e-10) |> nearSome(9.9999999995e-11)
       Stdlib.Math.logOnePlus(Stdlib.Math.e - 1.0) |> nearSome(1.0)
       Stdlib.Math.logOnePlus(1e308) |> withinSomeUlps(709.1962086421661, 1u64)
       Stdlib.Math.logOnePlus(-1.0)
@@ -245,18 +245,11 @@ test exponentials =
     [ Stdlib.Math.exp(0.0) |> Stdlib.Test.equal(1.0)
       Stdlib.Math.exp(1.0) |> near(Stdlib.Math.e)
       Stdlib.Math.exp(1000.0) |> Stdlib.Test.equal(infinity())
-
       Stdlib.Math.exp2(10.0) |> Stdlib.Test.equal(1024.0)
-
       Stdlib.Math.exp2(-1.0) |> Stdlib.Test.equal(0.5)
-
       Stdlib.Math.exp2(-1074.0) |> Stdlib.Test.equal(smallest())
-
       Stdlib.Math.exp2(1024.0) |> Stdlib.Test.equal(infinity())
-
-      Stdlib.Math.expMinusOne(0.00000000000000000001)
-      |> Stdlib.Test.equal(0.00000000000000000001)
-
+      Stdlib.Math.expMinusOne(1e-20) |> Stdlib.Test.equal(1e-20)
       Stdlib.Math.expMinusOne(0.0) |> Stdlib.Test.equal(0.0)
       Stdlib.Math.expMinusOne(1.0) |> near(Stdlib.Math.e - 1.0)
       Stdlib.Math.expMinusOne(20.0) |> Stdlib.Test.equal(485165194.4097903)
