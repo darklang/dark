@@ -250,6 +250,39 @@ let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
         Expect.stringContains read "not found" $"the value was never stored: {read}"
       })
 
+/// A policy file in a format this build can't read grants nothing. The CLI says so, or every
+/// refusal looks like one the person chose.
+let private oldPolicyFormatIsNamed =
+  CliInstance.instanceTest
+    "a policy file in an old format is named at startup"
+    (fun i ->
+      task {
+        let! (quiet, _) = CliInstance.runWithExit i [ "eval"; "1 + 1" ]
+        Expect.isFalse
+          (quiet.Contains "unsupported format")
+          $"a current policy file brings no warning: {quiet}"
+
+        let older = LibDB.PolicyStore.formatVersion - 1
+        let bytes = LibDB.PolicyStore.toBytes LibDB.PolicyStore.empty
+        use stream = new System.IO.MemoryStream(bytes)
+        use reader = new System.IO.BinaryReader(stream)
+        LibSerialization.Binary.Serializers.Common.String.read reader
+        |> ignore<string>
+        use writer = new System.IO.BinaryWriter(stream)
+        writer.Write older
+        writer.Flush()
+        System.IO.File.WriteAllBytes(
+          System.IO.Path.Combine(i.dir, "policy", "policies.bin"),
+          bytes
+        )
+
+        let! (warned, _) = CliInstance.runWithExit i [ "eval"; "1 + 1" ]
+        Expect.stringContains
+          warned
+          $"unsupported format {older}"
+          "the warning names the file's format"
+      })
+
 let private deprecationIsReversible =
   instanceTest "delete can be undone" (fun state ->
     task {
@@ -1045,6 +1078,7 @@ let private aFailingDeprecationQueryIsAStoreError =
 let tests : List<Test> =
   [ failedValueSaveLeavesNothingBehind false
     failedValueSaveLeavesNothingBehind true
+    oldPolicyFormatIsNamed
     deprecationIsReversible
     theWorkedExampleWorks
     editsAreVisibleInTheSameProcess

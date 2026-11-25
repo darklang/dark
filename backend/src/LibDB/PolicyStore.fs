@@ -152,6 +152,22 @@ let storedVersion (bytes : byte[]) : Option<int> =
 
 // ── file access ───────────────────────────────────────────────────────────────
 
+let private unsupportedFormat (version : int) (where : string) : string =
+  $"The policy file uses unsupported format {version}; this build reads only format {formatVersion}. Move {where} aside and configure a fresh policy."
+
+/// Why the policy file grants nothing, when it is in a format this build can't read. Such a
+/// file reads as an empty policy, so without this every refusal looks like a chosen one.
+let unsupportedFormatProblem () : Option<string> =
+  match LocalFile.read fileName with
+  | LocalFile.Read bytes ->
+    match storedVersion bytes with
+    | Some version when version <> formatVersion ->
+      let where = LocalFile.path fileName |> Result.defaultValue fileName
+      Some(unsupportedFormat version where)
+    | _ -> None
+  | LocalFile.Missing
+  | LocalFile.Unreadable _ -> None
+
 /// Parsed-store cache keyed on the file's (mtime, ctime, length) stamp.
 /// Execution and review read policy repeatedly; without this each read parses the file. Same-process writes invalidate
 /// eagerly; another process's write changes the stamp and is picked up on the
@@ -204,9 +220,7 @@ let private getForWrite () : Store =
       // person can deal with once told, so each prints as its sentence. The path is the real one;
       // the policy directory moves with the store, so `~/.darklang/policy` is not always it.
       | Some version when version <> formatVersion ->
-        Exception.raiseStoreCondition
-          $"The policy file uses unsupported format {version}; this build reads only format {formatVersion}. Move {where} aside and configure a fresh policy."
-          []
+        Exception.raiseStoreCondition (unsupportedFormat version where) []
       | _ ->
         Exception.raiseStoreCondition
           $"The policy file is damaged and will not be overwritten. Move {where} aside (the approvals in it are lost) and retry."
