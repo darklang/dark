@@ -222,6 +222,36 @@ let private runStopsWhenStdoutCloses =
           Tests.CliInstance.stop p
     })
 
+/// `Stdout.writeBytes` writes every byte value as it is, in order with the text around it.
+let private stdoutBytesArriveUnchanged =
+  Tests.CliInstance.instanceTest "bytes written to stdout arrive unchanged" (fun i ->
+    task {
+      let everyByte = [| for b in 0..255 -> byte b |]
+      let script = System.IO.Path.Combine(i.dir, "bytes.dark")
+      System.IO.File.WriteAllText(
+        script,
+        "let _ = Stdlib.print(\"<\")\n"
+        + "let _ =\n"
+        + "  Stdlib.Cli.Stdout.writeBytes(\n"
+        + $"    Stdlib.Base64.decode(\"{System.Convert.ToBase64String everyByte}\")\n"
+        + "    |> Builtin.unwrap)\n"
+        + "let _ = Stdlib.print(\">\")\n"
+        + "0\n"
+      )
+      let p = Tests.CliInstance.startUndrained i [ "run"; script ]
+      try
+        use written = new System.IO.MemoryStream()
+        do! p.StandardOutput.BaseStream.CopyToAsync written
+        Expect.isTrue (p.WaitForExit 30000) "the run ends"
+        Expect.equal p.ExitCode 0 $"and succeeds: {p.StandardError.ReadToEnd()}"
+        Expect.equal
+          (written.ToArray())
+          (Array.concat [ [| byte '<' |]; everyByte; [| byte '>' |] ])
+          "every byte value arrives as it was written, between the text around it"
+      finally
+        Tests.CliInstance.stop p
+    })
+
 let private testHelpCommand =
   instanceTest "help command" (fun state ->
     task {
@@ -641,6 +671,7 @@ let tests : List<Test> =
     stdinThatIsNotUtf8IsRefused
     processTitleSaysWhatRuns
     runStopsWhenStdoutCloses
+    stdoutBytesArriveUnchanged
     testHelpCommand
     showingACommitDoesNotFetchEveryOp
     permissionsRefusesAnEmptyRule

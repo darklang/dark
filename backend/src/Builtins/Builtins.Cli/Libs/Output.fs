@@ -67,6 +67,25 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stdoutWriteBytes" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes "The bytes to write." ]
+      returnType = TUnit
+      description =
+        "Writes <param bytes> to the standard output exactly as they are. Nothing is "
+        + "removed from them, whether the output goes to a terminal, a pipe or a file."
+      fn =
+        (function
+        | state, _, _, [| DBytes ref |] ->
+          LibExecution.Bytes.withBytes state ref (fun bytes ->
+            NonBlockingConsole.writeBytes bytes
+            DUnit)
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.Stdout ]
+      deprecated = NotDeprecated }
+
+
     { name = fn "printError" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]

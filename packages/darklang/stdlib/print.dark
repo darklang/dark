@@ -8,6 +8,12 @@ let printLine(str: String): Unit =
   Builtin.printLine(str)
 
 
+/// Print <param str> exactly as it is. `print` removes colour and style codes when the output
+/// goes to a pipe or a file. This keeps them, for a program that prints them on purpose.
+let printAsWritten(str: String): Unit =
+  Cli.Stdout.writeBytes(Utf8.encode(str))
+
+
 /// Print <param str> to stderr, followed by a newline: for everything that is not the answer to what
 /// was asked, so `dark cmd | next` carries only the answer.
 let printErrorLine(str: String): Unit =
