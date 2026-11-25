@@ -256,6 +256,27 @@ let parse
       )
 
 
+/// Each name <param ops> declares more than once, as "fn Owner.Module.name". Storing such a
+/// set would keep the last declaration and silently drop the others.
+let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
+  let declared (previous : PT.PackageOp, op : PT.PackageOp) : Option<string> =
+    let named kind loc = Some $"{kind} {LibDB.PackageLocation.toFQN loc}"
+    match previous, op with
+    | PT.PackageOp.AddType _, PT.PackageOp.SetName(loc, _, _) -> named "type" loc
+    | PT.PackageOp.AddFn _, PT.PackageOp.SetName(loc, _, _) -> named "fn" loc
+    | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, _, _) -> named "value" loc
+    | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(loc, _, _) -> named "trait" loc
+    | PT.PackageOp.AddTraitImpl _, PT.PackageOp.SetName(loc, _, _) ->
+      named "impl" loc
+    | PT.PackageOp.AddTest _, PT.PackageOp.SetName(loc, _, _) -> named "test" loc
+    | _ -> None
+  ops
+  |> List.pairwise
+  |> List.choose declared
+  |> List.countBy identity
+  |> List.filter (fun (_, count) -> count > 1)
+  |> List.map fst
+
 /// Each call in <param ops> to a fn or value that does not exist, as "Item calls Name". The
 /// parser lowers such a call without complaint, since a local variable may stand behind the
 /// name, so without this it surfaces only when the call runs.

@@ -153,6 +153,13 @@ let load
   let (iteration, currentOps) = converge 0 (HS.computeRealHashes firstPassOps) []
 
   debuG "phase 2" $"converged after {iteration} passes"
+  match LibParser.Package.duplicateDeclarations currentOps with
+  | [] -> ()
+  | duplicates ->
+    let listed = String.concat "; " duplicates
+    Exception.raiseInternal
+      $"Package code declares a name more than once: {listed}"
+      [ "count", List.length duplicates ]
   match LibParser.Package.unresolvedCalls currentOps with
   | [] -> ()
   | missing ->

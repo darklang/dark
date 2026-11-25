@@ -1594,6 +1594,20 @@ let tests =
               "Me.Probe.p calls Me.Gone.piped, which does not exist" ]
             "the calls to nothing, in fns, pipes and values; a test may call a missing name"
         | Error e -> failtest $"did not parse: {e}")
+      testCase "a name declared twice is named for the reload to refuse" (fun _ ->
+        let ops =
+          LibParser.Package.parse
+            (LibExecution.Builtin.make [] [])
+            PT.PackageManager.empty
+            NR.OnMissing.Allow
+            "module Me.Probe =\n  let f(): Int64 = 1\n  let g(): Int64 = 2\n  let f(): Int64 = 3\n  type g = Int64"
+        match ops with
+        | Ok ops ->
+          Expect.equal
+            (LibParser.Package.duplicateDeclarations ops)
+            [ "fn Me.Probe.f" ]
+            "f is declared twice; a fn and a type may share the name g"
+        | Error e -> failtest $"did not parse: {e}")
       testTask "a reload refuses package code that calls a missing fn" {
         let localExec =
           match System.Environment.GetEnvironmentVariable "DARK_TEST_LOCALEXEC" with

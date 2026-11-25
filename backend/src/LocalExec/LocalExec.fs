@@ -32,8 +32,6 @@ module HandleCommand =
     let files = LoadPackagesFromDisk.files ()
     let ops = LoadPackagesFromDisk.load (Builtins.all ()) files
 
-    // CLEANUP consider checking for duplicates (helps prevent a class of issues)
-
     // What the store holds BEFORE the purge, so the reload can say what it destroyed. A reload
     // replaces the log with what `packages/` produces, so anything else in it -- ops authored
     // here -- does not survive. That is the intended behaviour of a dev
