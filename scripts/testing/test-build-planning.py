@@ -117,6 +117,15 @@ class TestMark(unittest.TestCase):
   def test_migration_runs_migrations(self):
     self.assertTrue(self.actions("backend/migrations/001-init.sql").run_migrations)
 
+  def test_a_yaml_file_is_linted_only_while_it_exists(self):
+    with TempTree() as t:
+      path = t.write("config/a.yaml", "a: 1\n")
+      self.assertEqual(self.actions("config/a.yaml").yamllint, ["config/a.yaml"])
+      os.remove(path)
+      should = self.actions("config/a.yaml")
+      self.assertEqual(should.chosen(), [])
+      self.assertEqual(should.unrouted, ["config/a.yaml"])
+
   def test_unrecognised_file_routes_nowhere(self):
     should = self.actions("backend/testfiles/execution/foo.dark")
     self.assertEqual(should.chosen(), [])
