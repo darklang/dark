@@ -124,8 +124,7 @@ test dependents =
       |> Stdlib.Test.equal(true) ])
 
 
-// `Live.applicableByName` resolves a name by evaluating it. Only a dotted name of plain
-// identifiers is evaluated, and only a fn comes back.
+// `Live.applicableByName` looks a dotted name up in the store, and only a fn comes back.
 module ApplicableByName =
   let resolve(name: String): Stdlib.Result.Result<String -> Int64, String> =
     LanguageTools.Live.applicableByName(SCM.Branch.mainBranchId, name)
@@ -148,13 +147,13 @@ module ApplicableByName =
     |> Stdlib.Test.equal("No function named Darklang.Stdlib.String.noSuchFn")
 
 
-  // A value evaluates fine, but it is not a fn.
+  // A value is bound there, but it is not a fn.
   test valueIsNotAFn =
     errorOf("Darklang.Stdlib.Math.pi")
     |> Stdlib.Test.equal("No function named Darklang.Stdlib.Math.pi")
 
 
-  // Anything but a dotted name is refused before eval sees it.
+  // Anything but a dotted name is refused.
   test codeIsNotEvaluated =
     Stdlib.Test.all(
       [ errorOf("Darklang.Stdlib.String.length(\"four\")")
