@@ -3,91 +3,144 @@ module Darklang.Cli.Docs.Operators
 let content(): String =
   """# Operators
 
+## Arithmetic
+
+  7 + 3     // 10
+  7 - 3     // 4
+  7 * 3     // 21
+  7 / 3     // 2
+  -7 % 3    // 2
+  2 ** 3    // 8
+
+Both operands must have the same type. Darklang doesn't automatically convert
+between numeric types. `1.0 + 2.0` works, and `1 + 2.0` gives a type error.
+
+You can also use `+` to concatenate strings. For example, `"a" + "b"` gives `"ab"`.
+
+- Integer division rounds toward zero. Integer and Decimal division by zero raise an error.
+- Float32 and Float64 division by zero can produce infinity or NaN. For example,
+  `1.0 / 0.0` gives positive infinity, `-1.0 / 0.0` gives negative infinity,
+  and `0.0 / 0.0` gives NaN.
+- `%` works on integers and Decimal. The divisor must be positive, and the result
+  is between zero (inclusive) and the divisor (exclusive).
+  Float32 and Float64 don't support `%`.
+- `**` works on integers and floats. For an integer base, the exponent must be nonnegative.
+  You can use negative exponents with floats. For example, `2.0 ** -1.0` gives `0.5`.
+  `Stdlib.Decimal.power(1.1dec, 2)` takes an Int64 exponent.
+- Unary `-x` works on signed integers, BigInt, floats, and Decimal.
+
+### Overflow
+
+- **Fixed-width integers** wrap on overflow. Adding `1s8` to `127s8` gives `-128s8`.
+  Negating `-128s8` gives `-128s8` again. The same rule applies to the smallest value
+  of any signed fixed-width integer type.
+- **BigInt** (`1z`) has no fixed bit width, so it doesn't wrap.
+- **Float32 and Float64** can give infinity when a result is too large to represent.
+- **Decimal** (`19.99dec`) can have up to 28 digits after the decimal point. If a
+  calculation gives a result outside Decimal's range, you get an error.
+
 ## Comparison
-  == != < > <= >=
-  `==` and `!=` are structural on every type and are not traits, so no type can
-  change what they mean. `< > <= >=` are `Stdlib.Compare`: every numeric type
-  implements it, and so can yours. `docs traits` has how.
+
+Use `==` to check whether two values are equal and `!=` to check whether they are
+different. The values must have compatible types. Darklang compares records field
+by field and lists item by item.
+
+Trailing zeros don't affect Decimal equality. For example, `1.10dec == 1.1dec` is `true`.
+
+NaN is not equal to itself. If `x` is NaN, `x == x` returns `false`.
+
+`<`, `<=`, `>`, and `>=` use `Stdlib.Compare`. Numeric types, String, Char, and
+DateTime all support ordering. Run `dark impls Compare` to see the implementations.
 
 ## Boolean
-  && ||   and unary !x
-  `!x` is Stdlib.Bool.not; `!x && y` is `(!x) && y`.
 
-## Unwrap
-  value?   f(x)?   (value |> transform)?
-  Extract Ok/Some, or return Error/None from the nearest function/lambda.
-  Success must still be wrapped in Ok/Some; error types must agree.
-  No space before the ?. It applies to whatever comes right before it, so
-  `a + f(x)?` unwraps just `f(x)`. To unwrap the sum, write `(a + b)?`.
+Use `!` to negate a Bool, `&&` to check if both operands are true, and `||` to
+check if at least one is true.
 
-## Numeric (all int types, Float64, Float32, Decimal)
-  + - * / % **   and unary -x
-  Each is a trait: `+` is `Stdlib.Add`, then Subtract, Multiply, Divide, Modulo, Power, and `-x`
-  is `Negate`. Both operands must be the same type: `1 + 2`, `1.0 + 2.0` and
-  `1s8 * 2s8` all work; `1 + 2.0` is "Cannot perform numeric operation on Int64
-  and Float64". `"a" + "b"` is `"ab"`, since String implements Add.
-  A type of your own joins with `impl Add for Vec = ...`.
-  `/` is integer division on ints, float division on floats.
-  `%` works on the integers and Decimal (the modulus must be > 0). Float64 and Float32 have no
-  Modulo implementation.
-  `**` (power) works on every integer type, Float64 and Float32, and nests right:
-  `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
-  Unary `-x` negates signed ints, Float64 and Float32; an unsigned type has no Negate
-  implementation, and `-x` on one says so.
-  A fixed-width integer WRAPS on overflow, it does not raise: `9223372036854775807 + 1`
-  is `-9223372036854775808`, and `-x` on a type's minimum is that minimum again.
-  `BigInt` (`1z`) is arbitrary-precision and does not wrap. Dividing by zero raises.
-  Float64 arithmetic follows IEEE (overflow -> infinity).
-  Decimal (`19.99dec`) is exact base-10 with up to 28 places: `+ - * / %`, unary `-` and
-  comparisons. No `**`; `Stdlib.Decimal.power(d, n)` takes a whole Int64 power. A result
-  past 96 bits raises; `/` gives as many places as fit, so follow it with
-  `Stdlib.Decimal.round(q, 2)` (or `roundWith` and a `RoundingMode`) to fix them; both
-  return a Result, an Error for places outside 0 to 28. The places written are kept
-  (`1.10dec` prints 1.10) but `1.10dec == 1.1dec`.
+Both `&&` and `||` short-circuit. `false && y` and `true || y` don't evaluate `y`.
 
-## Bitwise (every integer type; Float64 has no implementation)
-  & | ^ << >>   and unary ~x
-  `&` and, `|` or, `^` xor, `<<`/`>>` shift, `~x` NOT (two's complement).
-  Traits like the rest: `&` is `BitwiseAnd`, `|` `BitwiseOr`, `^` `BitwiseXor`, `~` `BitwiseNot`,
-  `<<` `ShiftLeft`, `>>` `ShiftRight`, so your own type can implement them.
-  Both operands must be the same integer type, including the shift count:
-  `1 << 4`, not `1 << 4s8`.
-  Fixed-width results wrap, and so does the shift count: it is taken modulo the bit
-  width, as in Rust and C#. `1u8 << 9u8` is `2u8` (a shift by 1, not 0), and
-  `1s8 << -1s8` shifts by 7. `>>` on a signed type keeps the sign.
-  `BigInt` (`1z`) is arbitrary-precision, so a shift count that is negative or too
-  large to be an Int32 raises instead.
+## Bitwise
 
-  `|` is also the match-arm separator, and inside a `match` the arm wins.
-  Parenthesize to mean bitwise-or there:
-    match x with
-    | A -> (a | b)
+All integer types support `&` (AND), `|` (OR), `^` (XOR), `~x` (flip every bit),
+`<<` (shift left), and `>>` (shift right).
 
-## String
-  +    concat
+Both operands must have the same type, including the shift count.
+For fixed-width integers, the shift count is taken modulo the bit width. For example,
+`1u8 << 9u8` shifts by one bit and gives `2u8`.
+Negative shift counts also wrap. `1s8 << -1s8` shifts by seven bits and gives `-128s8`.
+BigInt shift counts must be between `0z` and `2147483647z`, inclusive.
 
-## List
-  No operator. Spread in a list literal instead:
-  [x, ...xs]      put x in front
-  [...a, ...b]    concat, lowers to Stdlib.List.concat
+Right shifts (`>>`) preserve the sign bit for signed integers and fill the high
+bits with zeros for unsigned integers.
+
+In a one-line `match` arm, wrap `a | b` in parentheses because `|` can also
+start a new arm. For example, `| A -> (a | b)`.
 
 ## Pipe
-  value |> fn
-  (if c then a else b) |> fn   // an if or match needs parens
+
+Use `|>` to pass a value as the first argument to a function or constructor.
+You can chain pipes to pass the result of each call to the next.
+
+  "hello" |> Stdlib.String.length                 // 5
+  [1, 2] |> Stdlib.List.map(fun x -> x * 2)       // [2, 4]
+  3 |> (fun x -> x + 1) |> (fun x -> x * 2)       // 8
+
+To pipe the result of an entire `if` or `match`, put it in parentheses.
+
+  (if ready then a else b) |> transform
+
+## Unwrap
+
+Use `?` after a `Result` or `Option` expression to extract the value inside `Ok`
+or `Some`. If the expression returns `Error` or `None`, the enclosing function
+or lambda returns it immediately.
+
+A function or lambda that unwraps an `Option` must return an `Option`. If it
+unwraps a `Result`, it must return a `Result` with the same error type.
+The unwrapped value and the returned value can have different types.
+
+`a + f(x)?` unwraps the call before adding. To unwrap a whole pipeline, write
+`(value |> transform)?`.
+
+## Operators as functions
+
+Put a binary arithmetic, comparison, or bitwise operator in parentheses to use it
+as a function. For example, `(+)(2, 3)` gives `5`.
+
+Darklang has a fixed set of operators. Arithmetic, ordering, and bitwise
+operators use traits, so you can define how existing operators work with your
+own types.
+
+See `dark docs traits` for more details.
+
+## List spread
+
+Use `...` inside a list literal to insert the items of another list.
+You can spread multiple lists in the same literal. Spreading an empty list adds no items.
+
+  [x, ...xs]    // Prepend x
+  [...xs, x]    // Append x
+  [...a, ...b]  // Join two lists
 
 ## Precedence
-  Loosest to tightest. `**` nests right; everything else groups left.
-    ||
-    &&
-    == != < > <= >=
-    |
-    ^
-    &
-    << >>
-    + -
-    * / %
-    **
-    f(a, b)         (call)
-    x.field  x?     (postfix, tightest)
-  Note the bitwise levels bind TIGHTER than the comparisons, as in Python:
-  `a & b == c` is `(a & b) == c`."""
+
+The operators below are listed from lowest to highest precedence. Binary operators
+with the same precedence group from left to right, except `**`, which groups from
+right to left.
+
+  |>
+  ||
+  &&
+  == != < > <= >=
+  |
+  ^
+  &
+  << >>
+  + -
+  * / %
+  **
+  !x -x ~x
+  f(a, b)  x.field  x.1  x?   calls, field access, tuple access, and unwrap
+
+`2 ** 3 ** 2` means `2 ** (3 ** 2)`. `a & b == c` means `(a & b) == c`.
+Use parentheses to make grouping explicit."""
