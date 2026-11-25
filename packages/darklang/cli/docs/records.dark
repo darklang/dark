@@ -3,24 +3,60 @@ module Darklang.Cli.Docs.Records
 let content(): String =
   """# Records
 
-Fields use commas or newlines. Semicolons are a parse error.
+Records group related values into named fields. Each field can have a different type.
+Separate fields with commas or write each field on its own line.
 
 ## Define
+
+Define a record type by specifying the name and type of each field.
+
   type Person = { name: String, age: Int64 }
 
+Record fields can hold other records, such as `resident: Person`.
+A record type can take a type parameter, as in `type Box<'a> = { item: 'a }`.
+
+Record types with the same field names and types in the same order are treated
+as the same type, even if they have different type names.
+
 ## Construct
-  Person { name = "Jo", age = 30 }
+Write the type name followed by its fields and their values in braces.
+All fields are required, and each value must match its declared type.
+You can write the fields in any order.
+
+  let person = Person { name = "Jo", age = 30 }
+
+You can also separate fields with newlines instead of commas.
+
   Person
     { name = "Jo"
       age = 30 }
 
 ## Access
+
+Access a field using dot notation.
+
   person.name
 
 ## Update
-  { person with name = "Jane", age = 31 }
+
+Use `with` to update one or more fields in a record. This creates a new record
+with the updated values and keeps all other field values the same.
+The original record is unchanged.
+
+  { person with age = 31 }   // Person { name = "Jo", age = 31 }
+  { person with age = 31, name = "Jane" }   // Person { name = "Jane", age = 31 }
 
 ## Pattern matching
-  match p with
-  | { age = 0 } -> "newborn"         // fields you leave out are ignored
-  | { name } -> name                 // short for { name = name }"""
+
+Record patterns match only the fields you specify. Use `{ name }` as shorthand
+for `{ name = name }` to bind a field to a variable with the same name.
+
+  match person with
+  | { age = 0 } -> "newborn"
+  | { name } -> name
+
+See `dark docs pattern-matching` for more examples.
+
+## Equality
+
+Two records of the same type are equal if all their field values are equal."""
