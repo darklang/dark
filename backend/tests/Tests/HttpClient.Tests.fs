@@ -1763,6 +1763,44 @@ module RedirectTests =
             "b"B
             "a kept method keeps its body"
         }
+        test "redirect cookies are scoped to one exchange, origin and path" {
+          let jar = C.RedirectCookies()
+          let first = "https://a.test/login/start"
+          jar.Remember(
+            first,
+            [ "Set-Cookie", "session=one; Secure; Path=/login"
+              "set-cookie", "other=two; Secure; Path=/login"
+              "Set-Cookie", "bad=ignored; Domain=unrelated.test" ]
+          )
+          let sent (jar : C.RedirectCookies) url headers =
+            (jar.ForSend(hop "GET" url headers)).headers
+
+          let sentHeader =
+            sent jar "https://a.test/login/continue" [] |> List.exactlyOne
+          Expect.equal (fst sentHeader) "Cookie" "cookies share one request header"
+          Expect.equal
+            ((snd sentHeader).Split("; ") |> Set.ofArray)
+            (Set.ofList [ "session=one"; "other=two" ])
+            "both valid Set-Cookie headers reach the next hop"
+          for other in
+            [ "https://a.test/outside"
+              "http://a.test/login/continue"
+              "https://a.test:8443/login/continue"
+              "https://sub.a.test/login/continue" ] do
+            Expect.isEmpty (sent jar other []) $"cookies stay out of {other}"
+          Expect.isEmpty
+            (sent (C.RedirectCookies()) first [])
+            "another exchange is empty"
+          Expect.equal
+            (sent jar first [ "cookie", "explicit=one" ])
+            [ "cookie", "explicit=one" ]
+            "an explicit Cookie header wins"
+          jar.Remember(first, [ "Set-Cookie", "session=; Max-Age=0; Path=/login" ])
+          Expect.equal
+            (sent jar first [])
+            [ "Cookie", "other=two" ]
+            "expiration clears only the named cookie"
+        }
         test "credentials stay on their origin" {
           let names (n : C.Hop) = n.headers |> List.map fst
           Expect.equal

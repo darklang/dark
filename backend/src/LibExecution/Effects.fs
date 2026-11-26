@@ -186,7 +186,9 @@ let readsOnly (effects : Set<Effect>) : bool =
 /// URL, not a method), so the read-ness of a GET is stated here, by the call, rather than by a
 /// second effect name every policy would have to know. The streaming call is not one: an open
 /// stream is not a value a read can hand back. A GET that carries a body is sent in order.
-let readsByMethod (builtinName : string) : bool = builtinName = "httpClientRequest"
+let readsByMethod (builtinName : string) : bool =
+  builtinName = "httpClientRequest"
+  || builtinName = "httpClientRequestWithRedirectCookies"
 
 /// GET or HEAD, in any case.
 let isReadMethod (method : string) : bool =
