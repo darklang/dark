@@ -29,11 +29,6 @@ let commitInstancePolicy(expected: String, policy: LanguageTools.Permissions.Pol
   Builtin.pmPolicyEditInstance(expected, policy)
 
 
-/// Move a policy file this build can't read out of the way, and return where it went.
-let setAsideUnsupportedPolicy(): Option<String> =
-  Builtin.pmPolicySetAsideUnsupported()
-
-
 /// Normalize file paths before comparing rules, including relative paths and `~`.
 /// Use the same host normalization as saving a rule.
 let canonicalRule(rule: LanguageTools.Permissions.Rule): LanguageTools.Permissions.Rule =
@@ -661,17 +656,38 @@ let profile(args: List<String>): Bool =
         Stdlib.printLine($"Profile {name} replaces the entire instance policy, including denies:")
         Stdlib.printLines(indentedPolicyLines(policy))
         if apply then
-          // A profile replaces the whole policy, so an old file that can't be read needn't block it.
-          match setAsideUnsupportedPolicy() with
-          | Some(kept) -> Stdlib.printLine($"The old policy file was kept as {kept}")
-          | None -> ()
-
           commitInstancePolicy(expected, policy)
           Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"✓ applied profile {name}"))
         else
           Stderr.hint("Preview only. Repeat with --yes to apply.")
 
         true
+
+
+/// Carry the rules of a policy file from an older Dark over to this one.
+let upgrade(): Bool =
+  match Builtin.pmPolicyUpgrade() with
+  | Error(message) ->
+    printErr(message)
+    false
+  | Ok((policy, rulesDropped, approvalsDropped, keptAs)) ->
+    Stdlib.printLine("Carried over from the old policy file:")
+    Stdlib.printLines(indentedPolicyLines(policy))
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(rulesDropped)) then
+      Stdlib.printLine("Not carried over, because they no longer mean anything:")
+      Stdlib.printLines(Stdlib.List.map(rulesDropped, fun rule -> "    " + rule))
+    else
+      ()
+
+    if approvalsDropped then
+      Stdlib.printLine(
+        "Not carried over: remembered approvals. Dark records them differently now, and will ask again.")
+    else
+      ()
+
+    Stdlib.printLine($"The old file was kept as {keptAs}")
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.success("✓ permissions upgraded"))
+    true
 
 
 /// The rules given after a name on `approve`/`update`, `;`-separated like
@@ -1022,6 +1038,7 @@ let printListOrNone(items: List<String>): Unit =
 val subcommands =
   [ ("list", Option.None)
     ("profile", Option.None)
+    ("upgrade", Option.None)
     ("allow", Option.Some("allow <rule>;…"))
     ("deny", Option.Some("deny <rule>;…"))
     ("remove", Option.Some("remove [--for <fn>] <rules> | remove --for <fn> --all"))
@@ -1190,6 +1207,7 @@ let execute(state: AppState, args: List<String>): AppState =
     Stdlib.printLine(help(state))
     state
   | ["profile", ...args] -> exitWith(state, profile(args))
+  | ["upgrade"] -> exitWith(state, upgrade())
   // Before the `[<subcommand>, ...args]` arms: a subcommand given with no
   // argument must report usage, not run with an empty argument list (`set`
   // with nothing would replace the policy with deny-all).
@@ -1307,7 +1325,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
 let help(_state: AppState): String =
   [ "Usage: permissions [list] | allow <rule>;… | deny <rule>;… | remove <rule>;…"
     "                   | set <rule>;… | clear"
-    "                   | profile [name [ABSOLUTE-ROOT] [--yes]]"
+    "                   | profile [name [ABSOLUTE-ROOT] [--yes]] | upgrade"
     "                   | approve --for <fn> <rules> | update <fn> [rules]"
     "                   | remove --for <name> <rules> | remove --for <name> --all"
     "                   | unapprove <name> | approved"
@@ -1339,6 +1357,10 @@ let help(_state: AppState): String =
     "  Add --yes to apply. Replaces the entire instance policy, including denies."
     "  ROOT must be absolute; no process, native or environment access is granted."
     "  HTTPS GET permits any host on port 443; HTTP serving permits any port on 127.0.0.1."
+    ""
+    "After updating Dark:"
+    "  upgrade        carry the rules of a policy file from an older Dark over to this one."
+    "                 The old file is kept. Remembered approvals are asked for again."
     ""
     "Named approvals:"
     "  --yes, -y      skip confirmation when saving; required without a terminal"

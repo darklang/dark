@@ -374,6 +374,7 @@ module Registry =
     Accepts.subcommands(
       [ ("list", Accepts.nothing())
         ("profile", Accepts.upTo(2, [ "-y", "--yes" ]))
+        ("upgrade", Accepts.nothing())
         ("allow", Accepts.text(1))
         ("deny", Accepts.text(1))
         ("remove", Accepts.withValues([ "--for" ], Accepts.freeText(0, [ "--all" ])))

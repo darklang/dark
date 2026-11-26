@@ -723,7 +723,7 @@ let private raisesWithoutRaise : Map<string, string> =
       "pmPolicyReviewVersion"
       "pmPolicyApproveVersion"
       "pmPolicyReviewToken"
-      "pmPolicySetAsideUnsupported"
+      "pmPolicyUpgrade"
       "storeBackup"
       "configSet"
       "tracesApplyRecording" ] ]

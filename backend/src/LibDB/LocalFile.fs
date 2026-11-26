@@ -178,15 +178,17 @@ let read (fileName : string) : ReadResult =
   | :? DirectoryNotFoundException -> Missing
   | error -> Unreadable error
 
-/// Rename a policy file within the policy directory, never over an existing file. Returns the
-/// path it now has.
-let moveAside (fileName : string) (asName : string) : string =
+/// Copy a policy file within the policy directory, never over an existing file. Returns the
+/// path of the copy.
+let copyAside (fileName : string) (asName : string) : string =
   let source = resolve fileName
   let rec free (n : int) : string =
     let candidate = resolve (if n = 1 then asName else $"{asName}-{n}")
     if File.Exists candidate then free (n + 1) else candidate
   let target = free 1
-  File.Move(source, target, false)
+  File.Copy(source, target, false)
+  if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() then
+    File.SetUnixFileMode(target, UnixFileMode.UserRead ||| UnixFileMode.UserWrite)
   target
 
 /// Write a policy file atomically and with owner-only Unix permissions.
