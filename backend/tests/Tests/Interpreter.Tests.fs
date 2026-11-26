@@ -2752,6 +2752,7 @@ module VMReuse =
             typeSymbolTable = RT.TST.empty
             runId = 0L
             frameId = System.Guid.Empty
+            frameDepth = 0
             outer = ValueNone }
 
       let again = RT.VMState.reuseFor (vm, None, instrData, 1)

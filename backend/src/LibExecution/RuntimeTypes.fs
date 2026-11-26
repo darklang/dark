@@ -1688,6 +1688,9 @@ and LambdaReturnExpectation =
     mutable typeSymbolTable : TypeSymbolTable
     runId : int64
     frameId : uuid
+    /// The depth of that call's frame, so whether it is still running is one lookup in
+    /// `VMState.stackAt`
+    frameDepth : int
     outer : LambdaReturnExpectation voption
   }
 
@@ -5369,6 +5372,10 @@ type CallFrame =
   {
     mutable id : uuid
 
+    /// How many frames are below this one: 0 for the root. It is also this frame's index in
+    /// `VMState.stackAt` while it runs.
+    mutable depth : int
+
     /// (Parent * where to put result in parent * pc of parent to return to)
     ///
     /// A struct option of a struct tuple: the root frame aside, one of these is built for every function
@@ -5991,6 +5998,12 @@ type VMState =
     /// Set by the instruction that wants to push a frame, read by the loop that pushes it.
     mutable frameToPush : CallFrame voption
 
+    /// The frame at each depth of the current stack: `stackAt[d]` is the frame at depth `d`,
+    /// for `d` up to `currentFrame.depth`. Slots above that are leftovers and never read. It
+    /// lets the lambda return checks ask "is this frame still running?" in one lookup.
+    /// Grows as needed.
+    mutable stackAt : CallFrame[]
+
     /// Source of frame ids. Per-VM rather than global because a VM's interpreter loop is single-threaded,
     /// so this needs no synchronization -- and a process-global counter would need it: tests run VMs in
     /// parallel, and a non-atomic shared increment hands two frames the same id, which the tracer and
@@ -6107,6 +6120,7 @@ type VMState =
 
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
+        depth = 0
         executionPoint = Source
         access = Permissions.Access.denyAll
         instrData = rootInstrData
@@ -6133,6 +6147,7 @@ type VMState =
       lambdaEpCache = Dictionary()
       stats = stats
       frameToPush = ValueNone
+      stackAt = Array.create 64 rootCallFrame
       frameIdCounter = 0L
       runId = VMRuns.next ()
       budget = -1L
@@ -6186,6 +6201,7 @@ type VMState =
       match vm.pooledRootFrame with
       | ValueSome(frame : CallFrame) ->
         frame.id <- rootCallFrameID
+        frame.depth <- 0
         frame.executionPoint <- Source
         frame.instrData <- instrData
         frame.expectedReturnType <- ValueNone
@@ -6205,6 +6221,7 @@ type VMState =
         frame
       | ValueNone ->
         { id = rootCallFrameID
+          depth = 0
           executionPoint = Source
           instrData = instrData
           expectedReturnType = ValueNone
@@ -6223,6 +6240,7 @@ type VMState =
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.currentFrame <- rootCallFrame
+    vm.stackAt[0] <- rootCallFrame
     vm.activeAccess <- rootCallFrame.access
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone

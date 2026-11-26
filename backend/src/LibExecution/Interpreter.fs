@@ -800,9 +800,14 @@ let inline private takeFrame
   : CallFrame =
   let pool = vm.framePool
   let free = if registerCount < pool.Count then pool[registerCount] else null
+  let depth =
+    match parent with
+    | ValueSome(struct (p, _, _)) -> p.depth + 1
+    | ValueNone -> 0
   if not (isNull free) && free.Count > 0 then
     let f = free.Pop()
     f.id <- id
+    f.depth <- depth
     f.parent <- parent
     f.executionPoint <- executionPoint
     f.access <- access
@@ -818,6 +823,7 @@ let inline private takeFrame
     f
   else
     { id = id
+      depth = depth
       parent = parent
       executionPoint = executionPoint
       access = access
@@ -885,17 +891,18 @@ let takeFrameId (vm : VMState) : uuid = nextFrameId vm
 /// up from 1 and root frames are random.
 let private wholeRun = System.Guid.Empty
 
+/// Whether the frame <param id>, pushed at <param depth>, is still on the stack. One
+/// lookup in `VMState.stackAt`, so the check costs the same however deep the stack is.
+let private onStackAt (vm : VMState) (depth : int) (id : uuid) : bool =
+  depth <= vm.currentFrame.depth
+  && depth < vm.stackAt.Length
+  && vm.stackAt[depth].id.Equals id
+
 /// Whether the fn that set up this check is still running. Once it returns, its
 /// types no longer apply, so a lambda kept and called later is not checked.
-let rec private onStack (frame : CallFrame) (id : uuid) : bool =
-  frame.id.Equals id
-  || (match frame.parent with
-      | ValueSome(struct (parent, _, _)) -> onStack parent id
-      | ValueNone -> false)
-
 let inline private isLive (vm : VMState) (x : LambdaReturnExpectation) : bool =
   x.runId = vm.runId
-  && (x.frameId = wholeRun || onStack vm.currentFrame x.frameId)
+  && (x.frameId = wholeRun || onStackAt vm x.frameDepth x.frameId)
 
 /// Drops the checks whose fn has already returned, and gives back the rest.
 let rec private liveExpectation
@@ -1041,6 +1048,7 @@ let private expectLambdaReturns
   (args : Dval[])
   (tst : TypeSymbolTable)
   (frameId : uuid)
+  (frameDepth : int)
   : unit =
   // A callback that takes too many arguments needs no check here: in
   // `List.filter(xs, fun x y -> true)`, filter passes one argument and the call
@@ -1064,6 +1072,7 @@ let private expectLambdaReturns
             typeSymbolTable = tst
             runId = vm.runId
             frameId = frameId
+            frameDepth = frameDepth
             outer = liveExpectation vm l.expectedReturn }
         args[i] <- DApplicable(AppLambda { l with expectedReturn = ValueSome e })
       | _ -> ()
@@ -2040,6 +2049,7 @@ let private completeBuiltin
             allArgs
             tst
             vm.currentFrame.id
+            vm.currentFrame.depth
     | _ -> ()
     invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs false
 
@@ -2848,6 +2858,7 @@ let private expectCallbackReturns
       frame.registers
       frame.typeSymbolTable
       frame.id
+      frame.depth
 
 /// Whether the result of the `Apply` at <param i> - 1, in register <param cur>, is what the frame
 /// returns: only copies of it and forward jumps come after, and they end with it in
@@ -3905,8 +3916,18 @@ let inline private pushLambdaFrame
   newFrame
 
 
+/// Record <param frame> in `VMState.stackAt` at its depth, as it becomes the current frame.
+let inline private noteOnStack (vm : VMState) (frame : CallFrame) : unit =
+  let d = frame.depth
+  if d >= vm.stackAt.Length then
+    let grown = Array.create (max (d + 1) (vm.stackAt.Length * 2)) frame
+    System.Array.Copy(vm.stackAt, grown, vm.stackAt.Length)
+    vm.stackAt <- grown
+  vm.stackAt[d] <- frame
+
 /// Make a freshly built frame the current one.
 let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
+  noteOnStack vm frame
   vm.currentFrame <- frame
 
 /// The package fn `pkg`, or the runtime error that there is none.
@@ -6369,6 +6390,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
     | ValueSome frame ->
       vm.frameToPush <- ValueNone
       currentFrame.programCounter <- counter
+      noteOnStack vm frame
       vm.currentFrame <- frame
       currentFrame <- frame
       registers <- frame.registers
@@ -6721,6 +6743,8 @@ let private returnFromFrame
       | ValueSome(parent, _, _) -> vm.currentFrame <- parent
       | ValueNone -> ()
       let out = currentFrame.continuation resultOfFrame
+      // The continuation may have run other frames at this depth; put this one back
+      noteOnStack vm currentFrame
       vm.currentFrame <- currentFrame
       ValueSome out
     | _ -> ValueNone

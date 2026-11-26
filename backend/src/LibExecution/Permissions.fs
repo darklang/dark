@@ -825,12 +825,21 @@ module Access =
     (Access(constraints, _))
     (Access(restrictions, caller) as current)
     : Access =
-    // A closure applied in the frame that created it carries the identical
-    // Access; the conjunction is then the value itself — skip the append.
-    if System.Object.ReferenceEquals(constraints, restrictions) then
+    let rec startsWith (prefix : List<Restriction>) (layers : List<Restriction>) =
+      obj.ReferenceEquals(prefix, layers)
+      || (match prefix, layers with
+          | [], _ -> true
+          | expected :: rest, layer :: tail when obj.ReferenceEquals(expected, layer) ->
+            startsWith rest tail
+          | _ -> false)
+    if startsWith constraints restrictions then
       current
     else
-      Access(constraints @ restrictions, caller)
+      // Keep the captured copy so removing duplicates preserves denial order.
+      let captured (r : Restriction) =
+        constraints |> List.exists (fun c -> obj.ReferenceEquals(c, r))
+      let remaining = restrictions |> List.filter (fun r -> not (captured r))
+      Access(constraints @ remaining, caller)
 
   /// For code the caller of a named approval chose rather than the approved function, such as
   /// the trait implementation a type argument picks: like a callback, it is limited by the
