@@ -248,6 +248,19 @@ let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
 
         let! read = CliInstance.run i [ "eval"; "Tests.SaveHonesty.broken" ]
         Expect.stringContains read "not found" $"the value was never stored: {read}"
+
+        // A row left without a result would be evaluated again on every start.
+        use conn =
+          new Microsoft.Data.Sqlite.SqliteConnection(
+            $"""Data Source={System.IO.Path.Combine(i.dir, "data.db")};Pooling=False"""
+          )
+        conn.Open()
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <-
+          "SELECT count(*) FROM package_values WHERE rt_dval IS NULL"
+        let unevaluated = cmd.ExecuteScalar() :?> int64
+        conn.Close()
+        Expect.equal unevaluated 0L "no unevaluated value is left in the store"
       })
 
 let private deprecationIsReversible =
