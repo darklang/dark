@@ -412,6 +412,18 @@ test invalidUnicodeMatch =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a😀b" ])) ])
 
 
+test emptyMatchSkipsTheMiddleOfAnEmoji =
+  Stdlib.Test.all(
+    [ Stdlib.Regex.findAll("a😀b", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "", "", "", "" ]))
+
+      Stdlib.Regex.split("a😀b", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "", "a", "😀", "b", "" ]))
+
+      Stdlib.Regex.replaceAll("😀", "x*", "-")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("-😀-")) ])
+
+
 test replacementIsLiteral =
   Stdlib.Test.all(
     [ Stdlib.Regex.replace("2026-11", "(\\d+)-(\\d+)", "$2/$1")

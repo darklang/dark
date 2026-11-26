@@ -20,7 +20,9 @@ type RegexError =
   | UnsupportedSyntax(construct: String)
   /// A match would start or end between the two halves of an emoji (or any
   /// character past U+FFFF), and half of one is not text. `.` and `[^x]` step
-  /// through such a character half at a time; `.+` takes it whole.
+  /// through such a character half at a time; `.+` takes it whole. An empty match,
+  /// from `x*` or an empty pattern, is never this error: it lands before or after
+  /// such a character, not inside it.
   | InvalidUnicodeMatch
   /// Matching ran out of time. Only very large inputs get here.
   | MatchLimitExceeded
