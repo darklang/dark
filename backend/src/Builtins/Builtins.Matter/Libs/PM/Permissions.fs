@@ -157,6 +157,19 @@ let fns () : List<BuiltInFn> =
           | Error message -> Exception.raiseStoreCondition message []
         | _ -> incorrectArgs ())
 
+    hostOnly
+      "pmPolicySetAsideUnsupported"
+      [ Param.make "unit" TUnit "" ]
+      (TypeReference.option TString)
+      "Move a policy file this build can't read out of the way, and return where it went. None when the file is current or missing."
+      (fun _ args ->
+        match args with
+        | [| DUnit |] ->
+          PolicyStore.setAsideUnsupported ()
+          |> Option.map DString
+          |> Dval.option KTString
+        | _ -> incorrectArgs ())
+
     // Read this account's approvals once. Dark selects and formats the entries.
     policyFn
       "pmPolicyApprovals"

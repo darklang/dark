@@ -153,7 +153,7 @@ let storedVersion (bytes : byte[]) : Option<int> =
 // ── file access ───────────────────────────────────────────────────────────────
 
 let private unsupportedFormat (version : int) (where : string) : string =
-  $"The policy file uses unsupported format {version}; this build reads only format {formatVersion}. Move {where} aside and configure a fresh policy."
+  $"The policy file {where} is from an older Dark (format {version}; this build reads {formatVersion}) and can't be read. Run `dark permissions profile default --yes` to start again from the default permissions. The old file will be kept."
 
 /// Why the policy file grants nothing, when it is in a format this build can't read. Such a
 /// file reads as an empty policy, so without this every refusal looks like a chosen one.
@@ -252,6 +252,21 @@ let private set (change : Store -> Store) : unit =
 let private nonBlank (label : string) (value : string) : unit =
   if String.IsNullOrWhiteSpace value then
     invalidArg label $"{label} cannot be empty"
+
+/// Move a policy file this build can't read out of the way, so that a fresh policy can be
+/// written. Returns where it went. A current or missing file is left alone.
+let setAsideUnsupported () : Option<string> =
+  LocalFile.withExclusiveLock (fun () ->
+    match LocalFile.read fileName with
+    | LocalFile.Read bytes ->
+      match storedVersion bytes with
+      | Some version when version <> formatVersion ->
+        let moved = LocalFile.moveAside fileName $"{fileName}.format-{version}"
+        lock cacheLock (fun () -> cache <- None)
+        Some moved
+      | _ -> None
+    | LocalFile.Missing
+    | LocalFile.Unreadable _ -> None)
 
 // ── first-run seed ──────────────────────────────────────────────
 

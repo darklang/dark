@@ -29,6 +29,11 @@ let commitInstancePolicy(expected: String, policy: LanguageTools.Permissions.Pol
   Builtin.pmPolicyEditInstance(expected, policy)
 
 
+/// Move a policy file this build can't read out of the way, and return where it went.
+let setAsideUnsupportedPolicy(): Option<String> =
+  Builtin.pmPolicySetAsideUnsupported()
+
+
 /// Normalize file paths before comparing rules, including relative paths and `~`.
 /// Use the same host normalization as saving a rule.
 let canonicalRule(rule: LanguageTools.Permissions.Rule): LanguageTools.Permissions.Rule =
@@ -656,6 +661,11 @@ let profile(args: List<String>): Bool =
         Stdlib.printLine($"Profile {name} replaces the entire instance policy, including denies:")
         Stdlib.printLines(indentedPolicyLines(policy))
         if apply then
+          // A profile replaces the whole policy, so an old file that can't be read needn't block it.
+          match setAsideUnsupportedPolicy() with
+          | Some(kept) -> Stdlib.printLine($"The old policy file was kept as {kept}")
+          | None -> ()
+
           commitInstancePolicy(expected, policy)
           Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"✓ applied profile {name}"))
         else

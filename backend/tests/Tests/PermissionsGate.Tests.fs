@@ -358,7 +358,8 @@ let private hostOnlyPolicyBuiltins =
       "pmPolicyRemove"
       "pmPolicyApprovalsStale"
       "pmPolicyReviewVersion"
-      "pmPolicyApproveVersion" ]
+      "pmPolicyApproveVersion"
+      "pmPolicySetAsideUnsupported" ]
 
 let everyPolicyBuiltinRefusesGuestCode =
   testTask "every policy builtin but the named reads refuses guest code" {

@@ -259,7 +259,7 @@ let private oldPolicyFormatIsNamed =
       task {
         let! (quiet, _) = CliInstance.runWithExit i [ "eval"; "1 + 1" ]
         Expect.isFalse
-          (quiet.Contains "unsupported format")
+          (quiet.Contains "older Dark")
           $"a current policy file brings no warning: {quiet}"
 
         let older = LibDB.PolicyStore.formatVersion - 1
@@ -279,8 +279,26 @@ let private oldPolicyFormatIsNamed =
         let! (warned, _) = CliInstance.runWithExit i [ "eval"; "1 + 1" ]
         Expect.stringContains
           warned
-          $"unsupported format {older}"
+          $"is from an older Dark (format {older};"
           "the warning names the file's format"
+        Expect.stringContains
+          warned
+          "dark permissions profile default --yes"
+          "and the command that starts again from the defaults"
+
+        let! (applied, code) =
+          CliInstance.runWithExit i [ "permissions"; "profile"; "default"; "--yes" ]
+        Expect.equal code 0L $"the profile applies over the old file: {applied}"
+        Expect.isTrue
+          (System.IO.File.Exists(
+            System.IO.Path.Combine(i.dir, "policy", $"policies.bin.format-{older}")
+          ))
+          $"the old file is kept: {applied}"
+
+        let! (after, _) = CliInstance.runWithExit i [ "eval"; "1 + 1" ]
+        Expect.isFalse
+          (after.Contains "older Dark")
+          $"and the warning is gone: {after}"
       })
 
 let private deprecationIsReversible =
