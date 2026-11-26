@@ -256,9 +256,8 @@ let parse
       )
 
 
-/// Each name <param ops> declares more than once, as "fn Owner.Module.name". Storing such a
-/// set would keep the last declaration and silently drop the others.
-let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
+/// Each declaration in <param ops>, as "fn Owner.Module.name", in order.
+let declarations (ops : List<PT.PackageOp>) : List<string> =
   let declared (previous : PT.PackageOp, op : PT.PackageOp) : Option<string> =
     let named kind loc = Some $"{kind} {LibDB.PackageLocation.toFQN loc}"
     match previous, op with
@@ -270,9 +269,12 @@ let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
       named "impl" loc
     | PT.PackageOp.AddTest _, PT.PackageOp.SetName(loc, _, _) -> named "test" loc
     | _ -> None
-  ops
-  |> List.pairwise
-  |> List.choose declared
+  ops |> List.pairwise |> List.choose declared
+
+/// Each name <param ops> declares more than once. Storing such a set would keep the last
+/// declaration and silently drop the others.
+let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
+  declarations ops
   |> List.countBy identity
   |> List.filter (fun (_, count) -> count > 1)
   |> List.map fst
