@@ -1,0 +1,349 @@
+module Darklang.Tools.LinkCheck.Tests
+
+let targets(page: String, html: String): List<String> =
+  Tools.LinkCheck.links(page, html)
+  |> Stdlib.List.map(fun l -> l.target)
+  |> Stdlib.List.unique
+
+
+test relativeLinks =
+  targets(
+    "https://docs.example/a/page",
+    "<a href='../b#heading'>B</a><img src=pic.png>")
+  |> Stdlib.Test.equal(
+    [ "https://docs.example/b", "https://docs.example/a/pic.png" ])
+
+
+test entitiesAndQuoting =
+  targets(
+    "https://docs.example/",
+    "<A HREF=\"/search?a=1&amp;b=2\" title='x > y'>X</A><a href='/&#65;&#x00000042;'>X</a>")
+  |> Stdlib.Test.equal(
+    [ "https://docs.example/search?a=1&b=2", "https://docs.example/AB" ])
+
+
+test invalidNumericEntitiesArePreserved =
+  let text = "&#x110000; &#xFFFFFFFFFFFFFFFFFFFFFFFF; &#xD800;"
+  Tools.LinkCheck.decodeEntities(text) |> Stdlib.Test.equal(text)
+
+
+test ignoresNonHttpAndDuplicates =
+  targets(
+    "https://docs.example/",
+    "<a href='mailto:a@b.com'>mail</a><a href='javascript:foo()'>JS</a>"
+    + "<img src='data:image/png,foo'><a href='/a#one'>A</a><a href='/a#two'>B</a>")
+  |> Stdlib.Test.equal([ "https://docs.example/a" ])
+
+
+test ignoresRawText =
+  targets(
+    "https://docs.example/",
+    "<!-- <a href='/comment'> -->"
+    + "<script src='/app.js'>let s = '<a href=\"/fake\">';</script>"
+    + "<style>x { content: '<a href=\"/style\">'; }</style>"
+    + "<textarea><a href='/textarea'></textarea><a href='/real'>OK</a>")
+  |> Stdlib.Test.equal(
+    [ "https://docs.example/app.js", "https://docs.example/real" ])
+
+
+test honorsFirstBase =
+  targets(
+    "https://docs.example/a/page",
+    "<base href='../assets/'><base href='https://other.example/'><a href='x'>X</a>")
+  |> Stdlib.Test.equal([ "https://docs.example/assets/x" ])
+
+
+test normalizesUrls =
+  Stdlib.Test.all(
+    [ Tools.LinkCheck.resolve(
+        "https://docs.example/",
+        "//DOCS.example:443/a/../b#x")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("https://docs.example/b"))
+
+      Tools.LinkCheck.resolve(
+        "https://docs.example/",
+        "https://user:pass@other.example/")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Tools.LinkCheck.sameOrigin(
+        "https://docs.example:443/a",
+        "https://docs.example/b")
+      |> Stdlib.Test.equal(true)
+
+      Tools.LinkCheck.sameOrigin(
+        "http://docs.example/a",
+        "http://docs.example:80/b")
+      |> Stdlib.Test.equal(true)
+
+      Tools.LinkCheck.sameOrigin(
+        "https://docs.example:444/a",
+        "https://docs.example/b")
+      |> Stdlib.Test.equal(false) ])
+
+
+let response(
+  url: String,
+  status: Int64,
+  body: String)
+  : Stdlib.HttpClient.Response<Bytes> =
+  Stdlib.HttpClient.Response
+    { statusCode = status
+      headers = [ ("Content-Type", "text/html; charset=utf-8") ]
+      body = Stdlib.Utf8.encode(body)
+      url = url }
+
+
+/// A small site with a redirect, a broken link, a cycle and an external page.
+let fixture(
+  method: String,
+  url: String)
+  : Result<Stdlib.HttpClient.Response<Bytes>, Stdlib.HttpClient.RequestError> =
+  match method, url with
+  | "GET", "https://docs.example/" ->
+    Stdlib.Result.Result.Ok(
+      response(
+        url,
+        200,
+        "<a href='/old'>old</a><a href='/broken'>bad</a><a href='/broken#x'>again</a>"
+        + "<a href='https://other.example/'>external</a>"))
+  | "GET", "https://docs.example/old" ->
+    Stdlib.Result.Result.Ok(
+      response(
+        "https://docs.example/new/",
+        200,
+        "<a href='child'>relative after redirect</a><a href='/'>cycle</a><a href='/broken'>bad</a>"))
+  | "GET", "https://docs.example/new/child" ->
+    Stdlib.Result.Result.Ok(response(url, 200, "OK"))
+  | "GET", "https://docs.example/broken" ->
+    Stdlib.Result.Result.Ok(response(url, 404, "missing"))
+  | "HEAD", "https://other.example/" ->
+    Stdlib.Result.Result.Ok(response(url, 405, ""))
+  | "GET", "https://other.example/" ->
+    Stdlib.Result.Result.Ok(
+      response(url, 200, "<a href='/never'>do not crawl</a>"))
+  | _ -> Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadMethod)
+
+
+test crawlFollowsRedirectBaseAndHandlesCycles =
+  let report = Tools.LinkCheck.crawlWith("https://docs.example/", 20, fixture)
+  let failures =
+    report.checks
+    |> Stdlib.List.filter(fun c -> c.error != Stdlib.Option.Option.None)
+
+  Stdlib.Test.all(
+    [ Stdlib.List.length(report.checks) |> Stdlib.Test.equal(5)
+
+      Stdlib.List.map(failures, fun c -> c.url)
+      |> Stdlib.Test.equal([ "https://docs.example/broken" ])
+
+      report.links
+      |> Stdlib.List.filter(fun l -> l.target == "https://docs.example/broken")
+      |> Stdlib.List.map(fun l -> l.source)
+      |> Stdlib.List.unique
+      |> Stdlib.Test.equal(
+        [ "https://docs.example/", "https://docs.example/new/" ])
+
+      Tools.LinkCheck.exitCode(report) |> Stdlib.Test.equal(1) ])
+
+
+test confirmsExternalHeadNotFoundWithGet =
+  let fetch(method: String, url: String) =
+    match method, url with
+    | "HEAD", "https://other.example/" ->
+      Stdlib.Result.Result.Ok(response(url, 404, ""))
+    | _ -> fixture(method, url)
+
+  let report = Tools.LinkCheck.crawlWith("https://docs.example/", 20, fetch)
+  report.checks
+  |> Stdlib.List.filter(fun c -> c.error != Stdlib.Option.Option.None)
+  |> Stdlib.List.map(fun c -> c.url)
+  |> Stdlib.Test.equal([ "https://docs.example/broken" ])
+
+
+test limitReportsIncomplete =
+  let report = Tools.LinkCheck.crawlWith("https://docs.example/", 1, fixture)
+  Stdlib.Test.all(
+    [ Stdlib.List.length(report.checks) |> Stdlib.Test.equal(1)
+      Stdlib.List.length(report.pending) |> Stdlib.Test.equal(3)
+      Tools.LinkCheck.exitCode(report) |> Stdlib.Test.equal(2) ])
+
+
+test limitCanStopInsideABatch =
+  let report = Tools.LinkCheck.crawlWith("https://docs.example/", 3, fixture)
+  Stdlib.Test.all(
+    [ Stdlib.List.length(report.checks) |> Stdlib.Test.equal(3)
+
+      report.pending
+      |> Stdlib.Test.equal(
+        [ "https://other.example/", "https://docs.example/new/child" ])
+
+      Tools.LinkCheck.exitCode(report) |> Stdlib.Test.equal(2) ])
+
+
+test networkFailureIsReported =
+  let report =
+    Tools.LinkCheck.crawlWith("https://docs.example/", 10, fun(method, url) ->
+      Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.Timeout))
+
+  Stdlib.Test.all(
+    [ Stdlib.List.map(report.checks, fun c -> c.error)
+      |> Stdlib.Test.equal([ Stdlib.Option.Option.Some("Timeout") ])
+
+      Tools.LinkCheck.exitCode(report) |> Stdlib.Test.equal(1) ])
+
+
+test externalRedirectIsNotCrawled =
+  let report =
+    Tools.LinkCheck.crawlWith("https://docs.example/", 10, fun(method, url) ->
+      Stdlib.Result.Result.Ok(
+        response("https://other.example/", 200, "<a href='/never'>X</a>")))
+
+  Stdlib.Test.all(
+    [ Stdlib.List.length(report.checks) |> Stdlib.Test.equal(1)
+      report.links |> Stdlib.Test.equal([])
+      Tools.LinkCheck.exitCode(report) |> Stdlib.Test.equal(0) ])
+
+
+test undecodableHtmlIsNotAPass =
+  let report =
+    Tools.LinkCheck.crawlWith("https://docs.example/", 10, fun(method, url) ->
+      let r = response(url, 200, "")
+      Stdlib.Result.Result.Ok(
+        { r with body = Stdlib.Bytes.fromList([ 255u8 ]) }))
+
+  Tools.LinkCheck.exitCode(report) |> Stdlib.Test.equal(1)
+
+
+test validatesArguments =
+  Stdlib.Test.all(
+    [ Tools.LinkCheck.parseArgs([ "https://DOCS.example", "--limit", "12" ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(("https://docs.example/", 12)))
+
+      [ []
+        [ "not-a-url" ]
+        [ "ftp://docs.example" ]
+        [ "https://docs.example", "extra" ]
+        [ "https://docs.example", "--limit" ]
+        [ "https://docs.example", "--limit", "0" ]
+        [ "https://docs.example", "--limit", "-1" ]
+        [ "https://docs.example", "--wat" ] ]
+      |> Stdlib.List.all(fun args ->
+        match Tools.LinkCheck.parseArgs(args) with
+        | Error(_) -> true
+        | Ok(_) -> false)
+      |> Stdlib.Test.equal(true) ])
+
+
+test discoversResponsiveImagesCssAndSocialMetadata =
+  targets(
+    "https://docs.example/guide/",
+    "<meta property='og:image' content='/social.png'>"
+    + "<link rel='preconnect' href='https://search.example/'>"
+    + "<img srcset='data:image/png;base64,AAAA 1x, /large.png 2x'>"
+    + "<style>@import 'nested.css'; x { background: url(/background.png) }</style>"
+    + "<div style='background: url(&quot;inline.png&quot;)'></div>")
+  |> Stdlib.Test.equal(
+    [ "https://docs.example/social.png"
+      "https://docs.example/large.png"
+      "https://docs.example/guide/inline.png"
+      "https://docs.example/guide/nested.css"
+      "https://docs.example/background.png" ])
+
+
+test discoversLiteralPageRedirects =
+  targets(
+    "https://docs.example/guide/",
+    "<meta http-equiv='Refresh' content='0; URL=&quot;intro&quot;'>"
+    + "<script type='text/javascript'>window.location.href = 'intro';</script>"
+    + "<script>location = '/script-only'</script>"
+    + "<script>const example = \"location = '/example'\";</script>"
+    + "<script type='application/json'>location = '/data'</script>"
+    + "<textarea><script>location = '/example-two'</script></textarea>"
+    + "<meta http-equiv='refresh' content='30'>")
+  |> Stdlib.Test.equal(
+    [ "https://docs.example/guide/intro", "https://docs.example/script-only" ])
+
+
+test auditUsesGetAndKeepsFailuresDistinct =
+  let fetch(method: String, url: String) =
+    match method, url with
+    | "GET", "https://docs.example/" ->
+      Stdlib.Result.Result.Ok(
+        response(
+          url,
+          200,
+          "<a href='https://other.example/limit'>limited</a>"
+          + "<a href='https://other.example/loop'>loop</a>"
+          + "<a href='#found'>valid</a><a href='#lost'>missing</a><i id='found'></i>"))
+    | "GET", "https://other.example/limit" ->
+      Stdlib.Result.Result.Ok(response(url, 429, ""))
+    | "GET", "https://other.example/loop" ->
+      Stdlib.Result.Result.Error(
+        Stdlib.HttpClient.RequestError.TooManyRedirects)
+    | _ -> Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadMethod)
+
+  let report =
+    Tools.LinkCheck.crawlWithProgress(
+      Tools.LinkCheck.Mode.Audit,
+      "https://docs.example/",
+      20,
+      fetch,
+      fun(_n, _c) -> ())
+
+  Stdlib.Test.all(
+    [ Stdlib.List.map(report.checks, fun c -> (c.method, c.outcome))
+      |> Stdlib.Test.equal(
+        [ ("GET", Tools.LinkCheck.Outcome.Reachable)
+          ("GET", Tools.LinkCheck.Outcome.Blocked)
+          ("GET", Tools.LinkCheck.Outcome.RedirectFailure) ])
+
+      Tools.LinkCheck.brokenFragments(report)
+      |> Stdlib.List.map(fun l -> l.fragment)
+      |> Stdlib.Test.equal([ Stdlib.Option.Option.Some("lost") ]) ])
+
+
+test formatsFindingsAndKeepsFullSourcesAvailable =
+  let url = "https://docs.example/missing"
+  let report =
+    Tools.LinkCheck.crawlWith(url, 1, fun(_method, target) ->
+      Stdlib.Result.Result.Ok(response(target, 404, "")))
+
+  let sources =
+    [ "https://docs.example/a"
+      "https://docs.example/b"
+      "https://docs.example/c"
+      "https://docs.example/d" ]
+
+  let links =
+    sources
+    |> Stdlib.List.map(fun source ->
+      Tools.LinkCheck.Link
+        { source = source, target = url, fragment = Stdlib.Option.Option.None })
+
+  let report = { report with links = links }
+  let preview =
+    Tools.LinkCheck.reportLines(Tools.LinkCheck.ReportDetail.Preview, report)
+    |> Stdlib.String.join("\n")
+
+  let complete =
+    Tools.LinkCheck.reportLines(Tools.LinkCheck.ReportDetail.AllSources, report)
+    |> Stdlib.String.join("\n")
+
+  Stdlib.Test.all(
+    [ Stdlib.String.contains(preview, "404 Not found (1)")
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.String.contains(preview, "Linked from 4 pages:")
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.String.contains(preview, "… 1 more") |> Stdlib.Test.equal(true)
+
+      Stdlib.String.contains(preview, "https://docs.example/d")
+      |> Stdlib.Test.equal(false)
+
+      Stdlib.String.contains(complete, "https://docs.example/d")
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.String.contains(complete, "… 1 more")
+      |> Stdlib.Test.equal(false) ])
