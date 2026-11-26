@@ -672,8 +672,8 @@ let __formatChars(
   | [c, ...rest] -> __formatChars(date, rest, List.prepend(written, String.fromChar(c)))
 
 
-/// Writes <param date> (always UTC) using <param pattern>, where each directive is
-/// replaced by a zero-padded field and every other character is copied as is:
+/// Formats a date as text in UTC. In <param pattern>, each directive is replaced by a
+/// zero-padded field of <param date> and every other character is copied as is:
 /// {{%Y}} year, four digits ({{0001}}; negative years get a leading {{-}}),
 /// {{%m}} month {{01}}-{{12}}, {{%d}} day {{01}}-{{31}},
 /// {{%H}} hour {{00}}-{{23}}, {{%M}} minute {{00}}-{{59}}, {{%S}} second {{00}}-{{59}},
@@ -691,6 +691,319 @@ let format(date: DateTime, pattern: String): Result<String, String> =
       $"`{pattern}` has no % directive, so it would print as written; the directives are %Y %m %d %H %M %S %f %%")
   else
     __formatChars(__fieldsOf(date, pattern), String.toList(pattern), [])
+
+
+/// What <fn DateTime.parseWith> found where the text stopped matching the pattern.
+type PatternMismatch =
+  /// The expected character and the character found, or {{None}} at the end of the text.
+  | Literal(Char, Option<Char>)
+  /// The directive whose field could not be read, given as the character after {{%}}.
+  | Field(Char)
+  /// The first character left over after the pattern matched.
+  | TrailingText(Char)
+
+
+/// Why <fn DateTime.parseWith> could not read a date and time from its text
+type PatternParseError =
+  /// The pattern has a {{%}} sequence that is not a directive, or ends in a lone {{%}}.
+  /// The {{String}} is the sequence as written, such as {{"%Q"}} or {{"%"}}.
+  | UnknownDirective(String)
+  /// The pattern names the same field twice, such as {{"%d/%d"}}, which could hide an
+  /// impossible date behind a later value. The {{String}} is the directive, such as
+  /// {{"%d"}}. {{%%}} may appear any number of times.
+  | RepeatedDirective(String)
+  /// The zero-based character position of the mismatched literal, the start of a field
+  /// that could not be read, or the first character left over after the pattern.
+  /// The displayed message counts characters from one.
+  | Mismatch(Int64, PatternMismatch)
+  /// Every field matched, but together they name no real moment: February 30th, hour 24,
+  /// an offset of {{+25:00}}, or a time outside -9998-01-01 to 9999-12-31 in UTC
+  | InvalidDate
+
+
+/// Quotes a character for a pattern mismatch message, escaping quotes and control characters.
+let __quotePatternChar(c: Char): String =
+  "'" + PrettyPrinter.escapeCharLiteral(String.fromChar(c)) + "'"
+
+
+impl Display for PatternParseError =
+  /// A readable explanation of the parse failure.
+  let display(error: PatternParseError): String =
+    match error with
+    | UnknownDirective(sequence) ->
+      let known =
+        __parseDirectives
+        |> String.toList
+        |> List.map(fun c -> "%" + String.fromChar(c))
+        |> String.join(" ")
+
+      $"Unknown directive {sequence}; the directives are {known}"
+    | RepeatedDirective(directive) -> $"The pattern uses {directive} more than once"
+    | Mismatch(index, mismatch) ->
+      let position = index + 1
+      match mismatch with
+      | Literal(expected, found) ->
+        let actual =
+          match found with
+          | Some(c) -> __quotePatternChar(c)
+          | None -> "end of text"
+
+        $"Expected {__quotePatternChar(expected)} at character {position}, found {actual}"
+      | Field(directive) -> $"Could not read %{directive} starting at character {position}"
+      | TrailingText(found) ->
+        $"Expected end of text at character {position}, found {__quotePatternChar(found)}"
+    | InvalidDate -> "Invalid calendar date or time"
+
+
+/// The characters that may follow {{%}} in a <fn DateTime.parseWith> pattern
+val __parseDirectives: String = "YmdHMSfz%"
+
+
+/// The fields <fn DateTime.parseWith> has read so far. The offset is kept as written (sign,
+/// hours, minutes), so an impossible one like {{+25:00}} can be rejected at the end.
+type __Parsed =
+  { year: Int64
+    month: Int64
+    day: Int64
+    hour: Int64
+    minute: Int64
+    second: Int64
+    fractionTicks: Int64
+    offsetSign: Int64
+    offsetHours: Int64
+    offsetMinutes: Int64 }
+
+
+/// The value of an ASCII digit 0-9, or {{None}} for anything else, digits of other scripts
+/// included
+let __asciiDigit(c: Char): Option<Int64> =
+  match Char.toAsciiCode(c) with
+  | Some(code) when code >= 48u8 && code <= 57u8 -> Option.Some(UInt8.toInt64(code) - 48)
+  | _ -> Option.None
+
+
+/// Reads up to <param most> digits from the start of <param text>. Returns the number, how
+/// many digits it has, and the rest of the text.
+let __readDigits(text: List<Char>, most: Int64): (Int64 * Int64 * List<Char>) =
+  __readMoreDigits(text, most, Int64.maxValue, 0, 0)
+
+
+/// <fn DateTime.__readDigits>, continuing a number <param value> that already has
+/// <param count> digits. Stops once ten times the value is larger than <param largest>,
+/// whatever the next digit is, as C's `strptime` does
+let __readMoreDigits(
+  text: List<Char>,
+  most: Int64,
+  largest: Int64,
+  value: Int64,
+  count: Int64)
+  : (Int64 * Int64 * List<Char>) =
+  match text with
+  | [c, ...rest] when count < most && value * 10 <= largest ->
+    match __asciiDigit(c) with
+    | Some(digit) -> __readMoreDigits(rest, most, largest, value * 10 + digit, count + 1)
+    | None -> (value, count, text)
+  | _ -> (value, count, text)
+
+
+/// Reads 1 to <param most> digits and passes their value to <param set>, stopping early
+/// once ten times the value is larger than <param largest>: hour {{"915"}} is 9, as in C's
+/// `strptime`. {{None}} if <param text> does not start with a digit.
+let __readField(
+  text: List<Char>,
+  most: Int64,
+  largest: Int64,
+  set: Int64 -> __Parsed)
+  : Option<(__Parsed * List<Char>)> =
+  let (value, count, rest) = __readMoreDigits(text, most, largest, 0, 0)
+  if count == 0 then Option.None else Option.Some((set(value), rest))
+
+
+/// A fraction of a second, written as <param count> digits, in ticks. A <type DateTime>
+/// keeps 7 digits; any after the seventh are dropped.
+let __fractionTicks(digits: Int64, count: Int64): Int64 =
+  if count <= 7 then
+    digits * 10 ** (7 - count)
+  else
+    __div(digits, 10 ** (count - 7))
+
+
+/// The {{%z}} offset at the front of <param text>: {{Z}}, or a sign and four digits with an
+/// optional colon, {{+0530}} or {{-05:30}}
+let __readOffset(text: List<Char>, p: __Parsed): Option<(__Parsed * List<Char>)> =
+  match text with
+  | ['Z', ...rest] ->
+    Option.Some(({ p with offsetSign = 1, offsetHours = 0, offsetMinutes = 0 }, rest))
+  | [sign, ...afterSign] when sign == '+' || sign == '-' ->
+    let (hours, hourDigits, afterHours) = __readDigits(afterSign, 2)
+    let afterColon =
+      match afterHours with
+      | [':', ...rest] -> rest
+      | _ -> afterHours
+
+    let (minutes, minuteDigits, rest) = __readDigits(afterColon, 2)
+    if hourDigits == 2 && minuteDigits == 2 then
+      let offsetSign = if sign == '-' then -1 else 1
+      Option.Some(
+        ({ p with offsetSign = offsetSign, offsetHours = hours, offsetMinutes = minutes }, rest))
+    else
+      Option.None
+  | _ -> Option.None
+
+
+/// Reads the text for one directive (the character after {{%}}). Returns the updated fields
+/// and the rest of the text, or {{None}} if the text does not match.
+let __parseDirective(
+  directive: Char,
+  text: List<Char>,
+  p: __Parsed)
+  : Option<(__Parsed * List<Char>)> =
+  match directive with
+  | 'Y' ->
+    match text with
+    | ['-', ...rest] -> __readField(rest, 4, 9999, fun n -> { p with year = -n })
+    | _ -> __readField(text, 4, 9999, fun n -> { p with year = n })
+  | 'm' -> __readField(text, 2, 12, fun n -> { p with month = n })
+  | 'd' -> __readField(text, 2, 31, fun n -> { p with day = n })
+  | 'H' -> __readField(text, 2, 23, fun n -> { p with hour = n })
+  | 'M' -> __readField(text, 2, 59, fun n -> { p with minute = n })
+  // 61, as C allows for leap seconds; past 59 is still an InvalidDate
+  | 'S' -> __readField(text, 2, 61, fun n -> { p with second = n })
+  | 'f' ->
+    let (digits, count, rest) = __readDigits(text, 9)
+    if count == 0 then
+      Option.None
+    else
+      Option.Some(({ p with fractionTicks = __fractionTicks(digits, count) }, rest))
+  | 'z' -> __readOffset(text, p)
+  | _ ->
+    // %%, the only other directive __checkPattern allows
+    match text with
+    | ['%', ...rest] -> Option.Some((p, rest))
+    | _ -> Option.None
+
+
+/// {{Ok}} if every {{%}} in <param pattern> starts a directive <fn DateTime.parseWith>
+/// supports, and none but {{%%}} appears twice. <param seen> holds the directives so far.
+let __checkPattern(pattern: List<Char>, seen: List<Char>): Result<Unit, PatternParseError> =
+  match pattern with
+  | [] -> Result.Ok()
+  | ['%'] -> Result.Error(PatternParseError.UnknownDirective("%"))
+  | ['%', directive, ...rest] ->
+    let written = "%" + String.fromChar(directive)
+    if Bool.not(String.contains(__parseDirectives, String.fromChar(directive))) then
+      Result.Error(PatternParseError.UnknownDirective(written))
+    else if directive == '%' then
+      __checkPattern(rest, seen)
+    else if List.contains(seen, directive) then
+      Result.Error(PatternParseError.RepeatedDirective(written))
+    else
+      __checkPattern(rest, [ directive, ...seen ])
+  | [_, ...rest] -> __checkPattern(rest, seen)
+
+
+/// Reports <param mismatch> at the start of the remaining <param text>.
+let __patternMismatch(
+  total: Int64,
+  text: List<Char>,
+  mismatch: PatternMismatch)
+  : Result<__Parsed, PatternParseError> =
+  Result.Error(PatternParseError.Mismatch(total - List.length(text), mismatch))
+
+
+/// Matches the rest of <param text> against the rest of <param pattern>. <param total> is
+/// the length of the whole text, to say where a mismatch is.
+let __parseChars(
+  pattern: List<Char>,
+  text: List<Char>,
+  total: Int64,
+  p: __Parsed)
+  : Result<__Parsed, PatternParseError> =
+  match pattern with
+  | [] ->
+    match text with
+    | [] -> Result.Ok(p)
+    | [c, ...] -> __patternMismatch(total, text, PatternMismatch.TrailingText(c))
+  | ['%', directive, ...rest] ->
+    match __parseDirective(directive, text, p) with
+    | Some((parsed, remaining)) -> __parseChars(rest, remaining, total, parsed)
+    | None ->
+      let mismatch =
+        if directive == '%' then
+          PatternMismatch.Literal('%', List.head(text))
+        else
+          PatternMismatch.Field(directive)
+
+      __patternMismatch(total, text, mismatch)
+  | [c, ...rest] ->
+    match text with
+    | [t, ...remaining] when t == c -> __parseChars(rest, remaining, total, p)
+    | _ -> __patternMismatch(total, text, PatternMismatch.Literal(c, List.head(text)))
+
+
+/// The moment the fields name, or {{Error InvalidDate}} where they name none
+let __parsedToDateTime(p: __Parsed): Result<DateTime, PatternParseError> =
+  let days = __daysFromCivil(p.year, p.month, p.day)
+  let monthInRange = p.month >= 1 && p.month <= 12 && p.day >= 1
+  let realDate = monthInRange && __civilFromDays(days) == (p.year, p.month, p.day)
+  let realTime = p.hour <= 23 && p.minute <= 59 && p.second <= 59
+  let realOffset = p.offsetHours <= 23 && p.offsetMinutes <= 59
+  let offsetTicks =
+    p.offsetSign * (p.offsetHours * __ticksPerHour() + p.offsetMinutes * __ticksPerMinute())
+
+  let clockTicks =
+    p.hour * __ticksPerHour() + p.minute * __ticksPerMinute() + p.second * __ticksPerSecond()
+
+  let ticks = days * __ticksPerDay() + clockTicks + p.fractionTicks - offsetTicks
+  let first = __daysFromCivil(-9998, 1, 1) * __ticksPerDay()
+  let pastLast = __daysFromCivil(10000, 1, 1) * __ticksPerDay()
+  if realDate && realTime && realOffset && ticks >= first && ticks < pastLast then
+    Result.Ok(__fromTicks(ticks))
+  else
+    Result.Error(PatternParseError.InvalidDate)
+
+
+/// What <fn DateTime.parseWith> starts from: 1970-01-01T00:00:00Z, for the fields a pattern
+/// leaves out
+val __epochFields: __Parsed =
+  __Parsed
+    { year = 1970
+      month = 1
+      day = 1
+      hour = 0
+      minute = 0
+      second = 0
+      fractionTicks = 0
+      offsetSign = 1
+      offsetHours = 0
+      offsetMinutes = 0 }
+
+
+/// Parses a date and time from <param text> using <param pattern>. Characters outside
+/// directives must appear in the text as written:
+/// {{%Y}} year, one to four digits, with a leading {{-}} for negative years,
+/// {{%m}} month, {{%d}} day, {{%H}} hour, {{%M}} minute, {{%S}} second, each one or two digits,
+/// {{%f}} a fraction of a second, 1 to 9 digits (kept to the 7 a <type DateTime> holds),
+/// {{%z}} {{Z}} or an offset from UTC such as {{+0530}} or {{-05:30}}, {{%%}} a literal {{%}}.
+/// Each field reads as many digits as it can, but stops once another digit would have to
+/// make it larger than the field can be (12 for a month, 23 for an hour), whatever that
+/// digit is, as C's `strptime` does: {{"%H%M"}} reads {{"915"}} as 09:15 (90 and up are no
+/// hour) and {{"%m%d"}} reads {{"45"}} as April 5. With {{"%H%M"}}, {{"245"}} gives
+/// {{InvalidDate}} because {{2}} can start a two-digit hour, so {{%H}} reads {{24}}.
+/// Numbers are read greedily, so {{"%d1"}} cannot read {{"21"}} as day 2.
+/// A pattern may use each directive once, except {{%%}}.
+/// Fields the pattern leaves out default to 1970-01-01T00:00:00Z. The result is in UTC.
+/// For example, {{parseWith("2019-07-28 22:42", "%Y-%m-%d %H:%M")}} is
+/// {{Ok(2019-07-28T22:42:00Z)}}.
+let parseWith(text: String, pattern: String): Result<DateTime, PatternParseError> =
+  let patternChars = String.toList(pattern)
+  match __checkPattern(patternChars, []) with
+  | Error(e) -> Result.Error(e)
+  | Ok(_) ->
+    let textChars = String.toList(text)
+    match __parseChars(patternChars, textChars, List.length(textChars), __epochFields) with
+    | Error(e) -> Result.Error(e)
+    | Ok(p) -> __parsedToDateTime(p)
 
 
 // Shared clock implementation.
