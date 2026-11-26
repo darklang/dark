@@ -192,6 +192,27 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    // The standard IEEE 754 fused multiply-add: x * y + z with one rounding. In Dark
+    // it would take exact BigInt arithmetic, far slower. Stdlib.Math's cbrt and hypot
+    // use it to fix their last bit.
+    { name = fn "mathFusedMultiplyAdd" 0
+      typeParams = []
+      parameters =
+        [ Param.make "x" TFloat64 ""
+          Param.make "y" TFloat64 ""
+          Param.make "z" TFloat64 "" ]
+      returnType = TFloat64
+      description = "Returns {{x * y + z}}, rounded once"
+      fn =
+        (function
+        | _, _, _, [| DFloat64 x; DFloat64 y; DFloat64 z |] ->
+          DFloat64(System.Math.FusedMultiplyAdd(x, y, z))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

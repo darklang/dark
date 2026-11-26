@@ -783,11 +783,7 @@ test roundTo =
       // more places than the value has leaves it alone
       Stdlib.Float64.roundTo(0.1, 30) |> Stdlib.Test.equal(0.1)
 
-      Stdlib.Float64.roundTo(
-        0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005,
-        2000)
-      |> Stdlib.Test.equal(
-        0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005)
+      Stdlib.Float64.roundTo(smallest(), 2000) |> Stdlib.Test.equal(smallest())
 
       Stdlib.Float64.roundTo(1.5, 9223372036854775807) |> Stdlib.Test.equal(1.5)
 
@@ -797,10 +793,7 @@ test roundTo =
       Stdlib.Float64.roundTo(1.2345678901234568e20, -15)
       |> Stdlib.Test.equal(1.23457e20)
 
-      Stdlib.Float64.roundTo(
-        0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005,
-        2)
-      |> Stdlib.Test.equal(0.0)
+      Stdlib.Float64.roundTo(smallest(), 2) |> Stdlib.Test.equal(0.0)
 
       Stdlib.Float64.roundTo(1.7976931348623157e308, -308)
       |> Stdlib.Test.equal(infinity())
@@ -823,3 +816,146 @@ test roundTo =
 
       Stdlib.Float64.roundTo(negativeInfinity(), -2)
       |> Stdlib.Test.equal(negativeInfinity()) ])
+
+
+test nextUpAndDown =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.nextUp(1.0) |> Stdlib.Test.equal(1.0000000000000002)
+
+      Stdlib.Float64.nextDown(1.0) |> Stdlib.Test.equal(0.9999999999999999)
+
+      Stdlib.Float64.nextUp(0.0) > 0.0 |> Stdlib.Test.equal(true)
+
+      Stdlib.Float64.nextDown(Stdlib.Float64.nextUp(2.5))
+      |> Stdlib.Test.equal(2.5)
+
+      Stdlib.Float64.isNaN(Stdlib.Float64.nextUp(nan()))
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Float64.nextUp(-0.0) |> Stdlib.Test.equal(smallest())
+
+      Stdlib.Float64.nextDown(0.0) |> Stdlib.Test.equal(-smallest())
+
+      Stdlib.Float64.nextUp(-smallest())
+      |> bits
+      |> Stdlib.Test.equal(bits(-0.0))
+
+      Stdlib.Float64.nextUp(1.7976931348623157e308)
+      |> Stdlib.Test.equal(infinity())
+
+      Stdlib.Float64.nextDown(-1.7976931348623157e308)
+      |> Stdlib.Test.equal(-infinity())
+
+      Stdlib.Float64.nextUp(-infinity())
+      |> Stdlib.Test.equal(-1.7976931348623157e308)
+
+      Stdlib.Float64.nextUp(infinity()) |> Stdlib.Test.equal(infinity()) ])
+
+
+let bits(x: Float64): UInt64 =
+  Stdlib.Float64.toBits(x)
+
+
+test fromBits =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.fromBits(4607182418800017408u64) |> Stdlib.Test.equal(1.0)
+
+      Stdlib.Float64.fromBits(1u64) |> Stdlib.Test.equal(smallest())
+
+      Stdlib.Float64.fromBits(bits(-0.0))
+      |> bits
+      |> Stdlib.Test.equal(bits(-0.0))
+
+      Stdlib.Float64.fromBits(bits(-2.5)) |> Stdlib.Test.equal(-2.5)
+
+      Stdlib.Float64.isNaN(Stdlib.Float64.fromBits(bits(nan())))
+      |> Stdlib.Test.equal(true) ])
+
+
+test scaleByPowerOfTwo =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.scaleByPowerOfTwo(3.0, 4) |> Stdlib.Test.equal(48.0)
+
+      Stdlib.Float64.scaleByPowerOfTwo(48.0, -4) |> Stdlib.Test.equal(3.0)
+
+      Stdlib.Float64.scaleByPowerOfTwo(1.0, 5000)
+      |> Stdlib.Test.equal(infinity())
+
+      Stdlib.Float64.scaleByPowerOfTwo(1.0, -5000) |> Stdlib.Test.equal(0.0)
+
+      Stdlib.Float64.scaleByPowerOfTwo(-1.0, -5000)
+      |> bits
+      |> Stdlib.Test.equal(bits(-0.0))
+
+      Stdlib.Float64.scaleByPowerOfTwo(-1.5, 1024)
+      |> Stdlib.Test.equal(-infinity())
+
+      Stdlib.Float64.scaleByPowerOfTwo(1.0, 1023)
+      |> Stdlib.Test.equal(8.98846567431158e307)
+
+      Stdlib.Float64.scaleByPowerOfTwo(1.0, -1074)
+      |> Stdlib.Test.equal(smallest())
+
+      // half of the smallest number rounds to 0 (ties go to even); 0.75 of it rounds up
+      Stdlib.Float64.scaleByPowerOfTwo(1.0, -1075) |> Stdlib.Test.equal(0.0)
+
+      Stdlib.Float64.scaleByPowerOfTwo(1.5, -1075)
+      |> Stdlib.Test.equal(smallest())
+
+      // from a subnormal number up to a normal one
+      Stdlib.Float64.scaleByPowerOfTwo(smallest(), 1074)
+      |> Stdlib.Test.equal(1.0)
+
+      Stdlib.Float64.scaleByPowerOfTwo(3.0, -1073)
+      |> Stdlib.Test.equal(smallest() * 6.0)
+
+      Stdlib.Float64.scaleByPowerOfTwo(-0.0, 5)
+      |> bits
+      |> Stdlib.Test.equal(bits(-0.0))
+
+      Stdlib.Float64.isNaN(Stdlib.Float64.scaleByPowerOfTwo(nan(), 3))
+      |> Stdlib.Test.equal(true) ])
+
+
+test binaryExponent =
+  Stdlib.Test.all(
+    [ Stdlib.Float64.binaryExponent(10.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+
+      Stdlib.Float64.binaryExponent(-10.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+
+      Stdlib.Float64.binaryExponent(0.75)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1))
+
+      Stdlib.Float64.binaryExponent(1.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+
+      Stdlib.Float64.binaryExponent(0.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Float64.binaryExponent(infinity())
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Float64.binaryExponent(nan())
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Float64.binaryExponent(smallest())
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1074))
+
+      Stdlib.Float64.binaryExponent(smallestNormal())
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1022))
+
+      Stdlib.Float64.binaryExponent(1.7976931348623157e308)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1023)) ])
+
+
+/// The smallest positive Float64, 2^-1074, written so that formatting cannot expand it
+/// into a 324-digit decimal
+let smallest(): Float64 =
+  2.0 ** -1074.0
+
+
+/// The smallest normal Float64, 2^-1022
+let smallestNormal(): Float64 =
+  2.0 ** -1022.0

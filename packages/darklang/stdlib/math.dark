@@ -125,6 +125,337 @@ let checkedSinh(angleInRadians: Float64): Result<Float64, Overflow> =
   Float64.__noOverflow(sinh(angleInRadians))
 
 
+/// log(2)
+val __ln2: Float64 = 0.6931471805599453
+
+
+/// log2(e)
+val __log2OfE: Float64 = 1.4426950408889634
+
+
+/// Below this, asinh(x) and atanh(x) round to x itself
+val __tiny: Float64 = 2.0 ** -28.0
+
+
+/// Above this, sqrt(x * x + 1.0) rounds to x itself, so asinh(x) and acosh(x) are
+/// log(2x) = log(x) + log(2)
+val __huge: Float64 = 2.0 ** 28.0
+
+
+// Algorithm from FreeBSD's math library (msun, s_asinh.c)
+/// Returns the inverse hyperbolic sine of <param x>, preserving precision near zero.
+/// This function is the inverse of <fn Math.sinh>.
+let asinh(x: Float64): Float64 =
+  let a = __abs(x)
+  if Bool.not(Float64.isFinite(x)) || a < __tiny then
+    // NaN, the infinities, and tiny x (returning x itself keeps -0.0 as -0.0)
+    x
+  else
+    let r =
+      if a > __huge then
+        Float64.log(a) + __ln2
+      else if a > 2.0 then
+        Float64.log(2.0 * a + 1.0 / (Float64.sqrt(a * a + 1.0) + a))
+      else
+        __logOnePlus(a + a * a / (1.0 + Float64.sqrt(1.0 + a * a)))
+
+    if x < 0.0 then -r else r
+
+
+// Algorithm from FreeBSD's math library (msun, e_acosh.c)
+/// Returns the inverse hyperbolic cosine of <param x>, or {{None}} where <param x> is
+/// below {{1.0}}. Preserves precision near {{1.0}}.
+/// This function is the inverse of <fn Math.cosh>.
+let acosh(x: Float64): Option<Float64> =
+  if x < 1.0 || Float64.isNaN(x) then
+    Option.None
+  else if x == 1.0 then
+    Option.Some(0.0)
+  else if x >= __huge then
+    Option.Some(Float64.log(x) + __ln2)
+  else if x > 2.0 then
+    Option.Some(Float64.log(2.0 * x - 1.0 / (x + Float64.sqrt(x * x - 1.0))))
+  else
+    let t = x - 1.0
+    Option.Some(__logOnePlus(t + Float64.sqrt(2.0 * t + t * t)))
+
+
+// Algorithm from FreeBSD's math library (msun, e_atanh.c)
+/// Returns the inverse hyperbolic tangent of <param x>, or {{None}} where <param x> is
+/// outside {{[-1.0, 1.0]}}. At {{1.0}} and {{-1.0}} it is an infinity.
+/// This function is the inverse of <fn Math.tanh>.
+let atanh(x: Float64): Option<Float64> =
+  let a = __abs(x)
+  if a > 1.0 || Float64.isNaN(x) then
+    Option.None
+  else if a == 1.0 then
+    Option.Some(if x < 0.0 then Float64.negativeInfinity else Float64.infinity)
+  else if a < __tiny then
+    Option.Some(x)
+  else
+    // atanh(a) = log((1 + a) / (1 - a)) / 2, written with logOnePlus for accuracy
+    let r =
+      if a < 0.5 then
+        0.5 * __logOnePlus(2.0 * a + 2.0 * a * a / (1.0 - a))
+      else
+        0.5 * __logOnePlus(2.0 * a / (1.0 - a))
+
+    Option.Some(if x < 0.0 then -r else r)
+
+
+/// Returns the natural logarithm of <param x>, its logarithm to base <fn Math.e>.
+/// {{None}} where <param x> is negative or NaN; {{log(0.0)}} is negative infinity.
+/// This function is the inverse of <fn Math.exp>.
+let log(x: Float64): Option<Float64> =
+  __nanIsNone(Float64.log(x))
+
+
+/// Returns the base-2 logarithm of <param x>, or {{None}} where <param x> is negative
+/// or NaN. Exact for powers of two.
+let log2(x: Float64): Option<Float64> =
+  match Float64.binaryExponent(x) with
+  | Some(e) when x > 0.0 ->
+    // Write x = m * 2^e with m in [1, 2). If m is 1 the answer is exactly e. Otherwise
+    // move m into (0.707, 1.414], so that log2(m) is small and adding e to it cannot
+    // cancel its digits away (which happens for x just above 1 otherwise)
+    let m = Float64.scaleByPowerOfTwo(x, -e)
+    if m == 1.0 then
+      Option.Some(Int64.toFloat64(e))
+    else
+      let (m, e) = if m > __sqrt2 then (m * 0.5, e + 1) else (m, e)
+      Option.Some(fusedMultiplyAdd(Float64.log(m), __log2OfE, Int64.toFloat64(e)))
+  | _ ->
+    // 0 gives -infinity, infinity gives infinity, negatives and NaN give None
+    __nanIsNone(Float64.log(x))
+
+
+val __sqrt2: Float64 = Float64.sqrt(2.0)
+
+
+/// Returns the base-10 logarithm of <param x>, or {{None}} where <param x> is negative
+/// or NaN. Exact for powers of ten.
+let log10(x: Float64): Option<Float64> =
+  __nanIsNone(Float64.log10(x))
+
+
+/// Returns {{log(1.0 + x)}}, keeping its precision where <param x> is near zero and
+/// {{1.0 + x}} would round it away. {{None}} where <param x> is below {{-1.0}}.
+let logOnePlus(x: Float64): Option<Float64> =
+  if Float64.isNaN(x) || x < -1.0 then
+    Option.None
+  else if x == Float64.infinity then
+    Option.Some(x)
+  else
+    // Kahan's trick: multiplying by x / (u - 1) compensates for rounding 1 + x.
+    // Compute the ratio first so the multiplication stays finite for finite x > -1.
+    let u = 1.0 + x
+    if u == 1.0 then
+      Option.Some(x)
+    else
+      Option.Some(Float64.log(u) * (x / (u - 1.0)))
+
+
+/// Returns <fn Math.e> raised to the power <param x>.
+/// This function is the inverse of <fn Math.log>.
+let exp(x: Float64): Float64 =
+  Float64.exp(x)
+
+
+/// Returns {{2.0}} raised to the power <param x>.
+let exp2(x: Float64): Float64 =
+  2.0 ** x
+
+
+/// Returns {{exp(x) - 1.0}}, keeping its precision where <param x> is near zero and
+/// the subtraction would cancel it away.
+let expMinusOne(x: Float64): Float64 =
+  let u = Float64.exp(x)
+  if u == Float64.infinity then
+    u
+  else if u == 1.0 then
+    x
+  else if u - 1.0 == -1.0 then
+    -1.0
+  else if __abs(x) >= 1.0 then
+    // for |x| >= 1, u - 1 is already accurate; the correction below would only add
+    // log(u)'s rounding error
+    u - 1.0
+  else
+    // Kahan's trick: multiplying by x / log(u) cancels the rounding error in u
+    (u - 1.0) * x / Float64.log(u)
+
+
+/// Returns the cube root of <param x>, negative where <param x> is. Within 1 ulp of the
+/// exact result.
+let cbrt(x: Float64): Float64 =
+  if x == 0.0 || Bool.not(Float64.isFinite(x)) then
+    x
+  else
+    let a = __abs(x)
+
+    // For a below 2^-900 the correction step below loses precision, so scale a up by
+    // 2^300 and the root back down by 2^-100
+    let (a, unscale) = if a < __cbrtScaleBelow then (a * 2.0 ** 300.0, 2.0 ** -100.0) else (a, 1.0)
+
+    // a ** (1/3) can be off by about an ulp. One Newton step fixes that, with
+    // fusedMultiplyAdd computing the error y^3 - a exactly
+    let y = a ** (1.0 / 3.0)
+    let root = (y - fusedMultiplyAdd(y * y, y, -a) / (3.0 * y * y)) * unscale
+    if x < 0.0 then -root else root
+
+
+val __cbrtScaleBelow: Float64 = 2.0 ** -900.0
+
+
+/// Returns {{sqrt(x*x + y*y)}}, the length of the hypotenuse, without the overflow or
+/// underflow squaring would cause. Returns positive zero when both inputs are zero.
+let hypot(x: Float64, y: Float64): Float64 =
+  let ax = __abs(x)
+  let ay = __abs(y)
+  // hypot(infinity, NaN) is infinity, as in C
+  if ax == Float64.infinity || ay == Float64.infinity then
+    Float64.infinity
+  else if Float64.isNaN(ax) || Float64.isNaN(ay) then
+    Float64.nan
+  else
+    let (big, small) = if ax < ay then (ay, ax) else (ax, ay)
+    if big == 0.0 then
+      0.0
+    else if small == 0.0 then
+      big
+    else if big < __smallestNormal then
+      __hypotOfSubnormals(big, small)
+    else
+      // Squaring a number above 2^500 overflows, and below 2^-500 loses precision, so
+      // scale by 2^-600 or 2^600 first (exact for a power of two) and undo it at the end
+      let (scale, unscale) =
+        if big > __hypotScaleAbove then
+          (2.0 ** -600.0, 2.0 ** 600.0)
+        else if big < __hypotScaleBelow then
+          (2.0 ** 600.0, 2.0 ** -600.0)
+        else
+          (1.0, 1.0)
+
+      let a = big * scale
+      let b = small * scale
+
+      // Borges, "An Improved Algorithm for hypot(a, b)" (2019): take the square root,
+      // then correct it using a compensated calculation of h^2 - (a^2 + b^2).
+      let h = Float64.sqrt(fusedMultiplyAdd(a, a, b * b))
+      let hSquared = h * h
+      let aSquared = a * a
+      let hError = fusedMultiplyAdd(h, h, -hSquared)
+      let bError = fusedMultiplyAdd(b, b, aSquared - hSquared)
+      let aError = fusedMultiplyAdd(a, a, -aSquared)
+      let error = hError - bError - aError
+      (h - error / (2.0 * h)) * unscale
+
+
+val __hypotScaleAbove: Float64 = 2.0 ** 500.0
+
+val __hypotScaleBelow: Float64 = 2.0 ** -500.0
+
+val __smallestNormal: Float64 = 2.0 ** -1022.0
+
+
+/// Hypotenuse of two positive subnormals, rounded directly in units of 2^-1074.
+let __hypotOfSubnormals(a: Float64, b: Float64): Float64 =
+  // Subnormal bit patterns count those units. The result stays below 2^53 units,
+  // where the same bit encoding still applies even if the result is normal.
+  let a = BigInt.fromUInt64(Float64.toBits(a))
+  let b = BigInt.fromUInt64(Float64.toBits(b))
+  let squared = a * a + b * b
+  let root = __sqrtFloor(squared, a + b)
+  // (root + 0.5)^2 = root * (root + 1) + 0.25. squared is an integer.
+  let rounded = if squared > root * (root + 1z) then root + 1z else root
+  Float64.fromBits(BigInt.toUInt64(rounded) |> Option.withDefault(0u64))
+
+
+/// The integer square root of a positive number, starting from a positive upper bound.
+let __sqrtFloor(squared: BigInt, upper: BigInt): BigInt =
+  let next = (upper + squared / upper) / 2z
+  if next >= upper then upper else __sqrtFloor(squared, next)
+
+
+// Algorithm from FreeBSD's math library (msun, e_remainder.c)
+/// Returns the IEEE remainder of <param x> divided by <param y>: {{x - n*y}}, where
+/// {{n}} is {{x/y}} rounded to the nearest integer, ties to even. The result can be
+/// negative for positive inputs: {{remainder(5.0, 3.0)}} is {{-1.0}}. Exact.
+/// <fn Math.truncatedRemainder> is C's `fmod`.
+let remainder(x: Float64, y: Float64): Float64 =
+  if Bool.not(Float64.isFinite(x)) || Float64.isNaN(y) || y == 0.0 then
+    Float64.nan
+  else if Bool.not(Float64.isFinite(y)) then
+    x
+  else
+    let a = __abs(x)
+    let b = __abs(y)
+    let r =
+      if a == b then
+        0.0
+      else
+        // fmod by 2b leaves a in [0, 2b) (2b overflows past half the largest Float64,
+        // where a is below 2b already); subtracting b once or twice then brings it into
+        // [-b/2, b/2]. Compared as a + a against b rather than a against b / 2, which
+        // would lose a bit for tiny b
+        let a = if b <= __halfOfLargest then truncatedRemainder(a, b + b) else a
+        if a + a > b then
+          let a = a - b
+          if a + a >= b then a - b else a
+        else
+          a
+
+    if x < 0.0 then -r else r
+
+
+/// Half of the largest finite <type Float64>
+val __halfOfLargest: Float64 = (2.0 - 2.0 ** -52.0) * 2.0 ** 1022.0
+
+
+/// Returns {{x - n*y}}, where {{n}} is {{x/y}} rounded towards zero, so the result
+/// has the sign of <param x>: C's `fmod`. {{truncatedRemainder(-5.5, 2.0)}} is {{-1.5}}.
+/// NaN where <param y> is zero. Exact.
+let truncatedRemainder(x: Float64, y: Float64): Float64 =
+  if Bool.not(Float64.isFinite(x)) || Float64.isNaN(y) || y == 0.0 then
+    Float64.nan
+  else if Bool.not(Float64.isFinite(y)) || __abs(x) < __abs(y) then
+    x
+  else
+    // Exactly, with integers: |x| = mx * 2^ex and |y| = my * 2^ey, where ex >= ey. The
+    // remainder is (mx * 2^(ex - ey)) mod my, times 2^ey
+    let (mx, ex) = Float64.__significandAndExponent(__abs(x))
+    let (my, ey) = Float64.__significandAndExponent(__abs(y))
+    let r = mx * 2z ** BigInt.fromInt64(ex - ey) % my
+    copySign(Float64.scaleByPowerOfTwo(BigInt.toFloat64(r), ey), x)
+
+
+/// Returns <param magnitude> with the sign of <param sign>, which may be {{-0.0}}.
+let copySign(magnitude: Float64, sign: Float64): Float64 =
+  let signBit = Float64.toBits(sign) & Float64.__signBit
+  Float64.fromBits(Float64.toBits(magnitude) & Float64.__allButSignBit | signBit)
+
+
+/// Returns {{x * y + z}} with a single rounding at the end: {{x * y}} is not rounded first.
+let fusedMultiplyAdd(x: Float64, y: Float64, z: Float64): Float64 =
+  Builtin.mathFusedMultiplyAdd(x, y, z)
+
+
+/// <fn Math.logOnePlus>, with NaN instead of {{None}}
+let __logOnePlus(x: Float64): Float64 =
+  logOnePlus(x) |> Option.withDefault(Float64.nan)
+
+
+/// <param x> without its sign. <fn Stdlib.abs> works on any number, but through a trait,
+/// which costs these functions a third of their time
+let __abs(x: Float64): Float64 =
+  if x < 0.0 then -x else x
+
+
+/// {{None}} for NaN, {{Some}} for everything else
+let __nanIsNone(r: Float64): Option<Float64> =
+  if Float64.isNaN(r) then Option.None else Option.Some(r)
+
+
 /// What a fixed-width `checked` function returns where the operator would wrap:
 /// `Int8.checkedAdd(127s8, 1s8)` is {{Error Overflow}}. Going below 0 on an unsigned
 /// type is an Overflow too, as is a <type Decimal> past its range. <type BigInt> itself never

@@ -16,6 +16,33 @@ let nearSome(
   | None -> Stdlib.Test.fail("expected Some Float64, got None")
 
 
+/// Compares a finite approximation to a same-sign reference in representable steps.
+let withinUlps(
+  actual: Float64,
+  expected: Float64,
+  maxUlps: UInt64)
+  : Stdlib.Test.Result =
+  let actualBits = Stdlib.Float64.toBits(actual)
+  let expectedBits = Stdlib.Float64.toBits(expected)
+  let distance =
+    if actualBits < expectedBits then
+      expectedBits - actualBits
+    else
+      actualBits - expectedBits
+
+  distance <= maxUlps |> Stdlib.Test.equal(true)
+
+
+let withinSomeUlps(
+  actual: Stdlib.Option.Option<Float64>,
+  expected: Float64,
+  maxUlps: UInt64)
+  : Stdlib.Test.Result =
+  match actual with
+  | Some(value) -> withinUlps(value, expected, maxUlps)
+  | None -> Stdlib.Test.fail("expected Some Float64, got None")
+
+
 test constants =
   Stdlib.Test.all(
     [ Stdlib.Math.pi |> near(3.14159265359)
@@ -109,3 +136,264 @@ test checkedOverflow =
       Stdlib.Math.checkedTurns(1e308)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])
+
+
+let infinity(): Float64 =
+  1.0 / 0.0
+
+
+/// The smallest positive Float64, 2^-1074, written so that formatting cannot expand it
+/// into a 324-digit decimal
+let smallest(): Float64 =
+  2.0 ** -1074.0
+
+
+test inverseHyperbolic =
+  Stdlib.Test.all(
+    [ Stdlib.Math.asinh(0.0) |> near(0.0)
+      Stdlib.Math.asinh(Stdlib.Math.sinh(1.5)) |> near(1.5)
+      Stdlib.Math.acosh(1.0) |> nearSome(0.0)
+      Stdlib.Math.acosh(Stdlib.Math.cosh(2.0)) |> nearSome(2.0)
+      Stdlib.Math.acosh(0.5) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Math.atanh(0.0) |> nearSome(0.0)
+      Stdlib.Math.atanh(1.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(infinity()))
+
+      Stdlib.Math.atanh(2.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Math.atanh(-1.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
+
+      Stdlib.Math.atanh(Stdlib.Math.tanh(0.75)) |> nearSome(0.75)
+      Stdlib.Math.atanh(Stdlib.Math.tanh(-0.25)) |> nearSome(-0.25)
+      Stdlib.Math.asinh(-0.0)
+      |> Stdlib.Float64.toBits
+      |> Stdlib.Test.equal(Stdlib.Float64.toBits(-0.0))
+
+      Stdlib.Math.asinh(-1e300) |> near(-691.4686750787736)
+      Stdlib.Math.asinh(infinity()) |> Stdlib.Test.equal(infinity())
+      Stdlib.Math.acosh(1e300) |> nearSome(691.4686750787736)
+      Stdlib.Math.acosh(1.5) |> nearSome(0.9624236501192069)
+
+      // Reference values rounded from high-precision calculations.
+      Stdlib.Math.asinh(0.062210374873116876)
+      |> withinUlps(0.06217031754878974, 2u64)
+
+      Stdlib.Math.acosh(1.1100807179304524)
+      |> withinSomeUlps(0.4650125966090843, 2u64)
+
+      Stdlib.Math.atanh(0.03097632836170061)
+      |> withinSomeUlps(0.030986241671870498, 2u64) ])
+
+
+test logarithms =
+  Stdlib.Test.all(
+    [ Stdlib.Math.log(Stdlib.Math.e) |> nearSome(1.0)
+      Stdlib.Math.log(1.0) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.0))
+
+      Stdlib.Math.log(0.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
+
+      Stdlib.Math.log(-1.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Math.log2(8.0) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3.0))
+
+      Stdlib.Math.log2(-8.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Math.log2(0.125)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-3.0))
+
+      Stdlib.Math.log2(smallest())
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1074.0))
+
+      Stdlib.Math.log2(10.0) |> nearSome(3.321928094887362)
+      Stdlib.Math.log2(0.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
+
+      Stdlib.Math.log2(infinity())
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(infinity()))
+
+      // Close to 1, cancellation in the exponent adjustment would cost precision.
+      Stdlib.Math.log2(1.0 + 2.0 ** -52.0)
+      |> withinSomeUlps(0.0000000000000003203426503814917, 1u64)
+
+      Stdlib.Math.log2(0.7094335970396186)
+      |> withinSomeUlps(-0.49526044048864576, 1u64)
+
+      Stdlib.Math.log10(1000.0) |> nearSome(3.0)
+      Stdlib.Math.log10(-1.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      // log(1.0 + 1e-20) would round the 1e-20 away
+      Stdlib.Math.logOnePlus(0.00000000000000000001)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.00000000000000000001))
+
+      Stdlib.Math.logOnePlus(0.0000000001) |> nearSome(0.000000000099999999995)
+      Stdlib.Math.logOnePlus(Stdlib.Math.e - 1.0) |> nearSome(1.0)
+      Stdlib.Math.logOnePlus(1e308) |> withinSomeUlps(709.1962086421661, 1u64)
+      Stdlib.Math.logOnePlus(-1.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
+
+      Stdlib.Math.logOnePlus(infinity())
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(infinity()))
+
+      Stdlib.Math.logOnePlus(-2.0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+test exponentials =
+  Stdlib.Test.all(
+    [ Stdlib.Math.exp(0.0) |> Stdlib.Test.equal(1.0)
+      Stdlib.Math.exp(1.0) |> near(Stdlib.Math.e)
+      Stdlib.Math.exp(1000.0) |> Stdlib.Test.equal(infinity())
+
+      Stdlib.Math.exp2(10.0) |> Stdlib.Test.equal(1024.0)
+
+      Stdlib.Math.exp2(-1.0) |> Stdlib.Test.equal(0.5)
+
+      Stdlib.Math.exp2(-1074.0) |> Stdlib.Test.equal(smallest())
+
+      Stdlib.Math.exp2(1024.0) |> Stdlib.Test.equal(infinity())
+
+      Stdlib.Math.expMinusOne(0.00000000000000000001)
+      |> Stdlib.Test.equal(0.00000000000000000001)
+
+      Stdlib.Math.expMinusOne(0.0) |> Stdlib.Test.equal(0.0)
+      Stdlib.Math.expMinusOne(1.0) |> near(Stdlib.Math.e - 1.0)
+      Stdlib.Math.expMinusOne(20.0) |> Stdlib.Test.equal(485165194.4097903)
+      Stdlib.Math.expMinusOne(-1000.0) |> Stdlib.Test.equal(-1.0)
+      Stdlib.Math.expMinusOne(1000.0) |> Stdlib.Test.equal(infinity()) ])
+
+
+test roots =
+  Stdlib.Test.all(
+    [ Stdlib.Math.cbrt(27.0) |> Stdlib.Test.equal(3.0)
+      Stdlib.Math.cbrt(-8.0) |> Stdlib.Test.equal(-2.0)
+      Stdlib.Math.cbrt(64.0) |> Stdlib.Test.equal(4.0)
+      Stdlib.Math.cbrt(1000.0) |> Stdlib.Test.equal(10.0)
+      Stdlib.Math.cbrt(0.001) |> near(0.1)
+      Stdlib.Math.cbrt(-0.0) |> Stdlib.Test.equal(-0.0)
+
+      Stdlib.Math.cbrt(infinity()) |> Stdlib.Test.equal(infinity())
+
+      Stdlib.Math.hypot(3.0, 4.0) |> Stdlib.Test.equal(5.0)
+
+      // the smallest number's cube root is exactly 2^-358
+      Stdlib.Math.cbrt(smallest()) |> Stdlib.Test.equal(2.0 ** -358.0)
+
+      // squaring 1e200 overflows; hypot does not
+      Stdlib.Float64.isFinite(Stdlib.Math.hypot(1e200, 1e200))
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Math.hypot(3e200, 4e200)
+      |> Stdlib.Test.equal(4.9999999999999995e200)
+
+      // squaring these would lose every bit
+      Stdlib.Math.hypot(3.0 * 2.0 ** -600.0, 4.0 * 2.0 ** -600.0)
+      |> Stdlib.Test.equal(5.0 * 2.0 ** -600.0)
+
+      Stdlib.Math.hypot(infinity(), Stdlib.Float64.nan)
+      |> Stdlib.Test.equal(infinity())
+
+      Stdlib.Float64.isNaN(Stdlib.Math.hypot(Stdlib.Float64.nan, 1.0))
+      |> Stdlib.Test.equal(true) ])
+
+
+test hypotAtUnderflow =
+  let fromBits = Stdlib.Float64.fromBits
+  let toBits = Stdlib.Float64.toBits
+  let unit = (1u64 << 50u64) - 1u64
+  Stdlib.Test.all(
+    [ Stdlib.Math.hypot(-0.0, 0.0)
+      |> toBits
+      |> Stdlib.Test.equal(0u64)
+
+      Stdlib.Math.hypot(0.0, -0.0)
+      |> toBits
+      |> Stdlib.Test.equal(0u64)
+
+      Stdlib.Math.hypot(-0.0, -0.0)
+      |> toBits
+      |> Stdlib.Test.equal(0u64)
+
+      // The exact result lies just below the midpoint between adjacent subnormals.
+      Stdlib.Math.hypot(fromBits(1125899906842625u64), fromBits(33554432u64))
+      |> toBits
+      |> Stdlib.Test.equal(1125899906842625u64)
+
+      Stdlib.Math.hypot(fromBits(2u64), fromBits(2u64))
+      |> toBits
+      |> Stdlib.Test.equal(3u64)
+
+      // Two subnormal legs can give a normal hypotenuse.
+      Stdlib.Math.hypot(fromBits(3u64 * unit), fromBits(4u64 * unit))
+      |> toBits
+      |> Stdlib.Test.equal(5u64 * unit) ])
+
+
+test remainders =
+  Stdlib.Test.all(
+    [ Stdlib.Math.remainder(5.0, 3.0) |> Stdlib.Test.equal(-1.0)
+
+      Stdlib.Math.remainder(7.0, 3.0) |> Stdlib.Test.equal(1.0)
+
+      Stdlib.Math.remainder(-5.0, 3.0) |> Stdlib.Test.equal(1.0)
+
+      Stdlib.Math.remainder(5.0, -3.0) |> Stdlib.Test.equal(-1.0)
+
+      // ties go to the even multiple
+      Stdlib.Math.remainder(3.0, 2.0) |> Stdlib.Test.equal(-1.0)
+
+      Stdlib.Math.remainder(5.0, 2.0) |> Stdlib.Test.equal(1.0)
+
+      // 1 / 2 is a tie between 0 and 1; 0 is even, so nothing is taken away
+      Stdlib.Math.remainder(1.0, 2.0) |> Stdlib.Test.equal(1.0)
+
+      Stdlib.Math.remainder(-1.0, 2.0) |> Stdlib.Test.equal(-1.0)
+
+      Stdlib.Math.remainder(-3.0, 3.0)
+      |> Stdlib.Float64.toBits
+      |> Stdlib.Test.equal(Stdlib.Float64.toBits(-0.0))
+
+      Stdlib.Math.remainder(1e300, 3.0) |> Stdlib.Test.equal(0.0)
+
+      Stdlib.Math.remainder(2.5, infinity()) |> Stdlib.Test.equal(2.5)
+
+      Stdlib.Float64.isNaN(Stdlib.Math.remainder(1.0, 0.0))
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Float64.isNaN(Stdlib.Math.remainder(infinity(), 2.0))
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Math.truncatedRemainder(5.5, 2.0) |> Stdlib.Test.equal(1.5)
+
+      Stdlib.Math.truncatedRemainder(-5.5, 2.0) |> Stdlib.Test.equal(-1.5)
+
+      // exact even for a quotient of 10^299
+      Stdlib.Math.truncatedRemainder(1e300, 7.0) |> Stdlib.Test.equal(1.0)
+
+      Stdlib.Math.truncatedRemainder(2.5, infinity()) |> Stdlib.Test.equal(2.5)
+
+      Stdlib.Float64.isNaN(Stdlib.Math.truncatedRemainder(1.0, 0.0))
+      |> Stdlib.Test.equal(true) ])
+
+
+test signAndFusedMultiplyAdd =
+  Stdlib.Test.all(
+    [ Stdlib.Math.copySign(3.0, -1.0) |> Stdlib.Test.equal(-3.0)
+
+      Stdlib.Math.copySign(-3.0, 1.0) |> Stdlib.Test.equal(3.0)
+
+      Stdlib.Math.copySign(3.0, -0.0) |> Stdlib.Test.equal(-3.0)
+
+      Stdlib.Math.copySign(0.0, -1.0)
+      |> Stdlib.Float64.toBits
+      |> Stdlib.Test.equal(Stdlib.Float64.toBits(-0.0))
+
+      Stdlib.Math.copySign(infinity(), -2.0) |> Stdlib.Test.equal(-infinity())
+
+      Stdlib.Math.fusedMultiplyAdd(2.0, 3.0, 4.0) |> Stdlib.Test.equal(10.0)
+
+      // 0.1 * 10.0 rounds to exactly 1.0, so 0.1 * 10.0 - 1.0 is 0.0; with one rounding
+      // the true product's tiny excess survives
+      Stdlib.Math.fusedMultiplyAdd(0.1, 10.0, -1.0)
+      |> Stdlib.Test.equal(2.0 ** -54.0) ])

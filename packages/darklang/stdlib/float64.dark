@@ -17,6 +17,29 @@ val infinity = 1.0 / 0.0
 val negativeInfinity = -1.0 / 0.0
 
 
+// A Float64's 64 bits are 1 sign bit, then 11 exponent bits, then 52 fraction bits
+
+/// The sign bit, bit 63
+val __signBit: UInt64 = 1u64 << 63u64
+
+
+/// The 52 fraction bits, the lowest
+val __fractionBits: UInt64 = (1u64 << 52u64) - 1u64
+
+
+/// Every bit but the sign
+val __allButSignBit: UInt64 = __signBit - 1u64
+
+
+/// Every bit but the exponent's: the sign and the fraction
+val __allButExponentBits: UInt64 = __signBit | __fractionBits
+
+
+/// 2^52. A normal number's significand is 1.fraction, so as an integer it is fraction +
+/// 2^52; and a subnormal number times 2^52 is normal
+val __twoToThe52: Float64 = 2.0 ** 52.0
+
+
 /// Round up to an integer value. Raises for NaN, infinity, or a result past Int64;
 /// <fn Int64.fromFloatCeiling> returns an {{Error}} instead.
 let ceiling(a: Float64): Int64 =
@@ -141,6 +164,108 @@ let __roundToText(x: Float64, places: Int64): String =
   let kept = if twice > den || twice == den && kept % 2z == 1z then kept + 1z else kept
   let sign = if bits >= 2z ** 63z then "-" else ""
   $"{sign}{kept}e{0 - places}"
+
+
+/// Returns the smallest <type Float64> greater than <param a>. The next after
+/// the largest finite value is infinity; NaN stays NaN.
+let nextUp(a: Float64): Float64 =
+  if isNaN(a) || a == infinity then
+    a
+  else if a == 0.0 then
+    // after 0.0 or -0.0 comes the smallest positive number
+    fromBits(1u64)
+  else if a > 0.0 then
+    fromBits(toBits(a) + 1u64)
+  else
+    fromBits(toBits(a) - 1u64)
+
+
+/// Returns the largest <type Float64> less than <param a>. The next before the
+/// smallest finite value is negative infinity; NaN stays NaN.
+let nextDown(a: Float64): Float64 =
+  if isNaN(a) || a == negativeInfinity then
+    a
+  else if a == 0.0 then
+    // before 0.0 or -0.0 comes the negative number closest to zero
+    fromBits(__signBit | 1u64)
+  else if a > 0.0 then
+    fromBits(toBits(a) - 1u64)
+  else
+    fromBits(toBits(a) + 1u64)
+
+
+/// Returns {{a * 2^exponent}}, exact unless it overflows to an infinity or loses
+/// bits below the smallest <type Float64>: C's `ldexp`.
+let scaleByPowerOfTwo(a: Float64, exponent: Int64): Float64 =
+  if a == 0.0 || Bool.not(isFinite(a)) then
+    a
+  else
+    // Beyond +-5000 every result is 0 or infinity anyway, and clamping keeps the sums
+    // below from overflowing
+    let exponent =
+      if exponent > 5000 then
+        5000
+      else if exponent < -5000 then
+        -5000
+      else
+        exponent
+
+    // A subnormal number has no implicit leading 1 bit; times 2^52 it is normal
+    let (a, exponent) =
+      if __exponentField(a) == 0 then
+        (a * __twoToThe52, exponent - 52)
+      else
+        (a, exponent)
+
+    let target = __exponentField(a) - 1023 + exponent
+    if target > 1023 then
+      if a < 0.0 then negativeInfinity else infinity
+    else if target < -1075 then
+      if a < 0.0 then -0.0 else 0.0
+    else
+      // Write the target exponent into a's bits. If the result is subnormal, build a
+      // number 2^53 times too big instead and multiply by 2^-53, so that a single
+      // multiplication does the rounding
+      let (field, scale) =
+        if target < -1022 then
+          (target + 53 + 1023, 2.0 ** -53.0)
+        else
+          (target + 1023, 1.0)
+
+      let fieldBits = UInt64.fromInt64(field) |> Option.withDefault(0u64)
+      fromBits(toBits(a) & __allButExponentBits | fieldBits << 52u64) * scale
+
+
+/// Returns the power of two <param a> lies within, {{floor(log2(|a|))}}, read from its
+/// bits: {{binaryExponent(10.0)}} is {{Some 3}}. {{None}} for zero, infinities and NaN.
+/// With <fn Float64.scaleByPowerOfTwo>, it splits a number into C's `frexp` parts.
+let binaryExponent(a: Float64): Option<Int64> =
+  let field = __exponentField(a)
+  if field == 2047 || a == 0.0 then
+    Option.None
+  else if field == 0 then
+    // subnormal: times 2^52 it is normal, so read that exponent and subtract 52
+    Option.Some(__exponentField(a * __twoToThe52) - 1023 - 52)
+  else
+    Option.Some(field - 1023)
+
+
+/// The 11-bit exponent field of <param a>, which holds the exponent plus 1023: 0 for zero
+/// and subnormal numbers, 2047 for infinities and NaN
+let __exponentField(a: Float64): Int64 =
+  UInt64.toInt64(toBits(a) >> 52u64 & 2047u64) |> Option.withDefault(0)
+
+
+/// A finite, non-negative <param a> as an integer significand m and a power of two e, so
+/// that {{a == m * 2^e}} exactly
+let __significandAndExponent(a: Float64): (BigInt * Int64) =
+  let field = __exponentField(a)
+  let fraction = toBits(a) & __fractionBits
+  if field == 0 then
+    // subnormal: no implicit leading 1 bit, and the smallest exponent
+    (BigInt.fromUInt64(fraction), -1074)
+  else
+    (BigInt.fromUInt64(fraction + (1u64 << 52u64)), field - 1075)
 
 
 impl Add for Float64 =
@@ -310,6 +435,13 @@ let toInt64(a: Float64): Int64 =
 /// Return <param a>'s IEEE 754 binary64 bits as an unsigned 64-bit value.
 let toBits(a: Float64): UInt64 =
   Builtin.float64ToBits(a)
+
+
+/// Returns the <type Float64> whose IEEE 754 binary64 bits are <param bits>, the
+/// inverse of <fn Float64.toBits>: {{fromBits(toBits(x))}} is {{x}}, {{-0.0}} and
+/// NaN included.
+let fromBits(bits: UInt64): Float64 =
+  Builtin.float64FromBits(bits)
 
 
 impl Display for Float64 =
