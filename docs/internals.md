@@ -1,6 +1,6 @@
 # Internals worth knowing before you change them
 
-The store's schema, SCM and branches, traits, and where text measurement lives. Each section is
+The store's schema, SCM and branches, traits, HTTP connections, and text measurement. Each section is
 the shape of the code and the rule that keeps it correct; the traps that are not specific to one
 of these areas are in `docs/agent-traps.md`.
 
@@ -228,6 +228,21 @@ stamp, which means nothing came from an op. Dispatch is memoised on the package 
 (`withExtraImpls`, `withExtras`) gets its own memo, and the script host's child state
 must take the grafted manager's `getTrait` too, or a script's own trait is "not in the
 package manager" at dispatch.
+
+## HTTP connections
+
+For direct connections, `LibExecution.HostHttp` checks every IP address returned
+by DNS before connecting to any of them. It connects to those exact addresses
+because another DNS lookup could return an unchecked address.
+
+Dark alternates IPv4 and IPv6 and starts another attempt every 250 ms while
+waiting for a connection. That lets a reachable address succeed while an earlier
+attempt is still pending.
+
+The socket-based client allows HTTP/2 and HTTP/1.1. HTTP/3 uses QUIC, which skips
+the TCP `ConnectCallback` where Dark checks IP addresses. Restore HTTP/3 once Dark
+can enforce the same checks on QUIC connections.
+[.NET QUIC callback proposal](https://github.com/dotnet/runtime/issues/64449)
 
 ## Measuring text, and what may go native
 
