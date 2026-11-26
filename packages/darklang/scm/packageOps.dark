@@ -103,15 +103,24 @@ let takeBackFailedValues(
           Option.Some(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc))
       | _ -> Option.None)
 
-  let keptNote =
+  let savedLine =
     match kept with
     | [] -> ""
     | kept ->
       let keptList = Stdlib.String.join(kept, ", ")
-      $" The rest of this save was kept: {keptList}."
+      $"\nSaved: {keptList}"
 
   match unbind(branchId, failed) with
-  | Ok(_) -> $"{why}\nNothing was saved for {names}.{keptNote}"
+  | Ok(_) ->
+    // `why` only explains the first value that failed. If more than one failed, add a line
+    // that names all of them.
+    let failedLine =
+      if Stdlib.List.length(failed) > 1 then
+        $"\nNone of these were saved: {names}"
+      else
+        ""
+
+    $"{why}{failedLine}{savedLine}"
   | Error(e) ->
     $"{why}\n{names} is still in your draft, and taking it back out failed: {e}. `dark discard {names}` removes it."
 

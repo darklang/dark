@@ -243,13 +243,14 @@ let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
           )
         Expect.stringContains
           unwrapped
-          "Nothing was saved"
-          "and says nothing was saved"
+          "Could not save value Tests.SaveHonesty.broken"
+          "the output says which value could not be saved"
 
         let! read = CliInstance.run i [ "eval"; "Tests.SaveHonesty.broken" ]
         Expect.stringContains read "not found" $"the value was never stored: {read}"
 
-        // A row left without a result would be evaluated again on every start.
+        // The failed value must leave no row behind. A row without a result is
+        // evaluated again on every start.
         use conn =
           new Microsoft.Data.Sqlite.SqliteConnection(
             $"""Data Source={System.IO.Path.Combine(i.dir, "data.db")};Pooling=False"""

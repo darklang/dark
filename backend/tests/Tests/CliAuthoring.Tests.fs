@@ -1429,7 +1429,7 @@ let failedSavesDoNotWarnAboutUnresolvedTraitCalls =
               "val broken = Tests.TraitWarningMissing.call(1) + 1"
           Expect.stringContains
             valueError
-            "Failed to define module:"
+            "Not saved: Tests.TraitWarningValueError.broken:"
             $"the failed value is reported: {valueError}"
           Expect.isFalse
             (valueError.Contains warning)

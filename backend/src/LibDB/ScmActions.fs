@@ -752,8 +752,9 @@ let discard (branchId : PT.BranchId) (what : DiscardWhat) : Result<int, Failure>
           |> List.filter (fun id -> not (Set.contains id keptIds))
         let n = dropOpsOn conn branchId dropped
         step "discard.ops"
-        // A dropped value that never evaluated and has no name left would be evaluated again,
-        // and fail again, on every start.
+        // Delete the row of each dropped value that never evaluated and that no name
+        // points at. Left in the store, it would be evaluated again, and fail again,
+        // on every start.
         let droppedValues =
           let droppedIds = Set.ofList dropped
           draft
