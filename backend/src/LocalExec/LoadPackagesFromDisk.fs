@@ -66,6 +66,37 @@ let files () : List<string * string> =
   |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
 
+/// The error message for a name declared more than once. <param declarations>
+/// lists each place it is declared: the file, and the kind (such as "fn").
+///
+/// The message is one of:
+///   fn A.f is declared twice in x.dark
+///   fn A.f is declared in both x.dark and y.dark
+///   A.f is declared as a fn and a val in x.dark
+let private describeDuplicate
+  (name : string)
+  (declarations : List<string * string>)
+  : string =
+  let files = declarations |> List.map fst |> List.distinct |> List.sort
+  let kinds = declarations |> List.map snd |> List.distinct |> List.sort
+  let where =
+    match files with
+    | [ file ] -> $"in {file}"
+    | [ one; two ] -> $"in both {one} and {two}"
+    | _ ->
+      let joined = String.concat ", " files
+      $"in {List.length files} files: {joined}"
+  match kinds, files with
+  | [ kind ], [ _ ] ->
+    let count = List.length declarations
+    let times = if count = 2 then "twice" else $"{count} times"
+    $"{kind} {name} is declared {times} {where}"
+  | [ kind ], _ -> $"{kind} {name} is declared {where}"
+  | _ ->
+    let listed = kinds |> List.map (fun kind -> $"a {kind}") |> String.concat " and "
+    $"{name} is declared as {listed} {where}"
+
+
 /// Parse <param filesWithContents> (`files`) and fail on parse or name-resolution errors.
 let load
   (builtins : RT.Builtins)
@@ -156,40 +187,28 @@ let load
   match LibParser.Package.duplicateDeclarations currentOps with
   | [] -> ()
   | duplicates ->
-    // Only now is it worth knowing which file declares what.
-    let declaredIn =
+    // The ops don't say which file each came from, so parse the files again to find
+    // out. This runs only when there is a duplicate to report.
+    let root = LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR"
+    let declared : List<string * string * string> =
       filesWithContents
-      |> List.map (fun (path, contents) ->
-        let ops =
-          parsePackageFile
-            builtins
-            PT.PackageManager.empty
-            NR.OnMissing.Allow
-            path
-            contents
-        (path, LibParser.Package.declarations ops))
-    // "fn A.f is declared twice in x.dark", or "... in both x.dark and y.dark"
-    let described (name : string) : string =
-      let counts =
-        declaredIn
-        |> List.map (fun (path, names) ->
-          let relative =
-            System.IO.Path.GetRelativePath(
-              LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR",
-              path
-            )
-          (relative, names |> List.filter (fun n -> n = name) |> List.length))
-        |> List.filter (fun (_, count) -> count > 0)
-        |> List.sort
-      match counts with
-      | [ (path, 2) ] -> $"{name} is declared twice in {path}"
-      | [ (path, count) ] -> $"{name} is declared {count} times in {path}"
-      | [ (one, _); (two, _) ] -> $"{name} is declared in both {one} and {two}"
-      | several ->
-        let paths = several |> List.map fst |> String.concat ", "
-        $"{name} is declared in {List.length several} files: {paths}"
+      |> List.collect (fun (path, contents) ->
+        let file = System.IO.Path.GetRelativePath(root, path)
+        parsePackageFile
+          builtins
+          PT.PackageManager.empty
+          NR.OnMissing.Allow
+          path
+          contents
+        |> LibParser.Package.declarations
+        |> List.map (fun (kind, name) -> (file, kind, name)))
+    let describe (name : string) : string =
+      declared
+      |> List.choose (fun (file, kind, declaredName) ->
+        if declaredName = name then Some(file, kind) else None)
+      |> describeDuplicate name
     // one line: the build shows only the last lines of the reload log
-    let listed = duplicates |> List.map described |> String.concat "; "
+    let listed = duplicates |> List.map describe |> String.concat "; "
     Exception.raiseInternal listed [ "count", List.length duplicates ]
   match LibParser.Package.unresolvedCalls currentOps with
   | [] -> ()

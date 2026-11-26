@@ -1573,8 +1573,8 @@ let private traitTests =
             [ P.DiagnosticCode.bound ]
             "trait without a type param") ]
 
-/// Runs a package reload over <param files> (name, contents) in a fresh root, and returns its
-/// exit code and output.
+/// Writes <param files> (each a file name and its contents) into an empty `packages` folder,
+/// runs a package reload on it, and returns the reload's exit code and output.
 let private reloadOf
   (files : List<string * string>)
   : System.Threading.Tasks.Task<int * string> =
@@ -1639,19 +1639,19 @@ let tests =
               "Me.Probe.p calls Me.Gone.piped, which does not exist" ]
             "the calls to nothing, in fns, pipes and values; a test may call a missing name"
         | Error e -> failtest $"did not parse: {e}")
-      testCase "a name declared twice is named for the reload to refuse" (fun _ ->
+      testCase "duplicateDeclarations finds each name declared twice" (fun _ ->
         let ops =
           LibParser.Package.parse
             (LibExecution.Builtin.make [] [])
             PT.PackageManager.empty
             NR.OnMissing.Allow
-            "module Me.Probe =\n  let f(): Int64 = 1\n  let g(): Int64 = 2\n  let f(): Int64 = 3\n  type g = Int64"
+            "module Me.Probe =\n  let f(): Int64 = 1\n  let g(): Int64 = 2\n  let f(): Int64 = 3\n  val g = 4\n  let h(): Int64 = 5"
         match ops with
         | Ok ops ->
           Expect.equal
             (LibParser.Package.duplicateDeclarations ops)
-            [ "fn Me.Probe.f" ]
-            "f is declared twice; a fn and a type may share the name g"
+            [ "Me.Probe.f"; "Me.Probe.g" ]
+            "f is declared as a fn twice, and g as a fn and a val; h is declared once"
         | Error e -> failtest $"did not parse: {e}")
       testTask "a reload refuses package code that calls a missing fn" {
         let! (code, output) =
@@ -1675,6 +1675,16 @@ let tests =
           output
           "fn Me.Probe.f is declared twice in packages/one.dark"
           "naming the name and the file"
+      }
+      testTask "a reload refuses a fn and a val with one name" {
+        let! (code, output) =
+          reloadOf
+            [ "one.dark", "module Me.Probe\n\nlet g(): Int64 = 1\n\nval g = 2\n" ]
+        Expect.equal code 1 $"the reload fails: {output}"
+        Expect.stringContains
+          output
+          "Me.Probe.g is declared as a fn and a val in packages/one.dark"
+          "naming the name, the kinds and the file"
       }
       testTask "a reload refuses a name declared in two files, and names the files" {
         let! (code, output) =
