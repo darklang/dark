@@ -105,7 +105,7 @@ test runtimeFailureStillRemovesSnapshot =
         Stdlib.String.contains(output.stderr, "Cannot divide by 0")
         |> Stdlib.Test.equal(true)
 
-        Stdlib.String.startsWith(childDb, "/tmp/dark-test-")
+        Stdlib.String.contains(childDb, "/dark-test-")
         |> Stdlib.Test.equal(true)
 
         Stdlib.Cli.FileSystem.pathExists(childDb) |> Stdlib.Test.equal(false) ])

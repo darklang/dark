@@ -1651,7 +1651,7 @@ let private runIsolated
       task {
         let! outcome =
           LibDB.TestProcess.run
-            (LibDB.TestProcess.Copy LibDB.Sqlite.Backup.toTestBaseline)
+            (LibDB.TestProcess.Own LibDB.Sqlite.Backup.toTestBaseline)
             state
             vm
             access

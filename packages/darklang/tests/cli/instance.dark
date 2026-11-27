@@ -62,41 +62,42 @@ let makeDir(): Stdlib.Result.Result<String, String> =
       | Ok(_) -> Stdlib.Result.Result.Ok(dir)
 
 
-/// A fresh instance. Fails with a message rather than half-existing.
-let create(): Stdlib.Result.Result<T, String> =
+/// A fresh instance whose store starts as `src`, with a file of its own when `ownFile`.
+///
+/// Without `ownFile` the store is a layer (`scripts/testing/layer-store`): it shares the source's
+/// file and keeps its own changes in its WAL, so it costs no copy.
+///
+/// Then clear the store's config. It would otherwise inherit the dev store's current branch and
+/// identity, so if the dev store is on a branch, every test instance starts there instead of on
+/// main. Clear all of it, not just the branch keys.
+///
+/// And clear its traces: the source store holds other tests' runs, some still going, so an
+/// instance would otherwise start with traces it never made.
+///
+/// The trace tables are listed first and cleared by a second sqlite3 once the first has exited.
+/// Piped, both open the store at once, and one can find it locked; the pipe hid that, and the
+/// instance kept the source's traces.
+let seeded(ownFile: Bool): Stdlib.Result.Result<T, String> =
   let src = seedFrom()
   if Stdlib.Cli.Unix.fileExists(src) then
     match makeDir() with
     | Error(e) -> Stdlib.Result.Result.Error(e)
     | Ok(dir) ->
-      // `.backup` while the store has writes in its WAL, and a read lock rather than a
-      // write one, so this is safe against a dev store something else is using. With
-      // nothing in the WAL the file is the whole store, and `cp` costs a third of the
-      // CPU of a page-by-page backup. A run's shared snapshot is read-only, hence the
-      // `chmod`.
-      //
-      // Then clear the copy's config. It would otherwise inherit the dev store's current
-      // branch and identity, so if the dev store is on a branch, every test instance
-      // starts there instead of on main. Clear all of it, not just the branch keys.
-      //
-      // And clear its traces: the source store holds other tests' runs, some still going,
-      // so an instance would otherwise start with traces it never made.
-      //
-      // Unsynced, and switched to WAL here rather than by its first command: a sync on the
-      // copy's first write sends the whole fresh copy to disk, and an instance is thrown
-      // away anyway.
-      //
-      // The trace tables are listed first and cleared by a second sqlite3 once the first has
-      // exited. Piped, both open the copy at once, and one can find it locked; the pipe hid
-      // that, and the instance kept the source's traces.
       let db = $"{dir}/data.db"
+      let start =
+        if ownFile then
+          $"sqlite3 -cmd '.timeout 10000' {src} '.backup {db}'"
+        else
+          $"scripts/testing/layer-store {src} {db}"
+
+      let sql = "scripts/testing/layer-sqlite3"
       let traceTables =
-        $"sqlite3 {db} \"SELECT 'DELETE FROM ' || name || ';' FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%'\""
+        $"{sql} -readonly {db} \"SELECT 'DELETE FROM ' || name || ';' FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%'\""
 
       let copy =
         Stdlib.Cli.Unix.executeInDirectoryWithOutput(
           ".",
-          $"if [ -s {src}-wal ]; then sqlite3 -cmd '.timeout 10000' {src} '.backup {db}'; else cp {src} {db} && chmod u+w {db}; fi && clear=$({traceTables}) && sqlite3 -cmd 'PRAGMA synchronous=OFF' {db} \"PRAGMA journal_mode=WAL; DELETE FROM config_v0; $clear\" >/dev/null")
+          $"{start} && clear=$({traceTables}) && {sql} -cmd 'PRAGMA synchronous=OFF' {db} \"PRAGMA journal_mode=WAL; DELETE FROM config_v0; $clear\" >/dev/null")
 
       if copy.exitCode != 0 then
         Stdlib.Result.Result.Error(
@@ -106,6 +107,17 @@ let create(): Stdlib.Result.Result<T, String> =
   else
     Stdlib.Result.Result.Error(
       $"no store to seed an instance from at {src}; build first")
+
+
+/// A fresh instance. Fails with a message rather than half-existing.
+let create(): Stdlib.Result.Result<T, String> =
+  seeded(false)
+
+
+/// `create`, for a test about the store file itself (its size, its mode, a checkpoint), which a
+/// layer shares with other instances.
+let createWithOwnFile(): Stdlib.Result.Result<T, String> =
+  seeded(true)
 
 
 let home(i: T): String =
@@ -250,13 +262,11 @@ let checkBindings(i: T): Stdlib.Test.Result =
       $"the store's bindings are broken: {out.stdout}{out.stderr}")
 
 
-/// Runs `f` against a fresh instance and disposes it, whatever `f` decided. A store that `f`
-/// left with a name bound to no body fails the test.
-///
-/// Ordinary results dispose immediately. A runtime error escapes to the enclosing
-/// isolation worker, whose host also removes these nested instance directories.
-let withInstance(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
-  match create() with
+let checked(
+  created: Stdlib.Result.Result<T, String>,
+  f: T -> Stdlib.Test.Result)
+  : Stdlib.Test.Result =
+  match created with
   | Error(e) -> Stdlib.Test.fail(e)
   | Ok(i) ->
     let result =
@@ -266,6 +276,20 @@ let withInstance(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
 
     let _ = dispose(i)
     result
+
+
+/// Runs `f` against a fresh instance and disposes it, whatever `f` decided. A store that `f`
+/// left with a name bound to no body fails the test.
+///
+/// Ordinary results dispose immediately. A runtime error escapes to the enclosing
+/// isolation worker, whose host also removes these nested instance directories.
+let withInstance(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
+  checked(create(), f)
+
+
+/// `withInstance`, with a store file of its own (`createWithOwnFile`).
+let withOwnFile(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
+  checked(createWithOwnFile(), f)
 
 
 /// Asserts a command's output contains `needle`.

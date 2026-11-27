@@ -250,11 +250,8 @@ let private withStore
   match target with
   | Instance i ->
     let store = System.IO.Path.Combine(i.dir, "data.db")
-    use conn =
-      new Microsoft.Data.Sqlite.SqliteConnection(
-        $"Data Source={store};Pooling=False"
-      )
-    conn.Open()
+    use opened = new Tests.CliInstance.Store(store)
+    let conn = opened.Connection
     use cmd = conn.CreateCommand()
     f cmd
   | InProcess _ -> failtest "this test runs against an instance"

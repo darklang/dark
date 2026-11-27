@@ -19,13 +19,27 @@ let step(i: Instance.T, args: List<String>): Stdlib.Test.Result =
   Instance.exitedWith(code, 0, $"`dark {cmd}` ({out})")
 
 
+/// <param f> once recording is on in <param i>.
+let recording(
+  i: Instance.T,
+  f: Instance.T -> Stdlib.Test.Result)
+  : Stdlib.Test.Result =
+  match step(i, [ "traces", "record", "on" ]) with
+  | Pass -> f(i)
+  | failed -> failed
+
+
 /// An instance with recording on and no trace in it yet. Recording is set here so the
 /// test means the same thing whatever the environment's default is.
 let withTraces(f: Instance.T -> Stdlib.Test.Result): Stdlib.Test.Result =
-  Instance.withInstance(fun i ->
-    match step(i, [ "traces", "record", "on" ]) with
-    | Pass -> f(i)
-    | failed -> failed)
+  Instance.withInstance(fun i -> recording(i, f))
+
+
+/// `withTraces`, for a test about the store file itself.
+let withTracesInOwnFile(
+  f: Instance.T -> Stdlib.Test.Result)
+  : Stdlib.Test.Result =
+  Instance.withOwnFile(fun i -> recording(i, f))
 
 
 /// The rows `traces list <n> --json` answers, newest first.
@@ -272,7 +286,7 @@ let storeSize(i: Instance.T): Int64 =
 
 /// SQLite only reuses the pages a delete frees, so a store that once held big traces stays big
 /// unless `traces delete` gives them back. It does once they are over a quarter of the file.
-test deleteGivesFreedSpaceBack = withTraces(fun i ->
+test deleteGivesFreedSpaceBack = withTracesInOwnFile(fun i ->
   let db = $"{i.dir}/data.db"
   let ran = step(i, [ "eval", "1 + 2" ])
   // Freed pages worth half the store: a third of the grown file, over the quarter.
@@ -295,7 +309,7 @@ test deleteGivesFreedSpaceBack = withTraces(fun i ->
 
 /// A test run shares one read-only store. A run on it with recording on still answers, and
 /// leaves the store as it found it.
-test evalOnAReadOnlyStoreAnswersAndRecordsNothing = withTraces(fun i ->
+test evalOnAReadOnlyStoreAnswersAndRecordsNothing = withTracesInOwnFile(fun i ->
   let db = $"{i.dir}/data.db"
   let ran = step(i, [ "eval", "1 + 2" ])
   // A shared snapshot is not WAL: switching a store to WAL is a write.
@@ -974,7 +988,7 @@ test aKilledRunShowsAsLost = withTraces(fun i ->
   let db = $"{i.dir}/data.db"
   // Wait for the run's row before killing it, so the kill lands on a run that has started.
   let script =
-    $"env {env} {i.cli} eval 'Stdlib.Cli.Posix.sleep(60000.0)' >/dev/null 2>&1 & pid=$!; for n in $(seq 300); do [ \"$(sqlite3 {db} \"SELECT COUNT(*) FROM traces WHERE status = 'running'\")\" = 1 ] && break; sleep 0.1; done; kill -TERM $pid; wait $pid; true"
+    $"env {env} {i.cli} eval 'Stdlib.Cli.Posix.sleep(60000.0)' >/dev/null 2>&1 & pid=$!; for n in $(seq 300); do [ \"$(scripts/testing/layer-sqlite3 -readonly {db} \"SELECT COUNT(*) FROM traces WHERE status = 'running'\")\" = 1 ] && break; sleep 0.1; done; kill -TERM $pid; wait $pid; true"
 
   let _ = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", script)
   let out = Instance.said(i, [ "traces" ])

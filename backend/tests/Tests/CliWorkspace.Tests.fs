@@ -24,9 +24,8 @@ open Tests.CliDsl
 /// not yet evaluated, as after an upgrade.
 let private needGrowing (i : CliInstance.T) : unit =
   let db = System.IO.Path.Combine(i.dir, "data.db")
-  use conn =
-    new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db};Pooling=False")
-  conn.Open()
+  use store = new CliInstance.Store(db)
+  let conn = store.Connection
   use cmd = conn.CreateCommand()
   cmd.CommandText <-
     "UPDATE package_values SET rt_dval = NULL WHERE rowid = (SELECT MIN(rowid) FROM package_values)"
@@ -245,9 +244,8 @@ let instanceMovesIntoTheStore =
         do!
           task {
             let db = System.IO.Path.Combine(storeDir, "data.db")
-            use conn =
-              new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db}")
-            conn.Open()
+            use store = new CliInstance.Store(db)
+            let conn = store.Connection
             use cmd = conn.CreateCommand()
             cmd.CommandText <- "DELETE FROM config_v0 WHERE key LIKE 'instance.%'"
             cmd.ExecuteNonQuery() |> ignore<int>

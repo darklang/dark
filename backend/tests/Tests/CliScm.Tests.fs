@@ -251,16 +251,12 @@ let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
 
         // The failed value must leave no row behind. A row without a result is
         // evaluated again on every start.
-        use conn =
-          new Microsoft.Data.Sqlite.SqliteConnection(
-            $"""Data Source={System.IO.Path.Combine(i.dir, "data.db")};Pooling=False"""
-          )
-        conn.Open()
-        use cmd = conn.CreateCommand()
+        use store =
+          new Tests.CliInstance.Store(System.IO.Path.Combine(i.dir, "data.db"))
+        use cmd = store.Connection.CreateCommand()
         cmd.CommandText <-
           "SELECT count(*) FROM package_values WHERE rt_dval IS NULL"
         let unevaluated = cmd.ExecuteScalar() :?> int64
-        conn.Close()
         Expect.equal unevaluated 0L "no unevaluated value is left in the store"
       })
 
@@ -886,11 +882,9 @@ let private aRefreshedDraftKeepsAnAliasBody =
         match state with
         | Instance i -> i.dir
         | InProcess _ -> failtest "needs an instance's store"
-      use conn =
-        new Microsoft.Data.Sqlite.SqliteConnection(
-          $"""Data Source={System.IO.Path.Combine(dir, "data.db")};Pooling=False"""
-        )
-      conn.Open()
+      use store =
+        new Tests.CliInstance.Store(System.IO.Path.Combine(dir, "data.db"))
+      let conn = store.Connection
       use cmd = conn.CreateCommand()
       // what a schema change does: drop the projections and fold the log again on the next start
       cmd.CommandText <-
@@ -929,11 +923,8 @@ let private aDependentsReadThatFailsIsReported =
         | Instance i -> i.dir
         | InProcess _ -> failtest "needs an instance's store"
       let db = System.IO.Path.Combine(dir, "data.db")
-      use conn =
-        new Microsoft.Data.Sqlite.SqliteConnection(
-          $"Data Source={db};Pooling=False"
-        )
-      conn.Open()
+      use store = new Tests.CliInstance.Store(db)
+      let conn = store.Connection
       use cmd = conn.CreateCommand()
       cmd.CommandText <-
         "WITH caller AS (SELECT item_hash FROM locations
@@ -983,11 +974,8 @@ let private aDependencyReviewThatFailsIsReported =
         | Instance i -> i.dir
         | InProcess _ -> failtest "needs an instance's store"
       let db = System.IO.Path.Combine(dir, "data.db")
-      use conn =
-        new Microsoft.Data.Sqlite.SqliteConnection(
-          $"Data Source={db};Pooling=False"
-        )
-      conn.Open()
+      use store = new Tests.CliInstance.Store(db)
+      let conn = store.Connection
       use cmd = conn.CreateCommand()
       cmd.CommandText <-
         "WITH caller AS (SELECT item_hash FROM locations
@@ -1036,11 +1024,8 @@ let private aFailingDeprecationQueryIsAStoreError =
         | Instance i -> i.dir
         | InProcess _ -> failtest "needs an instance's store"
       let db = System.IO.Path.Combine(dir, "data.db")
-      use conn =
-        new Microsoft.Data.Sqlite.SqliteConnection(
-          $"Data Source={db};Pooling=False"
-        )
-      conn.Open()
+      use store = new Tests.CliInstance.Store(db)
+      let conn = store.Connection
       use cmd = conn.CreateCommand()
       cmd.CommandText <- "ALTER TABLE deprecations RENAME TO deprecationsgone"
       cmd.ExecuteNonQuery() |> ignore<int>

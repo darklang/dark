@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# sqlite3 for a store made by layer-store: it never checkpoints, so its changes stay in its WAL.
+#
+# Usage: layer-sqlite3 [sqlite3 args...] <db> [sql]
+exec sqlite3 -cmd ".output /dev/null" -cmd ".dbconfig no_ckpt_on_close on" \
+  -cmd "PRAGMA wal_autocheckpoint=0" -cmd ".timeout 10000" -cmd ".output" "$@"

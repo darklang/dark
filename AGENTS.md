@@ -191,6 +191,11 @@ tree is behind, and a plain build will not catch it up (see "After `--optimize`,
 rebuild the debug tree" in `docs/agent-traps.md`). While iterating on one group, stay in Debug -- a
 filtered run is seconds either way.
 
+Test stores are layers: hard links to one shared file, each test's writes kept in its own WAL.
+Open one only through `LibDB.Sqlite.openConnection`, `Tests.CliInstance.Store` or
+`scripts/testing/layer-sqlite3`. A bare `sqlite3` or a checkpoint writes one test's changes into
+every other test's store. The rules are in `docs/internals.md`, "Test stores are layers".
+
 A Release Cli embeds `rundir/seed.db`, so `--optimize` exports it from the dev store first when
 it is missing or older than the store (under a second, with the Debug LocalExec the container's
 first build left behind). CI exports its own. By hand it is

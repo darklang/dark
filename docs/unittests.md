@@ -131,7 +131,8 @@ scripts/dev/build
 scripts/testing/gates package-tests
 ```
 
-The gate defaults to the Debug CLI and forces every test to execute. To use a
+The gate starts from the store the F# suite keeps, built from `packages/`, never from
+`rundir/data.db`. It defaults to the Debug CLI and forces every test to execute. To use a
 published CLI, set `CLI` to its repository-relative path. CI uses NativeAOT to
 reduce the cost of starting a worker for each test.
 

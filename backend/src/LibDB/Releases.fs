@@ -232,8 +232,7 @@ let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
     |> Array.filter (fun st -> keep (st.ToUpperInvariant()))
 
   if not (Array.isEmpty statements) then
-    use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
-    conn.Open()
+    use conn = LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
 
     Telemetry.countBy "sql.schema" (int64 statements.Length)
     for st in statements do

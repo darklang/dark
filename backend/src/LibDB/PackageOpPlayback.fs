@@ -830,8 +830,7 @@ let foldLoggedOnConnection
 /// `applyOpsOnConnection` on a connection of its own, in one transaction.
 let applyOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) : unit =
   LibDB.Sqlite.WriteGate.hold (fun () ->
-    use conn = new SqliteConnection(LibDB.Sqlite.connString)
-    conn.Open()
+    use conn = LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
     use tx = conn.BeginTransaction()
     applyOpsOnConnection conn branch ops
     tx.Commit())

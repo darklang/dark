@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Make <new> a throwaway store that starts as <store>, without copying it.
+#
+# <new> is a hard link to a file nothing writes again, and its own changes stay in its WAL.
+# `<new>-layer` marks it: a dark on it never checkpoints (`LibDB.Sqlite.openConnection`), and neither
+# may anything else, so a sqlite3 on it needs `.dbconfig no_ckpt_on_close on` and
+# `PRAGMA wal_autocheckpoint=0`. One process must never open two links to the same file: SQLite
+# shares a file's WAL index by inode, so the second would read the first's changes.
+#
+# `<new>-layer` holds the path of the file it links to, the one with nothing in its WAL; empty
+# when <new> is that file.
+#
+# <store> may be a layer itself, a read-only file (a test run's shared snapshot: its writable
+# twin is made once, beside it), or anything else, which is copied.
+#
+# Usage: layer-store <store> <new>
+set -euo pipefail
+
+SRC=$(readlink -f "${1:?usage: layer-store <store> <new>}")
+NEW="${2:?usage: layer-store <store> <new>}"
+# what a crashed store left here would be read as this one's
+rm -f "$NEW-wal" "$NEW-shm"
+
+base=""
+if [[ -e "$SRC-layer" ]]; then
+  base=$(cat "$SRC-layer")
+  base=${base:-$SRC}
+  ln "$SRC" "$NEW"
+  if [[ -s "$SRC-wal" ]]; then cp "$SRC-wal" "$NEW-wal"; fi
+elif [[ ! -w "$SRC" ]]; then
+  # Two made at once are both whole twins; the later one takes the name, and a layer already
+  # linked to the earlier one keeps it.
+  base="$SRC.layer"
+  if [[ ! -e "$base-layer" ]]; then
+    twin=$(mktemp "$base.XXXXXX")
+    cp "$SRC" "$twin"
+    chmod u+w "$twin"
+    sqlite3 "$twin" "PRAGMA journal_mode=WAL" >/dev/null
+    mv -f "$twin" "$base"
+    touch "$base-layer"
+  fi
+  ln "$base" "$NEW"
+else
+  sqlite3 -cmd ".timeout 10000" "$SRC" ".backup '$NEW'"
+  sqlite3 "$NEW" "PRAGMA journal_mode=WAL" >/dev/null
+fi
+echo -n "$base" >"$NEW-layer"

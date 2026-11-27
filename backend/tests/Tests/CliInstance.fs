@@ -6,7 +6,7 @@
 /// most of the suite's wall clock.
 ///
 /// A command run as a CHILD has none of that. `HOME` decides where an install lives
-/// (`~/.darklang`), so an instance is a home directory and a copy of the store in it.
+/// (`~/.darklang`), so an instance is a home directory and a store of its own in it.
 /// A command costs a process start rather than a dispatch, call it a third more, and in
 /// exchange the tests run as wide as everything else does.
 ///
@@ -45,8 +45,8 @@ let private cliPath () : string =
 
   path
 
-/// In the temp directory, not rundir: every instance is a whole copy of the store, and the
-/// dev container keeps /tmp in memory. One per process, removed when it exits.
+/// In the temp directory, not rundir: the dev container keeps /tmp in memory. One per process,
+/// removed when it exits.
 let private instanceRoot : Lazy<string> =
   lazy
     (let dir =
@@ -68,21 +68,10 @@ let private backup (source : string) (dest : string) : unit =
   src.Open()
   use dst =
     new Microsoft.Data.Sqlite.SqliteConnection(
-      $"Data Source={dest};Mode=ReadWriteCreate"
+      $"Data Source={dest};Mode=ReadWriteCreate;Pooling=False"
     )
   dst.Open()
   src.BackupDatabase dst
-
-let private pristineStore () : string =
-  System.IO.Path.Combine(instanceRoot.Value, "pristine.db")
-
-/// Copy the store before any test runs, and build the instance template from this copy. Built
-/// from the live store instead, it would include whatever earlier tests left behind, so every
-/// instance would start differently depending on which tests ran first.
-let snapshotStore () : unit =
-  System.IO.Directory.CreateDirectory(instanceRoot.Value)
-  |> ignore<System.IO.DirectoryInfo>
-  backup LibDB.Sqlite.currentDbPath (pristineStore ())
 
 /// A fresh `<path>/.darklang`, whatever was there before.
 let private freshDir (path : string) : string =
@@ -90,6 +79,17 @@ let private freshDir (path : string) : string =
   let dir = System.IO.Path.Combine(path, ".darklang")
   System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
   dir
+
+/// The template's install: its store is the file every instance's store links to.
+let private templateDir () : string =
+  System.IO.Path.Combine(instanceRoot.Value, "template", ".darklang")
+
+/// Copy the store before any test runs, and build the instance template from this copy. Built
+/// from the live store instead, it would include whatever earlier tests left behind, so every
+/// instance would start differently depending on which tests ran first.
+let snapshotStore () : unit =
+  let dir = freshDir (System.IO.Path.GetDirectoryName(templateDir ()))
+  backup LibDB.Sqlite.currentDbPath (System.IO.Path.Combine(dir, "data.db"))
 
 let private childEnv
   (dir : string)
@@ -132,23 +132,62 @@ let private prepare (dir : string) (args : string list) : unit =
 /// touch the store.
 let private template : Lazy<string * string> =
   lazy
-    (let root = instanceRoot.Value
-     System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
-
-     let warm = freshDir (System.IO.Path.Combine(root, "template-warm"))
-     let pristine = pristineStore ()
-     if not (System.IO.File.Exists pristine) then
+    (let dir = templateDir ()
+     let db = System.IO.Path.Combine(dir, "data.db")
+     if not (System.IO.File.Exists db) then
        Expecto.Tests.failtest
          "no store snapshot to build instances from (snapshotStore)"
-     backup pristine (System.IO.Path.Combine(warm, "data.db"))
 
-     prepare warm [ "branches" ]
-     prepare warm [ "permissions"; "allow"; "package-write" ]
+     prepare dir [ "branches" ]
+     prepare dir [ "permissions"; "allow"; "package-write" ]
 
-     // Through SQLite again: the warming run left its work in that store's own WAL.
-     let db = System.IO.Path.Combine(root, "template.db")
-     backup (System.IO.Path.Combine(warm, "data.db")) db
-     db, System.IO.Path.Combine(warm, "policy"))
+     // The warming run left its work in the store's WAL; into the file with it, before anything
+     // links to it. Nothing writes it again: every instance is a layer over it.
+     do
+       use conn =
+         new Microsoft.Data.Sqlite.SqliteConnection(
+           $"Data Source={db};Pooling=False"
+         )
+       conn.Open()
+       use cmd = conn.CreateCommand()
+       cmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE)"
+       cmd.ExecuteNonQuery() |> ignore<int>
+     System.IO.File.WriteAllText(db + "-layer", "")
+     db, System.IO.Path.Combine(dir, "policy"))
+
+let private templateFile () : int64 * System.DateTime =
+  let info = System.IO.FileInfo(fst (template.Force()))
+  info.Length, info.LastWriteTimeUtc
+
+let private templateAsMade = lazy (templateFile ())
+
+/// Fails the test if the template's file has changed: something checkpointed a layer over it, so
+/// its writes reached every instance made after it ("Test stores are layers", docs/internals.md).
+let checkTemplate () : unit =
+  if templateFile () <> templateAsMade.Force() then
+    Expecto.Tests.failtest
+      "a connection checkpointed an instance's store into the template every instance shares; open instance stores with CliInstance.Store"
+
+let private script (name : string) : string =
+  System.IO.Path.Combine(LibConfig.Dirs.sourceRootDir, "scripts/testing", name)
+
+let private runScript
+  (failure : string)
+  (name : string)
+  (args : string list)
+  : unit =
+  let psi = System.Diagnostics.ProcessStartInfo(script name)
+  for arg in args do
+    psi.ArgumentList.Add arg
+  psi.UseShellExecute <- false
+  psi.RedirectStandardOutput <- true
+  psi.RedirectStandardError <- true
+  use p = System.Diagnostics.Process.Start psi
+  let out = p.StandardOutput.ReadToEndAsync()
+  let err = p.StandardError.ReadToEnd()
+  p.WaitForExit()
+  if p.ExitCode <> 0 then
+    Expecto.Tests.failtestf "%s: %s%s" failure out.Result err
 
 let rec private copyDir (source : string) (dest : string) : unit =
   System.IO.Directory.CreateDirectory dest |> ignore<System.IO.DirectoryInfo>
@@ -160,8 +199,7 @@ let rec private copyDir (source : string) (dest : string) : unit =
   for dir in System.IO.Directory.GetDirectories source do
     copyDir dir (System.IO.Path.Combine(dest, System.IO.Path.GetFileName dir))
 
-/// A fresh instance, seeded from the template.
-let create () : T =
+let private seeded (ownFile : bool) : T =
   let dir =
     System.IO.Path.Combine(
       instanceRoot.Value,
@@ -170,33 +208,68 @@ let create () : T =
     )
   System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
   let (db, policy) = template.Force()
-  System.IO.File.Copy(db, System.IO.Path.Combine(dir, "data.db"))
+  templateAsMade.Force() |> ignore<int64 * System.DateTime>
+  let store = System.IO.Path.Combine(dir, "data.db")
+  if ownFile then
+    System.IO.File.Copy(db, store)
+  else
+    runScript "could not make an instance" "layer-store" [ db; store ]
   if System.IO.Directory.Exists policy then
     copyDir policy (System.IO.Path.Combine(dir, "policy"))
   { dir = dir; cli = cliPath () }
 
+/// A fresh instance, seeded from the template: a layer over it (`layer-store`).
+let create () : T = seeded false
+
+/// The file every instance's store links to.
+let templatePath () : string = fst (template.Force())
+
+/// Make <param store> a layer over <param source> (`layer-store`).
+let layerStore (source : string) (store : string) : unit =
+  runScript "could not make a layer" "layer-store" [ source; store ]
+
+/// Give <param i> a fresh store, as `create` makes one.
+let relayer (i : T) : unit =
+  layerStore (templatePath ()) (System.IO.Path.Combine(i.dir, "data.db"))
+
+/// A fresh instance with a store file of its own: for a test of how `dark test run` shares a
+/// store that is not a layer.
+let createWithOwnFile () : T = seeded true
+
 /// Fails the test if <param i>'s store binds a name to a hash with no body, as it is or after a
 /// re-fold of its log.
 let checkBindings (i : T) : unit =
-  let psi =
-    System.Diagnostics.ProcessStartInfo(
-      System.IO.Path.Combine(
-        LibConfig.Dirs.sourceRootDir,
-        "scripts/testing/check-store-bindings"
-      )
-    )
-  psi.ArgumentList.Add(System.IO.Path.Combine(i.dir, "data.db"))
-  psi.ArgumentList.Add(fst (template.Force()))
-  psi.ArgumentList.Add i.cli
-  psi.UseShellExecute <- false
-  psi.RedirectStandardOutput <- true
-  psi.RedirectStandardError <- true
-  use p = System.Diagnostics.Process.Start psi
-  let out = p.StandardOutput.ReadToEndAsync()
-  let err = p.StandardError.ReadToEnd()
-  p.WaitForExit()
-  if p.ExitCode <> 0 then
-    Expecto.Tests.failtestf "the store's bindings are broken: %s%s" out.Result err
+  checkTemplate ()
+  runScript
+    "the store's bindings are broken"
+    "check-store-bindings"
+    [ System.IO.Path.Combine(i.dir, "data.db"); fst (template.Force()); i.cli ]
+
+/// The store at <param path>, which may be an instance's, opened in this process.
+///
+/// Every instance's store shares the template's file (`layer-store`) and keeps its changes in its
+/// WAL, so this connection never checkpoints. One at a time: SQLite shares a file's WAL index by
+/// inode, so two instances open at once here would read each other's changes.
+type Store(path : string) =
+  static let gate = new System.Threading.SemaphoreSlim(1)
+  do gate.Wait()
+  let conn =
+    try
+      let conn =
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"Data Source={path};Pooling=False"
+        )
+      conn.Open()
+      LibDB.Sqlite.neverCheckpoint conn
+      conn
+    with _ ->
+      gate.Release() |> ignore<int>
+      reraise ()
+  member _.Connection = conn
+  interface System.IDisposable with
+    member _.Dispose() =
+      conn.Dispose()
+      gate.Release() |> ignore<int>
 
 let dispose (i : T) : unit =
   try

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Copy the store the repo's suites start from to <dest.db>: migrations and a reload of packages/,
+# with none of the dev store's drafts, branches or traces.
+#
+# It is kept, keyed on everything it is made from, so a later run with the same inputs copies it
+# instead of spending two minutes rebuilding it. Editing only F# tests changes none of these.
+#
+# Usage: _test-store [--published] <dest.db>
+set -euo pipefail
+
+PUBLISHED_FLAG=
+if [[ "${1:-}" == "--published" ]]; then
+  PUBLISHED_FLAG=$1
+  shift
+fi
+DEST="${1:?usage: _test-store [--published] <dest.db>}"
+
+if [[ -n "$PUBLISHED_FLAG" ]]; then
+  LOCALEXEC=Build/out/LocalExec/Release/net11.0/publish/LocalExec
+else
+  LOCALEXEC=Build/out/LocalExec/Debug/net11.0/LocalExec
+fi
+
+KEY=$(
+  { find "backend/$(dirname "$LOCALEXEC")" -maxdepth 1 -type f
+    find packages backend/migrations -type f
+    echo backend/src/LibExecution/package-ref-hashes.txt
+  } | sort | xargs -d '\n' sha256sum | sha256sum | cut -c1-16
+)
+CACHE="${HOME}/.darklang/test-store-cache"
+KEPT="$CACHE/$KEY.db"
+
+# run-tests starts the F# suite and package-tests together: one builds it, the other waits
+exec 9> "$CACHE.lock"
+flock 9
+
+if [[ ! -f "$KEPT" ]]; then
+  export DARK_CONFIG_DB_NAME=test-store-build.db
+  BUILD="${HOME}/.darklang/${DARK_CONFIG_DB_NAME}"
+  LOGS="${HOME}/.darklang/logs"
+  rm -f "$BUILD" "$BUILD-wal" "$BUILD-shm"
+
+  echo "Running migrations ($LOGS/test-migrations.log)"
+  (cd backend && DARK_CONFIG_TELEMETRY_EXPORTER=none \
+    "$LOCALEXEC" migrations run > "$LOGS/test-migrations.log" 2>&1)
+
+  # Most of a reload is checking trait calls, and the dev store has already checked most of
+  # them. Its cache is keyed on the build and the body, so a stale entry is never used.
+  sqlite3 -cmd '.timeout 10000' "$BUILD" "ATTACH '${HOME}/.darklang/data.db' AS dev;
+    INSERT INTO trait_call_resolutions SELECT * FROM dev.trait_call_resolutions;"
+
+  ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+
+  # Through SQLite rather than cp, which could miss writes still in the WAL. Only the latest
+  # store is kept.
+  rm -rf "$CACHE"
+  mkdir -p "$CACHE"
+  sqlite3 "$BUILD" ".backup '$KEPT.tmp'"
+  mv "$KEPT.tmp" "$KEPT"
+  rm -f "$BUILD"*
+fi
+
+echo "Copying the kept test store ($KEPT)"
+mkdir -p "$(dirname "$DEST")"
+rm -f "$DEST" "$DEST-wal" "$DEST-shm"
+cp "$KEPT" "$DEST"

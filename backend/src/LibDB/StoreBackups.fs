@@ -35,11 +35,11 @@ let private describe (path : string) : Backup =
 /// Copy the database at <param source> into <param target>, which SQLite creates if it is not
 /// there. Unpooled, so closing the connections folds any WAL the copy made back into the file.
 let private copyInto (source : string) (target : string) : unit =
-  use from = new SqliteConnection($"Data Source={source};Pooling=False")
-  from.Open()
+  use from = LibDB.Sqlite.openConnection ($"Data Source={source};Pooling=False")
   use into =
-    new SqliteConnection($"Data Source={target};Mode=ReadWriteCreate;Pooling=False")
-  into.Open()
+    LibDB.Sqlite.openConnection (
+      $"Data Source={target};Mode=ReadWriteCreate;Pooling=False"
+    )
   from.BackupDatabase into
 
 /// Write a copy of <param source> to <param target>.

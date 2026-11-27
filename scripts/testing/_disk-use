@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# What a test run wrote and how full it got /tmp, printed at its end. Only reported, never a failure.
+#
+#   disk_use_start <dir>          note the time and /tmp's use, and sample /tmp in the background
+#   disk_use_report <what> <dir>  print the bytes this shell and the children it has waited for
+#                                 wrote (`wchar`: pipes and tmpfs count too), /tmp's peak over its
+#                                 start, what held /tmp then, and the wall time
+#
+# Linux only: elsewhere there is no /proc to count with, and the report says so.
+
+disk_use_start() {
+  local dir=$1
+  rm -rf "$dir"
+  mkdir -p "$dir"
+  date +%s > "$dir/start-time"
+  df -k --output=used /tmp | tail -1 > "$dir/start"
+  awk '/^wchar/ { print $2 }' "/proc/$BASHPID/io" > "$dir/start-written" 2> /dev/null || true
+  local run=$BASHPID
+  (
+    peak=$(cat "$dir/start")
+    # ends with the run, even one that was killed
+    while kill -0 "$run" 2> /dev/null; do
+      used=$(df -k --output=used /tmp | tail -1)
+      if ((used > peak + 65536)); then
+        peak=$used
+        echo "$peak" > "$dir/peak"
+        du -xsk /tmp/* 2> /dev/null | sort -rn | head -5 > "$dir/held"
+      fi
+      sleep 1
+    done
+  ) > /dev/null 2>&1 &
+  echo $! > "$dir/sampler"
+}
+
+disk_use_report() {
+  local what=$1 dir=$2
+  kill "$(cat "$dir/sampler")" 2> /dev/null || true
+  local wall=$(($(date +%s) - $(cat "$dir/start-time")))
+  if [[ ! -s "$dir/start-written" ]]; then
+    echo "$what: ${wall}s; bytes written not measured here (no /proc)"
+    return 0
+  fi
+  local shell=$BASHPID now
+  now=$(awk '/^wchar/ { print $2 }' "/proc/$shell/io")
+  local written=$(((now - $(cat "$dir/start-written")) / 1048576))
+  local peak=0
+  if [[ -s "$dir/peak" ]]; then peak=$((($(cat "$dir/peak") - $(cat "$dir/start")) / 1024)); fi
+  echo "$what: ${wall}s, wrote ${written} MB, /tmp peaked ${peak} MB over its start"
+  if [[ -s "$dir/held" ]]; then
+    echo "  what held /tmp at its peak (KB):"
+    sed 's/^/    /' "$dir/held"
+  fi
+}

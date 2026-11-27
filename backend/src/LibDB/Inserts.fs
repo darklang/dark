@@ -244,8 +244,7 @@ let storeAndFoldOn
 /// Run <param f> in one transaction on a connection of its own.
 let inTransaction (f : Ctx -> 'a) : 'a =
   WriteGate.hold (fun () ->
-    use conn = new SqliteConnection(LibDB.Sqlite.connString)
-    conn.Open()
+    use conn = LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
     do
       use pragma = conn.CreateCommand()
       pragma.CommandText <- "PRAGMA busy_timeout=5000;"

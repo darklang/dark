@@ -11,6 +11,44 @@ let private connStringFor (path : string) : string =
 
 let private defaultConnString = connStringFor LibConfig.Config.dbPath
 
+/// A test store made by `scripts/testing/layer-store` (see "Test stores are layers" in
+/// docs/internals.md): a hard link to a file other stores share, with its own changes kept in its
+/// WAL.
+let isLayer (path : string) : bool = System.IO.File.Exists(path + "-layer")
+
+/// The file each layer this process opened links to, and that layer.
+let private layersOpen =
+  System.Collections.Concurrent.ConcurrentDictionary<string, string>()
+
+/// No checkpoint from <param conn>, automatic or on close: what a layer's connection needs.
+let neverCheckpoint (conn : SqliteConnection) : unit =
+  SQLitePCL.raw.sqlite3_wal_autocheckpoint (conn.Handle, 0) |> ignore<int>
+  // SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE
+  SQLitePCL.raw.sqlite3_db_config (conn.Handle, 1006, 1) |> ignore<int * int>
+
+/// Every connection LibDB opens, opened. Open a store any other way and a layer can break.
+///
+/// A layer's file is shared by every other layer over it, so a checkpoint, which folds the WAL
+/// into the file, would hand this store's writes to all of them. So a layer's connection never
+/// checkpoints: not automatically (SQLite resets that at every open), and not on close. And a
+/// process opens one layer over a file at most: SQLite shares a file's WAL index by inode, so a
+/// second link to the same file would read the first's WAL. Its `-layer` marker names the file.
+let openConnection (connectionString : string) : SqliteConnection =
+  let conn = new SqliteConnection(connectionString)
+  conn.Open()
+  let path = System.IO.Path.GetFullPath conn.DataSource
+  if isLayer path then
+    let named = System.IO.File.ReadAllText(path + "-layer")
+    let file = if named = "" then path else System.IO.Path.GetFullPath named
+    let opened = layersOpen.GetOrAdd(file, path)
+    if opened <> path then
+      conn.Dispose()
+      Exception.raiseInternal
+        "A process opened two layer stores over one file, and SQLite would mix their writes (docs/internals.md, \"Test stores are layers\")"
+        [ "path", path; "alreadyOpen", opened; "file", file ]
+    neverCheckpoint conn
+  conn
+
 /// The store this process is actually reading and writing, which is `LibConfig.Config.dbPath` except
 /// under a test that repointed it.
 ///
@@ -36,28 +74,60 @@ module WriteGate =
   let hold (f : unit -> 'a) : 'a =
     lock (gates.GetOrAdd(connString, (fun _ -> obj ()))) f
 
-/// Copy the live store for the test runner's baseline.
-///
-/// Through SQLite's online-backup API, never a file copy: recent writes sit in `data.db-wal`. Every
-/// other whole-store copy (backups, snapshots, the upgrade path's) is `StoreBackups`.
+/// The test runner's copy of the live store. Every other whole-store copy (backups, snapshots, the
+/// upgrade path's) is `StoreBackups`.
 module Backup =
-  let private copy (fromConn : string) (toConn : string) : Result<unit, string> =
+  /// Create a database file for tests from the live store: a test run's shared snapshot, or a
+  /// nested test worker's own store. It holds every table's rows but the traces', read in one
+  /// transaction, so it is about the size of the code however large the store has grown: the
+  /// traces and the free pages they leave stay behind. The live store is only read.
+  let toTestBaseline (target : string) : Result<unit, string> =
     try
-      use source = new SqliteConnection(fromConn)
-      source.Open()
-      use destination = new SqliteConnection(toConn)
-      destination.Open()
-      source.BackupDatabase destination
+      use connection =
+        new SqliteConnection(
+          $"Data Source={target};Mode=ReadWriteCreate;Pooling=false"
+        )
+      connection.Open()
+      // the live store, attached below, may be a layer
+      neverCheckpoint connection
+      let command (sql : string) =
+        let command = connection.CreateCommand()
+        command.CommandText <- sql
+        command
+      let run (sql : string) =
+        use command = command sql
+        command.ExecuteNonQuery() |> ignore<int>
+      run "PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF"
+      do
+        use attach = command "ATTACH @path AS live"
+        attach.Parameters.AddWithValue("@path", currentDbPath)
+        |> ignore<SqliteParameter>
+        attach.ExecuteNonQuery() |> ignore<int>
+      run "BEGIN"
+      let tables, indexes =
+        use read =
+          command
+            "SELECT type, name, sql FROM live.sqlite_master
+             WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%'"
+        use reader = read.ExecuteReader()
+        [ while reader.Read() do
+            (reader.GetString 0, reader.GetString 1, reader.GetString 2) ]
+        |> List.partition (fun (kind, _, _) -> kind = "table")
+      for _, _, sql in tables do
+        run sql
+      for _, name, _ in tables do
+        if not (name.StartsWith("trace", System.StringComparison.Ordinal)) then
+          run $"INSERT INTO main.\"{name}\" SELECT * FROM live.\"{name}\""
+      run
+        "DELETE FROM main.sqlite_sequence;
+         INSERT INTO main.sqlite_sequence SELECT * FROM live.sqlite_sequence"
+      // after the rows: one build of an index is faster than updating it on every insert
+      for _, _, sql in indexes do
+        run sql
+      run "COMMIT"
       Ok()
     with e ->
       Error e.Message
-
-  /// Create a complete database file for tests: a test run's shared snapshot, or
-  /// a nested test worker's own store.
-  /// Disable connection pooling so closing the backup flushes any WAL
-  /// contents into that file before returning.
-  let toTestBaseline (target : string) : Result<unit, string> =
-    copy connString $"Data Source={target};Mode=ReadWriteCreate;Pooling=false"
 
 
 /// "Did the store change since I last asked?", for a process that stays up.
@@ -83,8 +153,7 @@ module DataVersion =
     match held.TryGetValue connString with
     | true, conn -> conn
     | false, _ ->
-      let conn = new SqliteConnection(connString)
-      conn.Open()
+      let conn = openConnection connString
       held[connString] <- conn
       conn
 
@@ -136,9 +205,20 @@ module Sql =
 
     props
 
+  /// A layer's queries all go through one connection that `openConnection` opened, since Fumble
+  /// would open its own. One query at a time on it (`timedSync`).
+  let private connectTo (path : string) : Sql.SqlProps =
+    if isLayer path then
+      Sql.existingConnection (openConnection (connStringFor path))
+    else
+      Sql.connect (connStringFor path) |> initializeConnection path
+
+  let private layered = lazy (isLayer LibConfig.Config.dbPath)
+  let private layerGate = obj ()
+
   // `mutable` only so tests can repoint LibDB at a fresh store (see `useStoreForTesting`). Production
   // never rebinds it: it stays the default `connString` store for the process's life.
-  let mutable connect = Sql.connect connString |> initializeConnection currentDbPath
+  let mutable connect = connectTo currentDbPath
 
   /// A connection to the store that is opened once and never closed.
   ///
@@ -151,10 +231,9 @@ module Sql =
   let private heldOpen : Lazy<SqliteConnection> =
     lazy
       (let conn =
-        new SqliteConnection(
+        openConnection (
           SqliteConnectionStringBuilder(connString, Pooling = false).ToString()
         )
-       conn.Open()
        // in WAL mode the shared lock is taken by the first read and kept until close
        use cmd = conn.CreateCommand()
        cmd.CommandText <- "PRAGMA user_version"
@@ -184,13 +263,13 @@ module Sql =
   let useStoreForTesting (path : string) : unit =
     connString <- connStringFor path
     currentDbPath <- path
-    connect <- Sql.connect connString |> initializeConnection path
+    connect <- connectTo path
 
   /// TEST-ONLY: restore the default store after `useStoreForTesting`.
   let resetStoreForTesting () : unit =
     connString <- defaultConnString
     currentDbPath <- LibConfig.Config.dbPath
-    connect <- Sql.connect connString |> initializeConnection currentDbPath
+    connect <- connectTo currentDbPath
 
   /// Count and time every SQL statement this process runs. Each path counts under a `sql.` name
   /// of its own; together they are every statement (`scripts/perf/_ui.py` sums them).
@@ -199,7 +278,8 @@ module Sql =
   /// builtins invisible, which is most of it, and makes SQL time easy to mistake for interpreter cost.
   ///
   /// Gated, and per-statement rather than per-row: a timestamp costs ~1.27 us on an HPET clocksource.
-  let inline private timedSync (name : string) (f : unit -> 'a) : 'a =
+  let inline private timedSync (name : string) (g : unit -> 'a) : 'a =
+    let f () = if layered.Value then lock layerGate g else g ()
     if not (Telemetry.isEnabled ()) then
       f ()
     else
@@ -334,8 +414,7 @@ module Sql =
     try
       timedSync "sql.transactionSync" (fun () ->
         WriteGate.hold (fun () ->
-          use conn = new SqliteConnection(connString)
-          conn.Open()
+          use conn = openConnection connString
           use pragma = conn.CreateCommand()
           pragma.CommandText <- "PRAGMA busy_timeout=5000;"
           pragma.ExecuteNonQuery() |> ignore<int>
