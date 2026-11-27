@@ -70,10 +70,6 @@ for arg in "$@"; do
     --runtimes=*)
       RUNTIMES_ARG="${arg#*=}"
       ;;
-    --cross-compile)
-      # Legacy flag - treat as --runtimes=all
-      RUNTIMES_ARG="all"
-      ;;
     --gzip)
       GZIP_OUTPUT=true
       ;;
