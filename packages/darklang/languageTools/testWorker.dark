@@ -20,9 +20,7 @@ let main(args: List<String>): Int64 =
       Stdlib.printLine("Test worker requires a disposable test directory")
       1
     else
-      // Stored in this private copy too, so a nested worker starts on the same branch.
-      // The run's shared store already records its branch, and it is read-only:
-      // writing the same value again would fail and send the test to a copy.
+      // Stored in this private store too, so a nested worker starts on the same branch.
       let branch = SCM.PackageOps.currentBranch()
       let _ =
         if LocalStore.configGet("current_branch") != Option.Some(Stdlib.display(branch)) then

@@ -96,43 +96,13 @@ policies. The snapshot is taken on first use, so a run where every test is
 cached or in-process creates none.
 
 Tests start from the same snapshot, so one test's changes don't affect another.
-Tests share the snapshot read-only when possible, avoiding a database copy for
-tests that only read. A refused write triggers a retry in a fresh process on a
-private writable store, a layer over one writable copy of the snapshot (see "Test
-stores are layers" in `docs/internals.md`); only the retry's result is used. If
-sharing fails, the test starts on a private copy. When the runner's own store is a
-layer, as under `gates package-tests`, every test starts on a layer over it and
-none reruns. Sharing is disabled on Windows and for users who
-can write to the snapshot despite its read-only file mode.
-
-Workers using the shared snapshot, and any `dark` processes they start, watch
-SQLite's error log for refused writes. The runner puts a link beside the worker's
-store, `data.db-wrote`, pointing to a marker outside the worker's directory. A
-refused write creates the marker, even if the test catches or ignores the error,
-and so does a watcher that can't be installed. The runner checks for it after
-cleanup, including when the worker fails or times out.
-
-The snapshot uses rollback journal mode to avoid WAL sidecar files. Backups from
-the shared store were observed to hang with read-only WAL in this setup; this is
-not a general restriction on read-only WAL databases. The snapshot also records
-the run's branch and disables automatic publishing so workers need no startup
-writes for those settings.
-
-A test that writes therefore runs twice. Each attempt has its own home and
-temporary directory, deleted afterwards, so only what a test does outside them
-happens twice, such as writing to an absolute path or calling a real service. A
-writing test that hangs takes up to two timeouts before it is reported. Each test
-that reran is marked `(reran on a copy)` on its own line, and the summary line
-counts them, as in `19 wrote to the store and reran on a copy`. A handful is
-normal. If nearly every test reran, something writes at worker startup and the
-shared snapshot is saving nothing.
-
-The snapshot is protected only by its file mode, and tests run as the same user,
-so a test that made it writable again could change what every later test starts
-from. After each test that read it, and before each link or copy, the runner
-checks that the snapshot's mode, size and modification time are unchanged. Once
-any of them changes, the tests that were running at the time fail, which points
-at the culprit, and so does every later test rather than starting from it.
+Each worker's store is a layer over the snapshot (see "Test stores are layers" in
+`docs/internals.md`): a hard link to it, with the test's own writes kept in the
+worker's WAL, so the snapshot is the run's only copy of the store. When the
+runner's own store is a layer, as under `gates package-tests`, the workers' layers
+are over it instead and the run takes no snapshot. Where a hard link can't be
+made, a test starts on a private copy. The snapshot also records the run's branch
+and disables automatic publishing.
 
 The Dark runner passes an explicit run handle to each execution. Test support
 owns that handle and its snapshot; neither is part of interpreter state.

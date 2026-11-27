@@ -10,8 +10,7 @@
 # `<new>-layer` holds the path of the file it links to, the one with nothing in its WAL; empty
 # when <new> is that file.
 #
-# <store> may be a layer itself, a read-only file (a test run's shared snapshot: its writable
-# twin is made once, beside it), or anything else, which is copied.
+# <store> may be a layer itself, or anything else, which is copied.
 #
 # Usage: layer-store <store> <new>
 set -euo pipefail
@@ -27,19 +26,6 @@ if [[ -e "$SRC-layer" ]]; then
   base=${base:-$SRC}
   ln "$SRC" "$NEW"
   if [[ -s "$SRC-wal" ]]; then cp "$SRC-wal" "$NEW-wal"; fi
-elif [[ ! -w "$SRC" ]]; then
-  # Two made at once are both whole twins; the later one takes the name, and a layer already
-  # linked to the earlier one keeps it.
-  base="$SRC.layer"
-  if [[ ! -e "$base-layer" ]]; then
-    twin=$(mktemp "$base.XXXXXX")
-    cp "$SRC" "$twin"
-    chmod u+w "$twin"
-    sqlite3 "$twin" "PRAGMA journal_mode=WAL" >/dev/null
-    mv -f "$twin" "$base"
-    touch "$base-layer"
-  fi
-  ln "$base" "$NEW"
 else
   sqlite3 -cmd ".timeout 10000" "$SRC" ".backup '$NEW'"
   sqlite3 "$NEW" "PRAGMA journal_mode=WAL" >/dev/null

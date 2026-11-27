@@ -823,14 +823,6 @@ let packageTestsRespectParallelLimit =
           // The runner needs no grants on the saved instance, even to spawn work.
           do! run state [ "permissions"; "clear" ]
           let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
-          // Every case writes, so each runs twice: on the run's shared store, which
-          // refuses the write, then on a copy of its own in the same slot. Hold only
-          // the first attempt, so a freed slot can only be refilled by the next
-          // test. Root can't share (it ignores read-only files), so there every
-          // launch is a first attempt.
-          let sharing = LibExecution.HostPosix.getuid () <> 0u
-          let firstAttempt =
-            if sharing then "[ -L \"${HOME}/.darklang/data.db\" ]" else "true"
           for jobs in [ 1; 2 ] do
             let barriers =
               System.IO.Directory
@@ -845,9 +837,7 @@ let packageTestsRespectParallelLimit =
               ("#!/bin/sh\nexport DARK_CLI_UNDER_TEST="
                + quote wrapper
                + "\nfor arg in \"$@\"; do\n"
-               + "  if [ \"$arg\" = \"${HOME}/request.bin\" ] && "
-               + firstAttempt
-               + "; then\n"
+               + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
                + "    barrier="
                + quote barriers
                + "\n"
@@ -918,12 +908,7 @@ let packageTestsRespectParallelLimit =
               output
               "4 passed, 0 failed; 4 ran, 0 cached"
               "every declaration runs once"
-            Expect.equal (started ()).Length 4 "one first attempt per test"
-            if sharing then
-              Expect.stringContains
-                output
-                "4 wrote to the store and reran on a copy"
-                "the summary says every case reran on a copy"
+            Expect.equal (started ()).Length 4 "one worker per test"
           // Ordinary eval still uses the saved deny-all policy. Grant only the
           // read needed for this final check, after all test workers have exited.
           do! run state [ "permissions"; "allow"; "package-read" ]
@@ -935,13 +920,11 @@ let packageTestsRespectParallelLimit =
               "test writes did not reach the parent store"
       })
 
-/// A test that only reads the store runs once, on the shared snapshot; a test that
-/// writes reruns on a copy. Both would pass on copies alone, so count the launches
-/// and the ones that saw a shared store rather than trusting the results. One
-/// reader also starts a nested worker, which copies its store from the shared
-/// snapshot: the path that hung while the snapshot used WAL.
-let testsThatOnlyReadRunOnce =
-  ownStoreTest "package tests that only read share the store" (fun state ->
+/// A `dark test run` on a store that is not a layer makes one snapshot of it, and every worker's
+/// store, a writer's and a nested worker's too, is a layer over that one file: each launches once.
+/// The run's own store is never linked to or marked a layer.
+let testsShareOneSnapshot =
+  ownStoreTest "package tests share one snapshot of a store of its own" (fun state ->
     task {
       if LibExecution.HostPosix.isPosix then
         do! start state
@@ -980,6 +963,7 @@ test writer =
           System.IO.Directory
             .CreateDirectory(System.IO.Path.Combine(instance.dir, "launches"))
             .FullName
+        let own = System.IO.Path.Combine(instance.dir, "data.db")
         let wrapper = System.IO.Path.Combine(instance.dir, "worker-counter")
         writeExecutableScript
           wrapper
@@ -987,12 +971,18 @@ test writer =
            + quote wrapper
            + "\nfor arg in \"$@\"; do\n"
            + "  if [ \"$arg\" = \"${HOME}/request.bin\" ]; then\n"
+           + "    stat -c %i "
+           + quote own
+           + " > "
+           + quote launches
+           + "/own\n"
+           + "    store=\"${HOME}/.darklang/data.db\"\n"
+           + "    if [ -e \"$store-layer\" ]; then stat -c %i \"$store\" > "
+           + quote launches
+           + "/layer-$$; fi\n"
            + "    touch "
            + quote launches
            + "/launched-$$\n"
-           + "    if [ -L \"${HOME}/.darklang/data.db\" ]; then touch "
-           + quote launches
-           + "/shared-$$; fi\n"
            + "  fi\ndone\nexec "
            + quote (System.IO.Path.GetFullPath instance.cli)
            + " \"$@\"\n")
@@ -1005,31 +995,28 @@ test writer =
           output
           "5 passed, 0 failed; 5 ran, 0 cached"
           "every test passes"
-        let count pattern = System.IO.Directory.GetFiles(launches, pattern).Length
-        // Root can't share (it ignores read-only files), so there nothing reruns.
-        if LibExecution.HostPosix.getuid () <> 0u then
-          Expect.stringContains
-            output
-            "Tests.Readers.writer (reran on a copy)"
-            $"the writer reran: {output}"
-          Expect.stringContains
-            output
-            "; 1 wrote to the store and reran on a copy"
-            $"only the writer reran: {output}"
-          Expect.equal
-            (count "launched-*")
-            7
-            "one worker per reader, one for the nested run, two for the writer"
-          Expect.equal
-            (count "shared-*")
-            5
-            "every reader and the writer's first attempt saw the shared store"
-        else
-          Expect.isFalse (output.Contains "reran") $"nothing reran: {output}"
-          Expect.equal
-            (count "launched-*")
-            6
-            "one worker per test and the nested run"
+        let files pattern = System.IO.Directory.GetFiles(launches, pattern)
+        Expect.equal
+          (files "launched-*").Length
+          6
+          "one worker per test and one for the nested run"
+        let inodes =
+          files "layer-*"
+          |> Array.map (fun f -> System.IO.File.ReadAllText(f).Trim())
+        Expect.equal inodes.Length 6 "every worker's store is a layer"
+        Expect.equal
+          (Array.distinct inodes).Length
+          1
+          $"every layer links to one file: {inodes}"
+        Expect.isFalse
+          (System.IO.File.Exists(own + "-layer"))
+          "the run's own store is not marked a layer"
+        Expect.notEqual
+          (System.IO.File
+            .ReadAllText(System.IO.Path.Combine(launches, "own"))
+            .Trim())
+          inodes[0]
+          "the layers link to a snapshot, not to the run's own store"
     })
 
 let packageTestsRequireRun =
@@ -2271,7 +2258,7 @@ let tests : List<Test> =
     testRunUsesOneStartingStore
     isolatedTestDeclarations
     packageTestsRespectParallelLimit
-    testsThatOnlyReadRunOnce
+    testsShareOneSnapshot
     packageTestsRequireRun
     packageTestJobsRejectInvalidCounts
     pureTestsRunInProcess

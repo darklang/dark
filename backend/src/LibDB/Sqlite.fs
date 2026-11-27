@@ -180,7 +180,7 @@ module DataVersion =
     lock gate (fun () -> (command ()).ExecuteScalar() |> unbox<int64>)
 
 
-/// A store file this process may not write, such as a test run's shared snapshot.
+/// A store file this process may not write.
 let isReadOnly (path : string) : bool =
   not (System.OperatingSystem.IsWindows())
   && System.IO.File.Exists path
@@ -190,8 +190,7 @@ let isReadOnly (path : string) : bool =
 
 module Sql =
   // Initialize connection with PRAGMA settings that can't be set in the connection string.
-  // A read-only store (a test run's shared snapshot) keeps its journal mode: switching it to
-  // WAL is a write, which would send the test to a copy before it starts.
+  // A read-only store keeps its journal mode: switching it to WAL is a write.
   let initializeConnection (path : string) (props : Sql.SqlProps) : Sql.SqlProps =
     let readOnly = isReadOnly path
     Telemetry.count "sql.init"
