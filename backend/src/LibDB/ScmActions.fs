@@ -107,8 +107,7 @@ let private count
 let private transact (f : SqliteConnection -> Result<'a, 'e>) : Result<'a, 'e> =
   let result =
     WriteGate.hold (fun () ->
-      use conn = new SqliteConnection(LibDB.Sqlite.connString)
-      conn.Open()
+      use conn = LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
       // IMMEDIATE (the default here): the write lock is taken at BEGIN, so what the action reads
       // inside is what it writes against.
       use tx = conn.BeginTransaction()
@@ -951,8 +950,7 @@ type Repoint =
 
 /// The ids of <param b>'s draft, as `commit` means it.
 let private draftIds (b : PT.BranchId) : List<string> =
-  use conn = new SqliteConnection(LibDB.Sqlite.connString)
-  conn.Open()
+  use conn = LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
   let where, ps = draftWhere b
   ids conn ("SELECT p.id FROM package_ops p WHERE " + where) ps
 
@@ -1031,8 +1029,7 @@ let merge
       let name = branchName branchId
       let frontier = ScmOps.query (ScmOps.Own branchId) 0L
       let moved =
-        use conn = new SqliteConnection(LibDB.Sqlite.connString)
-        conn.Open()
+        use conn = LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
         ownIdsOn conn branchId
       let b = box (string branchId)
       try
@@ -1418,8 +1415,7 @@ let setConflictStatus
 
 /// One recorded conflict by its exact id.
 let conflictById (id : string) : Option<Detect.Conflict> =
-  use conn = new SqliteConnection(LibDB.Sqlite.connString)
-  conn.Open()
+  use conn = LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
   let found = conflictsOn conn "id = @id" [ "@id", box id ]
   List.tryHead found
 

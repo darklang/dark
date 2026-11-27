@@ -520,6 +520,17 @@ let instanceTest (name : string) (body : Target -> Task<unit>) : Test =
       Tests.CliInstance.dispose i
   }
 
+/// `instanceTest` with a store file of its own (`CliInstance.createWithOwnFile`).
+let ownStoreTest (name : string) (body : Target -> Task<unit>) : Test =
+  testTask name {
+    let i = Tests.CliInstance.createWithOwnFile ()
+    try
+      do! body (Instance i)
+      Tests.CliInstance.checkBindings i
+    finally
+      Tests.CliInstance.dispose i
+  }
+
 /// `instanceTest` for a test that breaks its own store by hand, so the bindings check at the end
 /// would only report the damage the test made.
 let damagedTest (name : string) (body : Target -> Task<unit>) : Test =
@@ -527,6 +538,7 @@ let damagedTest (name : string) (body : Target -> Task<unit>) : Test =
     let i = Tests.CliInstance.create ()
     try
       do! body (Instance i)
+      Tests.CliInstance.checkTemplate ()
     finally
       Tests.CliInstance.dispose i
   }

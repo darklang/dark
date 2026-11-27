@@ -149,20 +149,14 @@ type private TestHashes =
 let private reruns =
   System.Collections.Concurrent.ConcurrentDictionary<System.Guid, TestHashes>()
 
-let withStoreSnapshot
-  (snapshot : Host.FileSnapshot)
-  (run : System.Guid -> Task<'a>)
-  : Task<'a> =
-  task {
-    use snapshot = snapshot
-    let id = System.Guid.NewGuid()
-    runs[id] <- snapshot
-    try
-      return! run id
-    finally
-      runs.TryRemove id |> ignore<bool * Host.FileSnapshot>
-      reruns.TryRemove id |> ignore<bool * TestHashes>
-  }
+/// Each run's writable twin of its snapshot, which its workers' layers link to (`layerFromRun`).
+let private twins =
+  System.Collections.Concurrent.ConcurrentDictionary<System.Guid, Lazy<Result<string, string>>>()
+
+let copyFromRun (id : System.Guid) (target : string) : Result<unit, string> =
+  match runs.TryGetValue id with
+  | true, snapshot -> snapshot.CopyTo target
+  | false, _ -> Error "The package test run has already ended"
 
 /// Whether the test with this hash wrote to the run's shared store and so ran
 /// again on a copy.
@@ -176,11 +170,6 @@ let private changedInRun (id : System.Guid) : bool =
   | true, snapshot -> snapshot.Changed()
   | false, _ -> false
 
-let copyFromRun (id : System.Guid) (target : string) : Result<unit, string> =
-  match runs.TryGetValue id with
-  | true, snapshot -> snapshot.CopyTo target
-  | false, _ -> Error "The package test run has already ended"
-
 /// Link <param target> to the run's snapshot, read-only and shared with the other
 /// workers. Return an error if the snapshot can't be shared.
 let private linkFromRun (id : System.Guid) (target : string) : Result<unit, string> =
@@ -190,8 +179,12 @@ let private linkFromRun (id : System.Guid) (target : string) : Result<unit, stri
 
 /// Where a worker's store comes from.
 type Store =
-  /// A private writable copy, made by the supplied function.
-  | Copy of (string -> Result<unit, string>)
+  /// A layer over this process's own store when that is a layer, else a private writable copy,
+  /// made by the supplied function.
+  | Own of (string -> Result<unit, string>)
+  /// A layer over the writable twin of the snapshot of the test run with this id
+  /// (`layerFromRun`). If that fails, the worker starts on a copy.
+  | Layered of run : System.Guid
   /// The snapshot of the test run with this id, linked read-only for every
   /// worker. A worker that tries to write to it runs again on a private copy;
   /// only the second result is used. If linking fails, the worker starts on a copy.
@@ -269,6 +262,90 @@ let private setConfig
 let private prepareStore (path : string) : unit =
   setConfig path "WAL" [ "live.autopush", "off" ]
 
+let private hardLink (source : string) (target : string) : Result<unit, string> =
+  try
+    let psi = System.Diagnostics.ProcessStartInfo("ln")
+    psi.ArgumentList.Add source
+    psi.ArgumentList.Add target
+    psi.UseShellExecute <- false
+    psi.RedirectStandardError <- true
+    use p = System.Diagnostics.Process.Start psi
+    let err = p.StandardError.ReadToEnd()
+    p.WaitForExit()
+    if p.ExitCode = 0 then Ok() else Error err
+  with e ->
+    Error e.Message
+
+/// Make <param link> a layer (scripts/testing/layer-store) over the layer <param source>, as it is
+/// now. Its marker names the file with nothing in its WAL, as layer-store's do.
+let private linkWithWal (source : string) (link : string) : Result<unit, string> =
+  hardLink source link
+  |> Result.map (fun () ->
+    if System.IO.File.Exists(source + "-wal") then
+      System.IO.File.Copy(source + "-wal", link + "-wal")
+    let named = System.IO.File.ReadAllText(source + "-layer")
+    System.IO.File.WriteAllText(
+      link + "-layer",
+      (if named = "" then source else named)
+    ))
+
+/// The writable twin of run <param id>'s snapshot: a layer over this runner's store when that is a
+/// layer, or else one copy of the snapshot, prepared like any worker's copy before anything links
+/// to it.
+let private twinOf (id : System.Guid) : Result<string, string> =
+  let dir = System.IO.Directory.CreateTempSubdirectory("dark-layer-").FullName
+  let path = System.IO.Path.Combine(dir, "data.db")
+  let own = LibDB.Sqlite.currentDbPath
+  let made =
+    if LibDB.Sqlite.isLayer own then
+      linkWithWal own path
+    else
+      copyFromRun id path
+      |> Result.map (fun () ->
+        prepareStore path
+        System.IO.File.WriteAllText(path + "-layer", ""))
+  if Result.isError made then System.IO.Directory.Delete(dir, true)
+  made |> Result.map (fun () -> path)
+
+/// Make <param target> a layer (scripts/testing/layer-store) over the twin of run <param id>.
+let private layerFromRun
+  (id : System.Guid)
+  (target : string)
+  : Result<unit, string> =
+  match twins.TryGetValue id with
+  | true, twin -> twin.Value |> Result.bind (fun twin -> linkWithWal twin target)
+  | false, _ -> Error "The package test run has already ended"
+
+let withStoreSnapshot
+  (snapshot : Host.FileSnapshot)
+  (run : System.Guid -> Task<'a>)
+  : Task<'a> =
+  task {
+    use snapshot = snapshot
+    let id = System.Guid.NewGuid()
+    runs[id] <- snapshot
+    let twin = lazy (twinOf id)
+    // over a layer, the twin is this runner's store as the run starts, so take it now
+    if LibDB.Sqlite.isLayer LibDB.Sqlite.currentDbPath then
+      twin.Force() |> ignore<Result<string, string>>
+    twins[id] <- twin
+    try
+      return! run id
+    finally
+      runs.TryRemove id |> ignore<bool * Host.FileSnapshot>
+      reruns.TryRemove id |> ignore<bool * TestHashes>
+      match twins.TryRemove id with
+      | true, twin when twin.IsValueCreated ->
+        match twin.Value with
+        | Ok path ->
+          try
+            System.IO.Directory.Delete(System.IO.Path.GetDirectoryName path, true)
+          with _ ->
+            ()
+        | Error _ -> ()
+      | _ -> ()
+  }
+
 /// Prepare the run's starting store with its branch and autopush settings so
 /// workers can read those settings without writing at startup.
 ///
@@ -339,7 +416,20 @@ let private runOnce
         let copyTo copy = copy db |> Result.map (fun () -> prepareStore db)
         let ready =
           match store with
-          | Copy copy -> copyTo copy
+          | Own copy ->
+            if LibDB.Sqlite.isLayer LibDB.Sqlite.currentDbPath then
+              linkWithWal LibDB.Sqlite.currentDbPath db
+            else
+              copyTo copy
+          | Layered run ->
+            match layerFromRun run db with
+            | Ok() -> Ok()
+            | Error _ -> copyTo (copyFromRun run)
+          | Shared run when
+            LibDB.Sqlite.isLayer LibDB.Sqlite.currentDbPath
+            && Result.isOk (layerFromRun run db)
+            ->
+            Ok()
           | Shared run ->
             match linkFromRun run db with
             | Ok() ->
@@ -453,6 +543,6 @@ let run
         reruns.GetOrAdd(run, (fun _ -> TestHashes()))[testHash] <- ()
       | Target.TestCallback _ -> ()
       shared.Value <- false
-      return! once (Copy(copyFromRun run))
+      return! once (Layered run)
     | _ -> return outcome
   }

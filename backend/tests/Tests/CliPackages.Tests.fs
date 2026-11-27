@@ -31,7 +31,7 @@ let upgradeRestoresSeedOperationKinds =
 #endif
         let dbPath = System.IO.Path.Combine(instance.dir, "data.db")
         // Start from the binary's bundled seed, rather than the copied test store.
-        for suffix in [ ""; "-wal"; "-shm" ] do
+        for suffix in [ ""; "-wal"; "-shm"; "-layer" ] do
           System.IO.File.Delete(dbPath + suffix)
         let! initial = Tests.CliInstance.runRaw instance [ "eval"; "1 + 1" ]
         let (code, output, error) = initial
@@ -601,11 +601,8 @@ let cachedPassesRequireTheSameBuildAndJudge =
         match state with
         | Instance i ->
           let store = System.IO.Path.Combine(i.dir, "data.db")
-          use conn =
-            new Microsoft.Data.Sqlite.SqliteConnection(
-              $"Data Source={store};Pooling=False"
-            )
-          conn.Open()
+          use opened = new Tests.CliInstance.Store(store)
+          let conn = opened.Connection
           use cmd = conn.CreateCommand()
           cmd.CommandText <- sql
           let moved = cmd.ExecuteNonQuery()
@@ -798,7 +795,7 @@ let isolatedTestDeclarations =
 /// Pause workers to check that tests run in parallel without exceeding the limit.
 /// When one finishes, the next should start without waiting for the others.
 let packageTestsRespectParallelLimit =
-  instanceTest
+  ownStoreTest
     "package tests overlap within the requested worker limit"
     (fun state ->
       task {
@@ -944,7 +941,7 @@ let packageTestsRespectParallelLimit =
 /// reader also starts a nested worker, which copies its store from the shared
 /// snapshot: the path that hung while the snapshot used WAL.
 let testsThatOnlyReadRunOnce =
-  instanceTest "package tests that only read share the store" (fun state ->
+  ownStoreTest "package tests that only read share the store" (fun state ->
     task {
       if LibExecution.HostPosix.isPosix then
         do! start state

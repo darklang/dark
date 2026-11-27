@@ -52,9 +52,12 @@ let mutable private warnedAboutUnreadableOps = false
 /// Separate from `export` so a test can drive it: `export` always copies `Config.dbPath`,
 /// which in a test is the store the whole suite shares, and nothing can point it elsewhere.
 let checkpointWal (dbPath : string) : unit =
+  if LibDB.Sqlite.isLayer dbPath then
+    Exception.raiseInternal "A layer store is never checkpointed" [ "path", dbPath ]
   use conn =
-    new SqliteConnection($"Data Source={dbPath};Mode=ReadWrite;Cache=Private")
-  conn.Open()
+    LibDB.Sqlite.openConnection (
+      $"Data Source={dbPath};Mode=ReadWrite;Cache=Private"
+    )
   use cmd = conn.CreateCommand()
   cmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE);"
   Telemetry.count "sql.seed"
@@ -77,8 +80,7 @@ let export (outputPath : string) : unit =
 
   let connStr = $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private"
 
-  use conn = new SqliteConnection(connStr)
-  conn.Open()
+  use conn = LibDB.Sqlite.openConnection (connStr)
 
   use pragmaCmd = conn.CreateCommand()
   pragmaCmd.CommandText <-
@@ -300,8 +302,7 @@ let foldRead (rawOps : List<int64 * PT.BranchId * System.Guid * byte[]>) : int64
           if isNull conn then
             // All ops + the mark in ONE transaction: for 9000+ ops that collapses ~20k WAL commits
             // into one.
-            conn <- new SqliteConnection(LibDB.Sqlite.connString)
-            conn.Open()
+            conn <- LibDB.Sqlite.openConnection (LibDB.Sqlite.connString)
             // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter
             // update, which poisons the page cache of a concurrent reader on another connection.
             //
@@ -640,8 +641,9 @@ let growIfNeeded
     let _evalResult =
       Telemetry.time "seed.evaluateValues" [] (fun () ->
         evaluateAllValues (getBuiltins ()) pm)
-    Telemetry.time "seed.walCheckpoint" [] (fun () ->
-      Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatement)
+    if not (LibDB.Sqlite.isLayer LibDB.Sqlite.currentDbPath) then
+      Telemetry.time "seed.walCheckpoint" [] (fun () ->
+        Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatement)
     // Announce only when we grew from real op work; a pure self-heal (evaluating stray unevaluated values
     // with no new ops) is silent maintenance, and must not print to stdout, or it pollutes captured CLI
     // output (e.g. a caller comparing exact command output).

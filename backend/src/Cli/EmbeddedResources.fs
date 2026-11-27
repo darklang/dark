@@ -218,9 +218,7 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
       extractBrotliResource "data.db.br" temp
 
       if File.Exists temp then
-        use conn =
-          new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-        conn.Open()
+        use conn = LibDB.Sqlite.openConnection ($"Data Source={dbPath}")
 
         // Whether this seed has anything for this store, asked BEFORE touching it, so the backup
         // below is taken only when the store is actually about to change.
@@ -374,8 +372,7 @@ let private stampTable =
 
 let private storeStamp (dbPath : string) : string option =
   try
-    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-    conn.Open()
+    use conn = LibDB.Sqlite.openConnection ($"Data Source={dbPath}")
     use cmd = conn.CreateCommand()
     cmd.CommandText <- stampTable
     Telemetry.count "sql.seed"
@@ -391,8 +388,7 @@ let private storeStamp (dbPath : string) : string option =
 
 let private recordStoreStamp (dbPath : string) (build : string) : unit =
   try
-    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-    conn.Open()
+    use conn = LibDB.Sqlite.openConnection ($"Data Source={dbPath}")
     use cmd = conn.CreateCommand()
     cmd.CommandText <-
       stampTable
@@ -518,9 +514,7 @@ let extract () : Extracted =
         // Record that all existing ops came from the embedded seed. Future upgrades use this
         // record to distinguish bundled ops from the user's own changes.
         try
-          use conn =
-            new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
-          conn.Open()
+          use conn = LibDB.Sqlite.openConnection ($"Data Source={dbPath}")
           use cmd = conn.CreateCommand()
           cmd.CommandText <-
             "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY) WITHOUT ROWID;

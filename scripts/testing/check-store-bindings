@@ -2,8 +2,10 @@
 # Fail if a store binds a live name to a hash with no body, as it is or after a re-fold of its log.
 #
 # The live store can keep a body that its log no longer carries, so the re-fold is what shows an
-# op that was lost. <base> is the store <store> was copied from: while its log is still the start of
-# <store>'s, its projections are that part's fold and only the rest needs folding.
+# op that was lost. <base> is the store <store> started from: while its log is still the start of
+# <store>'s, its projections are that part's fold, so the re-fold starts from <base> and takes only
+# <store>'s other tables and the rest of its log. The re-fold's store is a layer (layer-store), so
+# nothing is copied but what <store> changed.
 #
 # Usage: check-store-bindings <store.db> <base.db> <cli>
 set -euo pipefail
@@ -12,12 +14,15 @@ STORE="${1:?usage: check-store-bindings <store.db> <base.db> <cli>}"
 BASE="${2:?usage: check-store-bindings <store.db> <base.db> <cli>}"
 CLI="${3:?usage: check-store-bindings <store.db> <base.db> <cli>}"
 
+HERE=$(dirname "$0")
+SQL="$HERE/layer-sqlite3"
+
 # Same list as LibDB.Seed.projectionTables.
 PROJECTIONS="package_functions package_types package_values package_traits package_trait_impls
 package_tests locations package_dependencies deprecations location_docs"
 
 dangling() {
-  sqlite3 -readonly -cmd ".timeout 10000" "$1" \
+  "$SQL" -readonly "$1" \
     "SELECT l.branch_id || ' ' || l.owner || '.' || CASE WHEN l.modules = '' THEN '' ELSE l.modules || '.' END
             || l.name || ' -> ' || l.item_type || ' ' || l.item_hash
      FROM locations l
@@ -40,29 +45,54 @@ home=$(mktemp -d)
 trap 'rm -rf "$home"' EXIT
 mkdir "$home/.darklang"
 db="$home/.darklang/data.db"
-sqlite3 -cmd ".timeout 10000" "$STORE" ".backup '$db'"
 
-changed=$(sqlite3 -cmd ".timeout 10000" "$db" "ATTACH '$BASE' AS base;
+# <base> as its file holds it, so a <base> with changes in its WAL counts as changed. `immutable`
+# also keeps this process from opening a second link to a file <store> may share, which SQLite
+# cannot tell apart from the first.
+# A layer names the file it links to, whose WAL is empty: a start at least as early as <base>.
+base=$(cat "$STORE-layer" 2>/dev/null || true)
+base=$(readlink -f "${base:-$BASE}")
+attach="ATTACH 'file:$base?immutable=1' AS base;"
+
+changed=1
+[[ -s "$base-wal" ]] || changed=$("$SQL" -readonly "$STORE" "$attach
   SELECT count(*) FROM base.package_ops b
   WHERE NOT EXISTS (SELECT 1 FROM package_ops p
     WHERE p.seq = b.seq AND p.id = b.id AND p.branch_id = b.branch_id AND p.commit_hash IS b.commit_hash
       AND p.op_blob = b.op_blob)")
-{
-  echo "PRAGMA synchronous=OFF;"
-  if [[ "$changed" == 0 ]]; then
-    echo "ATTACH '$BASE' AS base;"
-    for t in $PROJECTIONS; do
-      echo "DELETE FROM $t; INSERT INTO $t SELECT * FROM base.$t;"
+
+if [[ "$changed" == 0 ]]; then
+  "$HERE/layer-store" "$base" "$db"
+  skip="'package_ops', 'package_ops_unapplied', 'package_ops_applied_through'"
+  for t in $PROJECTIONS; do skip="$skip, '$t'"; done
+  others=$("$SQL" -readonly "$STORE" "SELECT name FROM sqlite_master WHERE type = 'table'
+    AND name NOT IN ($skip) AND name NOT LIKE 'trace%' AND name NOT LIKE 'sqlite_stat%'")
+  {
+    echo "$attach"
+    echo ".print BEGIN;"
+    echo ".mode insert package_ops"
+    echo "SELECT * FROM main.package_ops WHERE seq > (SELECT coalesce(max(seq), 0) FROM base.package_ops);"
+    for t in $others; do
+      echo ".mode list"
+      echo "SELECT 'DELETE FROM $t;' WHERE EXISTS (SELECT * FROM main.$t EXCEPT SELECT * FROM base.$t)
+              OR EXISTS (SELECT * FROM base.$t EXCEPT SELECT * FROM main.$t);"
+      echo ".mode insert $t"
+      echo "SELECT * FROM main.$t WHERE EXISTS (SELECT * FROM main.$t EXCEPT SELECT * FROM base.$t)
+              OR EXISTS (SELECT * FROM base.$t EXCEPT SELECT * FROM main.$t);"
     done
-    echo "DELETE FROM package_ops_unapplied; INSERT INTO package_ops_unapplied SELECT * FROM base.package_ops_unapplied;"
-    echo "UPDATE package_ops_applied_through SET seq = (SELECT seq FROM base.package_ops_applied_through);"
-  else
+    echo ".print COMMIT;"
+  } | "$SQL" -readonly -cmd "PRAGMA temp_store=MEMORY" "$STORE" \
+    | "$SQL" -cmd "PRAGMA synchronous=OFF" "$db"
+else
+  "$HERE/layer-store" "$STORE" "$db"
+  {
+    echo "PRAGMA synchronous=OFF;"
     for t in $PROJECTIONS; do
       echo "DELETE FROM $t;"
     done
     echo "DELETE FROM package_ops_unapplied; UPDATE package_ops_applied_through SET seq = 0;"
-  fi
-} | sqlite3 -cmd ".timeout 10000" "$db"
+  } | "$SQL" "$db"
+fi
 
 if ! out=$(HOME="$home" USERPROFILE="$home" DARK_CONFIG_DB_NAME=data.db \
   DARK_CONFIG_TELEMETRY_EXPORTER=none "$CLI" branches 2>&1); then

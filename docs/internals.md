@@ -1,6 +1,6 @@
 # Internals worth knowing before you change them
 
-The store's schema, SCM and branches, traits, HTTP connections, and text measurement. Each section is
+The store's schema, test stores, SCM and branches, traits, HTTP connections, and text measurement. Each section is
 the shape of the code and the rule that keeps it correct; the traps that are not specific to one
 of these areas are in `docs/agent-traps.md`.
 
@@ -28,6 +28,36 @@ incomplete. If you add a column, grep the schema file for it before you call it 
 
 Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
 expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
+
+## Test stores are layers
+
+A test's store is not a copy. `scripts/testing/layer-store <store> <new>` makes `<new>` a hard link
+to a file many test stores share, and the store's own writes stay in its WAL (`<new>-wal`), so the
+shared file never changes. A `<new>-layer` file marks a layer and names the shared file. The F#
+suite's CLI instances (`Tests.CliInstance`), package-tests' store, its workers and the instances
+Dark tests make (`Darklang.Cli.Tests.Instance`) are all layers. A `dark test run` on a store that is
+not a layer copies it once, without its traces (`Sqlite.Backup.toTestBaseline`), and its workers
+are layers over that copy.
+
+The rules, all because the file is shared:
+
+- Never checkpoint a layer. A checkpoint writes the WAL into the file, so into every store on it.
+  `LibDB.Sqlite.openConnection` turns SQLite's checkpoints off for a layer, so open a store only
+  through it: in an F# test, `Tests.CliInstance.Store`; in a shell, `scripts/testing/layer-sqlite3`.
+  A bare `sqlite3` or `SqliteConnection` checkpoints as it closes. No `PRAGMA wal_checkpoint` and no
+  change of `journal_mode` on a layer.
+- One process opens one layer over a file. SQLite keeps one WAL index per file, by inode, so a
+  second link opened in the same process reads the first one's WAL. `openConnection` raises.
+- A layer and its shared file are on one filesystem (a hard link cannot cross one): `/tmp`.
+- Copy a layer with `layer-store` or `.backup`, never `cp` alone: its contents are file and WAL.
+
+A test about the store file itself (its size, its mode, what a VACUUM gives back) needs a file of
+its own: `ownStoreTest` in F#, `Instance.withOwnFile` in Dark.
+
+How to tell you broke one: every F# CLI instance test ends with `CliInstance.checkTemplate`, which
+fails the test that changed the shared file, and package-tests fails if its shared file changed.
+`tests/LayerStores` tries the ways known to break a layer: a writer killed mid-write, two writers
+at once, a store made where a crashed one was, and two layers over one file in one process.
 
 ## SCM and branches
 

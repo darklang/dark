@@ -87,8 +87,10 @@ Errors are returned as structured data so Dark can inspect their type and detail
 ## Isolation and permissions
 
 Before the first uncached test runs, `dark test run` takes one snapshot of the package
-store. SQLite's backup API creates the snapshot. The backup connection is then
-closed, leaving a complete database file. Each isolated test gets a fresh
+store: a new database file holding the rows of every table except the traces,
+read in one transaction. It is about the size of the packages however large the
+store has grown, since neither the traces nor the free pages they leave are
+copied, and the store itself is only read. Each isolated test gets a fresh
 process and separate directories for its home, temporary files and permission
 policies. The snapshot is taken on first use, so a run where every test is
 cached or in-process creates none.
@@ -96,8 +98,11 @@ cached or in-process creates none.
 Tests start from the same snapshot, so one test's changes don't affect another.
 Tests share the snapshot read-only when possible, avoiding a database copy for
 tests that only read. A refused write triggers a retry in a fresh process on a
-private writable copy; only the retry's result is used. If sharing fails, the
-test starts on a private copy. Sharing is disabled on Windows and for users who
+private writable store, a layer over one writable copy of the snapshot (see "Test
+stores are layers" in `docs/internals.md`); only the retry's result is used. If
+sharing fails, the test starts on a private copy. When the runner's own store is a
+layer, as under `gates package-tests`, every test starts on a layer over it and
+none reruns. Sharing is disabled on Windows and for users who
 can write to the snapshot despite its read-only file mode.
 
 Workers using the shared snapshot, and any `dark` processes they start, watch

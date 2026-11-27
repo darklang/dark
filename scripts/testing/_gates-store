@@ -1192,7 +1192,7 @@ EOF
 }
 
 # --- package-tests: every package test in packages/, through `dark test run` ---------------------
-# The package suite as a person runs it, on a copy of the store, so a red package test fails CI
+# The package suite as a person runs it, so a red package test fails CI
 # instead of waiting for someone to run `dark test run` by hand. The F# harness limits each command
 # to 2 minutes, so this suite has its own CI step and timeout. It runs in CI's build job using the
 # NativeAOT binary already built there, since every test starts a fresh process.
@@ -1206,7 +1206,13 @@ gate_package_tests() {
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
   ROOT=$(realpath -m rundir/package-tests)
 
-  rm -rf "$ROOT"; mkdir -p "$ROOT/.darklang"
+  # The run's home holds its store and, as its temporary directory, every worker's: a layer links
+  # within one filesystem, and a killed run leaves nothing the next run does not remove.
+  RUN_HOME="${TMPDIR:-/tmp}/dark-package-tests"
+  STORE="$RUN_HOME/.darklang"
+  rm -rf "$ROOT" "$RUN_HOME"; mkdir -p "$ROOT" "$STORE" "$RUN_HOME/tmp"
+  . scripts/testing/_disk-use
+  disk_use_start "$ROOT/disk-use"
 
   # The processes the tests start: about a thousand isolated tests each start a worker, and many
   # of those start the CLI again, a dozen or more times for an SCM test. A Debug CLI spends most
@@ -1224,11 +1230,24 @@ gate_package_tests() {
     fi
   fi
 
-  scripts/testing/_copy-store "$ROOT/.darklang/data.db"
-  sqlite3 "$ROOT/.darklang/data.db" 'DELETE FROM config_v0;'
+  # The run's store is a layer (scripts/testing/layer-store) over one copy of the store built from
+  # packages/, as the F# suite's, so its workers and their instances are layers too, and nothing
+  # copies the store again. Never the dev store: a developer's drafts, branches and traces would
+  # make a local run differ from CI. CI's dev store is built from packages/ in this job.
+  if [[ -v CI ]]; then
+    scripts/testing/_copy-store "$STORE/base.db"
+  elif [[ "$CLI" == */Release/* ]]; then
+    scripts/testing/_test-store --published "$STORE/base.db"
+  else
+    scripts/testing/_test-store "$STORE/base.db"
+  fi
+  sqlite3 "$STORE/base.db" 'DELETE FROM config_v0; PRAGMA journal_mode=WAL;' > /dev/null
+  touch "$STORE/base.db-layer"
+  shared=$(sha256sum < "$STORE/base.db")
+  scripts/testing/layer-store "$STORE/base.db" "$STORE/data.db"
   # This disposable installation has its own policy and home. Tests must
   # succeed without grants on the saved installation policy.
-  export HOME="$ROOT"
+  export HOME="$RUN_HOME" TMPDIR="$RUN_HOME/tmp"
   # The workers and the CLI fixtures start this binary; the fixtures' default path is relative
   # to the repo root, which is not where every caller runs.
   export DARK_CLI_UNDER_TEST="$CHILD_CLI"
@@ -1245,6 +1264,14 @@ gate_package_tests() {
            { print; fflush() }'
   status=${PIPESTATUS[0]}
   set -e
+  if [[ "$(sha256sum < "$STORE/base.db")" != "$shared" ]]; then
+    echo "package-tests: a test changed the file every test's store shares, so later tests may" \
+      "have started from its writes. Something checkpointed a layer; see \"Test stores are" \
+      "layers\" in docs/internals.md." >&2
+    status=1
+  fi
+  rm -rf "$RUN_HOME"
+  disk_use_report package-tests "$ROOT/disk-use"
 
   verdict=$(grep -E '[0-9,]+ passed, [0-9,]+ failed' "$ROOT/test.log" | tail -1 || true)
   if [[ -z "$verdict" ]]; then
