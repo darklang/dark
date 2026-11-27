@@ -281,21 +281,15 @@ module Type =
 
     module AltJson =
       let private p addl = p ("AltJson" :: addl)
-      let parseError = p [ "ParseError" ] "ParseError"
       let json = p [] "Json"
 
     module Cli =
       let private p addl = p ("Cli" :: addl)
-      let executionOutcome = p [] "ExecutionOutcome"
 
       module Posix =
         let private p addl = p ("Posix" :: addl)
         let pid = p [] "Pid"
         let exitCode = p [] "ExitCode"
-
-      module OS =
-        let private p addl = p ("OS" :: addl)
-        let os = p [] "OS"
 
       module Stdin =
         let private p addl = p ("Stdin" :: addl)
@@ -370,7 +364,6 @@ module Type =
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
-        let pTCliScriptModule = p [] "PTCliScriptModule"
         let parseError = p [] "ParseError"
 
     /// Package-type refs for the Dark `LanguageTools.WrittenTypes` — the
@@ -611,19 +604,9 @@ module Type =
         let private p addl = p ("PackageManager" :: "Test" :: addl)
         let resultKey = p [] "ResultKey"
 
-  module PrettyPrinter =
-    let private p addl = p ("PrettyPrinter" :: addl)
-    module RuntimeTypes =
-      let private p addl = p ("RuntimeTypes" :: addl)
-      module RuntimeError =
-        let private p addl = p ("RuntimeError" :: addl)
-        let errorMessage = p [] "ErrorMessage"
-
   module Tracing =
     /// A trace IS a run: the row `dark traces list/show/resume/fork` works on.
     let trace = p [ "Tracing" ] "Trace"
-    /// One recorded call of one function, across runs: the inbox `dark traces calls` renders.
-    let call = p [ "Tracing" ] "Call"
     let status = p [ "Tracing" ] "Status"
     let inputVar = p [ "Tracing" ] "InputVar"
     let fnCall = p [ "Tracing" ] "FnCall"
@@ -641,9 +624,6 @@ module Type =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
     let unhandled = p [ "Cli"; "ExecutionError" ] "Unhandled"
     let permissionDenied = p [ "Cli"; "ExecutionError" ] "PermissionDenied"
-
-  module DarkPackages =
-    let stats = p [ "DarkPackages" ] "Stats"
 
   module SCM =
     let storeHealth = p [ "SCM"; "StoreHealth" ] "Counts"
@@ -762,9 +742,7 @@ module Fn =
       let private p addl = p ("RuntimeTypes" :: addl)
       let dval = p [] "dval"
       let fnName = p [] "fnName"
-      let executionPoint = p [] "executionPoint"
       let callStack = p [] "callStack"
-      let typeReference = p [] "typeReference"
 
       module Dval =
         let private p addl = p ("Dval" :: addl)
@@ -777,7 +755,6 @@ module Fn =
 
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
-      let sourceFile = p [] "sourceFile"
       let sourceFileAtWidth = p [] "sourceFileAtWidth"
 
   module Cli =
