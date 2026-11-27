@@ -752,6 +752,27 @@ let discard (branchId : PT.BranchId) (what : DiscardWhat) : Result<int, Failure>
           |> List.filter (fun id -> not (Set.contains id keptIds))
         let n = dropOpsOn conn branchId dropped
         step "discard.ops"
+        // Delete the row of each dropped value that never evaluated and that no name
+        // points at. Left in the store, it would be evaluated again, and fail again,
+        // on every start.
+        let droppedValues =
+          let droppedIds = Set.ofList dropped
+          draft
+          |> List.choose (fun d ->
+            match d.op with
+            | PT.PackageOp.AddValue v when Set.contains d.id droppedIds ->
+              Some(hashText v.hash)
+            | _ -> None)
+        if not (List.isEmpty droppedValues) then
+          let _ =
+            exec
+              conn
+              "DELETE FROM package_values
+               WHERE rt_dval IS NULL
+                 AND hash IN (SELECT value FROM json_each(@hashes))
+                 AND NOT EXISTS (SELECT 1 FROM locations WHERE item_hash = package_values.hash)"
+              [ "@hashes", box (jsonStrings droppedValues) ]
+          ()
         if not branchId.IsMain then
           // Once the branch holds nothing, its fork points describe ops that no longer exist.
           let remaining =

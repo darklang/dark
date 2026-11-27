@@ -63,8 +63,11 @@ let private ownEvaluationFailures
       byHash || Set.contains e.location addedValueLocations)
 
 let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : string =
+  // Show the value's name and leave out its hash. The value was not saved, so the
+  // hash points at nothing.
   failures
-  |> List.map LibDB.Seed.ValueEvaluationError.toString
+  |> List.map (fun e ->
+    if e.location = "" then e.message else $"{e.location}: {e.message}")
   |> String.concat "\n"
 
 

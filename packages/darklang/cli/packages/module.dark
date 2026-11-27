@@ -235,7 +235,7 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
           // Stabilize and store the module as one mutually recursive batch.
           match SCM.PackageOps.addAuthored(branchId, ops) with
           | Error(message) ->
-            printErr($"Failed to define module: {message}")
+            printErr($"Not saved: {message}")
             { state with exitCode = 1 }
           | Ok(authored) ->
             let report = authored.report
