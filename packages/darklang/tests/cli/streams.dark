@@ -509,6 +509,27 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Silent,
       Stream.Says("Script not found"))
 
+    ([ "hash" ], 1, Stream.Silent, Stream.Says("needs an argument"))
+    ([ "find-values" ], 1, Stream.Silent, Stream.Says("needs an argument"))
+    (
+      [ "find-values", "a", "b", "c" ],
+      1,
+      Stream.Silent,
+      Stream.Says("does not take `c`"))
+
+    (
+      [ "test", "zzznope" ],
+      1,
+      Stream.Silent,
+      Stream.Says("does not take `zzznope`"))
+
+    (
+      [ "eval"
+        "Darklang.Cli.LiveView.Runner.run(\"d\", \"Me.Nope.step\", 0, 10, false)" ],
+      0,
+      Stream.Says("1"),
+      Stream.Says("d: no function named Me.Nope.step"))
+
     ([ "zzznope" ], 1, Stream.Silent, Stream.Says("Unknown command")) ]
 
 

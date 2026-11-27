@@ -23,9 +23,6 @@ let resolveTypeHash(
 
 let execute(state: AppState, args: List<String>): AppState =
   match args with
-  | [] ->
-    Stdlib.printLine("Usage: find-values <type-path> [namespace]")
-    state
   | [typePath] ->
     match resolveTypeHash(state.currentBranchId, state.packageData.currentLocation, typePath) with
     | Error(msg) ->
@@ -57,9 +54,6 @@ let execute(state: AppState, args: List<String>): AppState =
         values |> Stdlib.List.iter(fun discovered -> Stdlib.printLine(discovered.path))
 
       state
-  | _ ->
-    Stdlib.printLine("Usage: find-values <type-path> [namespace]")
-    state
 
 
 let help(_state: AppState): String =
