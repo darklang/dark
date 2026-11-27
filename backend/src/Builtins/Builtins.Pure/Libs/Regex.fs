@@ -32,7 +32,9 @@ type private RegexError =
   | InvalidPattern of message : string * position : int
   /// A construct that needs backtracking, which this engine does not do.
   | UnsupportedSyntax of construct : string
-  /// A match boundary falls between the two halves of a surrogate pair.
+  /// A match starts or ends in the middle of a character that is stored as two
+  /// units (an emoji, or anything past U+FFFF). An empty match there is skipped,
+  /// not an error.
   | InvalidUnicodeMatch
   | MatchLimitExceeded
 
@@ -280,6 +282,9 @@ let private scan
     let rec go (m : Match) (last : int) pieces matches =
       if not m.Success then
         Ok(List.rev (DString(input.Substring last) :: pieces), List.rev matches)
+      // Skip an empty match in the middle of a two-unit character, like an emoji.
+      elif m.Length = 0 && splitsPair input m.Index then
+        go (m.NextMatch()) last pieces matches
       // Group 0 is the match itself.
       elif Seq.forall validGroup (m.Groups :> seq<Group>) then
         go
@@ -312,7 +317,10 @@ let private scanPieces
     let mutable e = regex.EnumerateMatches input
     while not stop && e.MoveNext() do
       let m = e.Current
-      if splitsPair input m.Index || splitsPair input (m.Index + m.Length) then
+      // Skip an empty match in the middle of a two-unit character, like an emoji.
+      if m.Length = 0 && splitsPair input m.Index then
+        ()
+      elif splitsPair input m.Index || splitsPair input (m.Index + m.Length) then
         broken <- true
         stop <- true
       else
