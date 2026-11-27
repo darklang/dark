@@ -4,7 +4,7 @@ module Darklang.Cli.Packages.Edit
 ///
 ///   dark edit <name>           opens $EDITOR on the declaration, applies it on save
 ///   dark edit <name> <file|-> applies a file or stdin, no editor and no terminal
-///   dark edit <name> --patch - applies exact patch blocks from stdin
+///   dark edit <name> --patch - applies patch blocks from stdin
 ///
 /// Use the editor interactively, or pass a file or stdin for scripts and agents.
 /// `dark view <name> --raw` prints the declaration these forms accept.
@@ -55,9 +55,32 @@ let printTraceHint(state: AppState, location: PackageLocation): Unit =
   View.printTraceHintWith(state.currentBranchId, location, " for the new code's values")
 
 
+/// A line as loose patch matching sees it: trimmed, with each run of spaces outside string
+/// literals squeezed to one.
+let squeezeLine(line: String): String =
+  let (squeezed, _inString, _escaped, _space) =
+    Stdlib.String.toList(Stdlib.String.trim(line))
+    |> Stdlib.List.fold(("", false, false, false), fun(state, c) ->
+      let (out, inString, escaped, space) = state
+      let text = Stdlib.String.fromChar(c)
+      if inString then
+        let closes = text == "\"" && Stdlib.Bool.not(escaped)
+        let escapes = text == "\\" && Stdlib.Bool.not(escaped)
+        (out + text, Stdlib.Bool.not(closes), escapes, false)
+      else if Stdlib.Char.isWhitespace(c) then
+        (out, false, false, true)
+      else
+        let gap = if space then " " else ""
+        (out + gap + text, text == "\"", false, false))
+
+  squeezed
+
+
 /// Apply patch blocks in the apply_patch format: bare `@@` separators,
 /// then space (context), `-` (remove), or `+` (add). No filenames or line numbers.
-/// Each block of context and removed lines must match exactly once.
+/// Each block of context and removed lines must match once. An exact match wins; otherwise
+/// blank lines, indentation and runs of spaces outside string literals don't count, and
+/// added lines move to the indentation of the code they land in.
 /// Patch blocks match in order against original lines, never against earlier additions.
 let patchSource(source: String, patch: String): Result<String, String> =
   let splitLines(text: String): List<String> =
@@ -67,45 +90,113 @@ let patchSource(source: String, patch: String): Result<String, String> =
     else
       textLines
 
+  let isBlank(line: String): Bool = Stdlib.String.trim(line) == ""
+  let indentOf(line: String): Int64 =
+    Stdlib.String.length(line) - Stdlib.String.length(Stdlib.String.trimStart(line))
+
+  // Match `block` loosely at the top of `lines`: how many lines it covers, and what replaces
+  // them. Context and blank lines stay as stored; added lines move by `shift` columns.
+  let looseMatch(
+    lines: List<String>,
+    block: List<String>,
+    shift: Int64,
+    used: Int64,
+    replaced: List<String>)
+    : Option<(Int64 * List<String>)> =
+    match block with
+    | [] -> Option.Some((used, replaced))
+    | [patchLine, ...restBlock] ->
+      let text = Stdlib.String.dropFirst(patchLine, 1)
+      if Stdlib.String.startsWith(patchLine, "+") then
+        let moved =
+          if isBlank(text) then
+            text
+          else
+            let indent =
+              Stdlib.String.checkedRepeat(" ", indentOf(text) + shift)
+              |> Stdlib.Result.withDefault("")
+
+            indent + Stdlib.String.trimStart(text)
+
+        looseMatch(lines, restBlock, shift, used, Stdlib.List.append(replaced, moved))
+      else if isBlank(text) then
+        looseMatch(lines, restBlock, shift, used, replaced)
+      else
+        match lines with
+        | [] -> Option.None
+        | [line, ...restLines] ->
+          if isBlank(line) && used > 0 then
+            looseMatch(restLines, block, shift, used + 1, Stdlib.List.append(replaced, line))
+          else if squeezeLine(line) == squeezeLine(text) then
+            let kept = if Stdlib.String.startsWith(patchLine, " ") then [ line ] else []
+            looseMatch(restLines, restBlock, shift, used + 1, Stdlib.List.concat(replaced, kept))
+          else
+            Option.None
+
   let applyPatchBlock(
     remainingSource: List<String>,
     patchedLines: List<String>,
-    originalLines: List<String>,
-    replacementLines: List<String>)
+    block: List<String>)
     : Result<(List<String> * List<String>), String> =
+    let textsOf(prefixes: List<String>): List<String> =
+      block
+      |> Stdlib.List.filter(fun line ->
+        Stdlib.List.contains(prefixes, Stdlib.String.first(line, 1)))
+      |> Stdlib.List.map(fun line -> Stdlib.String.dropFirst(line, 1))
+
+    let originalLines = textsOf([ " ", "-" ])
     if Stdlib.List.isEmpty(originalLines) then
       Result.Error(
         "A patch block needs context or removed lines; insertion without context is ambiguous.")
     else
       let originalLineCount = Stdlib.List.length(originalLines)
-      let matchingOffsets =
-        remainingSource
-        |> Stdlib.List.indexedMap(fun(offset, _line) -> offset)
+      let offsets = Stdlib.List.indexedMap(remainingSource, fun(offset, _line) -> offset)
+      let exactMatches =
+        offsets
         |> Stdlib.List.filter(fun offset ->
           Stdlib.List.take(Stdlib.List.drop(remainingSource, offset), originalLineCount)
           == originalLines)
+        |> Stdlib.List.map(fun offset -> (offset, originalLineCount, textsOf([ " ", "+" ])))
 
-      match matchingOffsets with
-      | [] -> Result.Error("Patch context does not match the current declaration exactly.")
-      | [offset] ->
+      let matches =
+        match exactMatches, Stdlib.List.findFirst(originalLines, fun line ->
+                Stdlib.Bool.not(isBlank(line))) with
+        | [], Some(firstLine) ->
+          offsets
+          |> Stdlib.List.filterMap(fun offset ->
+            let lines = Stdlib.List.drop(remainingSource, offset)
+            let start =
+              Stdlib.List.head(lines)
+              |> Stdlib.Option.map(indentOf)
+              |> Stdlib.Option.withDefault(0)
+
+            let shift = start - indentOf(firstLine)
+            looseMatch(lines, block, shift, 0, [])
+            |> Stdlib.Option.map(fun((used, replaced)) -> (offset, used, replaced)))
+        | _ -> exactMatches
+
+      match matches with
+      | [] -> Result.Error("Patch context does not match the current declaration.")
+      | [(offset, length, replacement)] ->
         Result.Ok(
           (
-            Stdlib.List.drop(remainingSource, offset + originalLineCount),
+            Stdlib.List.drop(remainingSource, offset + length),
             Stdlib.List.concat(
               patchedLines,
-              Stdlib.List.concat(Stdlib.List.take(remainingSource, offset), replacementLines))))
-      | _ -> Result.Error("Patch context is ambiguous: more than one exact match. Add context.")
+              Stdlib.List.concat(Stdlib.List.take(remainingSource, offset), replacement))))
+      | _ ->
+        Result.Error(
+          "Patch context is ambiguous: it matches more than one place in the current declaration. Add context lines so it matches only one.")
 
   let applyPatchBlocks(
     patchLines: List<String>,
     remainingSource: List<String>,
     patchedLines: List<String>,
-    originalLines: List<String>,
-    replacementLines: List<String>)
+    block: List<String>)
     : Result<String, String> =
     match patchLines with
     | [] ->
-      applyPatchBlock(remainingSource, patchedLines, originalLines, replacementLines)
+      applyPatchBlock(remainingSource, patchedLines, block)
       |> Stdlib.Result.map(fun((remainingSource, completedLines)) ->
         let patchedSource =
           Stdlib.List.concat(completedLines, remainingSource) |> Stdlib.String.join("\n")
@@ -115,38 +206,22 @@ let patchSource(source: String, patch: String): Result<String, String> =
         else
           patchedSource)
     | ["@@", ...remainingPatch] ->
-      match applyPatchBlock(remainingSource, patchedLines, originalLines, replacementLines) with
+      match applyPatchBlock(remainingSource, patchedLines, block) with
       | Error(message) -> Result.Error(message)
       | Ok((remainingSource, patchedLines)) ->
-        applyPatchBlocks(remainingPatch, remainingSource, patchedLines, [], [])
+        applyPatchBlocks(remainingPatch, remainingSource, patchedLines, [])
     | [line, ...remainingPatch] ->
-      if Stdlib.String.startsWith(line, " ") then
-        let lineText = Stdlib.String.dropFirst(line, 1)
+      if Stdlib.List.contains([ " ", "-", "+" ], Stdlib.String.first(line, 1)) then
         applyPatchBlocks(
           remainingPatch,
           remainingSource,
           patchedLines,
-          Stdlib.List.append(originalLines, lineText),
-          Stdlib.List.append(replacementLines, lineText))
-      else if Stdlib.String.startsWith(line, "-") then
-        applyPatchBlocks(
-          remainingPatch,
-          remainingSource,
-          patchedLines,
-          Stdlib.List.append(originalLines, Stdlib.String.dropFirst(line, 1)),
-          replacementLines)
-      else if Stdlib.String.startsWith(line, "+") then
-        applyPatchBlocks(
-          remainingPatch,
-          remainingSource,
-          patchedLines,
-          originalLines,
-          Stdlib.List.append(replacementLines, Stdlib.String.dropFirst(line, 1)))
+          Stdlib.List.append(block, line))
       else
         Result.Error("Expected a context line (space), removal (-), addition (+), or bare @@.")
 
   match splitLines(patch) with
-  | ["@@", ...remainingPatch] -> applyPatchBlocks(remainingPatch, splitLines(source), [], [], [])
+  | ["@@", ...remainingPatch] -> applyPatchBlocks(remainingPatch, splitLines(source), [], [])
   | _ -> Result.Error("A context patch must start with bare @@.")
 
 
@@ -394,8 +469,9 @@ let help(_state: AppState): String =
     "  lines, and + for added lines. Blank lines need a prefix too."
     "  Leave out filenames and line numbers."
     ""
-    "  Each block must match exactly once, including spaces, in the order given."
-    "  If a block has no match or more than one match, nothing changes."
+    "  Each block must match once, in the order given. Blank lines, indentation"
+    "  and runs of spaces outside strings don't count when matching. If a block"
+    "  has no match or more than one match, nothing changes."
     "  Use the current declaration returned on stdout to rebuild the patch."
     ""
     "  Once every block matches, the result follows the usual edit rules:"

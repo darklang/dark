@@ -101,7 +101,8 @@ Start each block with `@@`. Use a space for unchanged lines, `-` for removed
 lines, and `+` for added lines. Blank lines need a prefix too. Leave out filenames
 and line numbers. Each block needs at least one unchanged or removed line.
 
-Each block must match exactly once, including spaces. Blocks match in order
+Each block must match once; blank lines, indentation and runs of spaces outside
+strings don't count. Blocks match in order
 against the original code, so a later block cannot match an earlier addition.
 All blocks must match before anything is saved.
 
