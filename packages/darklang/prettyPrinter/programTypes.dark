@@ -1154,15 +1154,41 @@ let withoutTrailingZeros(s: String): String =
     s
 
 
-/// A float literal's digits: `1.5`, or `6.02e22` for a whole number of more than 15 digits ending
-/// in zeros, which written out the parser would refuse as more precise than a float can be. The
-/// fraction is written as it was: `12345.67890` keeps its zero, because the literal is stored as
-/// its digits.
+/// Writes digits with a point after the first one, for scientific form:
+///   `602` becomes `6.02`, used in `6.02e22`
+///   `5` stays `5`, used in `5e-324`
+let mantissaOf(digits: String): String =
+  if Stdlib.String.length(digits) == 1 then
+    digits
+  else
+    Stdlib.String.first(digits, 1) + "." + Stdlib.String.dropFirst(digits, 1)
+
+
+let withoutLeadingZeros(s: String): String =
+  if Stdlib.String.startsWith(s, "0") then
+    withoutLeadingZeros(Stdlib.String.dropFirst(s, 1))
+  else
+    s
+
+
+/// The text of a float literal, as the formatter writes it.
+///
+/// Most floats are written as plain digits: `1.5`. The fraction is kept exactly as it was
+/// typed, so `12345.67890` keeps its last zero.
+///
+/// Two kinds are written in scientific form instead:
+/// - A float with six or more zeros after the point: `1e-7`, and `5e-324`, not 324 digits.
+///   With fewer zeros it stays as it is: `0.000001`.
+/// - A whole number longer than 15 digits that ends in zeros: `6.02e22`. Written out in
+///   full, the parser would refuse it as more precise than a float can be.
 let floatDigits(whole: String, remainder: String): String =
   let remainderPart = if remainder == "" then "0" else remainder
   let significant = withoutTrailingZeros(whole)
-  let decimal = $"{whole}.{remainderPart}"
-  if
+  let fractionDigits = withoutLeadingZeros(remainderPart)
+  let leadingZeros = Stdlib.String.length(remainderPart) - Stdlib.String.length(fractionDigits)
+  if whole == "0" && leadingZeros >= 6 && fractionDigits != "" then
+    $"{mantissaOf(fractionDigits)}e-{Stdlib.display(leadingZeros + 1)}"
+  else if
     remainderPart == "0"
     && Stdlib.String.length(whole) > 15
     && significant != ""
@@ -1170,15 +1196,9 @@ let floatDigits(whole: String, remainder: String): String =
   then
     // Normal scientific form: one digit before the point.
     let exponent = Stdlib.display(Stdlib.String.length(whole) - 1)
-    let mantissa =
-      if Stdlib.String.length(significant) == 1 then
-        significant
-      else
-        Stdlib.String.first(significant, 1) + "." + Stdlib.String.dropFirst(significant, 1)
-
-    $"{mantissa}e{exponent}"
+    $"{mantissaOf(significant)}e{exponent}"
   else
-    decimal
+    $"{whole}.{remainderPart}"
 
 
 /// Walks the cons chain of `[a, b, ...rest]`: the pattern it ends in, then its

@@ -83,6 +83,12 @@ let f(xs: List<Int64>): List<Int64> =
 val esc = "\u001b[0m"
 
 val big = 6.02e22
+
+val small = 5e-324
+
+val smallWithZero = -1.50e-7
+
+val notSmall = 0.000001
 """
 
 

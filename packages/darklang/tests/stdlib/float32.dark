@@ -103,9 +103,7 @@ test conversions =
 
       Stdlib.Float32.fromFloat64(1e40) |> Stdlib.Test.equal(infinity())
 
-      Stdlib.Float32.fromFloat64(
-        0.00000000000000000000000000000000000000000000000001)
-      |> Stdlib.Test.equal(0.0f32)
+      Stdlib.Float32.fromFloat64(1e-50) |> Stdlib.Test.equal(0.0f32)
 
       // ties to even: 1 + 2^-24 is halfway between 1 and the next Float32
       Stdlib.Float32.fromFloat64(1.000000059604644775390625)
