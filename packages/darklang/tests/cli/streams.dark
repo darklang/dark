@@ -498,7 +498,7 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Says("discarded"))
 
     ([ "ack" ], 1, Stream.Silent, Stream.Says("dark ack --all"))
-    ([ "import" ], 1, Stream.Silent, Stream.Says("needs 2 arguments"))
+    ([ "import" ], 2, Stream.Silent, Stream.Says("needs 2 arguments"))
     ([ "workbench" ], 1, Stream.Silent, Stream.Says("unavailable"))
     ([], 1, Stream.Silent, Stream.Says("unavailable"))
     ([ "uninstall" ], 1, Stream.Silent, Stream.Says("`dark uninstall -y`"))
@@ -509,17 +509,17 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Silent,
       Stream.Says("Script not found"))
 
-    ([ "hash" ], 1, Stream.Silent, Stream.Says("needs an argument"))
-    ([ "find-values" ], 1, Stream.Silent, Stream.Says("needs an argument"))
+    ([ "hash" ], 2, Stream.Silent, Stream.Says("needs an argument"))
+    ([ "find-values" ], 2, Stream.Silent, Stream.Says("needs an argument"))
     (
       [ "find-values", "a", "b", "c" ],
-      1,
+      2,
       Stream.Silent,
       Stream.Says("does not take `c`"))
 
     (
       [ "test", "zzznope" ],
-      1,
+      2,
       Stream.Silent,
       Stream.Says("does not take `zzznope`"))
 
@@ -530,7 +530,7 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Says("1"),
       Stream.Says("d: no function named Me.Nope.step"))
 
-    ([ "zzznope" ], 1, Stream.Silent, Stream.Says("Unknown command")) ]
+    ([ "zzznope" ], 2, Stream.Silent, Stream.Says("Unknown command")) ]
 
 
 test eachCommandKeepsItsStreams = Instance.withInstance(fun i ->

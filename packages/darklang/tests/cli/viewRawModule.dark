@@ -110,7 +110,7 @@ test badOptionsExitWithTheReasonOnStderr = Instance.withInstance(fun i ->
   match bogus, mixed with
   | Ok(bogus), Ok(mixed) ->
     Stdlib.Test.all(
-      [ Instance.exitedWith(bogus.exitCode, 1, "view --bogus")
+      [ Instance.exitedWith(bogus.exitCode, 2, "view --bogus")
         bogus.stdout |> Stdlib.Test.equal("")
         Instance.says(
           bogus.stderr,

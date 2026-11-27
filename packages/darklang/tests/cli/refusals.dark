@@ -1,7 +1,7 @@
 /// Refusals: a command that cannot do what was asked leaves stdout empty, says why on stderr, and
-/// exits 1. stdout is the answer or nothing, `--json` included, so `dark x --json | jq` meets an
-/// empty input and the exit code says why; a refusal that exits 0 is success to a shell, a CI step
-/// or an agent.
+/// exits 1, or 2 for arguments it does not take. stdout is the answer or nothing, `--json`
+/// included, so `dark x --json | jq` meets an empty input and the exit code says why; a refusal
+/// that exits 0 is success to a shell, a CI step or an agent.
 module Darklang.Cli.Tests.Refusals
 
 /// Trimmed, with the colour taken out and the lines kept.
@@ -326,13 +326,17 @@ val refusals: List<(List<String> * String)> =
       "nothing to commit -- your draft is empty.") ]
 
 
-test eachRefusalSaysWhyOnStderrAndExits1 = Instance.withInstance(fun i ->
+test eachRefusalSaysWhyOnStderrAndExits = Instance.withInstance(fun i ->
   let faults =
     refusals
     |> Stdlib.List.filterMap(fun row ->
       let (args, reason) = row
       let (code, out, err) = streams(i, args)
-      if code == 1 && out == "" && err == reason then
+      // the registry's own refusal, of arguments the command does not take, ends with this hint
+      let expected =
+        if Stdlib.String.contains(reason, "shows what it takes.") then 2 else 1
+
+      if code == expected && out == "" && err == reason then
         None
       else
         let cmd = Stdlib.String.join(args, " ")
@@ -341,7 +345,7 @@ test eachRefusalSaysWhyOnStderrAndExits1 = Instance.withInstance(fun i ->
 
   Stdlib.Test.expect(
     faults == [],
-    "refusals that wrote to stdout, said something else, or did not exit 1:\n"
+    "refusals that wrote to stdout, said something else, or exited wrong:\n"
     + Stdlib.String.join(faults, "\n")))
 
 
@@ -364,7 +368,7 @@ test aDashLedArgumentIsNeverAName = Instance.withInstance(fun i ->
   |> Stdlib.List.map(fun cmd ->
     let (code, out, err) = streams(i, [ cmd, "--zzz-not-a-branch" ])
     Stdlib.Test.all(
-      [ Instance.exitedWith(code, 1, $"dark {cmd} --zzz-not-a-branch refuses")
+      [ Instance.exitedWith(code, 2, $"dark {cmd} --zzz-not-a-branch refuses")
         Stdlib.Test.equal(out, "")
 
         Stdlib.Test.equal(
@@ -405,7 +409,7 @@ test aMistypedFlagOrAStrayWordChangesNothing = Instance.withInstance(fun i ->
 
       Instance.exitedWith(
         discardCode,
-        1,
+        2,
         "discard refuses a flag it does not have")
 
       Instance.exitedWith(keptCode, 0, "and the draft is still there")

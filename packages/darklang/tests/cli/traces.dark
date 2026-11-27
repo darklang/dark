@@ -419,15 +419,15 @@ test routeFilterIgnoresCase = withTraces(fun i ->
 /// A negative count reads as a flag where a count goes, and is refused as one.
 /// `find` takes free text, so there the command reads the value and refuses it.
 test negativeCountsAreRefused = Instance.withInstance(fun i ->
-  [ ([ "traces", "list", "-1" ], "does not take `-1`")
-    ([ "traces", "stats", "-1" ], "does not take `-1`")
-    ([ "traces", "hotspots", "-1" ], "does not take `-1`")
-    ([ "traces", "find", "foo", "-1" ], "has to be 1 or more") ]
-  |> Stdlib.List.map(fun((args, reason)) ->
+  [ ([ "traces", "list", "-1" ], 2, "does not take `-1`")
+    ([ "traces", "stats", "-1" ], 2, "does not take `-1`")
+    ([ "traces", "hotspots", "-1" ], 2, "does not take `-1`")
+    ([ "traces", "find", "foo", "-1" ], 1, "has to be 1 or more") ]
+  |> Stdlib.List.map(fun((args, expected, reason)) ->
     let (code, out) = Instance.ran(i, args)
     let cmd = Stdlib.String.join(args, " ")
     Stdlib.Test.all(
-      [ Instance.exitedWith(code, 1, $"`dark {cmd}`")
+      [ Instance.exitedWith(code, expected, $"`dark {cmd}`")
         Instance.says(out, reason, $"`dark {cmd}` says what is wrong") ]))
   |> Stdlib.Test.all)
 
@@ -954,8 +954,8 @@ test exitCodesSayWhetherItWorked = Instance.withInstance(fun i ->
       1,
       "a recording setting that is not on or off")
 
-    ([ "traces", "nonsense" ], 1, "a subcommand that does not exist")
-    ([ "traces", "list", "-1" ], 1, "a limit that is not a count")
+    ([ "traces", "nonsense" ], 2, "a subcommand that does not exist")
+    ([ "traces", "list", "-1" ], 2, "a limit that is not a count")
     (
       [ "traces", "calls", "Nothing.Ran.Through.This" ],
       1,

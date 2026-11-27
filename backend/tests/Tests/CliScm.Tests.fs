@@ -158,7 +158,7 @@ let private failuresExitNonzero =
         Expect.equal ok 0L "a command that worked exits 0"
         let! (unknownOut, unknown) = runCliWithExit state [ "zzznotacommand" ]
         Expect.stringContains unknownOut "Unknown command" "and says so"
-        Expect.equal unknown 1L "an unknown command exits 1"
+        Expect.equal unknown 2L "an unknown command exits 2"
         let! (evalOut, failed) =
           runCliWithExit state [ "eval"; "Tests.Nope.zzz(1)" ]
         Expect.stringContains evalOut "not found" "the error is still printed"
