@@ -725,9 +725,248 @@ module StreamDvalTests =
         } ]
 
 
-/// Deterministic replacement for the old httpbin smoke tests. This exercises
-/// the real send path against a transport double, including its version policy;
-/// TLS/QUIC negotiation itself remains the responsibility of the HTTP transport.
+/// Try other addresses when one does not answer, without leaking connections.
+module AddressFallbackTests =
+  open System.Net
+  open System.Threading
+  module HostHttp = LibExecution.HostHttp
+
+  let addresses = [| IPAddress.IPv6Loopback; IPAddress.Loopback |]
+
+  let tests =
+    testList
+      "address fallback"
+      [ test "address families alternate while retaining resolver preferences" {
+          let v6a = IPAddress.Parse "2001:db8::1"
+          let v6b = IPAddress.Parse "2001:db8::2"
+          let v6c = IPAddress.Parse "2001:db8::3"
+          let v4a = IPAddress.Parse "192.0.2.1"
+          let v4b = IPAddress.Parse "192.0.2.2"
+          Expect.equal
+            (HostHttp.alternateIPv4AndIPv6 [| v6a; v6b; v6c; v4a; v4b |])
+            [| v6a; v4a; v6b; v4b; v6c |]
+            "IPv4 is tried before the second IPv6 address"
+          Expect.equal
+            (HostHttp.alternateIPv4AndIPv6 [| v4a; v4b; v6a; v6b |])
+            [| v4a; v6a; v4b; v6b |]
+            "an IPv4 resolver preference is retained"
+          Expect.equal
+            (HostHttp.alternateIPv4AndIPv6 [| v4a; v4b; v4a |])
+            [| v4a; v4b |]
+            "one family works and duplicate destinations are removed"
+          Expect.equal (HostHttp.alternateIPv4AndIPv6 [||]) [||] "empty answer"
+        }
+        testTask "an unresponsive first address does not block the next one" {
+          return!
+            task {
+              use deadline = new CancellationTokenSource(5000)
+              use expected = new MemoryStream()
+              let mutable firstCancelled = false
+              let connect ip token : Task<System.IO.Stream> =
+                task {
+                  if ip = addresses[0] then
+                    try
+                      do! Task.Delay(Timeout.Infinite, token)
+                      return failtest "unreachable"
+                    finally
+                      firstCancelled <- true
+                  else
+                    return expected :> System.IO.Stream
+                }
+              let! actual =
+                HostHttp.connectToFirstAvailableAddress
+                  1
+                  addresses
+                  connect
+                  deadline.Token
+              Expect.isTrue
+                (obj.ReferenceEquals(actual, expected))
+                "next address won"
+              Expect.isTrue
+                firstCancelled
+                "the first attempt was cancelled and cleaned up"
+              Expect.isTrue expected.CanRead "the winner remains open"
+            }
+        }
+        testTask "a working first address stops scheduled attempts" {
+          use expected = new MemoryStream()
+          let mutable attempted = 0
+          let connect _ _ =
+            attempted <- attempted + 1
+            Task.FromResult(expected :> System.IO.Stream)
+          let! actual =
+            HostHttp.connectToFirstAvailableAddress
+              1000
+              addresses
+              connect
+              CancellationToken.None
+          Expect.isTrue (obj.ReferenceEquals(actual, expected)) "first success won"
+          Expect.equal attempted 1 "the second connect was never started"
+        }
+        testTask "same-family fallback also bypasses an unresponsive address" {
+          return!
+            task {
+              use deadline = new CancellationTokenSource(5000)
+              use expected = new MemoryStream()
+              let ips =
+                [| IPAddress.Parse "192.0.2.1"; IPAddress.Parse "192.0.2.2" |]
+              let connect ip token : Task<System.IO.Stream> =
+                task {
+                  if ip = ips[0] then do! Task.Delay(Timeout.Infinite, token)
+                  return expected :> System.IO.Stream
+                }
+              let! actual =
+                HostHttp.connectToFirstAvailableAddress 1 ips connect deadline.Token
+              Expect.isTrue (obj.ReferenceEquals(actual, expected)) "second IPv4 won"
+            }
+        }
+        testTask "a late successful connection is disposed" {
+          use first = new MemoryStream()
+          use late = new MemoryStream()
+          let firstConnected =
+            TaskCompletionSource<System.IO.Stream>(
+              TaskCreationOptions.RunContinuationsAsynchronously
+            )
+          let lateConnected =
+            TaskCompletionSource<System.IO.Stream>(
+              TaskCreationOptions.RunContinuationsAsynchronously
+            )
+          let lateCancelled =
+            TaskCompletionSource<unit>(
+              TaskCreationOptions.RunContinuationsAsynchronously
+            )
+          let connect ip (token : CancellationToken) =
+            if ip = addresses[0] then
+              firstConnected.Task
+            else
+              task {
+                use _registration =
+                  token.Register(fun () ->
+                    lateCancelled.TrySetResult() |> ignore<bool>)
+                return! lateConnected.Task
+              }
+          let pending =
+            HostHttp.connectToFirstAvailableAddress
+              0
+              addresses
+              connect
+              CancellationToken.None
+          firstConnected.SetResult first
+          do! lateCancelled.Task.WaitAsync(System.TimeSpan.FromSeconds 5.0)
+          lateConnected.SetResult late
+          let! actual = pending.WaitAsync(System.TimeSpan.FromSeconds 5.0)
+          Expect.isTrue (obj.ReferenceEquals(actual, first)) "first success won"
+          Expect.isTrue first.CanRead "winner remains open"
+          Expect.isFalse late.CanRead "losing stream was disposed"
+        }
+        testTask "all failed addresses report a connection error" {
+          let mutable attempted = 0
+          let connect _ _ : Task<System.IO.Stream> =
+            attempted <- attempted + 1
+            Task.FromException<System.IO.Stream>(IOException "refused")
+          try
+            let! _ =
+              HostHttp.connectToFirstAvailableAddress
+                0
+                addresses
+                connect
+                CancellationToken.None
+            failtest "expected a connection failure"
+          with :? IOException ->
+            ()
+          Expect.equal attempted 2 "every resolved address was attempted"
+        }
+        testTask "an already-cancelled caller opens no connections" {
+          return!
+            task {
+              use cancelled = new CancellationTokenSource()
+              cancelled.Cancel()
+              let mutable attempted = 0
+              let connect _ _ : Task<System.IO.Stream> =
+                attempted <- attempted + 1
+                Task.FromException<System.IO.Stream>(
+                  IOException "unexpected connect"
+                )
+              try
+                let! _ =
+                  HostHttp.connectToFirstAvailableAddress
+                    1
+                    addresses
+                    connect
+                    cancelled.Token
+                failtest "expected cancellation"
+              with :? System.OperationCanceledException ->
+                ()
+              Expect.equal attempted 0 "no work started after cancellation"
+            }
+        }
+        testTask "a connection completing after caller cancellation is disposed" {
+          return!
+            task {
+              use cancelled = new CancellationTokenSource()
+              use late = new MemoryStream()
+              let connected =
+                TaskCompletionSource<System.IO.Stream>(
+                  TaskCreationOptions.RunContinuationsAsynchronously
+                )
+              let connect _ _ = connected.Task
+              let pending =
+                HostHttp.connectToFirstAvailableAddress
+                  1
+                  [| addresses[0] |]
+                  connect
+                  cancelled.Token
+              cancelled.Cancel()
+              connected.SetResult late
+              try
+                let! _ = pending.WaitAsync(System.TimeSpan.FromSeconds 5.0)
+                failtest "expected cancellation"
+              with :? System.OperationCanceledException ->
+                ()
+              Expect.isFalse late.CanRead "cancelled connect did not leak its stream"
+            }
+        }
+        testTask "caller cancellation stops pending and scheduled attempts" {
+          return!
+            task {
+              use cancellation = new CancellationTokenSource()
+              let started =
+                TaskCompletionSource<unit>(
+                  TaskCreationOptions.RunContinuationsAsynchronously
+                )
+              let mutable attempted = 0
+              let mutable cleanedUp = false
+              let connect _ token : Task<System.IO.Stream> =
+                task {
+                  attempted <- attempted + 1
+                  started.TrySetResult() |> ignore<bool>
+                  try
+                    do! Task.Delay(Timeout.Infinite, token)
+                    return failtest "unreachable"
+                  finally
+                    cleanedUp <- true
+                }
+              let pending =
+                HostHttp.connectToFirstAvailableAddress
+                  1000
+                  addresses
+                  connect
+                  cancellation.Token
+              do! started.Task.WaitAsync(System.TimeSpan.FromSeconds 5.0)
+              cancellation.Cancel()
+              try
+                let! _ = pending.WaitAsync(System.TimeSpan.FromSeconds 5.0)
+                failtest "expected cancellation"
+              with :? System.OperationCanceledException ->
+                ()
+              Expect.equal attempted 1 "scheduled connection did not start"
+              Expect.isTrue cleanedUp "active connection cleaned up"
+            }
+        } ]
+
+
+/// Check the real request builder using a fake HTTP handler.
+/// HTTP/3 must not be offered because it bypasses the checked TCP callback.
 module ProtocolPolicyTests =
   open System.Net
   open System.Net.Http
@@ -737,8 +976,7 @@ module ProtocolPolicyTests =
     testList
       "protocol policy"
       [ for scheme in [ "http"; "https" ] do
-          for version in
-            [ HttpVersion.Version11; HttpVersion.Version20; HttpVersion.Version30 ] do
+          for version in [ HttpVersion.Version11; HttpVersion.Version20 ] do
             testTask $"{scheme} accepts HTTP {version} response" {
               let mutable requests = 0
               let handler =
@@ -751,12 +989,12 @@ module ProtocolPolicyTests =
                         "scheme preserved"
                       Expect.equal
                         request.Version
-                        HttpVersion.Version30
-                        "offers HTTP/3"
+                        HttpVersion.Version20
+                        "offers HTTP/2 through the checked TCP transport"
                       Expect.equal
                         request.VersionPolicy
                         HttpVersionPolicy.RequestVersionOrLower
-                        "allows HTTP/2 and HTTP/1.1 fallback"
+                        "allows HTTP/1.1 fallback"
                       Task.FromResult(
                         new HttpResponseMessage(
                           HttpStatusCode.OK,
@@ -1799,6 +2037,7 @@ let tests =
       BodyTests.tests
       DecodingTests.tests
       ProtocolPolicyTests.tests
+      AddressFallbackTests.tests
       TlsFailureTests.tests
       ProxyTests.tests
       TimeoutTests.tests

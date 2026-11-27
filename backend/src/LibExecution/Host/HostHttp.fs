@@ -46,10 +46,101 @@ let defaultMaxConnectionsPerHost = 50
 /// unclosed otherwise holds its connection, against the host's cap, until it is collected.
 let defaultStreamIdleTimeoutMs = 60_000
 
+/// Start with the first address returned by DNS, then alternate IPv4 and IPv6.
+/// Keep the original order within each address family.
+let alternateIPv4AndIPv6 (addresses : System.Net.IPAddress array) =
+  let addresses = Array.distinct addresses
+  if Array.isEmpty addresses then
+    addresses
+  else
+    let preferred, other =
+      addresses
+      |> Array.partition (fun ip -> ip.AddressFamily = addresses[0].AddressFamily)
+    [| for i in 0 .. max preferred.Length other.Length - 1 do
+         if i < preferred.Length then yield preferred[i]
+         if i < other.Length then yield other[i] |]
+
+/// Start connection attempts a short delay apart. Attempts can overlap.
+/// Keep the first successful connection, cancel pending attempts, and close any extras.
+let connectToFirstAvailableAddress
+  (staggerMs : int)
+  (addresses : System.Net.IPAddress array)
+  (connect :
+    System.Net.IPAddress -> System.Threading.CancellationToken -> Task<Stream>)
+  (cancellationToken : System.Threading.CancellationToken)
+  : Task<Stream> =
+  task {
+    cancellationToken.ThrowIfCancellationRequested()
+    if Array.isEmpty addresses then invalidArg "addresses" "No resolved addresses"
+    if staggerMs < 0 then invalidArg "staggerMs" "Negative connection attempt delay"
+    let addresses = alternateIPv4AndIPv6 addresses
+    use attemptCancellation =
+      System.Threading.CancellationTokenSource.CreateLinkedTokenSource
+        cancellationToken
+    let winner =
+      TaskCompletionSource<Stream>(
+        TaskCreationOptions.RunContinuationsAsynchronously
+      )
+    // Cancellation may arrive before all the attempts have started.
+    use _cancelled =
+      cancellationToken.Register(fun () ->
+        winner.TrySetCanceled cancellationToken |> ignore<bool>)
+    let mutable remaining = addresses.Length
+    let attemptTasks = ResizeArray<Task<unit>>()
+    let startAttempt ip =
+      task {
+        try
+          let! stream = connect ip attemptCancellation.Token
+          if cancellationToken.IsCancellationRequested then
+            stream.Dispose()
+            winner.TrySetCanceled cancellationToken |> ignore<bool>
+          elif not (winner.TrySetResult stream) then
+            stream.Dispose()
+        with e ->
+          // Report a connection failure only after every address has failed.
+          if System.Threading.Interlocked.Decrement(&remaining) = 0 then
+            if cancellationToken.IsCancellationRequested then
+              winner.TrySetCanceled cancellationToken |> ignore<bool>
+            else
+              winner.TrySetException e |> ignore<bool>
+      }
+    let launchAttempts =
+      task {
+        try
+          let mutable index = 0
+          while index < addresses.Length && not winner.Task.IsCompleted do
+            if index > 0 then do! Task.Delay(staggerMs, attemptCancellation.Token)
+            attemptCancellation.Token.ThrowIfCancellationRequested()
+            if not winner.Task.IsCompleted then
+              attemptTasks.Add(startAttempt addresses[index])
+              index <- index + 1
+        with
+        | :? System.OperationCanceledException when
+          attemptCancellation.IsCancellationRequested
+          ->
+          ()
+        | e -> winner.TrySetException e |> ignore<bool>
+      }
+    let! outcome =
+      task {
+        try
+          let! stream = winner.Task
+          return Ok stream
+        with e ->
+          return Error e
+      }
+    // Wait for cleanup before disposing the attempts' cancellation source.
+    attemptCancellation.Cancel()
+    do! launchAttempts
+    let! _ = Task.WhenAll(attemptTasks.ToArray())
+    match outcome with
+    | Ok stream -> return stream
+    | Error e -> return raise e
+  }
+
 module private BaseClient =
   // SocketsHttpHandler wherever it runs; Blazor/WASM refuses it at runtime, so the browser
   // gets an HttpClientHandler instead. The allow-lists and timeouts come from `Configuration`.
-
 
   module SocketBasedHandler =
     // One shared client: SocketsHttpHandler's pooled-connection lifetime keeps sockets from
@@ -81,13 +172,14 @@ module private BaseClient =
                 inner
               )
             try
-              // While this DNS call is expensive, it should be cached.
-              //
-              // Connect against the resolved IPs, not the hostname: the OS
-              // would otherwise re-resolve at connect time and a malicious
-              // resolver can return public-then-private within ms,
-              // bypassing the allow-list (DNS-rebinding TOCTOU).
-              let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
+              // Connect against the resolved IPs, not the hostname. A second DNS lookup
+              // could return a private IP after a public IP passed the allow-list check
+              // (DNS rebinding).
+              let! ips =
+                System.Net.Dns.GetHostAddressesAsync(
+                  context.DnsEndPoint.Host,
+                  cancellationToken
+                )
 
               // This handler serves either direct requests or one configured proxy
               // selected by the host. Never widen the direct handler's IP policy.
@@ -105,52 +197,37 @@ module private BaseClient =
                 // Do not expose details about blocked addresses.
                 raise (connectFailed null)
 
-              // TRY EVERY resolved address, not just the first. A name routinely
-              // resolves to more than one (`localhost` is ::1 AND 127.0.0.1), only
-              // some of which have anything listening, and the order is the resolver's
-              // to choose. Connecting to ips[0] alone makes `http://localhost:<port>`
-              // fail against a server bound to IPv4, and report it as a flat "network
-              // error".
-              //
-              // Every address passed the direct guard or belongs to the trusted proxy.
-              // Trying another resolved address does not allow additional destinations:
-              // we connect to that address rather than let the OS resolve the name again,
-              // preserving the DNS-rebinding guard for each attempt.
-              //
-              // The socket's address family has to match the address it dials. The
-              // 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal when
-              // the host has dual-mode, and containers often don't.
-              let mutable stream : Stream = null
-              let mutable lastError : exn = null
-              let mutable i = 0
-
-              while isNull stream && i < ips.Length do
-                let ip = ips[i]
-                i <- i + 1
-
-                let socket =
-                  new System.Net.Sockets.Socket(
-                    ip.AddressFamily,
-                    System.Net.Sockets.SocketType.Stream,
-                    System.Net.Sockets.ProtocolType.Tcp
-                  )
-                socket.NoDelay <- true
-
-                try
-                  let endpoint = System.Net.IPEndPoint(ip, context.DnsEndPoint.Port)
-                  do! socket.ConnectAsync(endpoint, cancellationToken)
-                  stream <- new System.Net.Sockets.NetworkStream(socket, true)
-                with e ->
-                  socket.Dispose()
-                  lastError <- e
-                  // A cancelled request is the caller giving up, not this address
-                  // being wrong. Trying the next one would ignore the timeout and dial
-                  // again on a token that's already done.
-                  if cancellationToken.IsCancellationRequested then i <- ips.Length
-
-              match stream with
-              | null -> return raise (connectFailed lastError)
-              | s -> return s
+              // All direct addresses passed the allow-list check. Configured proxies
+              // are trusted and skip that check. If an address is slow to connect,
+              // try the next one while the earlier attempt is still pending.
+              let connect (ip : System.Net.IPAddress) token =
+                task {
+                  let socket =
+                    new System.Net.Sockets.Socket(
+                      ip.AddressFamily,
+                      System.Net.Sockets.SocketType.Stream,
+                      System.Net.Sockets.ProtocolType.Tcp
+                    )
+                  try
+                    socket.NoDelay <- true
+                    let endpoint =
+                      System.Net.IPEndPoint(ip, context.DnsEndPoint.Port)
+                    do! socket.ConnectAsync(endpoint, token)
+                    return
+                      new System.Net.Sockets.NetworkStream(socket, true) :> Stream
+                  with e ->
+                    socket.Dispose()
+                    return raise e
+                }
+              try
+                return!
+                  connectToFirstAvailableAddress 250 ips connect cancellationToken
+              with
+              | :? System.OperationCanceledException as e when
+                cancellationToken.IsCancellationRequested
+                ->
+                return raise e
+              | e -> return raise (connectFailed e)
             with
             | :? System.ArgumentException as e -> return raise (connectFailed e)
             | :? System.Net.Sockets.SocketException as e ->
@@ -588,9 +665,11 @@ let private buildHttpRequestMessage
     method,
     reqUri,
     Content = content,
-    // Support both Http 2.0 and 3.0
-    // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
-    Version = System.Net.HttpVersion.Version30,
+    // Dark checks destination IPs in the TCP ConnectCallback.
+    // HTTP/3 uses QUIC, so it needs its own hook to run the same checks.
+    // TODO: Restore HTTP/3 once Dark can enforce those checks on QUIC.
+    // .NET's proposed QUIC hook: https://github.com/dotnet/runtime/issues/64449
+    Version = System.Net.HttpVersion.Version20,
     VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
   )
 
