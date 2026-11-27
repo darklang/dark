@@ -66,6 +66,37 @@ let files () : List<string * string> =
   |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
 
+/// The error message for a name declared more than once. <param declarations>
+/// lists each place it is declared: the file, and the kind (such as "fn").
+///
+/// The message is one of:
+///   fn A.f is declared twice in x.dark
+///   fn A.f is declared in both x.dark and y.dark
+///   A.f is declared as a fn and a val in x.dark
+let private describeDuplicate
+  (name : string)
+  (declarations : List<string * string>)
+  : string =
+  let files = declarations |> List.map fst |> List.distinct |> List.sort
+  let kinds = declarations |> List.map snd |> List.distinct |> List.sort
+  let where =
+    match files with
+    | [ file ] -> $"in {file}"
+    | [ one; two ] -> $"in both {one} and {two}"
+    | _ ->
+      let joined = String.concat ", " files
+      $"in {List.length files} files: {joined}"
+  match kinds, files with
+  | [ kind ], [ _ ] ->
+    let count = List.length declarations
+    let times = if count = 2 then "twice" else $"{count} times"
+    $"{kind} {name} is declared {times} {where}"
+  | [ kind ], _ -> $"{kind} {name} is declared {where}"
+  | _ ->
+    let listed = kinds |> List.map (fun kind -> $"a {kind}") |> String.concat " and "
+    $"{name} is declared as {listed} {where}"
+
+
 /// Parse <param filesWithContents> (`files`) and fail on parse or name-resolution errors.
 let load
   (builtins : RT.Builtins)
@@ -153,6 +184,32 @@ let load
   let (iteration, currentOps) = converge 0 (HS.computeRealHashes firstPassOps) []
 
   debuG "phase 2" $"converged after {iteration} passes"
+  match LibParser.Package.duplicateDeclarations currentOps with
+  | [] -> ()
+  | duplicates ->
+    // The ops don't say which file each came from, so parse the files again to find
+    // out. This runs only when there is a duplicate to report.
+    let root = LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR"
+    let declared : List<string * string * string> =
+      filesWithContents
+      |> List.collect (fun (path, contents) ->
+        let file = System.IO.Path.GetRelativePath(root, path)
+        parsePackageFile
+          builtins
+          PT.PackageManager.empty
+          NR.OnMissing.Allow
+          path
+          contents
+        |> LibParser.Package.declarations
+        |> List.map (fun (kind, name) -> (file, kind, name)))
+    let describe (name : string) : string =
+      declared
+      |> List.choose (fun (file, kind, declaredName) ->
+        if declaredName = name then Some(file, kind) else None)
+      |> describeDuplicate name
+    // one line: the build shows only the last lines of the reload log
+    let listed = duplicates |> List.map describe |> String.concat "; "
+    Exception.raiseInternal listed [ "count", List.length duplicates ]
   match LibParser.Package.unresolvedCalls currentOps with
   | [] -> ()
   | missing ->

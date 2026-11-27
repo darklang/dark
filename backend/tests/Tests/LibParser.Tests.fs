@@ -1573,6 +1573,51 @@ let private traitTests =
             [ P.DiagnosticCode.bound ]
             "trait without a type param") ]
 
+/// Writes <param files> (each a file name and its contents) into an empty `packages` folder,
+/// runs a package reload on it, and returns the reload's exit code and output.
+let private reloadOf
+  (files : List<string * string>)
+  : System.Threading.Tasks.Task<int * string> =
+  task {
+    let localExec =
+      match System.Environment.GetEnvironmentVariable "DARK_TEST_LOCALEXEC" with
+      | null
+      | "" -> "backend/Build/out/LocalExec/Debug/net11.0/LocalExec"
+      | path -> path
+    // No underscore anywhere in the path: a reload skips any file whose path has one.
+    let root =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        System.Guid.NewGuid().ToString("N")
+      )
+    try
+      let packages = System.IO.Path.Combine(root, "packages")
+      System.IO.Directory.CreateDirectory packages |> ignore<System.IO.DirectoryInfo>
+      for (name, contents) in files do
+        System.IO.File.WriteAllText(System.IO.Path.Combine(packages, name), contents)
+      let psi = System.Diagnostics.ProcessStartInfo(localExec)
+      psi.ArgumentList.Add "reload-packages"
+      psi.UseShellExecute <- false
+      psi.RedirectStandardOutput <- true
+      psi.RedirectStandardError <- true
+      psi.Environment["HOME"] <- root
+      psi.Environment["DARK_CONFIG_ROOT_DIR"] <- root
+      psi.Environment["DARK_CONFIG_DB_NAME"] <- "data.db"
+      psi.Environment["DARK_CONFIG_TELEMETRY_EXPORTER"] <- "none"
+      let p = System.Diagnostics.Process.Start psi
+      let stdout = p.StandardOutput.ReadToEndAsync()
+      let stderr = p.StandardError.ReadToEndAsync()
+      do! p.WaitForExitAsync()
+      let! out = stdout
+      let! err = stderr
+      let code = p.ExitCode
+      p.Dispose()
+      return (code, out + err)
+    finally
+      System.IO.Directory.Delete(root, true)
+  }
+
+
 let tests =
   testList
     "LibParser"
@@ -1594,50 +1639,63 @@ let tests =
               "Me.Probe.p calls Me.Gone.piped, which does not exist" ]
             "the calls to nothing, in fns, pipes and values; a test may call a missing name"
         | Error e -> failtest $"did not parse: {e}")
+      testCase "duplicateDeclarations finds each name declared twice" (fun _ ->
+        let ops =
+          LibParser.Package.parse
+            (LibExecution.Builtin.make [] [])
+            PT.PackageManager.empty
+            NR.OnMissing.Allow
+            "module Me.Probe =\n  let f(): Int64 = 1\n  let g(): Int64 = 2\n  let f(): Int64 = 3\n  val g = 4\n  let h(): Int64 = 5"
+        match ops with
+        | Ok ops ->
+          Expect.equal
+            (LibParser.Package.duplicateDeclarations ops)
+            [ "Me.Probe.f"; "Me.Probe.g" ]
+            "f is declared as a fn twice, and g as a fn and a val; h is declared once"
+        | Error e -> failtest $"did not parse: {e}")
       testTask "a reload refuses package code that calls a missing fn" {
-        let localExec =
-          match System.Environment.GetEnvironmentVariable "DARK_TEST_LOCALEXEC" with
-          | null
-          | "" -> "backend/Build/out/LocalExec/Debug/net11.0/LocalExec"
-          | path -> path
-        // No underscore anywhere in the path: a reload skips any file whose path has one.
-        let root =
-          System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(),
-            System.Guid.NewGuid().ToString("N")
-          )
-        try
-          let packages = System.IO.Path.Combine(root, "packages")
-          System.IO.Directory.CreateDirectory packages
-          |> ignore<System.IO.DirectoryInfo>
-          System.IO.File.WriteAllText(
-            System.IO.Path.Combine(packages, "probe.dark"),
-            "module Me.Probe\n\nlet f(x: Int64): Int64 = Me.Gone.g(x)\n"
-          )
-          let psi = System.Diagnostics.ProcessStartInfo(localExec)
-          psi.ArgumentList.Add "reload-packages"
-          psi.UseShellExecute <- false
-          psi.RedirectStandardOutput <- true
-          psi.RedirectStandardError <- true
-          psi.Environment["HOME"] <- root
-          psi.Environment["DARK_CONFIG_ROOT_DIR"] <- root
-          psi.Environment["DARK_CONFIG_DB_NAME"] <- "data.db"
-          psi.Environment["DARK_CONFIG_TELEMETRY_EXPORTER"] <- "none"
-          let p = System.Diagnostics.Process.Start psi
-          let stdout = p.StandardOutput.ReadToEndAsync()
-          let stderr = p.StandardError.ReadToEndAsync()
-          do! p.WaitForExitAsync()
-          let! out = stdout
-          let! err = stderr
-          let code = p.ExitCode
-          p.Dispose()
-          Expect.equal code 1 $"the reload fails: {out}\n{err}"
-          Expect.stringContains
-            (out + err)
-            "Package code calls names that do not exist: Me.Probe.f calls Me.Gone.g, which does not exist"
-            "naming the call"
-        finally
-          System.IO.Directory.Delete(root, true)
+        let! (code, output) =
+          reloadOf
+            [ "probe.dark",
+              "module Me.Probe\n\nlet f(x: Int64): Int64 = Me.Gone.g(x)\n" ]
+        Expect.equal code 1 $"the reload fails: {output}"
+        Expect.stringContains
+          output
+          "Package code calls names that do not exist: Me.Probe.f calls Me.Gone.g, which does not exist"
+          "naming the call"
+      }
+      testTask
+        "a reload refuses a name declared twice in one file, and names the file" {
+        let! (code, output) =
+          reloadOf
+            [ "one.dark",
+              "module Me.Probe\n\nlet f(): Int64 = 1\n\nlet f(): Int64 = 2\n" ]
+        Expect.equal code 1 $"the reload fails: {output}"
+        Expect.stringContains
+          output
+          "fn Me.Probe.f is declared twice in packages/one.dark"
+          "naming the name and the file"
+      }
+      testTask "a reload refuses a fn and a val with one name" {
+        let! (code, output) =
+          reloadOf
+            [ "one.dark", "module Me.Probe\n\nlet g(): Int64 = 1\n\nval g = 2\n" ]
+        Expect.equal code 1 $"the reload fails: {output}"
+        Expect.stringContains
+          output
+          "Me.Probe.g is declared as a fn and a val in packages/one.dark"
+          "naming the name, the kinds and the file"
+      }
+      testTask "a reload refuses a name declared in two files, and names the files" {
+        let! (code, output) =
+          reloadOf
+            [ "one.dark", "module Me.Probe\n\nlet f(): Int64 = 1\n"
+              "two.dark", "module Me.Probe\n\nlet f(): Int64 = 2\n" ]
+        Expect.equal code 1 $"the reload fails: {output}"
+        Expect.stringContains
+          output
+          "fn Me.Probe.f is declared in both packages/one.dark and packages/two.dark"
+          "naming the name and both files"
       }
       testCase "private names reach package lookup" (fun _ ->
         for name in [ "__helper"; "__helper_v0" ] do

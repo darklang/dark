@@ -256,6 +256,36 @@ let parse
       )
 
 
+/// What <param ops> declares, in order. Each entry is a kind, such as "fn", and a full name,
+/// such as "Owner.Module.name".
+let declarations (ops : List<PT.PackageOp>) : List<string * string> =
+  let declared
+    (
+      previous : PT.PackageOp,
+      op : PT.PackageOp
+    ) : Option<string * string> =
+    let named kind loc = Some(kind, LibDB.PackageLocation.toFQN loc)
+    match previous, op with
+    | PT.PackageOp.AddType _, PT.PackageOp.SetName(loc, _, _) -> named "type" loc
+    | PT.PackageOp.AddFn _, PT.PackageOp.SetName(loc, _, _) -> named "fn" loc
+    | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, _, _) -> named "val" loc
+    | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(loc, _, _) -> named "trait" loc
+    | PT.PackageOp.AddTraitImpl _, PT.PackageOp.SetName(loc, _, _) ->
+      named "impl" loc
+    | PT.PackageOp.AddTest _, PT.PackageOp.SetName(loc, _, _) -> named "test" loc
+    | _ -> None
+  ops |> List.pairwise |> List.choose declared
+
+/// The full names <param ops> declares more than once. The kinds don't matter: a name holds
+/// one item, so a fn and a val with the same name are duplicates too. Stored as they are, one
+/// declaration would silently replace the others.
+let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
+  declarations ops
+  |> List.countBy snd
+  |> List.filter (fun (_, count) -> count > 1)
+  |> List.map fst
+  |> List.sort
+
 /// Each call in <param ops> to a fn or value that does not exist, as "Item calls Name". The
 /// parser lowers such a call without complaint, since a local variable may stand behind the
 /// name, so without this it surfaces only when the call runs.
