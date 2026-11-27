@@ -6,8 +6,9 @@
 /// are refused as {{UnsupportedSyntax}}.
 ///
 /// Every fn returns a {{Result}}: a bad pattern is an {{Error}}, not a crash. No
-/// match is still {{None}} or {{[]}} inside the {{Ok}}. Positions count characters,
-/// the way {{String.length}} and {{String.slice}} do.
+/// match is still {{None}} or {{[]}} inside the {{Ok}}. A match's {{range}}
+/// counts characters, the way {{String.length}} and {{String.slice}} do, and its
+/// {{codepointRange}} counts codepoints.
 module Darklang.Stdlib.Regex
 
 /// Why a pattern could not be used, or a match could not be made.
@@ -26,9 +27,7 @@ type RegexError =
   | MatchLimitExceeded
 
 
-/// Where a match sits in the input, in characters. {{end}} is exclusive. A match
-/// boundary inside a character (between `\r` and `\n`, say) widens the range to
-/// cover it.
+/// Where a match sits in the input. {{end}} is exclusive.
 type Range =
   { start: Int64
     end: Int64 }
@@ -37,13 +36,23 @@ type Range =
 /// What one group matched.
 type Capture =
   { text: String
-    range: Range }
+    /// Where {{text}} is in the input, counted in characters. See <type Match>.
+    range: Range
+    /// Where {{text}} is in the input, counted in codepoints. Always exact.
+    codepointRange: Range }
 
 
 /// One match. A group inside a repetition holds its last capture.
 type Match =
   { text: String
+    /// Where {{text}} is in the input, counted in characters, the way {{String.slice}}
+    /// counts. A match can start or end inside a character: `"\r\n"` is one character, and
+    /// a pattern can match the `\n` alone. The range then covers the whole character, so
+    /// slicing the input by it gives more than {{text}}.
     range: Range
+    /// Where {{text}} is in the input, counted in codepoints. Always exact: a match
+    /// cannot start or end inside a codepoint.
+    codepointRange: Range
     /// The unnamed groups, in order. {{None}} for a group that took no part in the
     /// match.
     captures: List<Option<Capture>>

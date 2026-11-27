@@ -93,6 +93,32 @@ type private Positions(s : string) =
       if k >= 0 then k else ~~~k
 
 
+/// Turns a UTF-16 offset in one string into a codepoint position. A codepoint past
+/// U+FFFF, such as an emoji, takes two UTF-16 units (a surrogate pair), so the
+/// position is the offset minus the number of pairs before it. The pairs are found
+/// the first time a position is asked for.
+type private Codepoints(s : string) =
+  let pairs =
+    lazy
+      (let found = ResizeArray<int>()
+       for i in 1 .. s.Length - 1 do
+         if
+           System.Char.IsLowSurrogate s[i] && System.Char.IsHighSurrogate s[i - 1]
+         then
+           found.Add i
+       found.ToArray())
+
+  /// The codepoint position of UTF-16 offset `i`. `i` must not be in the middle of
+  /// a pair.
+  member _.At(i : int) : int =
+    let pairs = pairs.Value
+    if pairs.Length = 0 then
+      i
+    else
+      let k = System.Array.BinarySearch(pairs, i)
+      i - (if k >= 0 then k else ~~~k)
+
+
 /// Compiled patterns, shared by every call on every thread; an immutable map would
 /// need a lock or a CAS loop around each insert for no gain.
 let private cache =
@@ -211,6 +237,7 @@ let private scan
   (firstOnly : bool)
   : Result<List<Dval> * List<Dval>, RegexError> =
   let positions = Positions(input)
+  let codepoints = Codepoints(input)
   let rangeType = rangeTypeName ()
   let captureType = captureTypeName ()
   let matchType = matchTypeName ()
@@ -237,6 +264,16 @@ let private scan
           "end", DInt64(int64 (positions.Ceiling finish)) ]
     )
 
+  let codepointRange (start : int) (finish : int) : Dval =
+    DRecord(
+      rangeType,
+      rangeType,
+      [],
+      RecordFields.ofList
+        [ "start", DInt64(int64 (codepoints.At start))
+          "end", DInt64(int64 (codepoints.At finish)) ]
+    )
+
   let capture (g : Group) : Option<Dval> =
     if g.Success then
       Some(
@@ -245,7 +282,9 @@ let private scan
           captureType,
           [],
           RecordFields.ofList
-            [ "text", DString g.Value; "range", range g.Index (g.Index + g.Length) ]
+            [ "text", DString g.Value
+              "range", range g.Index (g.Index + g.Length)
+              "codepointRange", codepointRange g.Index (g.Index + g.Length) ]
         )
       )
     else
@@ -272,6 +311,7 @@ let private scan
       RecordFields.ofList
         [ "text", DString m.Value
           "range", range m.Index (m.Index + m.Length)
+          "codepointRange", codepointRange m.Index (m.Index + m.Length)
           "captures", Dval.list optionCaptureKT captures
           "namedCaptures", Dval.stringDict optionCaptureKT named ]
     )

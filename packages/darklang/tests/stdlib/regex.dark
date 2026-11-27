@@ -297,7 +297,9 @@ test groups =
             Stdlib.Option.Option.Some(
               Stdlib.Regex.Capture
                 { text = "2026"
-                  range = Stdlib.Regex.Range { start = 3, end = 7 } }))) ])
+                  range = Stdlib.Regex.Range { start = 3, end = 7 }
+                  codepointRange =
+                    Stdlib.Regex.Range { start = 3, end = 7 } }))) ])
   | _ -> Stdlib.Test.fail("expected a match")
 
 
@@ -348,6 +350,27 @@ test positionsCountCharacters =
   | Ok(Some(m)) ->
     m.range |> Stdlib.Test.equal(Stdlib.Regex.Range { start = 3, end = 5 })
   | _ -> Stdlib.Test.fail("expected a match")
+
+
+test codepointRangeIsExact =
+  Stdlib.Test.all(
+    [ // 😀 is one codepoint. 🇫🇷 is one character made of two codepoints.
+      match firstMatch("😀🇫🇷 ab", "ab") with
+      | Ok(Some(m)) ->
+        m.codepointRange
+        |> Stdlib.Test.equal(Stdlib.Regex.Range { start = 4, end = 6 })
+      | _ -> Stdlib.Test.fail("expected a match")
+
+      // "\r\n" is one character, so the range of a match on "\n" alone covers both.
+      match firstMatch("a\r\nb", "\n") with
+      | Ok(Some(m)) ->
+        Stdlib.Test.all(
+          [ m.range
+            |> Stdlib.Test.equal(Stdlib.Regex.Range { start = 1, end = 2 })
+
+            m.codepointRange
+            |> Stdlib.Test.equal(Stdlib.Regex.Range { start = 2, end = 3 }) ])
+      | _ -> Stdlib.Test.fail("expected a match") ])
 
 
 test badPattern =
