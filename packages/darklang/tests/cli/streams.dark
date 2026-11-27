@@ -100,7 +100,7 @@ test saveWarningsDryRunNotesAndPreviewsGoToStderr =
         Instance.exitedWith(dryCode, 0, "the dry run answered")
         Instance.says(
           dryOut,
-          "Would deprecate fn Tests.Streams.f",
+          "Would discard fn Tests.Streams.f",
           "the preview is the answer")
 
         Instance.doesNotSay(dryOut, "dry-run", "the dry-run note is not")
@@ -111,11 +111,11 @@ test saveWarningsDryRunNotesAndPreviewsGoToStderr =
           "nobody could confirm, so it refused")
 
         same(deleteOut, "", "and stdout is empty")
-        Instance.says(deleteErr, "Will deprecate", "the preview is on stderr")
+        Instance.says(deleteErr, "Discard not done", "the refusal is on stderr")
 
         Instance.says(
           deleteErr,
-          "`dark delete Tests.Streams.f -y` does it without asking",
+          "`dark discard Tests.Streams.f -y` does it without asking",
           "with the flag that gets past the prompt") ]))
 
 

@@ -39,11 +39,11 @@ test deleteModuleTakesEverything = Instance.withInstance(fun i ->
         "  Me.Scratch.make",
         "lists declarations in the result")
 
-      Instance.exitedWith(againCode, 1, "nothing left to deprecate")
+      Instance.exitedWith(againCode, 1, "nothing left")
       Instance.says(
         again,
-        "All items in Me.Scratch are already deprecated.",
-        "explains the repeat")
+        "No item or module named Me.Scratch was found.",
+        "the discarded items are gone")
 
       Instance.doesNotSay(again, "Usage:", "a repeat delete is valid syntax")
       Instance.exitedWith(missingCode, 1, "name is missing")
@@ -140,8 +140,8 @@ test deleteWithDependentsRefusesOnce = Instance.withInstance(fun i ->
       Instance.exitedWith(forcedCode, 0, "--force gets through")
       Instance.says(
         forced,
-        "Deleted Me.Held.leaf (still callable).",
-        "says it was deleted") ]))
+        "dropped Me.Held.leaf from your draft",
+        "says it was discarded") ]))
 
 
 test deleteModuleRefusesAnOwner = Instance.withInstance(fun i ->
@@ -183,7 +183,7 @@ test deleteModuleListsEveryItem = Instance.withInstance(fun i ->
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "dry run")
-      Instance.says(out, "Would deprecate 12 items in Me.Big:\n", "the count")
+      Instance.says(out, "Would delete 12 items in Me.Big:\n", "the count")
       Stdlib.Test.equal(Stdlib.List.length(named), 12) ]))
 
 
@@ -209,7 +209,7 @@ test deleteModuleTakesSubmodulesAndHonoursDryRun =
       [ Instance.exitedWith(dryCode, 0, "dry run")
         Instance.says(
           dry,
-          "Would deprecate 2 items in Me.Outer:",
+          "Would delete 2 items in Me.Outer:",
           "counts the submodule's item")
 
         Instance.says(dry, "  Me.Outer.Inner.deep", "names it")
@@ -224,6 +224,7 @@ test deprecatedModuleDiscoveryAndResave = Instance.withInstance(fun i ->
   let source = "let main(): Int64 = 0\n"
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
   let _ = Instance.ran(i, [ "module", "/Me.DeleteRepro", path ])
+  let _ = Instance.ran(i, [ "commit", "fixture", "-y" ])
   let before = Instance.said(i, [ "search", "DeleteRepro" ])
 
   let deletion = Instance.said(i, [ "delete", "Me.DeleteRepro", "--yes" ])
@@ -361,7 +362,7 @@ test deletesRelativeToCurrentModule = Instance.withInstance(fun i ->
     [ Instance.exitedWith(code, 0, "the command evaluates")
       Instance.says(
         out,
-        "Would deprecate 1 item in Me.RelativeDelete.Nested",
+        "Would delete 1 item in Me.RelativeDelete.Nested",
         "resolves the module")
 
       Instance.says(
@@ -373,6 +374,8 @@ test deletesRelativeToCurrentModule = Instance.withInstance(fun i ->
 test deletePreservesExecutionBlock = Instance.withInstance(fun i ->
   let _ =
     Instance.ran(i, [ "fn", "/Me.Blocked.single", "(): Int64 = 0 + 137 - 137" ])
+
+  let _ = Instance.ran(i, [ "commit", "fixture", "-y" ])
 
   let (blockedCode, _) =
     Instance.ran(
@@ -387,6 +390,8 @@ test deletePreservesExecutionBlock = Instance.withInstance(fun i ->
 
   let _ =
     Instance.ran(i, [ "fn", "/Me.Blocked.alias", "(): Int64 = 0 + 137 - 137" ])
+
+  let _ = Instance.ran(i, [ "commit", "fixture", "-y" ])
 
   let (aliasDeleteCode, aliasDelete) =
     Instance.ran(i, [ "delete", "Me.Blocked.alias", "--yes" ])
@@ -413,3 +418,43 @@ test deletePreservesExecutionBlock = Instance.withInstance(fun i ->
         aliasRun,
         "--allow-harmful",
         "reports the block on the alias") ]))
+
+
+test deleteDiscardsWhatWasNeverCommitted = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.Probe.bad", "(): Int64 = \"x\"" ])
+  let _ = Instance.ran(i, [ "fn", "Me.Probe.good", "(): Int64 = 8231" ])
+  let (code, out) = Instance.ran(i, [ "delete", "Me.Probe.bad", "-y" ])
+  let (viewCode, _) = Instance.ran(i, [ "view", "Me.Probe.bad" ])
+  let (commitCode, committed) = Instance.ran(i, [ "commit", "probe", "-y" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, out)
+      Instance.says(
+        out,
+        "dropped Me.Probe.bad from your draft",
+        "it is discarded")
+
+      Instance.exitedWith(viewCode, 1, "the name is gone")
+      Instance.exitedWith(commitCode, 0, committed) ]))
+
+
+test deleteModuleDiscardsNewItemsAndDeprecatesCommittedOnes =
+  Instance.withInstance(fun i ->
+    let _ = Instance.ran(i, [ "fn", "Me.Mixed.old", "(): Int64 = 8232" ])
+    let _ = Instance.ran(i, [ "commit", "old", "-y" ])
+    let _ = Instance.ran(i, [ "fn", "Me.Mixed.fresh", "(): Int64 = 8233" ])
+    let (code, out) = Instance.ran(i, [ "delete", "Me.Mixed", "-y" ])
+    let (freshCode, _) = Instance.ran(i, [ "view", "Me.Mixed.fresh" ])
+    let (oldCode, _) = Instance.ran(i, [ "view", "Me.Mixed.old" ])
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, out)
+        Instance.says(
+          out,
+          "Those never committed are discarded",
+          "says which go")
+
+        Instance.exitedWith(freshCode, 1, "the new item is gone")
+
+        Instance.exitedWith(
+          oldCode,
+          0,
+          "the committed one is deprecated, still there") ]))

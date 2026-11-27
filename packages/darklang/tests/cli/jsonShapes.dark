@@ -662,6 +662,8 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
       step(i, [ "fn", "Tests.JsonDep.alone", "() : Int64 = 7204" ])
 
       step(i, [ "fn", "Tests.JsonDep.newer", "() : Int64 = 7205" ])
+
+      step(i, [ "commit", "json fixture", "-y" ])
       check(
         i,
         [ "deprecate"
@@ -750,6 +752,7 @@ test deleteModuleAnswersInJson = Instance.withInstance(fun i ->
         i,
         [ "fn", "Tests.JsonDeleteBatch.Nested.second", "(): Int64 = 2574" ])
 
+      step(i, [ "commit", "json fixture", "-y" ])
       check(
         i,
         [ "delete", "Tests.JsonDeleteBatch", "--json" ],

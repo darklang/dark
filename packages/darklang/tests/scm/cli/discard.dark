@@ -185,3 +185,16 @@ test discardWithoutAYesKeepsTheDraft =
       says(dark, [ "status" ], "1 item", "the draft is still there")
       says(dark, [ "discard", "-y" ], "discarded", "-y says yes")
       doesNotSay(dark, [ "status" ], "1 item", "and the draft is gone") ])
+
+
+test discardingANewItemTakesItsContentToo =
+  scenario(fun dark ->
+    [ says(
+        dark,
+        [ "fn", "Tests.Discard.bad", "(): Int64 = \"x\"" ],
+        "saved as a draft",
+        "the broken item is in the draft")
+
+      saveNumber(dark, "Tests.Discard.good", "2")
+      run(dark, [ "discard", "Tests.Discard.bad", "-y" ])
+      commit(dark, "the broken item no longer blocks commit") ])

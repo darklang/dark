@@ -264,6 +264,7 @@ let private deprecationIsReversible =
   instanceTest "delete can be undone" (fun state ->
     task {
       do! author state "Tests.Undep.item" "(x: Int64) : Int64 = x + 4242"
+      do! commit state "undep fixture"
 
       let! _ =
         runCli state [ "delete"; "fn"; "Tests.Undep.item"; "-m"; "t"; "--yes" ]
