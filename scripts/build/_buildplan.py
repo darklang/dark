@@ -109,7 +109,8 @@ def mark(should, f):
   elif (f.startswith("scripts/") or f.endswith(".sh")) and is_script(f):
     should.shellcheck += [f]
 
-  elif f.endswith(".yml") or f.endswith(".yaml"):
+  elif (f.endswith(".yml") or f.endswith(".yaml")) and os.path.exists(f):
+    # Lint the file only if it still exists. A deleted file also shows up as changed.
     should.yamllint += [f]
 
   else:
