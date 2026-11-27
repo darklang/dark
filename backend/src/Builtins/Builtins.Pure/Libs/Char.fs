@@ -139,7 +139,11 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DUInt32 cp |] ->
           match System.Text.Rune.TryCreate(cp) with
-          | true, rune -> Dval.optionSome KTChar (Dval.char (rune.ToString()))
+          | true, rune ->
+            // Chars are kept in NFC, like Strings: U+2000 becomes U+2002.
+            Dval.optionSome
+              KTChar
+              (Dval.char (String.normalizeOutside (rune.ToString())))
           | false, _ -> Dval.optionNone KTChar
         | _ -> incorrectArgs ()
       previewable = Pure

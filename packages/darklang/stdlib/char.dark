@@ -114,6 +114,9 @@ impl Display for Char =
 /// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
 /// or {{None}} if the value is not a valid scalar (> 0x10FFFF or a surrogate).
 /// See <fn Codepoint.isValidScalar>.
+///
+/// The Char is in NFC, like every String. For the few codepoints NFC replaces, you get
+/// the replacement: U+2000 gives U+2002.
 let fromCodepoint(codepoint: UInt32): Option<Char> =
   if Codepoint.isValidScalar(codepoint) then
     Builtin.charFromCodepoint(codepoint)
@@ -122,7 +125,7 @@ let fromCodepoint(codepoint: UInt32): Option<Char> =
 
 
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
-/// This is the inverse of <fn Char.fromCodepoint>.
+/// This undoes <fn Char.fromCodepoint>, except for the few codepoints NFC replaces.
 let toCodepoint(c: Char): Option<UInt32> =
   match String.toCodepoints(display(c)) with
   | [codepoint] -> Option.Some(codepoint)
