@@ -177,6 +177,77 @@ let read (reader : BinaryReader) : P.Policy =
   let deny = List.read reader readRule
   P.Policy.create allow deny
 
+/// A policy as store format 9 wrote it, for the one-time upgrade. Returns the policy as it is
+/// written today, and a line for each rule that could not be carried over.
+///
+/// Nothing here may widen access: an allow rule becomes the same rule or a narrower one, or is
+/// dropped; a deny rule becomes the same rule or a broader one.
+let readFormat9 (reader : BinaryReader) : P.Policy * List<string> =
+  let readPath () : P.HttpPath =
+    match readStringScope reader with
+    | P.Scope.All -> P.HttpPath.All
+    | P.Scope.Only prefix -> P.HttpPath.Subtree prefix
+  // Format 9 had no address, and Dark only ever served on this one.
+  let serverAddress (allowing : bool) : P.Scope<string> =
+    if allowing then P.Scope.Only "127.0.0.1" else P.Scope.All
+  let readRule (allowing : bool) : Result<P.Rule, string> =
+    match reader.ReadByte() with
+    | 0uy -> Ok P.Rule.All
+    | 1uy ->
+      let name = String.read reader
+      match E.fromName name with
+      | Some effect -> Ok(P.Rule.Effect effect)
+      | None -> Error $"{name} (Dark no longer has it)"
+    | 2uy ->
+      let method = readStringScope reader
+      let scheme = readStringScope reader
+      let host = readHost reader
+      let port = readIntScope reader
+      let path = readPath ()
+      let query = readStringScope reader
+      Ok(
+        P.Rule.Http
+          { method = method
+            scheme = scheme
+            host = host
+            port = port
+            path = path
+            query = query }
+      )
+    | 3uy -> Ok(P.Rule.HttpServer(serverAddress allowing, readIntScope reader))
+    | 4uy ->
+      let access = readAccess reader
+      Ok(P.Rule.File(access, readStringScope reader))
+    | 5uy ->
+      let access = readAccess reader
+      Ok(P.Rule.Env(access, readStringScope reader))
+    | 6uy ->
+      let access = readAccess reader
+      let names = readStringScope reader
+      let verb =
+        match access with
+        | P.AccessKind.Read -> "read"
+        | P.AccessKind.Write -> "write"
+      let which =
+        match names with
+        | P.Scope.All -> "*"
+        | P.Scope.Only name -> name
+      Error $"db {verb} {which} (Dark no longer has databases)"
+    | 7uy ->
+      let executable = readStringScope reader
+      Ok(P.Rule.Process { executable = executable; args = readArgs reader })
+    | tag -> raiseFormatError $"Invalid permission rule tag: {tag}"
+  let allow = List.read reader (fun _ -> readRule true)
+  let deny = List.read reader (fun _ -> readRule false)
+  let kept = List.choose Result.toOption
+  let dropped (label : string) rules =
+    rules
+    |> List.choose (function
+      | Error what -> Some $"{label} {what}"
+      | Ok _ -> None)
+  P.Policy.create (kept allow) (kept deny),
+  dropped "allow" allow @ dropped "deny" deny
+
 /// Private host transport, paired with the worker binary from the same build.
 let writeExecutionAccess (writer : BinaryWriter) (access : P.Access) : unit =
   List.write

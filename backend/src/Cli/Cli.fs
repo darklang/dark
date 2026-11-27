@@ -488,6 +488,10 @@ let private runCli (args : string[]) : int =
         (System.IO.Path.Combine(LibConfig.Config.runDir, "policy"))
         e.Message
 
+    LibDB.PolicyStore.unsupportedFormatProblem ()
+    |> Option.iter (fun problem ->
+      eprintfn "warning: %s Until then nothing is allowed." problem)
+
     // Prevent scoped guest file operations from targeting the package store.
     LibExecution.HostSecurity.setPackageDbPath LibConfig.Config.dbPath
 

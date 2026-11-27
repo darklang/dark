@@ -157,6 +157,33 @@ let fns () : List<BuiltInFn> =
           | Error message -> Exception.raiseStoreCondition message []
         | _ -> incorrectArgs ())
 
+    hostOnly
+      "pmPolicyUpgrade"
+      [ Param.make "unit" TUnit "" ]
+      (TypeReference.result
+        (TTuple(policyType, TList TString, [ TBool; TString ]))
+        TString)
+      "Carry the rules of a policy file in the one older format that can be read over to the current format. Ok is the rules now in force, the rules dropped, whether remembered approvals were left behind, and where the old file was copied."
+      (fun _ args ->
+        match args with
+        | [| DUnit |] ->
+          CommonToDT.Result.toDT
+            (KTTuple(
+              VT.known (KTCustomType(PolicyToDT.Policy.typeName (), [])),
+              VT.known (KTList VT.string),
+              [ VT.bool; VT.string ]
+            ))
+            KTString
+            (PolicyStore.upgrade ())
+            (fun (upgraded : PolicyStore.Upgraded) ->
+              DTuple(
+                PolicyToDT.Policy.toDT upgraded.instance,
+                Dval.list KTString (List.map DString upgraded.rulesDropped),
+                [ DBool upgraded.approvalsDropped; DString upgraded.keptAs ]
+              ))
+            DString
+        | _ -> incorrectArgs ())
+
     // Read this account's approvals once. Dark selects and formats the entries.
     policyFn
       "pmPolicyApprovals"

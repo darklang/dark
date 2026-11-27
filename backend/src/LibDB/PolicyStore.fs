@@ -152,6 +152,30 @@ let storedVersion (bytes : byte[]) : Option<int> =
 
 // ── file access ───────────────────────────────────────────────────────────────
 
+/// The one older format whose rules can be carried over.
+let private upgradableFormat = 9
+
+let private unsupportedFormat (version : int) (where : string) : string =
+  let older =
+    $"The policy file {where} is from an older Dark (format {version}; this build reads {formatVersion}) and can't be read."
+  if version = upgradableFormat then
+    $"{older} Run `dark permissions upgrade` to carry your rules over."
+  else
+    $"{older} Move it aside, then run `dark permissions profile default --yes` to start again from the default permissions."
+
+/// Why the policy file grants nothing, when it is in a format this build can't read. Such a
+/// file reads as an empty policy, so without this every refusal looks like a chosen one.
+let unsupportedFormatProblem () : Option<string> =
+  match LocalFile.read fileName with
+  | LocalFile.Read bytes ->
+    match storedVersion bytes with
+    | Some version when version <> formatVersion ->
+      let where = LocalFile.path fileName |> Result.defaultValue fileName
+      Some(unsupportedFormat version where)
+    | _ -> None
+  | LocalFile.Missing
+  | LocalFile.Unreadable _ -> None
+
 /// Parsed-store cache keyed on the file's (mtime, ctime, length) stamp.
 /// Execution and review read policy repeatedly; without this each read parses the file. Same-process writes invalidate
 /// eagerly; another process's write changes the stamp and is picked up on the
@@ -204,9 +228,7 @@ let private getForWrite () : Store =
       // person can deal with once told, so each prints as its sentence. The path is the real one;
       // the policy directory moves with the store, so `~/.darklang/policy` is not always it.
       | Some version when version <> formatVersion ->
-        Exception.raiseStoreCondition
-          $"The policy file uses unsupported format {version}; this build reads only format {formatVersion}. Move {where} aside and configure a fresh policy."
-          []
+        Exception.raiseStoreCondition (unsupportedFormat version where) []
       | _ ->
         Exception.raiseStoreCondition
           $"The policy file is damaged and will not be overwritten. Move {where} aside (the approvals in it are lost) and retry."
@@ -238,6 +260,65 @@ let private set (change : Store -> Store) : unit =
 let private nonBlank (label : string) (value : string) : unit =
   if String.IsNullOrWhiteSpace value then
     invalidArg label $"{label} cannot be empty"
+
+/// What [upgrade] did.
+type Upgraded =
+  {
+    instance : P.Policy
+    /// Rules that have no meaning any more, one line each.
+    rulesDropped : List<string>
+    /// Whether the old file held remembered approvals. They are tied to how approvals used to
+    /// be recorded, and are not carried over.
+    approvalsDropped : bool
+    /// Where the old file was copied to.
+    keptAs : string
+  }
+
+/// The instance rules of a format 9 store, and whether it held any approvals.
+let private readFormat9 (bytes : byte[]) : P.Policy * List<string> * bool =
+  use stream = new MemoryStream(bytes)
+  use reader = new BinaryReader(stream)
+  String.read reader |> ignore<string>
+  reader.ReadInt32() |> ignore<int>
+  let (instance, dropped) = PolicyBin.readFormat9 reader
+  // Three keyed sections followed, each starting with its size: package policies, function
+  // pins and approved roots. All empty is all zeros.
+  let rest = reader.ReadBytes(int (stream.Length - stream.Position))
+  instance, dropped, Array.exists (fun b -> b <> 0uy) rest
+
+/// Carry the rules of a format 9 policy file over to the current format. The old file is
+/// copied aside first and is never deleted. Run by the person, never at startup.
+let upgrade () : Result<Upgraded, string> =
+  LocalFile.withExclusiveLock (fun () ->
+    let where = LocalFile.path fileName |> Result.defaultValue fileName
+    match LocalFile.read fileName with
+    | LocalFile.Missing -> Error "There is no policy file to upgrade."
+    | LocalFile.Unreadable _ -> Error $"The policy file {where} cannot be read."
+    | LocalFile.Read bytes ->
+      match storedVersion bytes with
+      | Some version when version = formatVersion ->
+        Error "The policy file is already in the current format."
+      | Some version when version = upgradableFormat ->
+        match
+          (try
+            Ok(readFormat9 bytes)
+           with _ ->
+             Error
+               $"The policy file {where} is damaged and can't be upgraded. Move it aside, then run `dark permissions profile default --yes` to start again from the default permissions.")
+        with
+        | Error message -> Error message
+        | Ok(instance, rulesDropped, approvalsDropped) ->
+          let keptAs = LocalFile.copyAside fileName $"{fileName}.format-{version}"
+          writeFile { empty with instance = instance }
+          Ok
+            { instance = instance
+              rulesDropped = rulesDropped
+              approvalsDropped = approvalsDropped
+              keptAs = keptAs }
+      | Some version -> Error(unsupportedFormat version where)
+      | None ->
+        Error
+          $"The policy file {where} is damaged. Move it aside, then run `dark permissions profile default --yes` to start again from the default permissions.")
 
 // ── first-run seed ──────────────────────────────────────────────
 

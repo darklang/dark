@@ -260,6 +260,108 @@ let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
         Expect.equal unevaluated 0L "no unevaluated value is left in the store"
       })
 
+/// A policy file as format 9 wrote it: two rules that still mean something, two that changed
+/// shape, one that means nothing now, and a deny.
+let private format9PolicyFile () : byte[] =
+  let (str, varint) =
+    (LibSerialization.Binary.Serializers.Common.String.write,
+     LibSerialization.Binary.Serializers.Common.Varint.write)
+  use stream = new System.IO.MemoryStream()
+  use w = new System.IO.BinaryWriter(stream)
+  str w "DARK-POLICIES"
+  w.Write 9
+  varint w 5
+  // stdin
+  w.Write 1uy
+  str w "stdin"
+  // env read HOME
+  w.Write 5uy
+  w.Write 0uy
+  w.Write 1uy
+  str w "HOME"
+  // http GET https example.com, any port, under /api, any query
+  w.Write 2uy
+  w.Write 1uy
+  str w "GET"
+  w.Write 1uy
+  str w "https"
+  w.Write 1uy
+  str w "example.com"
+  w.Write 0uy
+  w.Write 1uy
+  str w "/api"
+  w.Write 0uy
+  // http-server on port 8080
+  w.Write 3uy
+  w.Write 1uy
+  w.Write 8080
+  // db read, any database
+  w.Write 6uy
+  w.Write 0uy
+  w.Write 0uy
+  varint w 1
+  // deny file write /etc
+  w.Write 4uy
+  w.Write 1uy
+  w.Write 1uy
+  str w "/etc"
+  // no package policies, function pins or approved roots
+  w.Write 0
+  w.Write 0
+  w.Write 0
+  w.Flush()
+  stream.ToArray()
+
+/// A policy file from an older Dark grants nothing until it is upgraded. The CLI says so, or
+/// every refusal looks like one the person chose, and the upgrade keeps their rules.
+let private oldPolicyFormatIsUpgraded =
+  CliInstance.instanceTest
+    "a policy file in an old format is named at startup, and upgrades"
+    (fun i ->
+      task {
+        let! (quiet, _) = CliInstance.runWithExit i [ "eval"; "1 + 1" ]
+        Expect.isFalse
+          (quiet.Contains "older Dark")
+          $"a current policy file brings no warning: {quiet}"
+
+        let policyFile = System.IO.Path.Combine(i.dir, "policy", "policies.bin")
+        System.IO.File.WriteAllBytes(policyFile, format9PolicyFile ())
+
+        let! (warned, _) = CliInstance.runWithExit i [ "eval"; "1 + 1" ]
+        let unwrap (text : string) =
+          System.Text.RegularExpressions.Regex.Replace(text, "\\s+", " ")
+        Expect.stringContains
+          (unwrap warned)
+          "is from an older Dark (format 9;"
+          "the warning names the file's format"
+        Expect.stringContains
+          (unwrap warned)
+          "dark permissions upgrade"
+          "and the command that carries the rules over"
+
+        let! (upgraded, code) =
+          CliInstance.runWithExit i [ "permissions"; "upgrade" ]
+        Expect.equal code 0L $"the upgrade succeeds: {upgraded}"
+        Expect.isTrue
+          (System.IO.File.Exists(policyFile + ".format-9"))
+          $"the old file is kept: {upgraded}"
+        Expect.stringContains
+          upgraded
+          "db read *"
+          "the rule that means nothing now is named as dropped"
+
+        let! (listed, _) = CliInstance.runWithExit i [ "permissions"; "list" ]
+        Expect.isFalse
+          (listed.Contains "older Dark")
+          $"the warning is gone: {listed}"
+        for kept in
+          [ "stdin"; "HOME"; "example.com"; "/api"; "8080"; "127.0.0.1"; "/etc" ] do
+          Expect.stringContains listed kept $"{kept} was carried over: {listed}"
+
+        let! (again, code) = CliInstance.runWithExit i [ "permissions"; "upgrade" ]
+        Expect.equal code 1L $"a current file has nothing to upgrade: {again}"
+      })
+
 let private deprecationIsReversible =
   instanceTest "delete can be undone" (fun state ->
     task {
@@ -1044,6 +1146,7 @@ let private aFailingDeprecationQueryIsAStoreError =
 let tests : List<Test> =
   [ failedValueSaveLeavesNothingBehind false
     failedValueSaveLeavesNothingBehind true
+    oldPolicyFormatIsUpgraded
     deprecationIsReversible
     theWorkedExampleWorks
     editsAreVisibleInTheSameProcess
