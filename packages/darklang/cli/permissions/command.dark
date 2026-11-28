@@ -141,13 +141,6 @@ let revokeHash(accountID: Option<Uuid>, hash: String): Bool =
     true
 
 
-let approvedHashes(accountID: Option<Uuid>): List<String> =
-  let (_, approvals) = approvalSnapshot(accountID)
-  versionsFromApprovals(approvals)
-  |> Stdlib.List.map(Stdlib.Tuple2.second)
-  |> Stdlib.List.unique
-
-
 let packageAccessFor(
   named: List<LanguageTools.Permissions.Approval>,
   hash: String)
@@ -217,12 +210,6 @@ let namedApprovals(accountID: Option<Uuid>, branchId: Uuid): List<String> =
       | _ -> ""
 
     $"  {name}  (version {shortVersion(hash)}{older})")
-
-
-/// Capture before showing a review; mutations compare it atomically when saving.
-let reviewToken(): String =
-  let (expected, _) = instanceSnapshot()
-  expected
 
 
 /// Whether approving goes ahead when the shown requirements are incomplete.
@@ -997,13 +984,6 @@ let withVersion(state: AppState, target: String, show: String -> List<String>): 
   | Some(hash) ->
     Stdlib.printLines(show(hash))
     true
-
-
-let printListOrNone(items: List<String>): Unit =
-  if Stdlib.List.isEmpty(items) then
-    Stdlib.printLine("none")
-  else
-    Stdlib.printLines(items)
 
 
 /// Every subcommand with the usage it prints when its argument is missing;

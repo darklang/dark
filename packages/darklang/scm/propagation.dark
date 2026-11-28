@@ -48,14 +48,6 @@ let modulesOf(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   Stdlib.String.join(loc.modules, ".")
 
 
-let rebind(
-  loc: LanguageTools.ProgramTypes.PackageLocation,
-  kind: LanguageTools.ProgramTypes.ItemKind,
-  hash: LanguageTools.ProgramTypes.Hash)
-  : Result<Unit, String> =
-  rebindOn(PackageOps.currentBranch(), loc, kind, hash)
-
-
 /// What kind of item lives at this name, if anything does. The CLI takes an FQN from a human, who does not
 /// type "fn" after it.
 let kindAt(

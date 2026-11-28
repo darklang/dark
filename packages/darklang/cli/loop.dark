@@ -258,18 +258,8 @@ val maxKeyRepeat = 64
 module Update =
   let updateAppState(state: AppState, msg: Msg): AppState =
     match msg with
-    | ProcessInput(input) -> Commands.parseAndExecute(state, input)
     | KeyPressed(key, modifiers, keyChar) -> handleKeyInput(state, key, modifiers, keyChar)
     | Exit -> { clearPromptRegion(state) with isExiting = true }
-
-
-  let processInput(state: AppState, input: String): AppState =
-    let trimmedInput = Stdlib.String.trim(input)
-    if Stdlib.String.isEmpty(trimmedInput) then
-      state
-    else
-      let msg = Msg.ProcessInput(trimmedInput)
-      updateAppState(state, msg)
 
 
 /// The completion hint for this pass, served from the state's caches when they still apply.

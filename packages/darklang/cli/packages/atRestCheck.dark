@@ -38,12 +38,6 @@ let customTypeName(branchId: Uuid, hash: LanguageTools.ProgramTypes.Hash): Optio
   nameOf(branchId, PrettyPrinter.ProgramTypes.PackageLocation.packageLocation, hash)
 
 
-let staticType(branchId: Uuid, typ: LanguageTools.AtRestTypeChecker.StaticType): String =
-  LanguageTools.AtRestTypeChecker.staticTypeToStringWith(
-    (fun hash -> customTypeName(branchId, hash)),
-    typ)
-
-
 /// The enum nearest <param modules> (owner first), looking in that module and then each one above
 /// it, that has a case named <param caseName>: its full name and its own name.
 let enumWithCase(
@@ -121,10 +115,6 @@ let issueMessage(
     LanguageTools.AtRestTypeChecker.issueToStringWith(
       (fun hash -> customTypeName(branchId, hash)),
       issue)
-
-
-let issueLine(branchId: Uuid, issue: LanguageTools.AtRestTypeChecker.Issue): String =
-  issueLineNear(branchId, [], [], issue)
 
 
 let issueLineNear(

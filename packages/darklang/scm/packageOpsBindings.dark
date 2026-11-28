@@ -142,11 +142,6 @@ let draftEntriesFromOpRows(rows: List<OpRow>): List<NameWord> =
   nameEntriesFromOpRows(LanguageTools.ProgramTypes.PackageOp.draftOps, rows)
 
 
-/// <fn bindingEntriesFromOpRows>, keeping only the names that end up bound.
-let bindingsFromOpRows(rows: List<OpRow>): List<Conflicts.Binding> =
-  bindingEntriesFromOpRows(rows) |> Stdlib.List.filterMap(fun w -> w.binding)
-
-
 /// What <param branchId> has COMMITTED at each of <param locations>: its own committed work over its
 /// ancestors', main's included. Its draft is left out.
 let committedBindingsOn(

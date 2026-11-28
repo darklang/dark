@@ -175,18 +175,6 @@ let moduleRows(
     [ moduleItems, typeItems, traitItems, valItems, fnItems, implItems, testItems ])
 
 
-/// How many names the draft touches -- the same number the Changes list shows.
-///
-/// Items, not ops: authoring one value emits two ops (AddValue + SetName), so an op count would say
-/// "2 changes" above a list titled "Changes . 1". Ops are the right unit for a commit's size; items
-/// are the right unit for "how much have I changed".
-///
-/// No branch to pass: `SCM.Draft.read ()` resolves through the process branch overlay, which `onBranch`
-/// keeps in step with `state.branchId`. For any OTHER branch, ask `draftBindingsFor` by id.
-let wipItemCount(): Int64 =
-  Stdlib.List.length((SCM.Draft.read()).bindings)
-
-
 /// The glyph a Changes row leads with, by what the row is: a fn, a type, a
 /// value, a test, a removal, or a conflict waiting on you.
 let changeIcon(kind: String): String =

@@ -37,62 +37,12 @@ let gidAt(range: Parser.Range): Int64 =
     2305843009213693952 + row * 137438953472 + column * 2097152 + Stdlib.Int64.random(0, 2097151)
 
 
-let gtlid(): UInt64 =
-  Stdlib.UInt64.random(0u64, 9223372036854775807u64)
-
-
 /// Compute a unique location-based placeholder hash for parsed items.
 /// This ensures each item gets a distinct key in createInMemory maps,
 /// since the parser generates hash="" for all items.
 let locationPlaceholderHash(owner: String, modules: List<String>, name: String): ProgramTypes.Hash =
   let modulesPart = Stdlib.String.join(modules, ".")
   ProgramTypes.Hash.Hash($"{owner}.{modulesPart}.{name}")
-
-
-/// The reference <param ops> bind at <param location>. Use it after
-/// <fn PackageManager.stabilizeHashes>: a parsed item's own `hash` field is still the
-/// parser's placeholder, and only the stabilized `SetName` op carries the
-/// real content hash. None when no op binds that location.
-let referenceBoundAt(
-  ops: List<ProgramTypes.PackageOp>,
-  location: ProgramTypes.PackageLocation)
-  : Option<ProgramTypes.Reference> =
-  ops
-  |> Stdlib.List.filterMap(fun op ->
-    match op with
-    | SetName(loc, reference, _) -> if loc == location then Option.Some(reference) else Option.None
-    | _ -> Option.None)
-  |> Stdlib.List.head
-
-
-/// The function hash bound at <param location>; see <fn referenceBoundAt>.
-let fnHashBoundAt(
-  ops: List<ProgramTypes.PackageOp>,
-  location: ProgramTypes.PackageLocation)
-  : Option<ProgramTypes.Hash> =
-  match referenceBoundAt(ops, location) with
-  | Some(PackageFn(hash)) -> Option.Some(hash)
-  | _ -> Option.None
-
-
-/// The type hash bound at <param location>; see <fn referenceBoundAt>.
-let typeHashBoundAt(
-  ops: List<ProgramTypes.PackageOp>,
-  location: ProgramTypes.PackageLocation)
-  : Option<ProgramTypes.Hash> =
-  match referenceBoundAt(ops, location) with
-  | Some(PackageType(hash)) -> Option.Some(hash)
-  | _ -> Option.None
-
-
-/// The value hash bound at <param location>; see <fn referenceBoundAt>.
-let valueHashBoundAt(
-  ops: List<ProgramTypes.PackageOp>,
-  location: ProgramTypes.PackageLocation)
-  : Option<ProgramTypes.Hash> =
-  match referenceBoundAt(ops, location) with
-  | Some(PackageValue(hash)) -> Option.Some(hash)
-  | _ -> Option.None
 
 
 // Option and Result constructors can be bare. Other enum constructors require

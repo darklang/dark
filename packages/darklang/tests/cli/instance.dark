@@ -292,20 +292,6 @@ let withOwnFile(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
   checked(createWithOwnFile(), f)
 
 
-/// Asserts a command's output contains `needle`.
-let expectContains(
-  i: T,
-  args: List<String>,
-  needle: String)
-  : Stdlib.Test.Result =
-  let out = output(i, args)
-  if Stdlib.String.contains(out, needle) then
-    Stdlib.Test.Result.Pass
-  else
-    let cmd = Stdlib.String.join(args, " ")
-    Stdlib.Test.fail($"`{cmd}` did not mention '{needle}'. It said: {out}")
-
-
 /// Asserts a command's exit code.
 let expectExit(i: T, args: List<String>, expected: Int64): Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")

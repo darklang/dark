@@ -2086,34 +2086,6 @@ let enumPattern(
 // Check operator operands, builtin unwrap, and postfix ?.
 // --------------------
 
-/// Recognize integer types of every supported width, plus Float64 and Decimal.
-let isNumeric(t: Model.Ty): Bool =
-  match t with
-  | TInt8
-  | TUInt8
-  | TInt16
-  | TUInt16
-  | TInt32
-  | TUInt32
-  | TInt64
-  | TUInt64
-  | TInt128
-  | TUInt128
-  | TBigInt
-  | TFloat64
-  | TFloat32
-  | TDecimal ->
-    true
-  | _ -> false
-
-
-/// Recognize signed integers, Float64 and Decimal, the types accepted by unary minus.
-let isSignedNumeric(t: Model.Ty): Bool =
-  match t with
-  | TInt8 | TInt16 | TInt32 | TInt64 | TInt128 | TBigInt | TFloat64 | TFloat32 | TDecimal -> true
-  | _ -> false
-
-
 /// <param subject> as `implApplies` needs it: every inference variable and alias resolved at
 /// every depth. `expand` only decides the head, so `Box { f = 1 }` is still `Box<?t>` there.
 /// An expansion that fails leaves the aliases, which can only cost a match, never invent one.
