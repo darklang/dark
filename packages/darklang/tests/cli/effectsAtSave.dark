@@ -95,7 +95,7 @@ test aModuleSaveAgreesWithTheReload = Instance.withInstance(fun i ->
       "\n")
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.Fx", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.Fx" ])
   Stdlib.Test.equal(
     Instance.said(i, [ "effects", "Me.Fx.shuffle" ]),
     Instance.said(i, [ "effects", "Stdlib.List.shuffle" ])))
