@@ -12,8 +12,7 @@ module Darklang.Cli.Accepts
 
 /// The arguments one command, or one subcommand, takes.
 type Shape =
-  {
-    /// Flags that take no value, every spelling: `--json`, `--yes`, `-y`.
+  { /// Flags that take no value, every spelling: `--json`, `--yes`, `-y`.
     flags: List<String>
     /// Flags that take a value, as the next word or as `--flag=value`. Most commands read only one of
     /// the two spellings and refuse the other themselves, after this check has passed it.
@@ -21,11 +20,10 @@ type Shape =
     /// The fewest words it needs: 1 for a command with nothing to do without a name.
     atLeast: Int64
     /// The most words it takes. None for free text: a query, a definition, a message.
-    atMost: Stdlib.Option.Option<Int64>
+    atMost: Option<Int64>
     /// Every word is a word, even one starting with "-": an expression like `-1 + 2`, a script's
     /// own arguments, a definition's body. The command reads its own flags out of these, if any.
-    wordsAreNotFlags: Bool
-  }
+    wordsAreNotFlags: Bool }
 
 
 type Accepts =

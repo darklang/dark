@@ -260,7 +260,13 @@ let docLines(source: String): List<String> =
 let docLinesOf(lines: List<String>): List<String> =
   lines
   |> Stdlib.List.filter(fun l -> Stdlib.String.contains(l, "///"))
-  |> Stdlib.List.map(fun l -> Stdlib.String.trim(l))
+  |> Stdlib.List.map(fun l ->
+    let t = Stdlib.String.trim(l)
+    // A record's first field has its `///` after the `{`.
+    if Stdlib.String.startsWith(t, "{ ///") then
+      Stdlib.String.dropFirst(t, 2)
+    else
+      t)
   |> Stdlib.List.filter(fun l -> Stdlib.String.startsWith(l, "///"))
 
 

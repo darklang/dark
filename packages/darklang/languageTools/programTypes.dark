@@ -913,21 +913,15 @@ module Search =
 
   /// Query parameters for searching packages
   type SearchQuery =
-    {
-      /// i.e. "Darklang.Stdlib"
+    { /// i.e. "Darklang.Stdlib"
       currentModule: List<String>
-
       /// i.e. "List" or "map"
       text: String
-
       searchDepth: SearchDepth
-
       /// empty list implies 'any'
       entityTypes: List<EntityType>
-
       /// if true, require exact matches for names and modules instead of fuzzy matching
-      exactMatch: Bool
-    }
+      exactMatch: Bool }
 
 
   /// Results from a package search
