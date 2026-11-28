@@ -384,26 +384,27 @@ let promotedBytesResolvesViaReadBytes =
 
 let fileReadMemoryBound =
   testTask "fileRead allocation stays within 8x file size for a 10mb blob" {
-    let path =
-      System.IO.Path.Combine(System.IO.Path.GetTempPath(), "blob-memory-10mb.bin")
-    if not (System.IO.File.Exists(path)) then
+    let path = System.IO.Path.GetTempFileName()
+    try
       let buf = Array.zeroCreate<byte> 10_000_000
       System.Random(0).NextBytes(buf)
       System.IO.File.WriteAllBytes(path, buf)
-    System.GC.Collect()
-    System.GC.WaitForPendingFinalizers()
-    System.GC.Collect()
-    let before = System.GC.GetTotalAllocatedBytes(precise = false)
-    let! bytes = System.IO.File.ReadAllBytesAsync path
-    let _dv = Bytes.newEphemeral bytes
-    let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
-    // A boxed List<UInt8> path allocates ~200x the file size. The bound is 8x
-    // rather than 3x because GC noise and adjacent tests add tens of MB; list
-    // boxing is far beyond any bound.
-    Expect.isLessThan
-      delta
-      80_000_000L
-      $"fileRead for 10MB allocated {delta} bytes — list-boxing regression?"
+      System.GC.Collect()
+      System.GC.WaitForPendingFinalizers()
+      System.GC.Collect()
+      let before = System.GC.GetTotalAllocatedBytes(precise = false)
+      let! bytes = System.IO.File.ReadAllBytesAsync path
+      let _dv = Bytes.newEphemeral bytes
+      let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
+      // A boxed List<UInt8> path allocates ~200x the file size. The bound is 8x
+      // rather than 3x because GC noise and adjacent tests add tens of MB; list
+      // boxing is far beyond any bound.
+      Expect.isLessThan
+        delta
+        80_000_000L
+        $"fileRead for 10MB allocated {delta} bytes — list-boxing regression?"
+    finally
+      System.IO.File.Delete path
   }
 
 
