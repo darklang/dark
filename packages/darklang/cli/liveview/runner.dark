@@ -35,7 +35,7 @@ let loop(
     match LanguageTools.Live.call(lg, state) with
     | Ok(next) -> next
     | Error(rte) ->
-      Stdlib.printLine($"{name}: the step failed, so its state was kept: {rte}")
+      Stdlib.printErrorLine($"{name}: the step failed, so its state was kept: {rte}")
       state
 
   // Not live: the store is never watched, so the poll behind it never starts for this process.
@@ -70,7 +70,7 @@ let loop(
 let run(name: String, stepName: String, init: 's, intervalMs: Int64, live: Bool): Int64 =
   match LanguageTools.Live.locationOfName(stepName) with
   | None ->
-    Stdlib.printLine($"{name}: {stepName} is not a package fn name")
+    Stdlib.printErrorLine($"{name}: {stepName} is not a package fn name")
     1
   | Some(entry) ->
     let watch = Stdlib.Host.begin()
@@ -81,6 +81,6 @@ let run(name: String, stepName: String, init: 's, intervalMs: Int64, live: Bool)
       let why =
         Stdlib.Option.withDefault(LanguageTools.Live.diagnostic(lg), stepName + " does not resolve")
 
-      Stdlib.printLine($"{name}: {why}")
+      Stdlib.printErrorLine($"{name}: {why}")
       1
     | Some(_) -> loop(name, branchId, lg, init, intervalMs, live, watch)

@@ -429,9 +429,6 @@ let execute(state: AppState, args: List<String>): AppState =
   | [] ->
     Stdlib.printLine(help(state))
     state
-  | _ ->
-    Stdlib.printLine(usage)
-    { state with exitCode = 1 }
 
 
 /// `dark test run [--force] [--jobs <count>] [--seed <n>] [filters]`: run the matching tests,
