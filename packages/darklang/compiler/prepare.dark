@@ -43,6 +43,7 @@ let dfAvailable(output: String): Option<Int64> =
 /// The bytes free where the compiler and its cache go: the nearest directory that exists.
 let availableDisk(): Option<Int64> =
   let home = Stdlib.Cli.Env.home() |> Stdlib.Option.withDefault("/")
+
   let dir =
     [ Darkc.directory(), $"{home}/.darklang", home ]
     |> Stdlib.List.findFirst(fun d -> Stdlib.Cli.FileSystem.isDirectory(d))
@@ -50,4 +51,4 @@ let availableDisk(): Option<Int64> =
 
   match Stdlib.Cli.Process.run("df", [ "-Pk", dir ]) with
   | Ok(output) when output.exitCode == 0 -> dfAvailable(output.stdout)
-  | _ -> Option.None
+  | _ -> None

@@ -257,24 +257,20 @@ let entry(branchId: Uuid, name: String): Result<Entry, EntryError> =
   let fnName = TraceVerbs.canonicalFnName(branchId, name)
   let location = LanguageTools.ProgramTypes.parsePackageLocation(fnName)
   match LanguageTools.PackageManager.Function.find(branchId, location) with
-  | None -> Result.Error(EntryError.NoFn)
+  | None -> Error(EntryError.NoFn)
   | Some(hash) ->
     match LanguageTools.PackageManager.Function.getSignature(hash) with
     | None ->
-      Result.Ok(
-        Entry
-          { name = fnName
-            hash = hash
-            parameters = EntryParameters.Words
-            returnType = Option.None })
+      Ok(
+        Entry { name = fnName, hash = hash, parameters = EntryParameters.Words, returnType = None })
     | Some(fn) ->
       let entryOf = fun parameters ->
-        Result.Ok(
+        Ok(
           Entry
             { name = fnName
               hash = hash
               parameters = parameters
-              returnType = Option.Some(fn.returnType) })
+              returnType = Some(fn.returnType) })
 
       match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
       | [] | [TUnit] -> entryOf(EntryParameters.Nothing)
@@ -288,7 +284,7 @@ let entry(branchId: Uuid, name: String): Result<Entry, EntryError> =
             $"{p.name}: {PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)}")
           |> Stdlib.String.join(", ")
 
-        Result.Error(EntryError.OtherParameters(shown))
+        Error(EntryError.OtherParameters(shown))
 
 
 /// Run the package function <param name> the way a script runs: under the same policy, with

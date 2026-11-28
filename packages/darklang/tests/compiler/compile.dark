@@ -48,41 +48,39 @@ let entryOf(name: String): Result<Cli.Run.EntryParameters, Cli.Run.EntryError> =
 test entryTakesWordsOrNothing =
   [ entryOf($"{fixtures}.echo"), entryOf($"{fixtures}.hello") ]
   |> Stdlib.Test.equal(
-    [ Stdlib.Result.Result.Ok(Cli.Run.EntryParameters.Words)
-      Stdlib.Result.Result.Ok(Cli.Run.EntryParameters.Nothing) ])
+    [ Ok(Cli.Run.EntryParameters.Words), Ok(Cli.Run.EntryParameters.Nothing) ])
 
 
 test entryRefusesOtherParameters =
   entryOf("Stdlib.String.padStart")
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
+    Error(
       Cli.Run.EntryError.OtherParameters(
         "string: String, padWith: Char, goalLength: Int64")))
 
 
 test entryOfNoFn =
   entryOf("Stdlib.NoSuch.fn")
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Cli.Run.EntryError.NoFn))
+  |> Stdlib.Test.equal(Error(Cli.Run.EntryError.NoFn))
 
 
 test executablesTakeWhatRunTakes =
   Cli.Compile.entry("Stdlib.String.padStart")
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
+    Error(
       "Stdlib.String.padStart takes (string: String, padWith: Char, goalLength: Int64); an executable's fn takes List<String> or nothing, as for `dark run`."))
 
 
 test executablesReturnAnExitCode =
   Cli.Compile.entry("Stdlib.Cli.Path.join")
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
+    Error(
       "Stdlib.Cli.Path.join returns String; an executable's fn returns Int64, the exit code, or Unit, as for `dark run`."))
 
 
 test unknownFn =
   Cli.Compile.entry("Stdlib.NoSuch.fn")
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error("No package fn named Stdlib.NoSuch.fn."))
+  |> Stdlib.Test.equal(Error("No package fn named Stdlib.NoSuch.fn."))
 
 
 test aFnThatNeedsTheStoreIsRefusedWithItsPath =
@@ -104,7 +102,7 @@ test accessCompiledCodeCantLimitIsRefused =
     Stdlib.String.splitOnNewline(message)
     |> Stdlib.List.head
     |> Stdlib.Test.equal(
-      Stdlib.Option.Option.Some(
+      Some(
         $"{name} can't be an executable yet: it reads files, and compiled code can't limit that access yet."))
   | Ok(_) -> Stdlib.Test.fail("expected a refusal")
 
@@ -112,7 +110,7 @@ test accessCompiledCodeCantLimitIsRefused =
 test stdoutIsAllowed =
   Cli.Compile.entry($"{fixtures}.echo")
   |> Stdlib.Result.map(fun e -> e.parameters)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Cli.Run.EntryParameters.Words))
+  |> Stdlib.Test.equal(Ok(Cli.Run.EntryParameters.Words))
 
 
 test describesSeveralEffects =
@@ -133,9 +131,7 @@ let argumentsFor(job: Compiler.Darkc.Job, verbosity: Int64): List<String> =
 
 test anExecutableIsNamedByItsHash =
   let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
-  argumentsFor(
-    Compiler.Darkc.Job.Executable(hash, "./echo", Stdlib.Option.Option.None),
-    1)
+  argumentsFor(Compiler.Darkc.Job.Executable(hash, "./echo", None), 1)
   |> Stdlib.List.drop(4)
   |> Stdlib.Test.equal([ "-v", "--json", "--entry", "abc123", "-o", "./echo" ])
 
@@ -143,10 +139,7 @@ test anExecutableIsNamedByItsHash =
 test theApprovedAccessGoesToDarkc =
   let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
   argumentsFor(
-    Compiler.Darkc.Job.Executable(
-      hash,
-      "./cat",
-      Stdlib.Option.Option.Some("/p/abc123.json")),
+    Compiler.Darkc.Job.Executable(hash, "./cat", Some("/p/abc123.json")),
     -1)
   |> Stdlib.List.drop(4)
   |> Stdlib.Test.equal(
@@ -189,12 +182,11 @@ test checkReportsAreRead =
   |> Stdlib.List.map(fun r ->
     (r.name, r.status, Stdlib.Option.map(r.diagnostic, fun d -> d.reason)))
   |> Stdlib.Test.equal(
-    [ ("A.b", "compiles", Stdlib.Option.Option.None)
+    [ ("A.b", "compiles", None)
       (
         "A.c",
         "failed",
-        Stdlib.Option.Option.Some(
-          Compiler.Darkc.Reason.MissingBuiltin("Builtin.x"))) ])
+        Some(Compiler.Darkc.Reason.MissingBuiltin("Builtin.x"))) ])
 
 
 test aCompilerGapNamesWhatIsMissing =
@@ -230,14 +222,12 @@ test checkLinesLineUp =
 test noOutputIsNamedAfterTheFn =
   Cli.Compile.parse([ "Me.Tools.wc" ])
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      Cli.Compile.Request.Executable("Me.Tools.wc", "./wc")))
+    Ok(Cli.Compile.Request.Executable("Me.Tools.wc", "./wc")))
 
 
 test checkTakesJson =
   Cli.Compile.parse([ "--check", "--json", "A.b" ])
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(Cli.Compile.Request.Check([ "A.b" ], true)))
+  |> Stdlib.Test.equal(Ok(Cli.Compile.Request.Check([ "A.b" ], true)))
 
 
 test runTakesAnExpression =
@@ -253,8 +243,7 @@ test verbosityLevels =
 
 
 test bareExpressionIsRefused =
-  Cli.Compile.parse([ "-1 + 2" ])
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Cli.Compile.usage))
+  Cli.Compile.parse([ "-1 + 2" ]) |> Stdlib.Test.equal(Error(Cli.Compile.usage))
 
 
 test seconds =
@@ -266,7 +255,7 @@ test seconds =
 test freeMemoryIsRead =
   "MemTotal:       65536000 kB\nMemFree:         1000 kB\nMemAvailable:    2048 kB\n"
   |> Compiler.Prepare.memAvailable
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2097152))
+  |> Stdlib.Test.equal(Some(2097152))
 
 
 test aScopedRuleCountsForItsWholeEffect =
@@ -293,12 +282,7 @@ test withNobodyToAskItSaysHowToApprove =
   let reasons =
     Compiler.Access.reasons(name, LanguageTools.ProgramTypes.Hash.Hash(hash))
 
-  match Cli.Compile.Approval.decide(
-          Stdlib.Option.Option.None,
-          name,
-          hash,
-          "./catFile",
-          reasons) with
+  match Cli.Compile.Approval.decide(None, name, hash, "./catFile", reasons) with
   | Refused(message) ->
     message
     |> Stdlib.Test.equal(
@@ -309,4 +293,4 @@ test withNobodyToAskItSaysHowToApprove =
 test freeDiskIsRead =
   "Filesystem     1024-blocks      Used Available Capacity Mounted on\n/dev/sda1        1000000    400000    512000      44% /\n"
   |> Compiler.Prepare.dfAvailable
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(524288000))
+  |> Stdlib.Test.equal(Some(524288000))

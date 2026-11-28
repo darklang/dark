@@ -100,7 +100,7 @@ let ask(
             name,
             expected,
             hash,
-            Option.Some(policy),
+            Some(policy),
             Permissions.Command.Incomplete.Refuse,
             Permissions.Command.ContractChange.Refuse) with
     | Ok(_) -> Outcome.Approved(policy)

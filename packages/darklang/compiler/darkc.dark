@@ -30,9 +30,9 @@ let releaseUrl(): String =
 /// The release's build for this machine, if it has one.
 let releaseAsset(): Option<String> =
   match Stdlib.Cli.OS.getOS(), Stdlib.Cli.Architecture.getArchitecture() with
-  | Ok(Linux), Ok(X86_64) -> Option.Some("darkc-linux-x86_64")
-  | Ok(Linux), Ok(Aarch64) -> Option.Some("darkc-linux-aarch64")
-  | _ -> Option.None
+  | Ok(Linux), Ok(X86_64) -> Some("darkc-linux-x86_64")
+  | Ok(Linux), Ok(Aarch64) -> Some("darkc-linux-aarch64")
+  | _ -> None
 
 
 let cacheDir(): String =
@@ -53,12 +53,12 @@ let stdlibPrepared(): Bool =
 /// name as the message says it.
 let unsupportedHost(): Option<String> =
   match Stdlib.Cli.OS.getOS(), Stdlib.Cli.Architecture.getArchitecture() with
-  | Ok(Linux), Ok(X86_64) -> Option.None
-  | Ok(Linux), Ok(Aarch64) -> Option.None
-  | Ok(MacOS), Ok(Arm64) -> Option.None
-  | Ok(Linux), Ok(Arm) -> Option.Some("linux-arm (32-bit)")
-  | Ok(MacOS), Ok(X86_64) -> Option.Some("macOS x86-64")
-  | _ -> Option.Some("this platform")
+  | Ok(Linux), Ok(X86_64) -> None
+  | Ok(Linux), Ok(Aarch64) -> None
+  | Ok(MacOS), Ok(Arm64) -> None
+  | Ok(Linux), Ok(Arm) -> Some("linux-arm (32-bit)")
+  | Ok(MacOS), Ok(X86_64) -> Some("macOS x86-64")
+  | _ -> Some("this platform")
 
 
 /// Whether the pinned darkc limits a compiled program to the access in its `--policy`. Until
@@ -171,8 +171,8 @@ let diagnosticOf(fields: List<(String * Stdlib.AltJson.Json)>): Diagnostic =
         Stdlib.AltJson.Helpers.getArray("path", fields)
         |> Stdlib.List.filterMap(fun step ->
           match step with
-          | String(text) -> Option.Some(text)
-          | _ -> Option.None)
+          | String(text) -> Some(text)
+          | _ -> None)
       message =
         Stdlib.AltJson.Helpers.getString("message", fields) |> Stdlib.Option.withDefault("") }
 
@@ -182,8 +182,8 @@ let objects(text: String): List<List<(String * Stdlib.AltJson.Json)>> =
   |> Stdlib.String.splitOnNewline
   |> Stdlib.List.filterMap(fun line ->
     match Stdlib.AltJson.parse(line) with
-    | Ok(Object(fields)) -> Option.Some(fields)
-    | _ -> Option.None)
+    | Ok(Object(fields)) -> Some(fields)
+    | _ -> None)
 
 
 /// The diagnostics darkc wrote to stderr with `--json`. Other lines are skipped.
@@ -203,8 +203,8 @@ let parseCheckReports(stdout: String): List<CheckReport> =
     | Some(name), Some(status) ->
       let diagnostic =
         match Stdlib.AltJson.Helpers.getValue("diagnostic", fields) with
-        | Some(Object(d)) -> Option.Some(diagnosticOf(d))
-        | _ -> Option.None
+        | Some(Object(d)) -> Some(diagnosticOf(d))
+        | _ -> None
 
-      Option.Some(CheckReport { name = name, status = status, diagnostic = diagnostic })
-    | _ -> Option.None)
+      Some(CheckReport { name = name, status = status, diagnostic = diagnostic })
+    | _ -> None)

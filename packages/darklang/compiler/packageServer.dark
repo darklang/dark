@@ -25,7 +25,7 @@ let parseLocation(name: String): Option<LanguageTools.ProgramTypes.PackageLocati
   let parts = Stdlib.String.split(name, ".")
   match Stdlib.List.head(parts), Stdlib.List.last(parts) with
   | Some(owner), Some(leaf) when Stdlib.List.length(parts) >= 2 ->
-    Option.Some(
+    Some(
       LanguageTools.ProgramTypes.PackageLocation
         { owner = owner
           modules =
@@ -33,7 +33,7 @@ let parseLocation(name: String): Option<LanguageTools.ProgramTypes.PackageLocati
             |> Stdlib.List.drop(1)
             |> Stdlib.List.dropLast
           name = leaf })
-  | _ -> Option.None
+  | _ -> None
 
 
 let json(body: Option<String>): Response =
@@ -188,7 +188,7 @@ let router(req: Request): Response =
 /// process can reach the port; only the compiler is given the token.
 let guardedRouter(token: String, req: Request): Response =
   let expected = "Basic " + Stdlib.Base64.encodeText("dark:" + token)
-  if Stdlib.Http.Request.header(req, "authorization") == Option.Some(expected) then
+  if Stdlib.Http.Request.header(req, "authorization") == Some(expected) then
     router(req)
   else
     Stdlib.Http.unauthorized()

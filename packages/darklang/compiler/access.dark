@@ -15,10 +15,9 @@ type Blocker =
 
 let blocker(effect: Effect): Option<Blocker> =
   match effect with
-  | PackageRead | PackageWrite | TraceRead | TraceWrite | Runtime ->
-    Option.Some(Blocker.NeedsInstance)
+  | PackageRead | PackageWrite | TraceRead | TraceWrite | Runtime -> Some(Blocker.NeedsInstance)
   // every executable has these
-  | Stdin | Stdout | Clock | Random | Raise -> Option.None
+  | Stdin | Stdout | Clock | Random | Raise -> None
   | Http
   | HttpServer
   | FileRead
@@ -28,7 +27,7 @@ let blocker(effect: Effect): Option<Blocker> =
   | Process
   | Concurrency
   | Native ->
-    Option.Some(Blocker.NotEnforced)
+    Some(Blocker.NotEnforced)
 
 
 let describe(effect: Effect): String =
@@ -73,7 +72,7 @@ let reasons(name: String, hash: LanguageTools.ProgramTypes.Hash): List<Reason> =
 
 
 let blocking(reasons: List<Reason>, kind: Blocker): List<Reason> =
-  reasons |> Stdlib.List.filter(fun r -> blocker(r.effect) == Option.Some(kind))
+  reasons |> Stdlib.List.filter(fun r -> blocker(r.effect) == Some(kind))
 
 
 /// "reads files", "reads files and starts programs", "a, b and c".
@@ -111,5 +110,5 @@ let refusal(name: String, reasons: List<Reason>): Option<String> =
       []
 
   match lines with
-  | [] -> Option.None
-  | _ -> Option.Some(Stdlib.String.join(lines, "\n"))
+  | [] -> None
+  | _ -> Some(Stdlib.String.join(lines, "\n"))
