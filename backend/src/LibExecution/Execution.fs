@@ -699,16 +699,6 @@ let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     [ RT2DT.Dval.toDT dval ]
 
 
-let typeRefToString
-  (state : RT.ExecutionState)
-  (typeRef : RT.TypeReference)
-  : Task<string> =
-  callStringPrinter
-    state
-    (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.typeReference ())
-    "typeRef"
-    [ RT2DT.TypeReference.toDT typeRef ]
-
 let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
   callStringPrinter
     state
@@ -716,17 +706,6 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     "typeName"
     [ RT2DT.Dval.toDT dval ]
 
-
-
-let executionPointToString
-  (state : RT.ExecutionState)
-  (ep : RT.ExecutionPoint)
-  : Task<string> =
-  callStringPrinter
-    state
-    (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.executionPoint ())
-    "execution point"
-    [ RT2DT.ExecutionPoint.toDT ep ]
 
 
 let callStackString
