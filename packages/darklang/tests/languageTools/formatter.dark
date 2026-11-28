@@ -96,6 +96,40 @@ test keepsSpreadsEscapesAndFloats =
   |> Stdlib.Test.equal(Ok(keptAsWritten))
 
 
+// A record's first field takes its `///` onto the `{` line.
+val firstFieldDoc =
+  """module Darklang.Tests.FormatSample
+
+type Person =
+  {
+    /// the name
+    name: String
+    /// the age
+    age: Int64
+  }
+"""
+
+
+val firstFieldDocFormatted =
+  """module Darklang.Tests.FormatSample
+
+type Person =
+  { /// the name
+    name: String
+    /// the age
+    age: Int64 }
+"""
+
+
+test movesTheFirstFieldsDocOntoTheBrace =
+  [ firstFieldDoc, firstFieldDocFormatted ]
+  |> Stdlib.List.map(fun source ->
+    LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, source)
+    |> Stdlib.Result.map(fun f -> (f.text, f.asWritten)))
+  |> Stdlib.Test.equal(
+    [ Ok((firstFieldDocFormatted, [])), Ok((firstFieldDocFormatted, [])) ])
+
+
 // A `let` inside a list keeps its parentheses, or the items after it would be lines of its block.
 val letInList =
   """module Darklang.Tests.FormatSample
