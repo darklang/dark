@@ -647,6 +647,8 @@ module Foreground =
 
   let set (t : T) : unit = lock sync (fun () -> current <- Some t)
 
+  let active () : bool = lock sync (fun () -> Option.isSome current)
+
   /// Unregister `id` at the end of its run. False when it was not registered any more: a
   /// suspend took it, and the run's own ending must then leave the row and the stored log as
   /// the suspend left them (the CLI has exited by then; a test's run goes on).

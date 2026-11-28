@@ -333,7 +333,8 @@ let private installSuspendOnInterrupt
     fun args ->
       let suspended =
         try
-          stopChildrenPolitely ()
+          // only for a run being suspended: a `serve` lets its requests finish instead
+          if LibDB.Traces.Foreground.active () then stopChildrenPolitely ()
           LibDB.Traces.Foreground.suspend ()
         with _ ->
           None

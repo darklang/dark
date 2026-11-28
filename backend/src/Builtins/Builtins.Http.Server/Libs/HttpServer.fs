@@ -28,6 +28,10 @@ let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 /// store's `http.requestTimeoutMs` is unset (30 s). 0 means no limit.
 let defaultRequestTimeoutMs : int = 30_000
 
+/// How long a stopping server waits for the requests it is already serving before it closes
+/// anyway. Short enough that it exits on its own before a service manager gives up and kills it.
+let drainGraceMs : int = 8_000
+
 
 // ───────── pure stateless helpers ─────────
 
@@ -918,6 +922,37 @@ let private handleRequest
 // See `notes/merge-readiness-report.md` for the dotnet-trace numbers.
 
 
+/// The answer to a request that arrives while the server is stopping.
+let private refuseWhileStopping
+  (middleware : Dval)
+  (ctx : HttpListenerContext)
+  : unit =
+  try
+    let started = System.DateTime.UtcNow
+    ctx.Response.StatusCode <- 503
+    ctx.Response.KeepAlive <- false
+    ctx.Response.Headers.Set(HttpResponseHeader.Server, "darklang")
+    for (key, value) in serverHeaders middleware do
+      ctx.Response.Headers.Set(key, value)
+    logRequest ctx 503 started
+    ctx.Response.Close(UTF8.toBytes "The server is stopping.", false)
+  with _ ->
+    ()
+
+/// Wait until nothing is in flight, or until <param deadline>. Again after each wait, for a
+/// request taken just as the stop came.
+let rec private drain
+  (inFlight : Collections.Concurrent.ConcurrentDictionary<Task, unit>)
+  (deadline : Task)
+  : Task<unit> =
+  task {
+    match List.ofSeq inFlight.Keys with
+    | [] -> ()
+    | running ->
+      let! first = Task.WhenAny(Task.WhenAll running, deadline)
+      if first <> deadline then return! drain inFlight deadline
+  }
+
 /// Serve requests off an already-bound listener, until cancelled.
 let private runListenerWith
   (exeState : ExecutionState)
@@ -940,36 +975,54 @@ let private runListenerWith
          | DList(_, ms) -> string (DvalList.length ms)
          | _ -> "?") ]
 
-    // Cancellation → listener.Stop() unblocks pending GetContextAsync
-    // by raising HttpListenerException / ObjectDisposedException, both
-    // caught below as normal exit.
+    // The requests being served, so a stop can wait for them. Not the live-reload stream, which
+    // ends only when its tab closes.
+    let inFlight = Collections.Concurrent.ConcurrentDictionary<Task, unit>()
+
+    // Cancellation stops the server: a request that arrives after it gets a 503, the ones
+    // already running get `drainGraceMs` to finish, and then the listener closes. Not
+    // `listener.Stop()`, which drops the connections of the running ones too. Closing makes a
+    // pending GetContextAsync raise HttpListenerException / ObjectDisposedException, caught
+    // below as the loop's end.
     use _registration =
       cancellationToken.Register(fun () ->
-        try
-          listener.Stop()
-        with _ ->
-          ())
+        task {
+          do! drain inFlight (Task.Delay drainGraceMs)
+          try
+            listener.Close()
+          with _ ->
+            ()
+        }
+        |> ignore<Task<unit>>)
 
-    while not cancellationToken.IsCancellationRequested do
+    while listener.IsListening do
       try
         let! ctx = listener.GetContextAsync()
-        Task.Run(fun () ->
-          task {
-            try
-              do!
-                handleRequest
-                  exeState
-                  invokerAccess
-                  routing
-                  maxBodyBytes
-                  requestTimeoutMs
-                  middleware
-                  ctx
-            with _ ->
-              ()
-          }
-          :> Task)
-        |> ignore<Task>
+        if cancellationToken.IsCancellationRequested then
+          refuseWhileStopping middleware ctx
+        else
+          let request =
+            Task.Run(fun () ->
+              task {
+                try
+                  do!
+                    handleRequest
+                      exeState
+                      invokerAccess
+                      routing
+                      maxBodyBytes
+                      requestTimeoutMs
+                      middleware
+                      ctx
+                with _ ->
+                  ()
+              }
+              :> Task)
+          if ctx.Request.Url.AbsolutePath <> "/__live" then
+            inFlight.TryAdd(request, ()) |> ignore<bool>
+            request.ContinueWith(fun (_ : Task) ->
+              inFlight.TryRemove request |> ignore<bool * unit>)
+            |> ignore<Task>
       with
       | :? HttpListenerException -> ()
       | :? ObjectDisposedException -> ()
@@ -1132,14 +1185,24 @@ let private serve
           onListening
           (NEList.singleton DUnit)
 
-      // SIGINT → cancel; in-flight requests drain by virtue of being
-      // fire-and-forget Tasks.
-      let cts = new CancellationTokenSource()
-      let cancelHandler =
-        ConsoleCancelEventHandler(fun _ args ->
-          args.Cancel <- true
-          cts.Cancel())
-      Console.CancelKeyPress.AddHandler cancelHandler
+      // SIGINT or SIGTERM stops the server: no new requests, and the running ones finish
+      // (`runListenerWith`) before this returns. A second signal is left alone, so it ends the
+      // process at once.
+      use cts = new CancellationTokenSource()
+      let stop (signal : Runtime.InteropServices.PosixSignalContext) =
+        if not cts.IsCancellationRequested then
+          signal.Cancel <- true
+          cts.Cancel()
+      use _interrupt =
+        Runtime.InteropServices.PosixSignalRegistration.Create(
+          Runtime.InteropServices.PosixSignal.SIGINT,
+          stop
+        )
+      use _terminate =
+        Runtime.InteropServices.PosixSignalRegistration.Create(
+          Runtime.InteropServices.PosixSignal.SIGTERM,
+          stop
+        )
 
       let listenerTask =
         Task.offLoop (fun () ->
@@ -1155,8 +1218,6 @@ let private serve
             cts.Token)
 
       do! listenerTask
-
-      Console.CancelKeyPress.RemoveHandler cancelHandler
 
       return Dval.resultOk KTUnit KTString DUnit
   }

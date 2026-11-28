@@ -1103,6 +1103,121 @@ let private serveBindsTheGivenPort =
           CliInstance.stop server
       })
 
+/// `serve` on a router whose `/slow` writes <param started> and then sleeps <param ms>; every
+/// other path answers `fast` at once.
+let private startSlowServer (i : CliInstance.T) (started : string) (ms : int) =
+  task {
+    let! (saved, code) =
+      CliInstance.runWithExit
+        i
+        [ "fn"
+          "Tests.Drain.router"
+          $"(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  if Stdlib.String.contains(req.url, \"/slow\") then\n    let _ = Stdlib.Cli.FileSystem.writeFile(\"{started}\", Stdlib.Utf8.encode(\"\"))\n    let _ = Stdlib.Cli.Posix.sleep({ms}.0)\n    Stdlib.Http.responseWithText(200, \"slow\")\n  else\n    Stdlib.Http.responseWithText(200, \"fast\")" ]
+    Expect.equal code 0L saved
+    let! (committed, code) =
+      CliInstance.runWithExit i [ "commit"; "Tests.Drain"; "-y" ]
+    Expect.equal code 0L committed
+    let! (allowed, code) =
+      CliInstance.runWithExit
+        i
+        [ "permissions"; "allow"; $"clock; file write {started}" ]
+    Expect.equal code 0L allowed
+    return!
+      listeningOnAFreshPort (fun port ->
+        Task.FromResult(
+          CliInstance.startUndrained
+            i
+            [ "serve"; "Tests.Drain.router"; "--port"; string port ]
+        ))
+  }
+
+let private untilExists (path : string) : Task<unit> =
+  task {
+    let deadline = System.DateTime.UtcNow.AddMinutes 1.0
+    while not (System.IO.File.Exists path) && System.DateTime.UtcNow < deadline do
+      do! Task.Delay 20
+    Expect.isTrue (System.IO.File.Exists path) "the slow request reached its handler"
+  }
+
+let private terminate (p : System.Diagnostics.Process) : unit =
+  Expect.isOk (LibExecution.HostPosix.kill p.Id 15) "SIGTERM sent"
+
+let private exitWithin (seconds : int) (p : System.Diagnostics.Process) : Task<int> =
+  task {
+    use cts = new System.Threading.CancellationTokenSource(seconds * 1000)
+    do! p.WaitForExitAsync(cts.Token)
+    return p.ExitCode
+  }
+
+/// A service manager stops `serve` with SIGTERM; the request it is serving still gets its answer.
+let private serveFinishesItsRequestOnSigterm =
+  CliInstance.instanceTest
+    "a SIGTERM'd serve answers the request it is serving, then exits 0"
+    (fun i ->
+      task {
+        let started =
+          System.IO.Path.Combine(System.IO.Path.GetDirectoryName i.dir, "started")
+        let! port, server = startSlowServer i started 2000
+        try
+          use client = new System.Net.Http.HttpClient()
+          let slow = client.GetStringAsync($"http://127.0.0.1:{port}/slow")
+          do! untilExists started
+          terminate server
+          let! body = slow
+          Expect.equal body "slow" "the request in flight is answered"
+          let! code = exitWithin 30 server
+          Expect.equal code 0 "and then the server exits cleanly"
+        finally
+          CliInstance.stop server
+      })
+
+/// Ask for `/` until the server answers 503, as a draining one does.
+let rec private untilRefused
+  (client : System.Net.Http.HttpClient)
+  (port : int)
+  (triesLeft : int)
+  : Task<unit> =
+  task {
+    let! response = client.GetAsync($"http://127.0.0.1:{port}/")
+    match int response.StatusCode with
+    | 503 -> ()
+    | _ when triesLeft > 0 ->
+      do! Task.Delay 20
+      return! untilRefused client port (triesLeft - 1)
+    | other -> failtest $"a new request got {other}, not 503"
+  }
+
+/// While it drains, `serve` refuses new requests, and a second SIGTERM ends it at once.
+let private serveStopsAtOnceOnASecondSigterm =
+  CliInstance.instanceTest
+    "a draining serve refuses new requests, and a second SIGTERM ends it at once"
+    (fun i ->
+      task {
+        let started =
+          System.IO.Path.Combine(System.IO.Path.GetDirectoryName i.dir, "started")
+        let! port, server = startSlowServer i started 60_000
+        try
+          use client = new System.Net.Http.HttpClient()
+          let slow = client.GetAsync($"http://127.0.0.1:{port}/slow")
+          do! untilExists started
+          terminate server
+          do! untilRefused client port 500
+          terminate server
+          let! code = exitWithin 5 server
+          Expect.equal code 143 "the second SIGTERM ends it"
+          let! failed =
+            task {
+              try
+                let! _ = slow
+                return false
+              with _ ->
+                return true
+            }
+          Expect.isTrue failed "the request it was still serving is dropped"
+        finally
+          CliInstance.stop server
+      })
+
 /// A package function's HTTP denial offers the whole host beside the exact URL.
 let private httpDenialOffersTheHost =
   CliInstance.instanceTest
@@ -1739,6 +1854,8 @@ let tests =
       runAllowCoversItsServer
       serveChecksAScriptFnInItsMiddleware
       serveBindsTheGivenPort
+      serveFinishesItsRequestOnSigterm
+      serveStopsAtOnceOnASecondSigterm
       httpDenialOffersTheHost
       noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
