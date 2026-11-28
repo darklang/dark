@@ -3,32 +3,39 @@ module Darklang.Language.Tests.Lambdas
 // Separately written lambdas are unequal; a lambda equals itself.
 test lambdaEquality =
   Stdlib.Test.all(
-    [ (Stdlib.List.prepend([], fun x -> -4.611686018e+18)
-       == [ (fun x -> -4.611686018e+18) ])
+    [ Stdlib.List.prepend([], fun x -> -4.611686018e18)
+      == [ (fun x -> -4.611686018e18) ]
       |> Stdlib.Test.equal(false)
-      (let fn = fun x -> -4.611686018e+18
+
+      (let fn = fun x -> -4.611686018e18
        Stdlib.List.prepend([], fn) == [ fn ])
       |> Stdlib.Test.equal(true) ])
 
+
 test mapRaisesFirstCallbackError =
-  (let y = (fun msg -> Darklang.Language.Tests.raiseRuntimeError(msg))
-   Stdlib.List.map([ "1", "2", "3", "4" ], y))
+  let y = fun msg -> Language.Tests.raiseRuntimeError(msg)
+  Stdlib.List.map([ "1", "2", "3", "4" ], y)
   => raises "Uncaught exception: 1"
 
+
 test foldRaisesCallbackArgError =
-  (Stdlib.List.fold([ 4 ], 1, Darklang.Language.Tests.raiseRuntimeError("test")))
+  Stdlib.List.fold([ 4 ], 1, Language.Tests.raiseRuntimeError("test"))
   => raises "Uncaught exception: test"
+
 
 // An error inside the fold callback's body propagates.
 test foldRaisesCallbackBodyError =
-  Stdlib.List.fold([ 4 ], 1, fun(_, _) -> (1 / 0)) => raises "Cannot divide by 0"
+  Stdlib.List.fold([ 4 ], 1, fun(_, _) -> 1 / 0)
+  => raises "Cannot divide by 0"
+
 
 test capturedBindings =
   (let x = 5
-   let y = (fun c -> x + c)
+   let y = fun c -> x + c
    let x = 6
    [ 1, 2, 3, 4 ] |> Stdlib.List.map(y))
   |> Stdlib.Test.equal([ 6, 7, 8, 9 ])
+
 
 // A lambda whose dict key is an outer variable captures it.
 test dictKeyCapturedInLambda =
@@ -37,34 +44,44 @@ test dictKeyCapturedInLambda =
    g(1))
   |> Stdlib.Test.equal(Dict { "a": 1 })
 
+
 test stringJoinOfMap =
-  (Stdlib.String.join(
-    (Stdlib.List.map(Stdlib.String.toList("some string"), fun var ->
-      Stdlib.String.toUppercase(Stdlib.String.fromChar(var)))),
-    ""))
+  Stdlib.String.join(
+    Stdlib.List.map(Stdlib.String.toList("some string"), fun var ->
+      Stdlib.String.toUppercase(Stdlib.String.fromChar(var))),
+    "")
   |> Stdlib.Test.equal("SOME STRING")
 
+
 test mapRaisesWhenCallbackErrors =
-  (let y = (fun c -> if c > 2 then Darklang.Language.Tests.raiseRuntimeError("err") else 18)
-   [ 1, 2, 3, 4 ] |> Stdlib.List.map(y))
+  let y = fun c -> if c > 2 then Language.Tests.raiseRuntimeError("err") else 18
+  [ 1, 2, 3, 4 ] |> Stdlib.List.map(y)
   => raises "Uncaught exception: err"
 
+
 test mapSkipsErrorBranch =
-  (let y = (fun c -> if c > 2 then Darklang.Language.Tests.raiseRuntimeError("err") else 18)
+  (let y = fun c ->
+     if c > 2 then Language.Tests.raiseRuntimeError("err") else 18
    [ 1, 2 ] |> Stdlib.List.map(y))
   |> Stdlib.Test.equal([ 18, 18 ])
 
+
 test closures =
   Stdlib.Test.all(
-    [ (let t = true in Stdlib.List.all([ 1, 2 ], fun _ -> t))
+    [ (let t = true
+       Stdlib.List.all([ 1, 2 ], fun _ -> t))
       |> Stdlib.Test.equal(true)
-      (let f = false in Stdlib.List.all([ 1, 2 ], fun _ -> f))
+
+      (let f = false
+       Stdlib.List.all([ 1, 2 ], fun _ -> f))
       |> Stdlib.Test.equal(false)
+
       (let x = 1
        let f = fun _ -> x
        let x = 2
        Stdlib.List.map([ 1, 2, 3 ], f))
       |> Stdlib.Test.equal([ 1, 1, 1 ]) ])
+
 
 test tuplePatterns =
   Stdlib.Test.all(
@@ -72,114 +89,130 @@ test tuplePatterns =
        let transformer = fun((num, str)) -> $"{Stdlib.display(num)}:{str}"
        Stdlib.List.map(pairs, transformer))
       |> Stdlib.Test.equal([ "1:one", "2:two", "3:three" ])
+
       (let triplets = [ (1, "one", true), (2, "two", false) ]
-
-       let transformer =
-         fun((num, str, flag)) ->
-           if flag then
-             $"{Stdlib.display(num)}:{str}:TRUE"
-           else
-             $"{Stdlib.display(num)}:{str}:FALSE"
-
+       let transformer = fun((num, str, flag)) ->
+         if flag then
+           $"{Stdlib.display(num)}:{str}:TRUE"
+         else
+           $"{Stdlib.display(num)}:{str}:FALSE"
        Stdlib.List.map(triplets, transformer))
       |> Stdlib.Test.equal([ "1:one:TRUE", "2:two:FALSE" ])
-      // nested
-      (let sing = [ (("1"), "2"), (("3"), "4") ]
 
-       let transformer = fun(((str1), str2)) -> str1 + str2
+      // nested
+      (let sing = [ ("1", "2"), ("3", "4") ]
+       let transformer = fun((str1, str2)) -> str1 + str2
        Stdlib.List.map(sing, transformer))
       |> Stdlib.Test.equal([ "12", "34" ])
+
       // nested tuple destructuring in a lambda
       (let triplets = [ ((1, "one"), true), ((2, "two"), false) ]
-
-       let transformer =
-         fun(((num, str), flag)) ->
-           if flag then
-             $"{Stdlib.display(num)}:{str}:TRUE"
-           else
-             $"{Stdlib.display(num)}:{str}:FALSE"
-
+       let transformer = fun(((num, str), flag)) ->
+         if flag then
+           $"{Stdlib.display(num)}:{str}:TRUE"
+         else
+           $"{Stdlib.display(num)}:{str}:FALSE"
        Stdlib.List.map(triplets, transformer))
       |> Stdlib.Test.equal([ "1:one:TRUE", "2:two:FALSE" ]) ])
 
+
 test tuplePatternArityRaises =
-  (let triplets = [ (1, "one", true), (2, "two", false) ]
-   let transformer = fun((num, str)) -> $"{Stdlib.display(num)}:{str}"
-   Stdlib.List.map(triplets, transformer))
-  => raises
-    "Could not deconstruct value (1, \"one\", true) into pattern (num, str)"
+  let triplets = [ (1, "one", true), (2, "two", false) ]
+  let transformer = fun((num, str)) -> $"{Stdlib.display(num)}:{str}"
+  Stdlib.List.map(triplets, transformer)
+  => raises "Could not deconstruct value (1, \"one\", true) into pattern (num, str)"
+
 
 test dictMapPatterns =
   Stdlib.Test.all(
     [ Stdlib.Dict.map(
-        (Dict
-          { "key1": ("val11", "val12")
-            "key2": ("val21", "val22") }),
+        Dict { "key1": ("val11", "val12"), "key2": ("val21", "val22") },
         fun(x, (y, z)) -> x + y + z)
       |> Stdlib.Test.equal(
         Dict { "key2": "key2val21val22", "key1": "key1val11val12" })
-      (Stdlib.Dict.map(
+
+      Stdlib.Dict.map(
         Dict { "key1": ("val11", "val12"), "key2": ("val21", "val22") },
-        fun(x, (_, z)) -> x + z))
+        fun(x, (_, z)) -> x + z)
       |> Stdlib.Test.equal(Dict { "key2": "key2val22", "key1": "key1val12" }) ])
+
 
 // Regression check: applying a function directly from a record field.
 module LambdaInRecordField =
-  type RecordWithFn = { fn: Int64 -> Int64 }
+  type RecordWithFn =
+    { fn: Int64 -> Int64 }
+
 
   // check: can we apply a function from a record field directly?
   test applyRecordFieldFn =
-    (let record = RecordWithFn { fn = fun x -> x + 1 }
-     (record.fn(6)))
+    (let record = RecordWithFn { fn = (fun x -> x + 1) }
+     record.fn(6))
     |> Stdlib.Test.equal(7)
+
 
 // Check both borrowed-VM lambda frames as well as the error.
 // Checking only the division error would miss a lost call stack.
 let nestedMapError(): Int64 =
-  let grid = [[1, 2], [3, 4]]
-  let ys = grid |> Stdlib.List.map(fun row ->
-    row |> Stdlib.List.map(fun x -> if x == 3 then x / 0 else x))
+  let grid = [ [ 1, 2 ], [ 3, 4 ] ]
+  let ys =
+    grid
+    |> Stdlib.List.map(fun row ->
+      row |> Stdlib.List.map(fun x -> if x == 3 then x / 0 else x))
+
   let _ = ys
   0
 
+
 test nestedMapErrorKeepsBothLambdaFrames =
-  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), nestedMapError, ()) with
+  match Stdlib.Test.Process.run(
+          Stdlib.Test.Process.defaults(),
+          nestedMapError,
+          ()) with
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
     let rendered = output.stdout + output.stderr
     let lambdaFrames =
       rendered
       |> Stdlib.String.split("\n")
-      |> Stdlib.List.filter(fun line -> Stdlib.String.startsWith(line, "- Lambda"))
+      |> Stdlib.List.filter(fun line ->
+        Stdlib.String.startsWith(line, "- Lambda"))
+
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.notEqual(0)
         Stdlib.List.length(lambdaFrames) |> Stdlib.Test.equal(2)
+
         (lambdaFrames
          |> Stdlib.List.filter(fun line -> Stdlib.String.contains(line, "(×"))
          |> Stdlib.List.length)
         |> Stdlib.Test.equal(0)
+
         Stdlib.String.contains(rendered, "Cannot divide by 0")
         |> Stdlib.Test.equal(true) ])
 
 
 // A lambda passed to a fn must return what that fn expects. Here `applyTwice`
 // expects an Int64 back, so returning a String is an error.
-let applyTwice(f: 'a -> 'a, x: 'a): 'a = f(f(x))
+let applyTwice(f: 'a -> 'a, x: 'a): 'a =
+  f(f(x))
+
 
 test lambdaResultCheckedAgainstParameter =
   applyTwice((fun _ -> "not an Int64"), 1)
   => raises "Darklang.Language.Tests.Lambdas.applyTwice's 1st parameter `f` returned String (\"not an Int64\"), but should return Int64"
 
+
 // The check stops once the fn returns. Here `keepFn` gives the lambda back, and
 // we can then call it with a String, even though `keepFn` used it with an Int64.
-let keepFn(f: 'a -> 'a, x: 'a): ('a -> 'a) =
+let keepFn(f: 'a -> 'a, x: 'a): 'a -> 'a =
   let _ = f(x)
   f
+
 
 test lambdaOutlivingItsFnIsNotHeldToItsTypes =
   (let identity = keepFn((fun x -> x), 1)
    identity("a"))
   |> Stdlib.Test.equal("a")
+
 
 // The call stack shows which fn each lambda was written in. Here there are two:
 // the one we wrote in `filterMapBadCallback`, and one `Dict.filterMap` uses inside.
@@ -187,18 +220,26 @@ let filterMapBadCallback(): Int64 =
   let _ = Stdlib.Dict.filterMap(Dict { "a": 1 }, fun(_, _) -> false)
   0
 
+
 test callStackNamesWhereEachLambdaWasWritten =
-  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), filterMapBadCallback, ()) with
+  match Stdlib.Test.Process.run(
+          Stdlib.Test.Process.defaults(),
+          filterMapBadCallback,
+          ()) with
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
     let rendered = output.stdout + output.stderr
     Stdlib.Test.all(
-      [ Stdlib.String.contains(rendered, "- Lambda in Darklang.Stdlib.Dict.filterMap (")
+      [ Stdlib.String.contains(
+          rendered,
+          "- Lambda in Darklang.Stdlib.Dict.filterMap (")
         |> Stdlib.Test.equal(true)
+
         Stdlib.String.contains(
           rendered,
           "- Lambda in Darklang.Language.Tests.Lambdas.filterMapBadCallback (")
         |> Stdlib.Test.equal(true) ])
+
 
 // `passAlong` accepts any Option back, but passes the lambda to
 // `requireIntOption`, which needs an Option of Int64. Both are checked, and the
@@ -208,20 +249,28 @@ let requireIntOption(f: Int64 -> Stdlib.Option.Option<Int64>): Int64 =
   | Some(_) -> 1
   | None -> 0
 
-let passAlong(f: 'a -> Stdlib.Option.Option<'b>, x: 'a): Int64 = requireIntOption(f)
+
+let passAlong(f: 'a -> Stdlib.Option.Option<'b>, x: 'a): Int64 =
+  requireIntOption(f)
+
 
 test innerHelpersStricterTypeIsChecked =
   passAlong((fun _ -> Stdlib.Option.Option.Some("wrong")), 1)
   => raises "Darklang.Language.Tests.Lambdas.passAlong's 1st parameter `f` returned Darklang.Stdlib.Option.Option<String> (Some(\"wrong\")), but should return Darklang.Stdlib.Option.Option<Int64>"
 
+
 // A parameter whose type is an alias of a function type is a callback too.
 type Check = Int64 -> Bool
 
-let countIf(p: Check, x: Int64): Int64 = if p(x) then 1 else 0
+
+let countIf(p: Check, x: Int64): Int64 =
+  if p(x) then 1 else 0
+
 
 test aliasedCallbackParameterIsChecked =
   countIf((fun _ -> 2), 1)
   => raises "Darklang.Language.Tests.Lambdas.countIf's 1st parameter `p` returned Int64 (2), but should return Bool"
+
 
 // A fn that recurses passing its callback on to itself keeps checking it at
 // every level, with one expectation rather than one per level.
@@ -230,14 +279,18 @@ let countMatching(xs: List<Int64>, p: Int64 -> Bool): Int64 =
   | [] -> 0
   | [x, ...rest] -> (if p(x) then 1 else 0) + countMatching(rest, p)
 
+
 test recursiveFnKeepsCheckingItsCallback =
   countMatching([ 1, 2, 3 ], fun x -> if x == 3 then 3 else true)
   => raises "Darklang.Language.Tests.Lambdas.countMatching's 2nd parameter `p` returned Int64 (3), but should return Bool"
 
+
 // A fn that hands its typed callback straight to `List.map` checks it there. A
 // long or costly map may spread across cores; the check is the same either way
 // (`backend/tests/Tests/Spread.Tests.fs` runs both).
-let mapInts(xs: List<Int64>, f: Int64 -> Int64): List<Int64> = Stdlib.List.map(xs, f)
+let mapInts(xs: List<Int64>, f: Int64 -> Int64): List<Int64> =
+  Stdlib.List.map(xs, f)
+
 
 // The same for a dict.
 let mapDictInts(
@@ -246,6 +299,7 @@ let mapDictInts(
   : Dict<Int64, Int64> =
   Stdlib.Dict.map(d, f)
 
+
 // The same, where the check learns `'b` from the first `Some` it sees.
 let mapOptions(
   xs: List<Int64>,
@@ -253,16 +307,19 @@ let mapOptions(
   : List<Stdlib.Option.Option<'b>> =
   Stdlib.List.map(xs, f)
 
+
 test callbackPassedOnToMapIsChecked =
   mapInts([ 1, 2, 3 ], fun x -> if x == 3 then "three" else x)
   => raises "Darklang.Language.Tests.Lambdas.mapInts's 2nd parameter `f` returned String (\"three\"), but should return Int64"
 
+
 // The fold starts with an empty dict. The first step returns a dict of Int64s, so
 // every later step must too. Returning a dict of Strings is an error.
 test foldAccumulatorKeepsItsType =
-  Stdlib.List.fold([ 1, 2 ], Dict { }, fun(acc, x) ->
+  Stdlib.List.fold([ 1, 2 ], Dict {}, fun(acc, x) ->
     if x == 1 then Stdlib.Dict.set(acc, "a", 1) else Dict { "b": "text" })
   => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Dict<String, String> ({ \"b\": \"text\" }), but should return Dict<String, Int64>"
+
 
 // A fold's accumulator bound to a tuple or an enum with a type argument is still checked
 // part by part on every step.
@@ -270,20 +327,27 @@ test foldTupleAccumulatorKeepsItsShape =
   Stdlib.List.fold([ 1, 2 ], (0, ""), fun(acc, x) -> (x, x))
   => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned (Int64 * Int64) ((1, 1)), but should return (Int64 * String)"
 
+
 test foldEnumAccumulatorKeepsItsTypeArg =
   Stdlib.List.fold([ 1, 2 ], Stdlib.Option.Option.Some(0), fun(acc, x) ->
     Stdlib.Option.Option.Some("a"))
   => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Darklang.Stdlib.Option.Option<String> (Some(\"a\")), but should return Darklang.Stdlib.Option.Option<Int64>"
 
+
 // A lambda keeps the type arguments of the fn that made it, even when it is
 // applied in a fn whose own type variable has the same name.
-let idOf<'b>(x: 'b): 'b = x
+let idOf(x: 'b): 'b =
+  x
 
-let makeIdentity<'a>(): ('a -> 'a) = fun y -> idOf<'a>(y)
 
-let applyToOne<'a>(v: 'a, f: Int64 -> Int64): 'a =
+let makeIdentity(): 'a -> 'a =
+  (fun y -> idOf<'a>(y))
+
+
+let applyToOne(v: 'a, f: Int64 -> Int64): 'a =
   let _ = f(1)
   v
+
 
 test lambdaKeepsItsOwnTypeVariable =
   applyToOne<String>("s", makeIdentity<Int64>()) |> Stdlib.Test.equal("s")

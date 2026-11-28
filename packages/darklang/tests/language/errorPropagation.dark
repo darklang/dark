@@ -2,70 +2,86 @@ module Darklang.Language.Tests.ErrorPropagation
 
 module Error =
   test map2WrongArgRaises =
-    (Stdlib.Option.map2(
+    Stdlib.Option.map2(
       Stdlib.Option.Option.Some(10),
       "not an option",
-      fun((a, b)) -> "1"))
-    => raises
-      "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
+      fun((a, b)) -> "1")
+    => raises "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
 
 
 // Check we get previous errors before later ones
 test earlierErrorFirst =
-  (Stdlib.List.map([ 1, 2, 3, 4, 5 ], fun x ->
-    Darklang.Language.Tests.raiseRuntimeError("X")))
+  Stdlib.List.map([ 1, 2, 3, 4, 5 ], fun x ->
+    Language.Tests.raiseRuntimeError("X"))
   |> Stdlib.List.fakeFunction
   => raises "Uncaught exception: X"
 
+
 module ErrorPropagation =
   test fnArg =
-    Stdlib.List.head(Darklang.Language.Tests.raiseRuntimeError("test"))
+    Stdlib.List.head(Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
+
 
   test ifCondition =
-    (if Darklang.Language.Tests.raiseRuntimeError("test") then 5 else 6)
+    if Language.Tests.raiseRuntimeError("test") then 5 else 6
     => raises "Uncaught exception: test"
+
 
   test fieldAccessTarget =
-    (Stdlib.List.head(Darklang.Language.Tests.raiseRuntimeError("test"))).field
+    (Stdlib.List.head(Language.Tests.raiseRuntimeError("test"))).field
     => raises "Uncaught exception: test"
+
 
   test listElementCall =
-    [ 5, 6, Stdlib.List.head(Darklang.Language.Tests.raiseRuntimeError("test")) ]
+    [ 5, 6, Stdlib.List.head(Language.Tests.raiseRuntimeError("test")) ]
     => raises "Uncaught exception: test"
+
 
   test listElement =
-    [ 5, 6, Darklang.Language.Tests.raiseRuntimeError("test") ]
+    [ 5, 6, Language.Tests.raiseRuntimeError("test") ]
     => raises "Uncaught exception: test"
+
 
   test pipeStageThenMore =
-    5 |> (fun v -> v + (Darklang.Language.Tests.raiseRuntimeError("test"))) |> (fun v -> v + 3564)
+    5
+    |> (fun v -> v + Language.Tests.raiseRuntimeError("test"))
+    |> (fun v -> v + 3564)
     => raises "Uncaught exception: test"
+
 
   test pipeStage =
-    5 |> (fun v -> v + (Darklang.Language.Tests.raiseRuntimeError("test")))
+    5 |> (fun v -> v + Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
+
 
   test pipeIntoRaise =
-    ("test" |> Darklang.Language.Tests.raiseRuntimeError)
+    "test" |> Language.Tests.raiseRuntimeError
     => raises "Uncaught exception: test"
+
 
   test someArg =
-    Stdlib.Option.Option.Some(Darklang.Language.Tests.raiseRuntimeError("test"))
+    Stdlib.Option.Option.Some(Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
+
 
   test errorArg =
-    Stdlib.Result.Result.Error(Darklang.Language.Tests.raiseRuntimeError("test"))
+    Stdlib.Result.Result.Error(Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
+
   test okArg =
-    Stdlib.Result.Result.Ok(Darklang.Language.Tests.raiseRuntimeError("test"))
+    Stdlib.Result.Result.Ok(Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
+
 
   // pipe into error
   test pipeIntoRaiseThenMore =
-    ("test" |> Darklang.Language.Tests.raiseRuntimeError |> (fun v -> v + "3"))
+    "test"
+    |> Language.Tests.raiseRuntimeError
+    |> (fun v -> v + "3")
     => raises "Uncaught exception: test"
+
 
   type EPRec =
     { i: Int64
@@ -73,18 +89,22 @@ module ErrorPropagation =
       j: Int64
       n: Int64 }
 
+
   test recordFirstFieldErrorFirst =
     EPRec
-      { i = Darklang.Language.Tests.raiseRuntimeError("1")
+      { i = Language.Tests.raiseRuntimeError("1")
         m = 5
-        j = Stdlib.List.head(Darklang.Language.Tests.raiseRuntimeError("2"))
+        j = Stdlib.List.head(Language.Tests.raiseRuntimeError("2"))
         n = 6 }
     => raises "Uncaught exception: 1"
 
+
   // An operand's error propagates through +.
   test stringAddOperand =
-    "msg" + (1 / 0) => raises "Cannot divide by 0"
+    "msg" + 1 / 0
+    => raises "Cannot divide by 0"
+
 
 test fieldAccessOnRaise =
-  (Darklang.Language.Tests.raiseRuntimeError("error")).fieldName
+  (Language.Tests.raiseRuntimeError("error")).fieldName
   => raises "Uncaught exception: error"
