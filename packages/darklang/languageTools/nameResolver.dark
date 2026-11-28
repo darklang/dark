@@ -318,7 +318,7 @@ module FnName =
     | Some(methodName), Some(traitName) ->
       let firstChar = Stdlib.String.first(traitName, 1)
       if firstChar != Stdlib.String.toUppercase(firstChar) then
-        Option.None
+        None
       else
         let traitNR =
           TraitName.resolve(
@@ -330,7 +330,7 @@ module FnName =
               modules))
 
         match traitNR.resolved with
-        | Error(_) -> Option.None
+        | Error(_) -> None
         | Ok(resolved) ->
           match resolved.name with
           | Package(traitHash) ->
@@ -342,11 +342,11 @@ module FnName =
                 |> Stdlib.Option.isSome
 
               if isMethod then
-                Option.Some(
+                Some(
                   ProgramTypes.NameResolution
                     { originalName = given
                       resolved =
-                        Result.Ok(
+                        Ok(
                           ProgramTypes.ResolvedName
                             { // No implementation yet: the parser has no types, and the save
                               // chooses (see `Traits.resolve` on the F# side).
@@ -358,9 +358,9 @@ module FnName =
                                       implFn = ProgramTypes.FQFnName.ImplChoice.Unknown })
                               location = resolved.location }) })
               else
-                Option.None
-            | None -> Option.None
-    | _ -> Option.None
+                None
+            | None -> None
+    | _ -> None
 
 
   let resolve(

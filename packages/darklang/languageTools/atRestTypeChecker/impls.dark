@@ -114,36 +114,36 @@ let expectedType(
 /// The method fn's signature, its type params fresh. None when no signature is available.
 let actualType(
   s: Solve.State,
-  batchFns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn>,
+  batchFns: Dict<ProgramTypes.Hash, ProgramTypes.PackageFn.PackageFn>,
   implParams: List<String>,
-  fnName: LanguageTools.ProgramTypes.FQFnName.FQFnName)
-  : Stdlib.Option.Option<(Model.Ty * Solve.State)> =
+  fnName: ProgramTypes.FQFnName.FQFnName)
+  : Option<(Model.Ty * Solve.State)> =
   let callable =
     match fnName with
     | Package(hash) ->
       let found =
         match Stdlib.Dict.get(batchFns, hash) with
-        | Some(fn) -> Stdlib.Option.Option.Some(fn)
-        | None -> LanguageTools.PackageManager.Function.get(hash)
+        | Some(fn) -> Some(fn)
+        | None -> PackageManager.Function.get(hash)
 
       match found with
       | Some(fn) ->
         let (callable, _) =
           Environment.signatureTemplate(
             s.env,
-            (Model.Signature
+            Model.Signature
               { // A method fn can name the implementation's params without declaring them
                 // (`impl Zero for List<'a> = let zero () : List<'a>`), so those count as its own.
                 typeParams =
                   Stdlib.List.concat(
                     fn.typeParams,
-                    (implParams
-                     |> Stdlib.List.filter(fun p ->
-                       Stdlib.Bool.not(Stdlib.List.contains(fn.typeParams, p)))))
+                    implParams
+                    |> Stdlib.List.filter(fun p ->
+                      Stdlib.Bool.not(Stdlib.List.contains(fn.typeParams, p))))
                 parameters = Stdlib.List.map(fn.parameters, fun p -> p.typ)
                 returnType = fn.returnType
                 needsTypeArgs = false
-                bounds = fn.bounds }))
+                bounds = fn.bounds })
 
         callable
       | None -> Model.Callable.Unavailable
@@ -154,14 +154,9 @@ let actualType(
   match callable with
   | Declared(template) ->
     let (_, mapping, s) = Solve.instantiateFrom(s, template.typeParams, [], [], Dict {})
-
-    Stdlib.Option.Option.Some(
-      (Types.substituteRigid(
-        mapping,
-        Model.Ty.TFn(template.parameters, template.returnType)),
-       s)
-    )
-  | _ -> Stdlib.Option.Option.None
+    Some(
+      (Types.substituteRigid(mapping, Model.Ty.TFn(template.parameters, template.returnType)), s))
+  | _ -> None
 
 
 /// Which part differs; the expected and actual types follow it in the message.
