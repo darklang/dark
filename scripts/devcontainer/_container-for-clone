@@ -15,8 +15,18 @@ _dark_mount+='{{.Source}}{{end}}{{end}}'
 
 # The container serving the clone rooted at $1, or nothing.
 container_for_clone() {
+  _clone_container "$1" --filter status=running
+}
+
+# The clone's container that exists but isn't running, which `devcontainer up` restarts.
+stopped_container_for_clone() {
+  _clone_container "$1" --filter status=exited --filter status=created
+}
+
+_clone_container() {
   local clone="$1" c
-  for c in $(docker ps --filter status=running --quiet); do
+  shift
+  for c in $(docker ps --all "$@" --quiet); do
     if [[ "$(docker inspect -f "$_dark_mount" "$c" 2>/dev/null)" == "$clone" ]]; then
       echo "$c"
       return

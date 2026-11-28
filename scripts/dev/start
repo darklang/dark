@@ -81,6 +81,24 @@ while :; do
   base=$(( base + 10 ))
 done
 
+# A stopped container restarts on the ports it was created with, and fails if another clone
+# has taken one since. Docker can't move a container's ports, so make it again on free ones:
+# the build output and rundir are mounted, and only the container's own filesystem goes.
+# shellcheck disable=SC2016 # Go template, not shell expansion
+bound='{{range $p, $conf := .HostConfig.PortBindings}}{{range $conf}}{{.HostPort}}
+{{end}}{{end}}'
+stopped=$(stopped_container_for_clone "$DIR")
+if [[ -n "$stopped" && "${#RECREATE[@]}" -eq 0 ]]; then
+  while IFS= read -r p; do
+    if [[ -n "$p" && " ${taken[*]-} " == *" $p "* ]]; then
+      echo "Host port $p, which this clone's stopped container was made with, is taken now;"
+      echo "making the container again on free ports."
+      RECREATE=( --remove-existing-container )
+      break
+    fi
+  done < <(docker inspect "$stopped" -f "$bound")
+fi
+
 # `command not found` from the onboarding script does not say what to install.
 if ! command -v devcontainer > /dev/null; then
   echo "scripts/dev/start needs the devcontainer CLI, which is not on PATH." >&2
