@@ -186,126 +186,103 @@ let renderRepl(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.C
       [ "x clears" ],
       Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second))
 
-  paneSplit(region, 62, state.focus, logTitle, (fun inner ->
-                                                  let all =
-                                                    if Stdlib.List.isEmpty(state.repl.log) then
-                                                      [ Stdlib.Cli.UI.Colors.boldText(
-                                                          "A REPL over your whole package space.")
+  paneSplit(
+    region,
+    62,
+    state.focus,
+    logTitle,
+    (fun inner ->
+       let all =
+         if Stdlib.List.isEmpty(state.repl.log) then
+           [ Stdlib.Cli.UI.Colors.boldText("A REPL over your whole package space.")
+             ""
+             Stdlib.Cli.UI.Colors.dimText("⏎ starts typing. Then ⏎ runs, and esc stops.")
+             ""
+             Stdlib.Cli.UI.Colors.dimText("try:")
+             Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "  1 + 1")
 
-                                                        ""
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "⏎ starts typing. Then ⏎ runs, and esc stops.")
+             Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "  let xs = [ 1, 2, 3 ]")
 
-                                                        ""
-                                                        Stdlib.Cli.UI.Colors.dimText("try:")
-                                                        Stdlib.Cli.UI.Colors.colorize(
-                                                          Stdlib.Cli.UI.Colors.cyan,
-                                                          "  1 + 1")
+             Stdlib.Cli.UI.Colors.colorize(
+               Stdlib.Cli.UI.Colors.cyan,
+               "  Stdlib.List.map(xs, fun x -> x * 2)")
 
-                                                        Stdlib.Cli.UI.Colors.colorize(
-                                                          Stdlib.Cli.UI.Colors.cyan,
-                                                          "  let xs = [ 1, 2, 3 ]")
+             ""
+             Stdlib.Cli.UI.Colors.dimText("`let` binds for the session - the")
+             Stdlib.Cli.UI.Colors.dimText("session column lists what's bound.")
+             ""
+             Stdlib.Cli.UI.Colors.dimText("Multi-line just works: ⏎ after a line that can't")
+             Stdlib.Cli.UI.Colors.dimText("have ended - an open bracket, a trailing `=` or")
+             Stdlib.Cli.UI.Colors.dimText("`->` - moves down instead of running. ⏎ on the")
+             Stdlib.Cli.UI.Colors.dimText("empty line runs it early.")
+             ""
+             Stdlib.Cli.UI.Colors.dimText("Pasting a block works too - it runs a statement at")
+             Stdlib.Cli.UI.Colors.dimText("a time, exactly as if you'd typed the lines.") ]
+         else
+           state.repl.log
 
-                                                        Stdlib.Cli.UI.Colors.colorize(
-                                                          Stdlib.Cli.UI.Colors.cyan,
-                                                          "  Stdlib.List.map(xs, fun x -> x * 2)")
+       // A multi-line statement is still being typed one row at a time in the bar below, so echo what's
+       // accumulated at the foot of the log. Without this the earlier lines just vanish and you're typing
+       // line four of something you can no longer see.
+       let pending =
+         if state.repl.pending == "" then
+           []
+         else
+           match Stdlib.String.split(state.repl.pending, "\n") with
+           | [first, ...rest] ->
+             Stdlib.List.prepend(
+               rest |> Stdlib.List.map(fun l -> "  " + l),
+               Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "> ") + first)
+           | [] -> []
 
-                                                        ""
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "`let` binds for the session - the")
+       let withPending = Stdlib.List.concat(all, pending)
+       let shown =
+         withPending
+         |> Stdlib.List.reverse
+         |> Stdlib.List.take(inner.rows)
+         |> Stdlib.List.reverse
 
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "session column lists what's bound.")
+       shown
+       |> Stdlib.List.indexedMap(fun(i, l) -> Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
+       |> Stdlib.List.flatten),
+    sessionTitle,
+    fun inner ->
+      let bindingLines =
+        if Stdlib.List.isEmpty(state.repl.bindings) then
+          [ Stdlib.Cli.UI.Colors.dimText("nothing bound yet.")
+            ""
+            Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "let x = 41 + 1")
+            Stdlib.Cli.UI.Colors.dimText("binds x for the rest of the")
+            Stdlib.Cli.UI.Colors.dimText("session, so the next")
+            Stdlib.Cli.UI.Colors.dimText("expression can use it.") ]
+        else
+          state.repl.bindings
+          |> Stdlib.List.map(fun b ->
+            // Values, not source. The log on the left already shows what you typed, so repeating the
+            // expression here would say the same thing twice. `~` marks a binding that re-runs rather than
+            // holding a captured literal.
+            let marker = if b.captured then "" else Stdlib.Cli.UI.Colors.dimText("  ~")
+            Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, b.name)
+            + Stdlib.Cli.UI.Colors.dimText(" = ")
+            + Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, b.value)
+            + marker)
 
-                                                        ""
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "Multi-line just works: ⏎ after a line that can't")
+      let resultLines =
+        if Stdlib.String.trim(state.repl.last) == "" then
+          []
+        else
+          [ ""
+            Stdlib.Cli.UI.Colors.dimText("last result:")
+            Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, state.repl.last) ]
 
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "have ended - an open bracket, a trailing `=` or")
+      let count = Stdlib.List.length(state.repl.bindings)
+      let heading =
+        if count == 0 then
+          Stdlib.Cli.UI.Colors.dimText("session bindings:")
+        else
+          Stdlib.Cli.UI.Colors.dimText("session bindings  ·  " + plural(count, "name") + ":")
 
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "`->` - moves down instead of running. ⏎ on the")
-
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "empty line runs it early.")
-
-                                                        ""
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "Pasting a block works too - it runs a statement at")
-
-                                                        Stdlib.Cli.UI.Colors.dimText(
-                                                          "a time, exactly as if you'd typed the lines.") ]
-                                                    else
-                                                      state.repl.log
-
-                                                  // A multi-line statement is still being typed one row at a time in the bar below, so echo what's
-                                                  // accumulated at the foot of the log. Without this the earlier lines just vanish and you're typing
-                                                  // line four of something you can no longer see.
-                                                  let pending =
-                                                    if state.repl.pending == "" then
-                                                      []
-                                                    else
-                                                      match Stdlib.String.split(
-                                                              state.repl.pending,
-                                                              "\n") with
-                                                      | [first, ...rest] ->
-                                                        Stdlib.List.prepend(
-                                                          rest
-                                                          |> Stdlib.List.map(fun l -> "  " + l),
-                                                          Stdlib.Cli.UI.Colors.colorize(
-                                                            Stdlib.Cli.UI.Colors.cyan,
-                                                            "> ")
-                                                          + first)
-                                                      | [] -> []
-
-                                                  let withPending = Stdlib.List.concat(all, pending)
-                                                  let shown =
-                                                    withPending
-                                                    |> Stdlib.List.reverse
-                                                    |> Stdlib.List.take(inner.rows)
-                                                    |> Stdlib.List.reverse
-
-                                                  shown
-                                                  |> Stdlib.List.indexedMap(fun(i, l) ->
-                                                    Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
-                                                  |> Stdlib.List.flatten), sessionTitle, fun inner ->
-    let bindingLines =
-      if Stdlib.List.isEmpty(state.repl.bindings) then
-        [ Stdlib.Cli.UI.Colors.dimText("nothing bound yet.")
-          ""
-          Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "let x = 41 + 1")
-          Stdlib.Cli.UI.Colors.dimText("binds x for the rest of the")
-          Stdlib.Cli.UI.Colors.dimText("session, so the next")
-          Stdlib.Cli.UI.Colors.dimText("expression can use it.") ]
-      else
-        state.repl.bindings
-        |> Stdlib.List.map(fun b ->
-          // Values, not source. The log on the left already shows what you typed, so repeating the
-          // expression here would say the same thing twice. `~` marks a binding that re-runs rather than
-          // holding a captured literal.
-          let marker = if b.captured then "" else Stdlib.Cli.UI.Colors.dimText("  ~")
-          Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, b.name)
-          + Stdlib.Cli.UI.Colors.dimText(" = ")
-          + Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, b.value)
-          + marker)
-
-    let resultLines =
-      if Stdlib.String.trim(state.repl.last) == "" then
-        []
-      else
-        [ ""
-          Stdlib.Cli.UI.Colors.dimText("last result:")
-          Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, state.repl.last) ]
-
-    let count = Stdlib.List.length(state.repl.bindings)
-    let heading =
-      if count == 0 then
-        Stdlib.Cli.UI.Colors.dimText("session bindings:")
-      else
-        Stdlib.Cli.UI.Colors.dimText("session bindings  ·  " + plural(count, "name") + ":")
-
-    Stdlib.List.flatten([ [ heading, "" ], bindingLines, resultLines ])
-    |> Stdlib.List.take(inner.rows)
-    |> Stdlib.List.indexedMap(fun(i, l) -> Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
-    |> Stdlib.List.flatten)
+      Stdlib.List.flatten([ [ heading, "" ], bindingLines, resultLines ])
+      |> Stdlib.List.take(inner.rows)
+      |> Stdlib.List.indexedMap(fun(i, l) -> Stdlib.Cli.UI.Layout.at(inner, i, 0, l))
+      |> Stdlib.List.flatten)

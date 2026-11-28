@@ -92,14 +92,15 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
       | None -> "no commits yet"
 
     let desc =
-      Stdlib.List.filter([ if changed == 0 then
-                             "nothing uncommitted"
-                           else
-                             plural(changed, "uncommitted change")
+      Stdlib.List.filter(
+        [ if changed == 0 then
+            "nothing uncommitted"
+          else
+            plural(changed, "uncommitted change")
 
-                           if conflictCount == 0 then "" else plural(conflictCount, "conflict")
-                           last ], fun part ->
-        part != "")
+          if conflictCount == 0 then "" else plural(conflictCount, "conflict")
+          last ],
+        fun part -> part != "")
       |> Stdlib.String.join(" · ")
 
     [ row(branchMarker(true) + SCM.PackageOps.branchName(branchId), "home-here", desc) ]
