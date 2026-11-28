@@ -940,13 +940,14 @@ let private refuseWhileStopping
     ()
 
 /// Wait until nothing is in flight, or until <param deadline>. Again after each wait, for a
-/// request taken just as the stop came.
-let rec private drain
+/// request taken just as the stop came. A finished request can still be listed, since its
+/// removal is a continuation of its own; waiting on it again would spin on the stack.
+let rec drain
   (inFlight : Collections.Concurrent.ConcurrentDictionary<Task, unit>)
   (deadline : Task)
   : Task<unit> =
   task {
-    match List.ofSeq inFlight.Keys with
+    match inFlight.Keys |> Seq.filter (fun t -> not t.IsCompleted) |> List.ofSeq with
     | [] -> ()
     | running ->
       let! first = Task.WhenAny(Task.WhenAll running, deadline)

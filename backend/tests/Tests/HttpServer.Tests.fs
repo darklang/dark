@@ -1019,9 +1019,20 @@ let tests =
         |> Array.toList
         |> List.map (t dir)
       testList testListName tests)
+  let drainSkipsFinishedRequests =
+    testCase
+      "a stop does not wait on a request that has finished but is still listed"
+      (fun _ ->
+        let inFlight =
+          System.Collections.Concurrent.ConcurrentDictionary<Task, unit>()
+        inFlight.TryAdd(Task.CompletedTask, ()) |> ignore<bool>
+        let never = TaskCompletionSource().Task
+        let drained = HttpServer.drain inFlight never
+        Expect.isTrue drained.IsCompleted "drain is done")
   testList
     "HttpServer"
     (serveRejectsNegativeMaxBodyBytes
+     :: drainSkipsFinishedRequests
      :: middlewareEffectsAreWhatItReaches
      :: serverResponsesFollowTheMiddleware
      :: bindRetriesATakenPort
