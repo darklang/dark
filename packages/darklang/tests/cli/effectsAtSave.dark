@@ -74,3 +74,28 @@ test aBranchDiffFlagsNewEffects = Instance.withInstance(fun i ->
         Instance.said(i, [ "merge", "fx", "--dry-run" ]),
         "now also file-read",
         "the merge preview") ]))
+
+
+/// `Stdlib.List.shuffle` came from the package reload; the same body saved as a module must get
+/// the same effects.
+test aModuleSaveAgreesWithTheReload = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/shuffle.dark"
+  let source =
+    Stdlib.String.join(
+      [ "let shuffle(list: List<'a>): List<'a> ="
+        "  let last = Stdlib.List.length(list) - 1"
+        "  let start = Stdlib.Dict.fromEntries(Stdlib.List.indexedMap(list, fun(i, v) -> (i, v)))"
+        "  let shuffled = Stdlib.List.fold(Stdlib.List.reverse(Stdlib.List.range(1, last)), start, fun(items, i) ->"
+        "    let j = Stdlib.Int64.random(0, i)"
+        "    match Stdlib.Dict.get(items, i), Stdlib.Dict.get(items, j) with"
+        "    | Some(atI), Some(atJ) -> Stdlib.Dict.set(Stdlib.Dict.set(items, i, atJ), j, atI)"
+        "    | _ -> items)"
+        ""
+        "  Stdlib.List.filterMap(Stdlib.List.range(0, last), fun i -> Stdlib.Dict.get(shuffled, i))" ],
+      "\n")
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "import", path, "/Me.Fx" ])
+  Stdlib.Test.equal(
+    Instance.said(i, [ "effects", "Me.Fx.shuffle" ]),
+    Instance.said(i, [ "effects", "Stdlib.List.shuffle" ])))

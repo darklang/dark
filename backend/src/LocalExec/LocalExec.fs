@@ -72,6 +72,12 @@ module HandleCommand =
 
     fill false ops
 
+    // The checker reads package values (`Dict.isEmpty` reads `Dict.empty`), so evaluate them
+    // before it runs, as a save's store already has. Without this, a check that reaches one fails
+    // and its item keeps no trait choices, unlike the same item saved on its own. Failures are
+    // reported by the evaluation after the last fill.
+    evaluateAllValues (Builtins.all ()) PM.rt |> ignore<Result<unit, _>>
+
     // The checker is written in Dark. Build its execution state after the first fill,
     // when its package items, refs and trait implementations are available.
     let exeState =
