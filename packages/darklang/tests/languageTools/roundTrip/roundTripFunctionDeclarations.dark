@@ -11,6 +11,11 @@ test functionDeclarations =
         "/// Greets a user\nlet greet(name: String): String =\n  \"Hello \" + name")
 
       roundTrip(
+        "one parameter doc spaces every parameter",
+        "let greet(\n  /// who to greet\n  name: String,\n  times: Int64,\n  loud: Bool)\n  : String =\n  name",
+        "let greet(\n  /// who to greet\n  name: String,\n\n  times: Int64,\n\n  loud: Bool)\n  : String =\n  name")
+
+      roundTrip(
         "nested fn type in parameter",
         "let apply(f: (Int64 -> String) -> Bool): Bool = true",
         "let apply(f: (Int64 -> String) -> Bool): Bool =\n  true")

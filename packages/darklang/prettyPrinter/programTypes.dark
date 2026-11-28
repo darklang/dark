@@ -3189,10 +3189,15 @@ module PackageFn =
       // Not grouped on its own: the header's group decides, so a header that breaks puts every
       // parameter on its own line rather than keeping them together and moving the return type.
       let docs = ps |> Stdlib.List.map(fun param -> parameterDoc(ctx, param))
+      // a doc above one parameter puts a blank line between them all
+      let between =
+        if Stdlib.List.any(ps, fun p -> p.description != "") then
+          Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.HardLine, Stdlib.Pretty.Doc.HardLine)
+        else
+          Stdlib.Pretty.Doc.Line
+
       let separated =
-        Stdlib.Pretty.join(
-          docs,
-          Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text(","), Stdlib.Pretty.Doc.Line))
+        Stdlib.Pretty.join(docs, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text(","), between))
 
       Stdlib.Pretty.concatAll(
         [ Stdlib.Pretty.text("(")
