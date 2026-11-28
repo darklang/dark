@@ -79,7 +79,9 @@ no other PR waits on it or pays for it:
 
 `latest/` comes from the release tag's own pipeline (`scripts/deployment/release` pushes the
 tag), so it moves at the release cadence. An older tag's pipeline finishing late never
-overwrites a newer one.
+overwrites a newer one. A release builds the site before it publishes the CLIs, so a broken
+browser build stops the release. The deploy runs after the publish and doesn't hold it up, but
+a release without `PREVIEW_FLY_API_TOKEN` fails it.
 
 Who gets a preview is decided by CircleCI, not by anything in this repo, since a PR can edit
 this repo. A build deploys when its CircleCI project holds `PREVIEW_FLY_API_TOKEN`, and
