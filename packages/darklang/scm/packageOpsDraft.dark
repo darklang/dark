@@ -52,8 +52,8 @@ let draftRemovalsFor(branchId: Uuid): List<String> =
   bindingEntriesFromOpRows(draftOpRowsFor(branchId))
   |> Stdlib.List.filterMap(fun w ->
     match w.binding with
-    | Some(_) -> Option.None
-    | None -> Option.Some(Conflicts.fqn(w.owner, w.modules, w.name)))
+    | Some(_) -> None
+    | None -> Some(Conflicts.fqn(w.owner, w.modules, w.name)))
 
 
 let draftRemovals(): List<String> =
@@ -79,15 +79,15 @@ let unresolvedInDraft(branchId: Uuid): List<(String * List<String>)> =
   |> Stdlib.List.filterMap(fun((hash, names)) ->
     // The draft binds the hash it just authored, so the name is usually right there.
     match bindings |> Stdlib.List.findFirst(fun b -> b.hash == hash) with
-    | Some(b) -> Option.Some((Conflicts.fqn(b.owner, b.modules, b.name), names))
+    | Some(b) -> Some((Conflicts.fqn(b.owner, b.modules, b.name), names))
     | None ->
       // An Add with NO surviving SetName is content nothing names: an earlier version, or
       // `dark discard <name>` dropped the binding and kept the content on purpose (see `Draft.collapse`).
       if Stdlib.List.contains(referenced, hash) then
         // Reachable but unnamed: still a real problem, and the short hash is the only honest label.
-        Option.Some((Stdlib.String.first(hash, 8), names))
+        Some((Stdlib.String.first(hash, 8), names))
       else
-        Option.None)
+        None)
 
 
 /// The names whose CURRENT binding was written by PROPAGATION rather than by a person.
@@ -166,12 +166,12 @@ let typeCheckOps(
     |> Stdlib.List.filterMap(fun op ->
       match op with
       | SetName(_, target, _) ->
-        Option.Some(
+        Some(
           (
             LanguageTools.ProgramTypes.hashToString(
               LanguageTools.ProgramTypes.Reference.hash(target)),
             true))
-      | _ -> Option.None)
+      | _ -> None)
     |> Stdlib.Dict.fromEntries
 
   let liveOps =
@@ -240,11 +240,11 @@ type DraftEntry =
 /// Drop <param what> from <param branchId>'s draft. Returns how many ops went.
 let discardOn(branchId: Uuid, what: Actions.DiscardWhat): Result<Int64, String> =
   match Actions.discard(branchId, what) with
-  | Ok(n) -> Result.Ok(n)
+  | Ok(n) -> Ok(n)
   | Error(Refused(Moved)) ->
-    Result.Error(
+    Error(
       "the draft kept changing while it was being rewritten (10 tries), usually another save, a pull, or your own editor, so nothing was changed. Run it again.")
-  | Error(e) -> Result.Error(Actions.failureMessage(e))
+  | Error(e) -> Error(Actions.failureMessage(e))
 
 
 /// Drop one name's uncommitted bindings from the current scope's draft.
@@ -269,10 +269,10 @@ let discardDraftName(owner: String, modules: List<String>, name: String): Result
     |> Stdlib.List.filterMap(fun op ->
       match op with
       | SetName(l, target, _) when l == loc ->
-        Option.Some(
+        Some(
           LanguageTools.ProgramTypes.hashToString(
             LanguageTools.ProgramTypes.Reference.hash(target)))
-      | _ -> Option.None)
+      | _ -> None)
 
   let called =
     match liveBindingFor(branchId, loc) with
@@ -282,7 +282,7 @@ let discardDraftName(owner: String, modules: List<String>, name: String): Result
     | None -> true
 
   match discardOn(branchId, Actions.DiscardWhat.Name(loc)) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(n) ->
     let named = draftBindingsFor(branchId) |> Stdlib.List.map(fun b -> b.hash)
     let orphaned =
@@ -291,13 +291,13 @@ let discardDraftName(owner: String, modules: List<String>, name: String): Result
       else
         bound |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(named, h)))
 
-    let gone = liveBindingFor(branchId, loc) == Option.None
+    let gone = liveBindingFor(branchId, loc) == None
     let ids =
       draftEntriesFor(branchId)
       |> Stdlib.List.filterMap(fun e ->
         match e.op with
-        | Deprecate(l, _, _, _, _) when gone && l == loc -> Option.Some(e.id)
-        | UpdateDoc(l, _, _, _, _) when gone && l == loc -> Option.Some(e.id)
+        | Deprecate(l, _, _, _, _) when gone && l == loc -> Some(e.id)
+        | UpdateDoc(l, _, _, _, _) when gone && l == loc -> Some(e.id)
         | _ -> PartialCommit.contentIdIfWanted(orphaned, e))
 
     dropBranchOps(branchId, ids) |> Stdlib.Result.map(fun m -> n + m)
@@ -306,7 +306,7 @@ let discardDraftName(owner: String, modules: List<String>, name: String): Result
 /// Drop these ops from <param branchId>'s draft. Returns how many went.
 let dropBranchOps(branchId: Uuid, ids: List<String>): Result<Int64, String> =
   match ids with
-  | [] -> Result.Ok(0)
+  | [] -> Ok(0)
   | ids -> discardOn(branchId, Actions.DiscardWhat.Ops(ids))
 
 

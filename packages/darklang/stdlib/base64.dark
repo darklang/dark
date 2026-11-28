@@ -48,6 +48,6 @@ let decodeText(s: String): Result<String, String> =
   match decode(s) with
   | Ok(bytes) ->
     match Utf8.decode(bytes) with
-    | Ok(str) -> Result.Ok(str)
-    | Error(_) -> Result.Error("Invalid UTF-8 string")
-  | Error(err) -> Result.Error(err)
+    | Ok(str) -> Ok(str)
+    | Error(_) -> Error("Invalid UTF-8 string")
+  | Error(err) -> Error(err)

@@ -162,19 +162,19 @@ let parseLetBinding(text: String): Option<(String * String)> =
   // A statement may legitimately span lines - `splitStatements` has already separated a pasted chain, so
   // anything still multi-line here is one wrapped declaration and its right-hand side wraps with it.
   if Stdlib.Bool.not(Stdlib.String.startsWith(trimmed, "let ")) then
-    Option.None
+    None
   else
     let body = Stdlib.String.dropFirst(trimmed, 4)
     match Stdlib.String.indexOf(body, "=") with
-    | None -> Option.None
+    | None -> None
     | Some(i) ->
       let name = Stdlib.String.trim(Stdlib.String.first(body, i))
       let rhs = Stdlib.String.trim(Stdlib.String.dropFirst(body, i + 1))
       // `let x == y` is a comparison typo, not a binding; and an empty right-hand side isn't one either.
       if isSimpleName(name) && rhs != "" && Stdlib.Bool.not(Stdlib.String.startsWith(rhs, "=")) then
-        Option.Some((name, rhs))
+        Some((name, rhs))
       else
-        Option.None
+        None
 
 
 /// The `let` chain that re-establishes a session's bindings, in binding order, ready to be prefixed to an
@@ -253,6 +253,6 @@ let captureExpr(bindings: List<Binding>, branchId: Uuid, name: String, rhs: Stri
 let readCaptured(output: String): Option<String> =
   let trimmed = Stdlib.String.trim(output)
   if Stdlib.String.startsWith(trimmed, "ok:") then
-    Option.Some(Stdlib.String.dropFirst(trimmed, 3))
+    Some(Stdlib.String.dropFirst(trimmed, 3))
   else
-    Option.None
+    None

@@ -37,7 +37,7 @@ let children(node: Node): (Option<Int64> * List<Node>) =
   // can make the compiler associate a bound name with the wrong value.
   match node with
   | Expression(e) ->
-    let id = Option.Some(ProgramTypes.Expr.toID(e))
+    let id = Some(ProgramTypes.Expr.toID(e))
     match e with
     | EVariable(_, _) | EFnName(_, _, _, _) | EValue(_, _) -> (id, [])
     | ELambda(_, parameters, body) ->
@@ -70,20 +70,20 @@ let children(node: Node): (Option<Int64> * List<Node>) =
         | Some(e) -> [ e ]
         | None -> []
 
-      (Option.None, exprNodes(Stdlib.List.concat([ condition, thenExpr ], tail)))
+      (None, exprNodes(Stdlib.List.concat([ condition, thenExpr ], tail)))
     | ELet(_, pattern, value, body) ->
-      (Option.None, [ Node.LetPattern(pattern), Node.Expression(value), Node.Expression(body) ])
+      (None, [ Node.LetPattern(pattern), Node.Expression(value), Node.Expression(body) ])
     | ETuple(_, first, second, rest) ->
-      (Option.None, exprNodes(Stdlib.List.concat([ first, second ], rest)))
-    | EInfix(_, _, first, next, _) -> (Option.None, exprNodes([ first, next ]))
-    | EStatement(_, first, next) -> (Option.None, exprNodes([ first, next ]))
+      (None, exprNodes(Stdlib.List.concat([ first, second ], rest)))
+    | EInfix(_, _, first, next, _) -> (None, exprNodes([ first, next ]))
+    | EStatement(_, first, next) -> (None, exprNodes([ first, next ]))
     | EPipe(_, lhs, parts) ->
       (
-        Option.None,
+        None,
         Stdlib.List.prepend(Stdlib.List.map(parts, fun p -> Node.Pipe(p)), Node.Expression(lhs)))
     | EString(_, segments) ->
       (
-        Option.None,
+        None,
         Stdlib.List.flatten(
           Stdlib.List.map(segments, fun segment ->
             match segment with
@@ -108,22 +108,22 @@ let children(node: Node): (Option<Int64> * List<Node>) =
     | EChar(_, _)
     | EArg(_, _)
     | ESelf(_) ->
-      (Option.None, [])
+      (None, [])
   | LetPattern(p) ->
     match p with
     | LPTuple(id, first, second, rest) ->
-      (Option.Some(id), letNodes(Stdlib.List.concat([ first, second ], rest)))
-    | LPVariable(_, _) | LPWildcard(_) | LPUnit(_) -> (Option.None, [])
+      (Some(id), letNodes(Stdlib.List.concat([ first, second ], rest)))
+    | LPVariable(_, _) | LPWildcard(_) | LPUnit(_) -> (None, [])
   | MatchPattern(p) ->
     match p with
-    | MPList(id, elements) -> (Option.Some(id), patNodes(elements))
-    | MPEnum(id, _, elements) -> (Option.Some(id), patNodes(elements))
-    | MPListCons(id, head, tail) -> (Option.Some(id), patNodes([ head, tail ]))
+    | MPList(id, elements) -> (Some(id), patNodes(elements))
+    | MPEnum(id, _, elements) -> (Some(id), patNodes(elements))
+    | MPListCons(id, head, tail) -> (Some(id), patNodes([ head, tail ]))
     | MPTuple(id, first, second, rest) ->
-      (Option.Some(id), patNodes(Stdlib.List.concat([ first, second ], rest)))
-    | MPOr(_, alternatives) -> (Option.None, patNodes(alternatives))
-    | MPAs(_, pattern, _) -> (Option.None, patNodes([ pattern ]))
-    | MPRecord(id, fields) -> (Option.Some(id), patNodes(Stdlib.List.map(fields, fun((_, p)) -> p)))
+      (Some(id), patNodes(Stdlib.List.concat([ first, second ], rest)))
+    | MPOr(_, alternatives) -> (None, patNodes(alternatives))
+    | MPAs(_, pattern, _) -> (None, patNodes([ pattern ]))
+    | MPRecord(id, fields) -> (Some(id), patNodes(Stdlib.List.map(fields, fun((_, p)) -> p)))
     | MPVariable(_, _)
     | MPUnit(_)
     | MPBool(_, _)
@@ -143,15 +143,15 @@ let children(node: Node): (Option<Int64> * List<Node>) =
     | MPDecimal(_, _)
     | MPChar(_, _)
     | MPString(_, _) ->
-      (Option.None, [])
+      (None, [])
   | Pipe(p) ->
     match p with
     | EPipeLambda(id, parameters, body) ->
-      (Option.Some(id), Stdlib.List.append(letNodes(parameters), Node.Expression(body)))
-    | EPipeVariable(id, _, args) -> (Option.Some(id), exprNodes(args))
-    | EPipeFnCall(id, _, _, args, _) -> (Option.Some(id), exprNodes(args))
-    | EPipeEnum(id, _, _, args) -> (Option.Some(id), exprNodes(args))
-    | EPipeInfix(_, _, rhs, _) -> (Option.None, [ Node.Expression(rhs) ])
+      (Some(id), Stdlib.List.append(letNodes(parameters), Node.Expression(body)))
+    | EPipeVariable(id, _, args) -> (Some(id), exprNodes(args))
+    | EPipeFnCall(id, _, _, args, _) -> (Some(id), exprNodes(args))
+    | EPipeEnum(id, _, _, args) -> (Some(id), exprNodes(args))
+    | EPipeInfix(_, _, rhs, _) -> (None, [ Node.Expression(rhs) ])
 
 
 /// Return the first inference ID encountered twice, or None if all are unique.
@@ -159,7 +159,7 @@ let children(node: Node): (Option<Int64> * List<Node>) =
 /// not require equally deep nesting on the .NET call stack.
 let findDuplicate(pending: List<Node>, seen: Dict<Int64, Bool>): Option<Int64> =
   match pending with
-  | [] -> Option.None
+  | [] -> None
   | [node, ...rest] ->
     let (id, next) = children(node)
     let pending = Stdlib.List.concat(next, rest)
@@ -167,7 +167,7 @@ let findDuplicate(pending: List<Node>, seen: Dict<Int64, Bool>): Option<Int64> =
     | None -> findDuplicate(pending, seen)
     | Some(id) ->
       if Stdlib.Dict.containsKey(seen, id) then
-        Option.Some(id)
+        Some(id)
       else
         findDuplicate(pending, Stdlib.Dict.set(seen, id, true))
 
@@ -201,13 +201,13 @@ let deeperThan(limit: Int64, depth: Int64, level: List<Node>): Bool =
 /// A body too deep to infer from, so callers can skip inference as they do for duplicate IDs.
 let tooDeep(body: ProgramTypes.Expr): Option<Model.Finding> =
   if deeperThan(maxDeclarationDepth(), 0, [ Node.Expression(body) ]) then
-    Option.Some(
+    Some(
       Types.warning(
         IssueCode.UnsupportedConstruct,
-        Option.Some(ProgramTypes.Expr.toID(body)),
+        Some(ProgramTypes.Expr.toID(body)),
         Context.DeclarationTooDeep))
   else
-    Option.None
+    None
 
 
 /// The immediate type arguments of a type. Multi-field cases are listed individually
@@ -237,10 +237,9 @@ let typeDeeperThan(limit: Int64, depth: Int64, level: List<ProgramTypes.TypeRefe
 /// A declared type too deep to work on. Applies wherever the type sits, whatever the shape.
 let typeTooDeep(types: List<ProgramTypes.TypeReference>): Option<Model.Finding> =
   if typeDeeperThan(maxDeclarationDepth(), 0, types) then
-    Option.Some(
-      Types.warning(IssueCode.UnsupportedConstruct, Option.None, Context.DeclarationTooDeep))
+    Some(Types.warning(IssueCode.UnsupportedConstruct, None, Context.DeclarationTooDeep))
   else
-    Option.None
+    None
 
 
 /// The types a declaration states directly, which is what the depth limit applies to.
@@ -497,9 +496,9 @@ let inspect(body: ProgramTypes.Expr): (Option<Model.Finding> * Option<Model.Find
   if deep then
     (tooDeep(body), problem(body))
   else if hasRepeat(ids) then
-    (Option.None, problem(body))
+    (None, problem(body))
   else
-    (Option.None, Option.None)
+    (None, None)
 
 
 /// Convert a duplicate inference ID into a warning.
@@ -507,7 +506,6 @@ let inspect(body: ProgramTypes.Expr): (Option<Model.Finding> * Option<Model.Find
 /// incorrect results caused by treating separate nodes as the same node.
 let problem(body: ProgramTypes.Expr): Option<Model.Finding> =
   match findDuplicate([ Node.Expression(body) ], Dict {}) with
-  | None -> Option.None
+  | None -> None
   | Some(id) ->
-    Option.Some(
-      Types.warning(IssueCode.UnsupportedConstruct, Option.Some(id), Context.DuplicateInferenceId))
+    Some(Types.warning(IssueCode.UnsupportedConstruct, Some(id), Context.DuplicateInferenceId))

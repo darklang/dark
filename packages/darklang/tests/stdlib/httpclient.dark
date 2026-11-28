@@ -26,14 +26,14 @@ test requestErrorHasToString =
       network(
         Stdlib.HttpClient.NetworkFailure.ConnectionFailure(
           Stdlib.HttpClient.NetworkTarget.Destination("example.com:8080"),
-          Stdlib.Option.Option.Some("Connection refused")))
+          Some("Connection refused")))
       |> Stdlib.Test.equal(
         "Could not connect to example.com:8080: Connection refused")
 
       network(
         Stdlib.HttpClient.NetworkFailure.ConnectionFailure(
           Stdlib.HttpClient.NetworkTarget.Proxy("localhost:8080"),
-          Stdlib.Option.Option.None))
+          None))
       |> Stdlib.Test.equal("Could not connect to proxy localhost:8080")
 
       network(
@@ -68,38 +68,30 @@ test basicAuth =
   Stdlib.Test.all(
     [ Stdlib.HttpClient.basicAuth("username", "password")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          ("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ=")))
+        Ok(("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ=")))
 
       Stdlib.HttpClient.basicAuth("", "")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(("authorization", "basic Og==")))
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Og==")))
 
       Stdlib.HttpClient.basicAuth("", "-")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(("authorization", "basic Oi0=")))
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Oi0=")))
 
       Stdlib.HttpClient.basicAuth(":", "")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(("authorization", "basic Ojo=")))
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Ojo=")))
 
       Stdlib.HttpClient.basicAuth("", ":")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(("authorization", "basic Ojo=")))
+      |> Stdlib.Test.equal(Ok(("authorization", "basic Ojo=")))
 
       Stdlib.HttpClient.basicAuth("hello>", "world")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(("authorization", "basic aGVsbG8+Ondvcmxk")))
+      |> Stdlib.Test.equal(Ok(("authorization", "basic aGVsbG8+Ondvcmxk")))
 
       Stdlib.HttpClient.basicAuth("hello", "world?")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(("authorization", "basic aGVsbG86d29ybGQ/"))) ])
+      |> Stdlib.Test.equal(Ok(("authorization", "basic aGVsbG86d29ybGQ/"))) ])
 
 
 test basicAuthRejectsHyphenInUsername =
   Stdlib.HttpClient.basicAuth("-", "")
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error("Username cannot contain a hyphen"))
+  |> Stdlib.Test.equal(Error("Username cannot contain a hyphen"))
 
 
 // Tests that try to make requests to the internet
@@ -116,59 +108,59 @@ let get(url: String, headers: List<(String * String)>): GetResult =
 
 // Build custom values in functions so their types stay current across package reloads.
 let errInvalidHost(): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.InvalidHost))
 
 
 let errLoopback(): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.Loopback))
 
 
 let errPrivateNetwork(): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.PrivateNetwork))
 
 
 let errInvalidUri(): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.InvalidUri))
 
 
 let errInvalidRequest(): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.InvalidRequest))
 
 
 let errNetworkError(host: String): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.NetworkError(
       Stdlib.HttpClient.NetworkFailure.ConnectionFailure(
         Stdlib.HttpClient.NetworkTarget.Destination(host),
-        Stdlib.Option.Option.None)))
+        None)))
 
 
 let errBadHeaderEmptyKey(): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.BadHeader(
       Stdlib.HttpClient.BadHeader.EmptyKey))
 
 
 let errBadHeader(e: Stdlib.HttpClient.BadHeader): GetResult =
-  Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadHeader(e))
+  Error(Stdlib.HttpClient.RequestError.BadHeader(e))
 
 
 let errBadMethod(): GetResult =
-  Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadMethod)
+  Error(Stdlib.HttpClient.RequestError.BadMethod)
 
 
 let errUnsupportedProtocol(): GetResult =
-  Stdlib.Result.Result.Error(
+  Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol))
 
@@ -249,7 +241,7 @@ test rejectsBogusUrls =
   Stdlib.Test.all(
     [ Stdlib.HttpClient.request("get", "", [], Stdlib.Bytes.empty)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           Stdlib.HttpClient.RequestError.BadUrl(
             Stdlib.HttpClient.BadUrlDetails.InvalidUri)))
 
@@ -259,7 +251,7 @@ test rejectsBogusUrls =
         [],
         Stdlib.Bytes.empty)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           Stdlib.HttpClient.RequestError.BadUrl(
             Stdlib.HttpClient.BadUrlDetails.InvalidUri))) ])
 
@@ -455,7 +447,7 @@ let __response(
   : Stdlib.Result.Result<
   Stdlib.HttpClient.Response<Bytes>,
   Stdlib.HttpClient.RequestError> =
-  Stdlib.Result.Result.Ok(
+  Ok(
     Stdlib.HttpClient.Response
       { statusCode = status
         headers = headers
@@ -522,13 +514,13 @@ test responseHeaderIsCaseInsensitive =
 
   Stdlib.Test.all(
     [ Stdlib.HttpClient.Response.header(r, "etag")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("\"AbC\""))
+      |> Stdlib.Test.equal(Some("\"AbC\""))
 
       Stdlib.HttpClient.Response.header(r, "ETAG")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("\"AbC\""))
+      |> Stdlib.Test.equal(Some("\"AbC\""))
 
       Stdlib.HttpClient.Response.header(r, "location")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.HttpClient.Response.headers(r, "Set-Cookie")
       |> Stdlib.Test.equal([ "a=1", "b=2" ]) ])
@@ -538,8 +530,8 @@ test responseText =
   Stdlib.Test.all(
     [ (match __response(200, [], "héllo") with
        | Ok(r) -> Stdlib.HttpClient.Response.text(r)
-       | Error(e) -> Stdlib.Result.Result.Error(e))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("héllo"))
+       | Error(e) -> Error(e))
+      |> Stdlib.Test.equal(Ok("héllo"))
 
       Stdlib.HttpClient.Response.text(
         Stdlib.HttpClient.Response
@@ -548,7 +540,7 @@ test responseText =
             body = Stdlib.Bytes.fromList([ 255u8 ])
             url = "https://a.test/" })
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           Stdlib.HttpClient.RequestError.Decode(
             "Invalid UTF-8 at byte 0: FF"))) ])
 
@@ -562,17 +554,16 @@ test responseJson =
   let user = fun body ->
     match __response(200, [], body) with
     | Ok(r) -> Stdlib.HttpClient.Response.json<User>(r)
-    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Error(e) -> Error(e)
 
   Stdlib.Test.all(
     [ user("{\"id\": 1, \"name\": \"Ada\"}")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(User { id = 1, name = "Ada" }))
+      |> Stdlib.Test.equal(Ok(User { id = 1, name = "Ada" }))
 
       user("{\"id\": 1}")
       |> Stdlib.Result.mapError(Stdlib.HttpClient.toString)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "Can't parse JSON because `name` field is not provided at path: `root`")) ])
 
 
@@ -581,7 +572,7 @@ test jsonMiddlewareDecodesEveryResponse =
   let send = json(fun _ -> __response(200, [], "[1, 2, 3]"))
   send(__request("https://a.test/", []))
   |> Stdlib.Result.map(fun r -> r.body)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 2, 3 ]))
+  |> Stdlib.Test.equal(Ok([ 1, 2, 3 ]))
 
 
 test stackRunsFirstListedOutermost =
@@ -610,17 +601,16 @@ test onResponseRewritesTheResponse =
     __echo,
     __request("https://a.test/", []))
   |> Stdlib.Result.map(fun r -> r.statusCode)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(299))
+  |> Stdlib.Test.equal(Ok(299))
 
 
 test decodeChangesTheBodyType =
   let length =
     Stdlib.HttpClient.Middleware.decode(fun body ->
-      Stdlib.Result.Result.Ok(Stdlib.Bytes.length(body)))
+      Ok(Stdlib.Bytes.length(body)))
 
   let refuse =
-    Stdlib.HttpClient.Middleware.decode(fun _ ->
-      Stdlib.Result.Result.Error("not a number"))
+    Stdlib.HttpClient.Middleware.decode(fun _ -> Error("not a number"))
 
   let lengthSend = length(__echo)
   let refuseSend = refuse(__echo)
@@ -628,20 +618,19 @@ test decodeChangesTheBodyType =
   Stdlib.Test.all(
     [ lengthSend(req)
       |> Stdlib.Result.map(fun r -> (r.statusCode, r.body))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((200, 24)))
+      |> Stdlib.Test.equal(Ok((200, 24)))
 
       refuseSend(req)
       |> Stdlib.Result.map(fun r -> r.body)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.HttpClient.RequestError.Decode("not a number"))) ])
+        Error(Stdlib.HttpClient.RequestError.Decode("not a number"))) ])
 
 
 test tapAnswersAsItCame =
   let seen = Stdlib.HttpClient.Middleware.tap(fun(_req, _result) -> ())
   __through([ seen ], __echo, __request("https://a.test/", []))
   |> Stdlib.Result.map(fun r -> r.statusCode)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(200))
+  |> Stdlib.Test.equal(Ok(200))
 
 
 test trimNames =
@@ -767,21 +756,19 @@ test timeoutSetsTheField =
 test theCallersOwnValuesWin =
   let caller =
     { __request("https://a.test/", []) with
-        timeoutMs = Stdlib.Option.Option.Some(5)
-        redirects = Stdlib.Option.Option.Some(0) }
+        timeoutMs = Some(5)
+        redirects = Some(0) }
 
   let afterMiddleware =
     { __request("https://a.test/", []) with
-        timeoutMs = Stdlib.Option.Option.Some(250)
-        redirects = Stdlib.Option.Option.Some(10)
+        timeoutMs = Some(250)
+        redirects = Some(10)
         retry =
-          Stdlib.Option.Option.Some(
-            Stdlib.HttpClient.RetryPolicy { attempts = 3, delayMs = 100 }) }
+          Some(Stdlib.HttpClient.RetryPolicy { attempts = 3, delayMs = 100 }) }
 
   let sent = Stdlib.HttpClient.Request.__callerWins(caller, afterMiddleware)
   (sent.timeoutMs, sent.redirects, Stdlib.Option.isSome(sent.retry))
-  |> Stdlib.Test.equal(
-    (Stdlib.Option.Option.Some(5), Stdlib.Option.Option.Some(0), true))
+  |> Stdlib.Test.equal((Some(5), Some(0), true))
 
 
 test headerAddsUnlessPresent =
@@ -926,7 +913,7 @@ let __viaDefaults(
   Stdlib.HttpClient.RequestError> =
   match Stdlib.HttpClient.__defaults(req) with
   | Ok(r) -> send(r)
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Error(e)
 
 
 test defaultsAreTheDefaultStack =

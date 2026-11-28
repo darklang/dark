@@ -360,8 +360,7 @@ module Equality =
 
         [ 1, 2 ] == [ 1, 2 ] |> Stdlib.Test.equal(true)
 
-        Stdlib.Option.Option.Some(1) == Stdlib.Option.Option.Some(1)
-        |> Stdlib.Test.equal(true) ])
+        Some(1) == Some(1) |> Stdlib.Test.equal(true) ])
 
 
   test intVsStringEqualityRaises =
@@ -408,8 +407,7 @@ module Equality =
           [ ("k", Equality.User { id = 1, name = "a" }) ])
         |> Stdlib.Test.equal(true)
 
-        Stdlib.Option.Option.Some(Equality.User { id = 1, name = "a" })
-        == Stdlib.Option.Option.None
+        Some(Equality.User { id = 1, name = "a" }) == None
         |> Stdlib.Test.equal(false)
 
         [ [ Equality.User { id = 1, name = "a" } ] ]

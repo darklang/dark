@@ -9,14 +9,10 @@ let currentIsMain(): Bool =
 
 test mainIdIsCurrentBranch =
   let defaults = Stdlib.Test.Process.defaults()
-  let options =
-    { defaults with
-        branch = Stdlib.Option.Option.Some(SCM.Branch.mainBranchId) }
-
+  let options = { defaults with branch = Some(SCM.Branch.mainBranchId) }
   match Stdlib.Test.Process.run(options, currentIsMain, ()) with
   | Error(message) -> Stdlib.Test.fail(message)
-  | Ok(output) ->
-    output.result |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+  | Ok(output) -> output.result |> Stdlib.Test.equal(Ok(true))
 
 
 // An ID is not a NAME. That is the property the type carries: while an id spells the same as a name,
@@ -35,8 +31,7 @@ test idIsUuid =
 
 // Main is not a row in `branches`: it needs no registration, so `get` finds nothing for it.
 test mainHasNoRow =
-  SCM.Branch.get(SCM.Branch.mainBranchId)
-  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  SCM.Branch.get(SCM.Branch.mainBranchId) |> Stdlib.Test.equal(None)
 
 
 // Main still DISPLAYS as "main". It has no `branches` row, so the name lookup has to know about it
@@ -51,8 +46,7 @@ test mainDisplaysAsMain =
 test mainResolvesByName =
   Stdlib.Test.all(
     [ Cli.Branch.lookupRef("main")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(SCM.Branch.mainBranchId))
+      |> Stdlib.Test.equal(Some(SCM.Branch.mainBranchId))
 
       Cli.Branch.lookupRef(Stdlib.display(SCM.Branch.mainBranchId))
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(SCM.Branch.mainBranchId)) ])
+      |> Stdlib.Test.equal(Some(SCM.Branch.mainBranchId)) ])

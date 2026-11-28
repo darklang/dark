@@ -40,10 +40,7 @@ test htmlTagNode =
       |> nodeToString
       |> Stdlib.Test.equal("<div>yolo</div>")
 
-      htmlTag(
-        "div",
-        [ ("id", Stdlib.Option.Option.Some("my-div")) ],
-        [ stringNode("yolo") ])
+      htmlTag("div", [ ("id", Some("my-div")) ], [ stringNode("yolo") ])
       |> nodeToString
       |> Stdlib.Test.equal("<div id=\"my-div\">yolo</div>")
 
@@ -163,28 +160,25 @@ test stringNodeDoesNotEscape =
 // everything after it is parsed as markup rather than as part of the value.
 test attributeValuesAreEscaped =
   Stdlib.Test.all(
-    [ htmlTag(
-        "a",
-        [ ("href", Stdlib.Option.Option.Some("\" onmouseover=\"alert(1)")) ],
-        [])
+    [ htmlTag("a", [ ("href", Some("\" onmouseover=\"alert(1)")) ], [])
       |> nodeToString
       |> Stdlib.Test.equal("<a href=\"&quot; onmouseover=&quot;alert(1)\"></a>")
 
-      htmlTag("div", [ ("title", Stdlib.Option.Option.Some("a & b")) ], [])
+      htmlTag("div", [ ("title", Some("a & b")) ], [])
       |> nodeToString
       |> Stdlib.Test.equal("<div title=\"a &amp; b\"></div>")
 
-      htmlTag("div", [ ("title", Stdlib.Option.Option.Some("<script>")) ], [])
+      htmlTag("div", [ ("title", Some("<script>")) ], [])
       |> nodeToString
       |> Stdlib.Test.equal("<div title=\"&lt;script&gt;\"></div>")
 
-      htmlTag("div", [ ("title", Stdlib.Option.Option.Some("it's")) ], [])
+      htmlTag("div", [ ("title", Some("it's")) ], [])
       |> nodeToString
       |> Stdlib.Test.equal("<div title=\"it&#x27;s\"></div>")
 
       // A boolean attribute has no value to escape. `input` is a void element, so no
       // closing tag.
-      htmlTag("input", [ ("disabled", Stdlib.Option.Option.None) ], [])
+      htmlTag("input", [ ("disabled", None) ], [])
       |> nodeToString
       |> Stdlib.Test.equal("<input disabled>")
 
@@ -209,16 +203,13 @@ test textInsideElementIsEscaped =
 test attributeHelpers =
   Stdlib.Test.all(
     [ Stdlib.Html.classes([ "btn", "btn-primary" ])
-      |> Stdlib.Test.equal(
-        ("class", Stdlib.Option.Option.Some("btn btn-primary")))
+      |> Stdlib.Test.equal(("class", Some("btn btn-primary")))
 
       Stdlib.Html.style([ ("color", "red"), ("font-size", "14px") ])
-      |> Stdlib.Test.equal(
-        ("style", Stdlib.Option.Option.Some("color: red; font-size: 14px")))
+      |> Stdlib.Test.equal(("style", Some("color: red; font-size: 14px")))
 
       Stdlib.Html.dataAttr("user-id", "123")
-      |> Stdlib.Test.equal(
-        ("data-user-id", Stdlib.Option.Option.Some("123"))) ])
+      |> Stdlib.Test.equal(("data-user-id", Some("123"))) ])
 
 
 // Using attribute helpers with tags
@@ -338,7 +329,7 @@ test basicTags =
       |> nodeToString
       |> Stdlib.Test.equal("<img>")
 
-      Stdlib.Html.img([ ("src", Stdlib.Option.Option.Some("foo.png")) ])
+      Stdlib.Html.img([ ("src", Some("foo.png")) ])
       |> nodeToString
       |> Stdlib.Test.equal("<img src=\"foo.png\">")
 
@@ -354,37 +345,32 @@ test basicTags =
       |> nodeToString
       |> Stdlib.Test.equal("<i></i>")
 
-      Stdlib.Html.meta([ ("charset", Stdlib.Option.Option.Some("UTF-8")) ])
+      Stdlib.Html.meta([ ("charset", Some("UTF-8")) ])
       |> nodeToString
       |> Stdlib.Test.equal("<meta charset=\"UTF-8\">")
 
       Stdlib.Html.link(
-        [ ("rel", Stdlib.Option.Option.Some("stylesheet"))
-          ("href", Stdlib.Option.Option.Some("./style.css")) ])
+        [ ("rel", Some("stylesheet")), ("href", Some("./style.css")) ])
       |> nodeToString
       |> Stdlib.Test.equal("<link rel=\"stylesheet\" href=\"./style.css\">")
 
-      Stdlib.Html.script(
-        [ ("src", Stdlib.Option.Option.Some("https://cdn.tailwindcss.com")) ],
-        [])
+      Stdlib.Html.script([ ("src", Some("https://cdn.tailwindcss.com")) ], [])
       |> nodeToString
       |> Stdlib.Test.equal(
         "<script src=\"https://cdn.tailwindcss.com\"></script>")
 
-      Stdlib.Html.form([ ("id", Stdlib.Option.Option.Some("my-form")) ], [])
+      Stdlib.Html.form([ ("id", Some("my-form")) ], [])
       |> nodeToString
       |> Stdlib.Test.equal("<form id=\"my-form\"></form>")
 
       Stdlib.Html.input(
-        [ ("type", Stdlib.Option.Option.Some("text"))
-          ("name", Stdlib.Option.Option.Some("name"))
-          ("id", Stdlib.Option.Option.Some("name")) ])
+        [ ("type", Some("text"))
+          ("name", Some("name"))
+          ("id", Some("name")) ])
       |> nodeToString
       |> Stdlib.Test.equal("<input type=\"text\" name=\"name\" id=\"name\">")
 
-      Stdlib.Html.label(
-        [ ("for", Stdlib.Option.Option.Some("name")) ],
-        [ stringNode("Name") ])
+      Stdlib.Html.label([ ("for", Some("name")) ], [ stringNode("Name") ])
       |> nodeToString
       |> Stdlib.Test.equal("<label for=\"name\">Name</label>")
 
@@ -579,7 +565,7 @@ test formWithNestedElements =
         [],
         [ Stdlib.Html.legend([], [ stringNode("User Info") ])
           Stdlib.Html.label([], [ stringNode("Name:") ])
-          Stdlib.Html.input([ ("type", Stdlib.Option.Option.Some("text")) ])
+          Stdlib.Html.input([ ("type", Some("text")) ])
           Stdlib.Html.label([], [ stringNode("Bio:") ])
           Stdlib.Html.textarea([], []) ]) ])
   |> nodeToString

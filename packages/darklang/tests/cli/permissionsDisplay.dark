@@ -39,7 +39,7 @@ module PermissionsDisplay =
         bundled = false
         approvals = [ ("Acme.Client.fetch", packagePolicy()) ]
         approvedAs = [ "Acme.Client.fetch" ]
-        olderApproval = Stdlib.Option.Option.None
+        olderApproval = None
         instancePolicy = instancePolicy() }
 
 
@@ -92,9 +92,7 @@ module PermissionsDisplay =
     let facts = unapproved()
     Cli.Permissions.Command.renderAccessReport(
       "Acme.Client.fetch",
-      { facts with
-          complete = true
-          olderApproval = Stdlib.Option.Option.Some("abcdef0123456789") })
+      { facts with complete = true, olderApproval = Some("abcdef0123456789") })
     |> Stdlib.Test.equal(
       [ "Acme.Client.fetch"
         "  Effects: none"

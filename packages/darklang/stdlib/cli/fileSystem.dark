@@ -114,9 +114,9 @@ let readFileAsString(path: String): Result<String, Posix.Error> =
   match readFile(path) with
   | Ok(blob) ->
     match Utf8.decode(blob) with
-    | Ok(s) -> Result.Ok(s)
-    | Error(_) -> Result.Error(Posix.Error.InvalidUtf8)
-  | Error(e) -> Result.Error(e)
+    | Ok(s) -> Ok(s)
+    | Error(_) -> Error(Posix.Error.InvalidUtf8)
+  | Error(e) -> Error(e)
 
 
 /// Write content to a file, creating any missing parent directories.
@@ -128,10 +128,10 @@ let writeFile(path: String, content: Bytes): Result<Unit, Posix.Error> =
     | NotFound ->
       let parentDir = Path.parent(expanded)
       if parentDir == "" || parentDir == "/" then
-        Result.Error(e)
+        Error(e)
       else
         match Dir.createRecursive(parentDir) with
-        | Error(parentError) -> Result.Error(parentError)
+        | Error(parentError) -> Error(parentError)
         | Ok(_) -> overwriteFile(expanded, content)
-    | _ -> Result.Error(e)
-  | Ok(()) -> Result.Ok()
+    | _ -> Error(e)
+  | Ok(()) -> Ok()

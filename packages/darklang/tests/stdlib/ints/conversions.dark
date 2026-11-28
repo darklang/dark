@@ -31,7 +31,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromInt8(7s8))
 
       Stdlib.Int8.fromBigInt(Stdlib.BigInt.fromInt8(7s8))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s8))
+      |> Stdlib.Test.equal(Some(7s8))
 
       Stdlib.UInt8.toInt8(7u8) |> Stdlib.Test.equal(Stdlib.Int8.fromUInt8(7u8))
 
@@ -63,7 +63,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt8(7u8))
 
       Stdlib.UInt8.fromBigInt(Stdlib.BigInt.fromUInt8(7u8))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u8))
+      |> Stdlib.Test.equal(Some(7u8))
 
       Stdlib.Int16.toInt8(7s16)
       |> Stdlib.Test.equal(Stdlib.Int8.fromInt16(7s16))
@@ -96,7 +96,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromInt16(7s16))
 
       Stdlib.Int16.fromBigInt(Stdlib.BigInt.fromInt16(7s16))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s16))
+      |> Stdlib.Test.equal(Some(7s16))
 
       Stdlib.UInt16.toInt8(7u16)
       |> Stdlib.Test.equal(Stdlib.Int8.fromUInt16(7u16))
@@ -129,7 +129,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt16(7u16))
 
       Stdlib.UInt16.fromBigInt(Stdlib.BigInt.fromUInt16(7u16))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u16))
+      |> Stdlib.Test.equal(Some(7u16))
 
       Stdlib.Int32.toInt8(7s32)
       |> Stdlib.Test.equal(Stdlib.Int8.fromInt32(7s32))
@@ -162,7 +162,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromInt32(7s32))
 
       Stdlib.Int32.fromBigInt(Stdlib.BigInt.fromInt32(7s32))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s32))
+      |> Stdlib.Test.equal(Some(7s32))
 
       Stdlib.UInt32.toInt8(7u32)
       |> Stdlib.Test.equal(Stdlib.Int8.fromUInt32(7u32))
@@ -195,7 +195,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt32(7u32))
 
       Stdlib.UInt32.fromBigInt(Stdlib.BigInt.fromUInt32(7u32))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u32))
+      |> Stdlib.Test.equal(Some(7u32))
 
       Stdlib.Int64.toInt8(7) |> Stdlib.Test.equal(Stdlib.Int8.fromInt64(7))
 
@@ -219,7 +219,7 @@ test everyToMatchesItsFrom =
       Stdlib.Int64.toBigInt(7) |> Stdlib.Test.equal(Stdlib.BigInt.fromInt64(7))
 
       Stdlib.Int64.fromBigInt(Stdlib.BigInt.fromInt64(7))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7))
+      |> Stdlib.Test.equal(Some(7))
 
       Stdlib.UInt64.toInt8(7u64)
       |> Stdlib.Test.equal(Stdlib.Int8.fromUInt64(7u64))
@@ -252,7 +252,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt64(7u64))
 
       Stdlib.UInt64.fromBigInt(Stdlib.BigInt.fromUInt64(7u64))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u64))
+      |> Stdlib.Test.equal(Some(7u64))
 
       Stdlib.Int128.toInt8(7s128)
       |> Stdlib.Test.equal(Stdlib.Int8.fromInt128(7s128))
@@ -285,7 +285,7 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromInt128(7s128))
 
       Stdlib.Int128.fromBigInt(Stdlib.BigInt.fromInt128(7s128))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s128))
+      |> Stdlib.Test.equal(Some(7s128))
 
       Stdlib.UInt128.toInt8(7u128)
       |> Stdlib.Test.equal(Stdlib.Int8.fromUInt128(7u128))
@@ -318,31 +318,27 @@ test everyToMatchesItsFrom =
       |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt128(7u128))
 
       Stdlib.UInt128.fromBigInt(Stdlib.BigInt.fromUInt128(7u128))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u128)) ])
+      |> Stdlib.Test.equal(Some(7u128)) ])
 
 
 test aFewByValue =
   Stdlib.Test.all(
     [ Stdlib.UInt8.toInt64(200u8) |> Stdlib.Test.equal(200)
 
-      Stdlib.Int64.toUInt8(300) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Int64.toUInt8(300) |> Stdlib.Test.equal(None)
 
-      Stdlib.Int64.toUInt8(-1) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Int64.toUInt8(-1) |> Stdlib.Test.equal(None)
 
-      Stdlib.Int8.toUInt128(-1s8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Int8.toUInt128(-1s8) |> Stdlib.Test.equal(None)
 
-      Stdlib.UInt128.fromInt64(5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5u128))
+      Stdlib.UInt128.fromInt64(5) |> Stdlib.Test.equal(Some(5u128))
 
-      Stdlib.UInt128.fromInt128(-5s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.UInt128.fromInt128(-5s128) |> Stdlib.Test.equal(None)
 
-      Stdlib.Int128.fromUInt128(5u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5s128))
+      Stdlib.Int128.fromUInt128(5u128) |> Stdlib.Test.equal(Some(5s128))
 
       Stdlib.UInt128.toInt128(340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Int64.fromBigInt(Stdlib.BigInt.fromInt64(9))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9)) ])
+      |> Stdlib.Test.equal(Some(9)) ])

@@ -30,7 +30,7 @@ module Wins =
         hash = h
         originTs = ts
         author = ""
-        previous = Stdlib.Option.Option.None }
+        previous = None }
 
 
   // A later stamp wins, whatever the hashes are.

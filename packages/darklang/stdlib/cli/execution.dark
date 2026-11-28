@@ -26,7 +26,7 @@ let executionText(outcome: ExecutionBytes): ExecutionOutcome =
 /// Execute a command in the CLI and keep its output as bytes, for output that
 /// isn't UTF-8 text (i.e. `Cli.executeBytes "gzip -c file"`)
 let executeBytes(command: String): ExecutionBytes =
-  Process.__executionBytes(Process.__childRun("/bin/sh", [ "-c", command ], Option.None))
+  Process.__executionBytes(Process.__childRun("/bin/sh", [ "-c", command ], None))
 
 
 /// Execute a command in the CLI (i.e. `Cli.execute "ls ."`)
@@ -39,7 +39,7 @@ let execute(command: String): ExecutionOutcome =
 /// , or a `String` of stderr if not
 let executeWithUnitOrStdErr(command: String): Result<Unit, String> =
   let result = execute(command)
-  if result.exitCode == 0 then Result.Ok() else Result.Error(result.stderr)
+  if result.exitCode == 0 then Ok() else Error(result.stderr)
 
 
 /// Execute a command in the CLI,
@@ -47,7 +47,4 @@ let executeWithUnitOrStdErr(command: String): Result<Unit, String> =
 /// or `String` of stderr if not
 let executeWithStdOutOrStdErr(command: String): Result<String, String> =
   let result = execute(command)
-  if result.exitCode == 0 then
-    Result.Ok(result.stdout)
-  else
-    Result.Error(result.stderr)
+  if result.exitCode == 0 then Ok(result.stdout) else Error(result.stderr)

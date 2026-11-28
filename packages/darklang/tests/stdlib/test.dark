@@ -212,11 +212,11 @@ test group =
 
       fixtureBody("groupedFixture")
       |> Stdlib.Option.andThen(LanguageTools.PackageManager.Test.testGroup)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("parsing"))
+      |> Stdlib.Test.equal(Some("parsing"))
 
       fixtureBody("shownFixture")
       |> Stdlib.Option.andThen(LanguageTools.PackageManager.Test.testGroup)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 test groupedFailureLines =
@@ -263,7 +263,7 @@ test rowFailureLines =
 
         fixtureBody("shownFixture")
         |> Stdlib.Option.map(LanguageTools.PackageManager.Test.testCount)
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1)) ])
+        |> Stdlib.Test.equal(Some(1)) ])
 
 
 test groupedTableRows =

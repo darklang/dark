@@ -10,41 +10,41 @@ module Darklang.Cli.Workbench
 /// fall through to this, so neither has to repeat it.
 let globalKey(state: State, keyChar: Option<String>): Option<Step> =
   match keyChar with
-  | Some("S") -> Option.Some(openBranchPicker(state))
-  | Some("q") -> Option.Some(Step.Exit(state))
-  | Some("?") -> Option.Some(Step.Continue({ state with overlay = Overlay.Keymap }))
+  | Some("S") -> Some(openBranchPicker(state))
+  | Some("q") -> Some(Step.Exit(state))
+  | Some("?") -> Some(Step.Continue({ state with overlay = Overlay.Keymap }))
   // ` is "go somewhere": the nav takes the keyboard (as an overlay on a
   // narrow terminal).
-  | Some("`") -> Option.Some(Step.Continue(focusNavbar(state)))
+  | Some("`") -> Some(Step.Continue(focusNavbar(state)))
   | Some(":") ->
     // Command bar - run any old-school command (or eval an expression) from
     // anywhere in the workbench.
-    Option.Some(
+    Some(
       Step.Continue(
         { state with
             completionSel = 0
             input =
-              Option.Some(
+              Some(
                 InputState
                   { prompt = ": "
                     field = Stdlib.Cli.UI.TextField.fromText("")
                     action = "command" }) }))
   | Some("/") ->
     // Search prompt - find any package item across the whole tree.
-    Option.Some(
+    Some(
       Step.Continue(
         { state with
             input =
-              Option.Some(
+              Some(
                 InputState
                   { prompt = "search "
                     field = Stdlib.Cli.UI.TextField.fromText("")
                     action = "search" }) }))
   | Some(s) ->
     match Stdlib.Int64.parse(s) with
-    | Ok(n) -> Option.Some(Step.Continue(jumpToWorkspace(state, n)))
-    | Error(_) -> Option.None
-  | None -> Option.None
+    | Ok(n) -> Some(Step.Continue(jumpToWorkspace(state, n)))
+    | Error(_) -> None
+  | None -> None
 
 
 /// Is the cursor on a row of this kind?
@@ -104,14 +104,14 @@ let handleViewKey(
         else if it.kind == "removed" then
           Step.Continue(state)
         else
-          openReader(state, changesSourceText(state.branchId, Option.Some(it)), Reader.Code)
+          openReader(state, changesSourceText(state.branchId, Some(it)), Reader.Code)
       | None -> Step.Continue(state)
     else if state.activeView == vScratch then
       // Scratch: open the eval prompt; the result appends to the log.
       Step.Continue(
         { state with
             input =
-              Option.Some(
+              Some(
                 InputState
                   { prompt = "repl> "
                     field = Stdlib.Cli.UI.TextField.fromText("")
@@ -252,7 +252,7 @@ let handleViewKey(
         Step.Continue(
           { state with
               input =
-                Option.Some(
+                Some(
                   InputState
                     { prompt = "filter: "
                       field = Stdlib.Cli.UI.TextField.fromText(state.filter)
@@ -262,7 +262,7 @@ let handleViewKey(
         Step.Continue(
           { state with
               input =
-                Option.Some(
+                Some(
                   InputState
                     { prompt = "commit message: "
                       field = Stdlib.Cli.UI.TextField.fromText("")
@@ -281,7 +281,7 @@ let handleViewKey(
           Step.Continue(
             { state with
                 input =
-                  Option.Some(
+                  Some(
                     InputState
                       { prompt = $"delete trace {Text.shortIdText(item.name)}? type y then enter: "
                         field = Stdlib.Cli.UI.TextField.fromText("")
@@ -307,7 +307,7 @@ let handleViewKey(
           Step.Continue(
             { state with
                 input =
-                  Option.Some(
+                  Some(
                     InputState
                       { prompt = "delete branch " + b.name + "? type y then enter: "
                         field = Stdlib.Cli.UI.TextField.fromText("")
@@ -317,7 +317,7 @@ let handleViewKey(
         Step.Continue(
           { state with
               input =
-                Option.Some(
+                Some(
                   InputState
                     { prompt = "discard ALL uncommitted? type y then enter: "
                       field = Stdlib.Cli.UI.TextField.fromText("")
@@ -329,7 +329,7 @@ let handleViewKey(
         Step.Continue(
           { state with
               input =
-                Option.Some(
+                Some(
                   InputState
                     { prompt = "new branch name: "
                       field = Stdlib.Cli.UI.TextField.fromText("")
@@ -349,7 +349,7 @@ let handleViewKey(
           Step.Continue(
             { state with
                 input =
-                  Option.Some(
+                  Some(
                     InputState
                       { prompt = "merge " + b.name + " into parent? type y then enter: "
                         field = Stdlib.Cli.UI.TextField.fromText("")
@@ -430,7 +430,7 @@ let handleViewKey(
           Step.Continue(
             { state with
                 input =
-                  Option.Some(
+                  Some(
                     InputState
                       { prompt = "rebase " + b.name + " onto parent? type y then enter: "
                         field = Stdlib.Cli.UI.TextField.fromText("")
@@ -445,7 +445,7 @@ let handleViewKey(
             Step.Continue(
               { state with
                   input =
-                    Option.Some(
+                    Some(
                       InputState
                         { prompt = "rename to: "
                           field = Stdlib.Cli.UI.TextField.fromText(item.name)
@@ -498,7 +498,7 @@ let handleKey(
             handleSearchResultsKey(state, key, keyChar)
           else if navbarFocused(state) then
             // Let Home's welcome shortcut work before content has focus.
-            if state.activeView == vHome && keyChar == Option.Some("b") then
+            if state.activeView == vHome && keyChar == Some("b") then
               handleViewKey(state, key, modifiers, keyChar)
             else
               handleNavbarKey(state, key, keyChar)

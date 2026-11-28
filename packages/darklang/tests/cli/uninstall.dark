@@ -15,14 +15,12 @@ let refused(home: String): Bool =
 
 test darklangDirToRemove =
   Stdlib.Test.all(
-    [ dir("/home/jo")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/home/jo/.darklang"))
+    [ dir("/home/jo") |> Stdlib.Test.equal(Ok("/home/jo/.darklang"))
 
-      dir("/home/jo/")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/home/jo/.darklang"))
+      dir("/home/jo/") |> Stdlib.Test.equal(Ok("/home/jo/.darklang"))
 
       dir("/Users/Jo Smith")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/Users/Jo Smith/.darklang"))
+      |> Stdlib.Test.equal(Ok("/Users/Jo Smith/.darklang"))
 
       refused("") |> Stdlib.Test.equal(true)
 
@@ -38,15 +36,15 @@ test darklangDirToRemove =
 // The order matters as much as the refusal: an uninstall that removed the alias and then refused
 // would leave `dark` half uninstalled. These steps fail loudly instead of touching anything.
 let aliasDeleted(): Stdlib.Result.Result<Unit, String> =
-  Stdlib.Result.Result.Error("the alias was deleted")
+  Error("the alias was deleted")
 
 
 let aliasKept(): Stdlib.Result.Result<Unit, String> =
-  Stdlib.Result.Result.Ok()
+  Ok()
 
 
 let folderRemoved(dir: String): Stdlib.Result.Result<Unit, String> =
-  Stdlib.Result.Result.Error($"removed {dir}")
+  Error($"removed {dir}")
 
 
 let refusal(home: String): String =
@@ -65,14 +63,13 @@ let uninstall(
 test refusedUninstallLeavesTheAliasAlone =
   Stdlib.Test.all(
     [ uninstall("", fun () -> aliasDeleted())
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(refusal("")))
+      |> Stdlib.Test.equal(Error(refusal("")))
 
       uninstall("home/jo", fun () -> aliasDeleted())
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(refusal("home/jo")))
+      |> Stdlib.Test.equal(Error(refusal("home/jo")))
 
       uninstall("/home/jo", fun () -> aliasDeleted())
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("the alias was deleted"))
+      |> Stdlib.Test.equal(Error("the alias was deleted"))
 
       uninstall("/home/jo", fun () -> aliasKept())
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error("removed /home/jo/.darklang")) ])
+      |> Stdlib.Test.equal(Error("removed /home/jo/.darklang")) ])

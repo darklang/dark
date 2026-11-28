@@ -74,10 +74,10 @@ test inverseTrigonometry =
   Stdlib.Test.all(
     [ Stdlib.Math.asin(0.0) |> nearSome(0.0)
       Stdlib.Math.asin(1.0) |> nearSome(1.57079632679)
-      Stdlib.Math.asin(5.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Math.asin(5.0) |> Stdlib.Test.equal(None)
       Stdlib.Math.acos(-1.0) |> nearSome(3.14159265359)
       Stdlib.Math.acos(1.0) |> nearSome(0.0)
-      Stdlib.Math.acos(5.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.Math.acos(5.0) |> Stdlib.Test.equal(None) ])
 
 
 test atan2 =
@@ -109,33 +109,25 @@ test turns =
 // checked versions: Error where the result is not finite
 test checkedOverflow =
   Stdlib.Test.all(
-    [ Stdlib.Math.checkedCosh(0.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+    [ Stdlib.Math.checkedCosh(0.0) |> Stdlib.Test.equal(Ok(1.0))
 
       Stdlib.Math.checkedCosh(1000.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Math.checkedSinh(0.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.0))
+      Stdlib.Math.checkedSinh(0.0) |> Stdlib.Test.equal(Ok(0.0))
 
       Stdlib.Math.checkedSinh(-1000.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Math.checkedDegrees(180.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Math.pi))
+      Stdlib.Math.checkedDegrees(180.0) |> Stdlib.Test.equal(Ok(Stdlib.Math.pi))
 
       Stdlib.Math.checkedDegrees(1e308)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Math.checkedTurns(0.5)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Math.pi))
+      Stdlib.Math.checkedTurns(0.5) |> Stdlib.Test.equal(Ok(Stdlib.Math.pi))
 
       Stdlib.Math.checkedTurns(1e308)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])
 
 
 let infinity(): Float64 =
@@ -154,16 +146,11 @@ test inverseHyperbolic =
       Stdlib.Math.asinh(Stdlib.Math.sinh(1.5)) |> near(1.5)
       Stdlib.Math.acosh(1.0) |> nearSome(0.0)
       Stdlib.Math.acosh(Stdlib.Math.cosh(2.0)) |> nearSome(2.0)
-      Stdlib.Math.acosh(0.5) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Math.acosh(0.5) |> Stdlib.Test.equal(None)
       Stdlib.Math.atanh(0.0) |> nearSome(0.0)
-      Stdlib.Math.atanh(1.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(infinity()))
-
-      Stdlib.Math.atanh(2.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Math.atanh(-1.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
-
+      Stdlib.Math.atanh(1.0) |> Stdlib.Test.equal(Some(infinity()))
+      Stdlib.Math.atanh(2.0) |> Stdlib.Test.equal(None)
+      Stdlib.Math.atanh(-1.0) |> Stdlib.Test.equal(Some(-infinity()))
       Stdlib.Math.atanh(Stdlib.Math.tanh(0.75)) |> nearSome(0.75)
       Stdlib.Math.atanh(Stdlib.Math.tanh(-0.25)) |> nearSome(-0.25)
       Stdlib.Math.asinh(-0.0)
@@ -189,29 +176,16 @@ test inverseHyperbolic =
 test logarithms =
   Stdlib.Test.all(
     [ Stdlib.Math.log(Stdlib.Math.e) |> nearSome(1.0)
-      Stdlib.Math.log(1.0) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.0))
-
-      Stdlib.Math.log(0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
-
-      Stdlib.Math.log(-1.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Math.log2(8.0) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3.0))
-
-      Stdlib.Math.log2(-8.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Math.log2(0.125)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-3.0))
-
-      Stdlib.Math.log2(smallest())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1074.0))
-
+      Stdlib.Math.log(1.0) |> Stdlib.Test.equal(Some(0.0))
+      Stdlib.Math.log(0.0) |> Stdlib.Test.equal(Some(-infinity()))
+      Stdlib.Math.log(-1.0) |> Stdlib.Test.equal(None)
+      Stdlib.Math.log2(8.0) |> Stdlib.Test.equal(Some(3.0))
+      Stdlib.Math.log2(-8.0) |> Stdlib.Test.equal(None)
+      Stdlib.Math.log2(0.125) |> Stdlib.Test.equal(Some(-3.0))
+      Stdlib.Math.log2(smallest()) |> Stdlib.Test.equal(Some(-1074.0))
       Stdlib.Math.log2(10.0) |> nearSome(3.321928094887362)
-      Stdlib.Math.log2(0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
-
-      Stdlib.Math.log2(infinity())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(infinity()))
+      Stdlib.Math.log2(0.0) |> Stdlib.Test.equal(Some(-infinity()))
+      Stdlib.Math.log2(infinity()) |> Stdlib.Test.equal(Some(infinity()))
 
       // Close to 1, cancellation in the exponent adjustment would cost precision.
       Stdlib.Math.log2(1.0 + 2.0 ** -52.0)
@@ -221,23 +195,16 @@ test logarithms =
       |> withinSomeUlps(-0.49526044048864576, 1u64)
 
       Stdlib.Math.log10(1000.0) |> nearSome(3.0)
-      Stdlib.Math.log10(-1.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Math.log10(-1.0) |> Stdlib.Test.equal(None)
 
       // log(1.0 + 1e-20) would round the 1e-20 away
-      Stdlib.Math.logOnePlus(1e-20)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1e-20))
-
+      Stdlib.Math.logOnePlus(1e-20) |> Stdlib.Test.equal(Some(1e-20))
       Stdlib.Math.logOnePlus(1e-10) |> nearSome(9.9999999995e-11)
       Stdlib.Math.logOnePlus(Stdlib.Math.e - 1.0) |> nearSome(1.0)
       Stdlib.Math.logOnePlus(1e308) |> withinSomeUlps(709.1962086421661, 1u64)
-      Stdlib.Math.logOnePlus(-1.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-infinity()))
-
-      Stdlib.Math.logOnePlus(infinity())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(infinity()))
-
-      Stdlib.Math.logOnePlus(-2.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.Math.logOnePlus(-1.0) |> Stdlib.Test.equal(Some(-infinity()))
+      Stdlib.Math.logOnePlus(infinity()) |> Stdlib.Test.equal(Some(infinity()))
+      Stdlib.Math.logOnePlus(-2.0) |> Stdlib.Test.equal(None) ])
 
 
 test exponentials =

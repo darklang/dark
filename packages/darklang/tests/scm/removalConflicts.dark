@@ -16,7 +16,7 @@ module Removals =
         hash = hash
         originTs = ts
         author = ""
-        previous = Stdlib.Option.Option.None }
+        previous = None }
 
 
   let theirs(
@@ -43,9 +43,7 @@ module Removals =
 test theyEndedWhatIHold =
   Removals.detect(
     [ Removals.mine("aaa", "2026-01-01T00:00:00.000Z") ],
-    [ Removals.theirs(
-        Stdlib.Option.Option.Some("aaa"),
-        "2026-01-02T00:00:00.000Z") ])
+    [ Removals.theirs(Some("aaa"), "2026-01-02T00:00:00.000Z") ])
   |> Stdlib.List.length
   |> Stdlib.Test.equal(0)
 
@@ -54,9 +52,7 @@ test theyEndedWhatIHold =
 test theyEndedReplacedVersion =
   Removals.detect(
     [ Removals.mine("bbb", "2026-01-03T00:00:00.000Z") ],
-    [ Removals.theirs(
-        Stdlib.Option.Option.Some("aaa"),
-        "2026-01-02T00:00:00.000Z") ])
+    [ Removals.theirs(Some("aaa"), "2026-01-02T00:00:00.000Z") ])
   |> Stdlib.List.map(fun c -> (c.kind, c.autoResolvedTo))
   |> Stdlib.Test.equal([ ("removed-vs-edited", "bbb") ])
 
@@ -65,9 +61,7 @@ test theyEndedReplacedVersion =
 test removalOfUnheldName =
   Removals.detect(
     [],
-    [ Removals.theirs(
-        Stdlib.Option.Option.Some("aaa"),
-        "2026-01-02T00:00:00.000Z") ])
+    [ Removals.theirs(Some("aaa"), "2026-01-02T00:00:00.000Z") ])
   |> Stdlib.List.length
   |> Stdlib.Test.equal(0)
 
@@ -76,9 +70,7 @@ test removalOfUnheldName =
 test recordedShape =
   (Removals.detect(
      [ Removals.mine("bbb", "2026-01-03T00:00:00.000Z") ],
-     [ Removals.theirs(
-         Stdlib.Option.Option.Some("aaa"),
-         "2026-01-02T00:00:00.000Z") ])
+     [ Removals.theirs(Some("aaa"), "2026-01-02T00:00:00.000Z") ])
    |> Stdlib.List.head
    |> Stdlib.Option.map(fun c ->
      let sides =
@@ -86,17 +78,14 @@ test recordedShape =
 
      (c.kind, sides, c.autoResolvedTo)))
   |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(
-      ("removed-vs-edited", [ (false, "bbb"), (true, "") ], "bbb")))
+    Some(("removed-vs-edited", [ (false, "bbb"), (true, "") ], "bbb")))
 
 
 // Their removal is NEWER than my edit, so the fold leaves the name gone and the record says so.
 test newerRemovalWins =
   (Removals.detect(
      [ Removals.mine("bbb", "2026-01-01T00:00:00.000Z") ],
-     [ Removals.theirs(
-         Stdlib.Option.Option.Some("aaa"),
-         "2026-01-05T00:00:00.000Z") ])
+     [ Removals.theirs(Some("aaa"), "2026-01-05T00:00:00.000Z") ])
    |> Stdlib.List.head
    |> Stdlib.Option.map(fun c -> (c.autoResolvedTo, c.reason)))
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("", "removal is newer")))
+  |> Stdlib.Test.equal(Some(("", "removal is newer")))

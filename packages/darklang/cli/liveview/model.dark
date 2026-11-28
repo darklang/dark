@@ -36,5 +36,5 @@ let viewAt(name: String, title: String, path: String): View =
       init = path + ".init"
       update = path + ".update"
       render = path + ".render"
-      every = Option.None
-      keys = Option.None }
+      every = None
+      keys = None }

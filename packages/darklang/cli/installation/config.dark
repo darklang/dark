@@ -6,12 +6,12 @@ module Darklang.Cli.Installation.Config
 let darklangHomeIn(home: String): Result<String, String> =
   let withoutSlashes = Stdlib.Cli.Path.stripTrailing(home)
   if withoutSlashes == "" || withoutSlashes == "/" then
-    Result.Error(
+    Error(
       $"your home directory looks like '{home}', so there is no safe place for .darklang. Set HOME and try again.")
   else if Stdlib.Bool.not(Stdlib.String.startsWith(withoutSlashes, "/")) then
-    Result.Error($"your home directory '{home}' is not an absolute path. Set HOME and try again.")
+    Error($"your home directory '{home}' is not an absolute path. Set HOME and try again.")
   else
-    Result.Ok($"{withoutSlashes}/.darklang")
+    Ok($"{withoutSlashes}/.darklang")
 
 
 /// The Darklang home directory, or why it can't be found.
@@ -20,4 +20,4 @@ let darklangHomeIn(home: String): Result<String, String> =
 let getDarklangHomeDir(_host: Stdlib.Cli.Host.Host): Result<String, String> =
   match Stdlib.Cli.Unix.getHomeDirectory() with
   | Ok(home) -> darklangHomeIn(home)
-  | Error(e) -> Result.Error($"couldn't find your home directory: {e}")
+  | Error(e) -> Error($"couldn't find your home directory: {e}")

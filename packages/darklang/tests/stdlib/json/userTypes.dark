@@ -426,8 +426,7 @@ module RestoredArchive =
         |> Stdlib.Test.equal("{\"InvalidPackageName\":[[\"NamePart\"]]}")
 
         Stdlib.Json.parse<NamedError>("{\"NotFound\":[[\"NamePart\"]]}")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(NamedError.NotFound([ "NamePart" ]))) ])
+        |> Stdlib.Test.equal(Ok(NamedError.NotFound([ "NamePart" ]))) ])
 
 
   test listOfEnums =
@@ -444,7 +443,7 @@ module RestoredArchive =
         |> Stdlib.Test.equal(encoded)
 
         Stdlib.Json.parse<List<NamedError>>(encoded)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value)) ])
+        |> Stdlib.Test.equal(Ok(value)) ])
 
 
   test rejectsMalformedJson =
@@ -470,7 +469,7 @@ module RestoredArchive =
       |> err
       |> Stdlib.Result.mapError(fun m ->
         Stdlib.String.startsWith(m, "Not JSON at line "))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(true)))
+      |> Stdlib.Test.equal(Error(true)))
     |> Stdlib.Test.all
 
 
@@ -479,61 +478,52 @@ module RestoredArchive =
   test notJsonSaysWhere =
     let at = fun text ->
       match Stdlib.Json.parse<List<String>>(text) with
-      | Error(NotJson(line, column)) ->
-        Stdlib.Option.Option.Some((line, column))
-      | _ -> Stdlib.Option.Option.None
+      | Error(NotJson(line, column)) -> Some((line, column))
+      | _ -> None
 
     Stdlib.Test.all(
-      [ at("x") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 1)))
+      [ at("x") |> Stdlib.Test.equal(Some((1, 1)))
 
-        at("") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 1)))
+        at("") |> Stdlib.Test.equal(Some((1, 1)))
 
-        at("[\"a\", x]") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 7)))
+        at("[\"a\", x]") |> Stdlib.Test.equal(Some((1, 7)))
 
-        at("[\n  \"a\",\n  \"b\" \"c\"\n]")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some((3, 7)))
+        at("[\n  \"a\",\n  \"b\" \"c\"\n]") |> Stdlib.Test.equal(Some((3, 7)))
 
-        at("[\r\n\"a\",\r\n x]")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some((3, 2)))
+        at("[\r\n\"a\",\r\n x]") |> Stdlib.Test.equal(Some((3, 2)))
 
-        at("[\"é🎉\", x]")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 8)))
+        at("[\"é🎉\", x]") |> Stdlib.Test.equal(Some((1, 8)))
 
-        at("[\"a\"") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 5)))
+        at("[\"a\"") |> Stdlib.Test.equal(Some((1, 5)))
 
         Stdlib.Json.parse<List<String>>("[\n1 2]")
         |> err
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error("Not JSON at line 2, column 3")) ])
+        |> Stdlib.Test.equal(Error("Not JSON at line 2, column 3")) ])
 
 
   test scalarAndLargeRecordValues =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<Int64>("1")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+      [ Stdlib.Json.parse<Int64>("1") |> Stdlib.Test.equal(Ok(1))
 
-        Stdlib.Json.parse<String>("\"\"")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+        Stdlib.Json.parse<String>("\"\"") |> Stdlib.Test.equal(Ok(""))
 
         Stdlib.Json.parse<Counter>("{ \"v\": 4611686018427387903 }")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(Counter { v = 4611686018427387903 }))
+        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387903 }))
 
         Stdlib.Json.parse<Counter>("{ \"v\": 4611686018427387904 }")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(Counter { v = 4611686018427387904 })) ])
+        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387904 })) ])
 
 
   test uint64ExactDecimalAndExponentForms =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<UInt64>("18446744073709551615.0")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551615u64))
+        |> Stdlib.Test.equal(Ok(18446744073709551615u64))
 
         Stdlib.Json.parse<UInt64>("18446744073709551614.0")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551614u64))
+        |> Stdlib.Test.equal(Ok(18446744073709551614u64))
 
         Stdlib.Json.parse<UInt64>("9007199254740993e0")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9007199254740993u64)) ])
+        |> Stdlib.Test.equal(Ok(9007199254740993u64)) ])
 
 
   test uint64RejectsOverflowAndRoundedFractions =
@@ -563,20 +553,17 @@ module RestoredArchive =
     |> Stdlib.List.map(fun value ->
       Stdlib.Json.serialize<Float64>(value)
       |> Stdlib.Json.parse<Float64>
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value)))
+      |> Stdlib.Test.equal(Ok(value)))
     |> Stdlib.Test.all
 
 
   test deeplyNestedOptionsAndEnums =
-    let value =
-      Stdlib.Option.Option.Some(
-        Stdlib.Option.Option.Some([ NamedError.NotFound([ "a", "b" ]) ]))
-
+    let value = Some(Some([ NamedError.NotFound([ "a", "b" ]) ]))
     Stdlib.Json.serialize<
       Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>(value)
     |> Stdlib.Json.parse<
       Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>
-    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value))
+    |> Stdlib.Test.equal(Ok(value))
 
 
 /// `Net.Port`, `Http.Status`, `Cli.Posix.Pid` and `Cli.Posix.ExitCode` are bare numbers in
@@ -602,7 +589,7 @@ module RangedInts =
         Stdlib.Cli.Posix.Pid.fromInt64(4242)
         |> Stdlib.Result.map(fun p ->
           Stdlib.Json.serialize<Stdlib.Cli.Posix.Pid>(p))
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("4242"))
+        |> Stdlib.Test.equal(Ok("4242"))
 
         Stdlib.Json.serialize<Server>(
           Server
@@ -613,23 +600,21 @@ module RangedInts =
   test parseNumbers =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Stdlib.Net.Port>("8080")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Net.Port.httpAlt))
+        |> Stdlib.Test.equal(Ok(Stdlib.Net.Port.httpAlt))
 
         Stdlib.Json.parse<Stdlib.Http.Status>("404.0")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(Stdlib.Http.Status.notFound))
+        |> Stdlib.Test.equal(Ok(Stdlib.Http.Status.notFound))
 
         Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>("0")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ExitCode.success))
+        |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.success))
 
         Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>("4242")
         |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4242))
+        |> Stdlib.Test.equal(Ok(4242))
 
         Stdlib.Json.parse<Server>("{\"port\":443,\"status\":200}")
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(
+          Ok(
             Server
               { port = Stdlib.Net.Port.https
                 status = Stdlib.Http.Status.ok })) ])
@@ -642,7 +627,7 @@ module RangedInts =
 
     Stdlib.Json.serialize<Server>(value)
     |> Stdlib.Json.parse<Server>
-    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value))
+    |> Stdlib.Test.equal(Ok(value))
 
 
   // Each type's ends and one past them, against its `fromInt64`: the F# range table has to
@@ -726,9 +711,7 @@ module Tree =
       tags: List<String> }
 
 
-  val reading =
-    Reading
-      { host = "a1", cpu = Stdlib.Option.Option.Some(38.5), tags = [ "x" ] }
+  val reading = Reading { host = "a1", cpu = Some(38.5), tags = [ "x" ] }
 
 
   test toTree =
@@ -746,7 +729,7 @@ module Tree =
         Stdlib.Json.toTreeWith<Reading>(
           Stdlib.Json.Options.Options
             { noneFields = Stdlib.Json.Options.NoneFields.Null },
-          { reading with cpu = Stdlib.Option.Option.None })
+          { reading with cpu = None })
         |> Stdlib.Test.equal(
           Stdlib.AltJson.Json.Object(
             [ ("host", Stdlib.AltJson.Json.String("a1"))
@@ -815,14 +798,11 @@ module Traits =
     let fromJson(
       json: Stdlib.AltJson.Json)
       : Stdlib.Result.Result<Celsius, String> =
-      let refused =
-        Stdlib.Result.Result.Error("expected a temperature like \"21.5C\"")
-
+      let refused = Error("expected a temperature like \"21.5C\"")
       match json with
       | String(s) when Stdlib.String.endsWith(s, "C") ->
         match Stdlib.Float64.parse(Stdlib.String.dropLast(s, 1)) with
-        | Ok(degreesC) ->
-          Stdlib.Result.Result.Ok(Celsius { degreesC = degreesC })
+        | Ok(degreesC) -> Ok(Celsius { degreesC = degreesC })
         | Error(_) -> refused
       | _ -> refused
 
@@ -839,7 +819,7 @@ module Traits =
       { name = "lab"
         temp = Celsius { degreesC = 21.5 }
         history = [ Celsius { degreesC = 20.0 }, Celsius { degreesC = 19.5 } ]
-        target = Stdlib.Option.Option.Some(Celsius { degreesC = 22.0 }) }
+        target = Some(Celsius { degreesC = 22.0 }) }
 
 
   val roomJson =
@@ -908,7 +888,7 @@ module AnyJson =
     Stdlib.Json.parse<Dict<String, Stdlib.AltJson.Json>>(
       "{\"a\":1,\"b\":\"x\",\"c\":[true,null],\"d\":{\"e\":1.5}}")
     |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Ok(
+      Ok(
         Dict { "a": Stdlib.AltJson.Json.Integer(1)
                "b": Stdlib.AltJson.Json.String("x")
                "c": Stdlib.AltJson.Json.Array(
@@ -921,7 +901,7 @@ module AnyJson =
     Stdlib.Json.parse<List<Row>>(
       "[{\"name\":\"a\",\"extra\":7},{\"name\":\"b\",\"extra\":[\"x\"]}]")
     |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Ok(
+      Ok(
         [ Row { name = "a", extra = Stdlib.AltJson.Json.Integer(7) }
           Row
             { name = "b"
@@ -935,4 +915,4 @@ module AnyJson =
     Stdlib.Json.parse<List<Stdlib.AltJson.Json>>(text)
     |> Stdlib.Result.map(fun v ->
       Stdlib.Json.serialize<List<Stdlib.AltJson.Json>>(v))
-    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(text))
+    |> Stdlib.Test.equal(Ok(text))

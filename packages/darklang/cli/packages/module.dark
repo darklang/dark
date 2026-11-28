@@ -18,17 +18,17 @@ let declarationName(
   decl: LanguageTools.WrittenTypes.ModuleDeclaration.Declaration)
   : Option<String> =
   match decl with
-  | Type(typ) -> Option.Some(typ.name.name)
-  | Function(fn) -> Option.Some(fn.name.name)
-  | Value(value) -> Option.Some(value.name.name)
-  | Trait(t) -> Option.Some(t.name.name)
+  | Type(typ) -> Some(typ.name.name)
+  | Function(fn) -> Some(fn.name.name)
+  | Value(value) -> Some(value.name.name)
+  | Trait(t) -> Some(t.name.name)
   // An impl's location is `<Type>.<Trait>` beneath the module it is written in
   | Impl(i) ->
-    Option.Some(
+    Some(
       $"{LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.typeReferenceHeadName(i.forType)}.{i.trait_.typ.name}")
-  | Test(test) -> Option.Some(test.name.name)
-  | SubModule(modul) -> Option.Some(Stdlib.Tuple2.second(modul.name))
-  | Expr(_) -> Option.None
+  | Test(test) -> Some(test.name.name)
+  | SubModule(modul) -> Some(Stdlib.Tuple2.second(modul.name))
+  | Expr(_) -> None
 
 
 /// Return every declaration path that occurs more than once in the input.
@@ -88,12 +88,12 @@ let landDocEdits(branchId: Uuid, ops: List<LanguageTools.ProgramTypes.PackageOp>
               LanguageTools.ProgramTypes.Reference.hash(bound),
               [ add ])
           then
-            Option.Some(location.name)
+            Some(location.name)
           else
-            Option.None
-        | None -> Option.None
-      | None -> Option.None
-    | _ -> Option.None)
+            None
+        | None -> None
+      | None -> None
+    | _ -> None)
   |> Stdlib.List.length
 
 
@@ -152,7 +152,7 @@ let unparsedNames(
       match path((modules, decl)) with
       | Some(p) when usable && Stdlib.Bool.not(Stdlib.List.contains(keptPaths, p)) ->
         Stdlib.List.last(p)
-      | _ -> Option.None)
+      | _ -> None)
   | _ -> []
 
 
@@ -331,8 +331,8 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                 match op with
                 // Three fields, and a two-field pattern silently matches nothing rather than
                 // failing to compile.
-                | SetName(location, _, _) -> Option.Some(location.name)
-                | _ -> Option.None)
+                | SetName(location, _, _) -> Some(location.name)
+                | _ -> None)
 
             let count = Stdlib.List.length(definedNames) - unchangedDeprecated
 
@@ -364,8 +364,8 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
               | Edit, [_], [item] ->
                 let loc = item.location
                 let parts = Stdlib.List.prepend(loc.modules, loc.owner)
-                Option.Some(Stdlib.String.join(Stdlib.List.append(parts, loc.name), "."))
-              | _ -> Option.None
+                Some(Stdlib.String.join(Stdlib.List.append(parts, loc.name), "."))
+              | _ -> None
 
             if count > 0 || unchangedDeprecated == 0 then
               let summary =
@@ -392,10 +392,9 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                       |> Stdlib.Option.andThen(fun u -> Stdlib.List.head(u.previous))
 
                     match LanguageTools.PackageManager.Function.find(branchId, location) with
-                    | Some(now) when previous != Option.Some(now) ->
-                      Option.Some((location, previous, now))
-                    | _ -> Option.None
-                  | _ -> Option.None)
+                    | Some(now) when previous != Some(now) -> Some((location, previous, now))
+                    | _ -> None
+                  | _ -> None)
 
             savedFns
             |> Stdlib.List.iter(fun((location, previous, now)) ->

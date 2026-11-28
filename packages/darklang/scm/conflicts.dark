@@ -265,10 +265,10 @@ let conflictFromRow(row: ConflictRow): Conflict =
 /// exactly what it is, once a person has looked at both.
 let settleWording(branchId: Uuid, c: Conflict, text: String): Result<Unit, String> =
   match Actions.resolve(Actions.Resolution.Reword(branchId, c.id, text)) with
-  | Ok(_) -> Result.Ok()
+  | Ok(_) -> Ok()
   | Error(Refused(UnreadablePart(part))) ->
-    Result.Error($"#{c.id} names a part this build cannot read: {part}")
-  | Error(e) -> Result.Error(Actions.failureMessage(e))
+    Error($"#{c.id} names a part this build cannot read: {part}")
+  | Error(e) -> Error(Actions.failureMessage(e))
 
 
 /// Is this conflict about WHICH VERSION a name holds?
@@ -348,23 +348,23 @@ let getByIdPrefix(rawPrefix: String): Option<Conflict> =
   // you were working on. Matched as owner.modules.name so a fully-dotted name is unambiguous, and only
   // among THIS branch's conflicts, pending ones first.
   match query(ConflictFilter.ByRef(idPrefix, onBranch())) with
-  | [row] -> Option.Some(conflictFromRow(row))
-  | _ -> Option.None
+  | [row] -> Some(conflictFromRow(row))
+  | _ -> None
 
 
 /// Close a conflict as ACKED: the auto-pick stands. An Error says the record is still open.
 let ack(id: String): Result<Unit, String> =
   match Actions.resolve(Actions.Resolution.Ack(id)) with
-  | Ok(_) -> Result.Ok()
-  | Error(e) -> Result.Error(Actions.failureMessage(e))
+  | Ok(_) -> Ok()
+  | Error(e) -> Error(Actions.failureMessage(e))
 
 
 /// Close a conflict as SUPERSEDED: the name has since moved to <param liveHash>, which is neither side.
 /// An Error says the record is still open.
 let supersede(id: String, liveHash: String): Result<Unit, String> =
   match Actions.resolve(Actions.Resolution.Supersede(id, liveHash)) with
-  | Ok(_) -> Result.Ok()
-  | Error(e) -> Result.Error(Actions.failureMessage(e))
+  | Ok(_) -> Ok()
+  | Error(e) -> Error(Actions.failureMessage(e))
 
 
 // rendering (one place, so pretty and --json never drift)

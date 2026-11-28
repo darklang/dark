@@ -153,9 +153,9 @@ let extendToCommonPrefix(input: String, completions: List<CompletionItem>): Opti
     Stdlib.String.startsWith(prefix, partial)
     && Stdlib.String.length(prefix) > Stdlib.String.length(partial)
   then
-    Option.Some(buildCompletedCommand(parsed, prefix))
+    Some(buildCompletedCommand(parsed, prefix))
   else
-    Option.None
+    None
 
 
 // Filesystem completion helpers

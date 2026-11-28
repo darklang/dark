@@ -24,7 +24,7 @@ type PickContext =
 
 
 module PickContext =
-  val empty = PickContext { currentModule = [], preferredLocation = Option.None }
+  val empty = PickContext { currentModule = [], preferredLocation = None }
 
 
 /// Count how many leading segments of two lists match.
@@ -51,14 +51,14 @@ let pickLocation(
       locations
       |> Stdlib.List.findFirst(fun l ->
         l.owner == p.owner && l.modules == p.modules && l.name == p.name)
-    | None -> Option.None
+    | None -> None
 
   match asked with
-  | Some(a) -> Option.Some(a)
+  | Some(a) -> Some(a)
   | None ->
     match locations with
-    | [] -> Option.None
-    | [single] -> Option.Some(single)
+    | [] -> None
+    | [single] -> Some(single)
     | [first, ...rest] ->
       let firstPath = Stdlib.List.prepend(first.modules, first.owner)
       let firstScore = countMatchingPrefix(ctx.currentModule, firstPath)
@@ -75,7 +75,7 @@ let pickLocation(
         else
           (bestScore, bestLen, bestLoc))
 
-      Option.Some(bestLoc)
+      Some(bestLoc)
 
 
 /// location -> hash for an item of <param kind>, resolved on <param branchId>. The per-kind
@@ -141,10 +141,9 @@ module Type =
     match get(hash) with
     | Some(entity) ->
       match pickLocation(PickContext.empty, locations(branchId, hash)) with
-      | Some(location) ->
-        Option.Some(ProgramTypes.LocatedItem { entity = entity, location = location })
-      | None -> Option.None
-    | None -> Option.None
+      | Some(location) -> Some(ProgramTypes.LocatedItem { entity = entity, location = location })
+      | None -> None
+    | None -> None
 
 
 module Trait =
@@ -236,10 +235,9 @@ module Value =
     match get(hash) with
     | Some(entity) ->
       match pickLocation(PickContext.empty, locations(branchId, hash)) with
-      | Some(location) ->
-        Option.Some(ProgramTypes.LocatedItem { entity = entity, location = location })
-      | None -> Option.None
-    | None -> Option.None
+      | Some(location) -> Some(ProgramTypes.LocatedItem { entity = entity, location = location })
+      | None -> None
+    | None -> None
 
 
   /// The stored value at <param hash>, evaluated. `None` when the store does not hold it.
@@ -272,14 +270,14 @@ module Value =
         if Stdlib.List.take(path, Stdlib.List.length(prefix)) == prefix then
           match evaluate(hash) with
           | Some(value) ->
-            Option.Some(
+            Some(
               Found
                 { path = Stdlib.String.join(Stdlib.List.append(path, location.name), ".")
                   value = value })
-          | None -> Option.None
+          | None -> None
         else
-          Option.None
-      | None -> Option.None)
+          None
+      | None -> None)
 
 
 module Function =
@@ -315,10 +313,9 @@ module Function =
     match get(hash) with
     | Some(entity) ->
       match pickLocation(PickContext.empty, locations(branchId, hash)) with
-      | Some(location) ->
-        Option.Some(ProgramTypes.LocatedItem { entity = entity, location = location })
-      | None -> Option.None
-    | None -> Option.None
+      | Some(location) -> Some(ProgramTypes.LocatedItem { entity = entity, location = location })
+      | None -> None
+    | None -> None
 
 
 module Test =
@@ -406,7 +403,7 @@ module Test =
     match name.resolved with
     | Ok(resolved) ->
       resolved.location
-      == Option.Some(
+      == Some(
         ProgramTypes.PackageLocation
           { owner = "Darklang", modules = [ "Stdlib", "Test" ], name = fn })
     | Error(_) -> false
@@ -421,8 +418,8 @@ module Test =
     match __resultExpr(body) with
     | EApply(_, EFnName(_, name, _, _), _, [EString(_, [StringText(group)]), check])
       when __isTestFn(name, "group") ->
-      Option.Some((group, check))
-    | _ -> Option.None
+      Some((group, check))
+    | _ -> None
 
 
   /// The group the test <param body> puts itself in with `Stdlib.Test.group`, if any.
@@ -441,11 +438,9 @@ module Test =
   /// The items of <param e> when it is `Stdlib.Test.all` over a list written out in place.
   let __allItems(e: ProgramTypes.Expr): Option<List<ProgramTypes.Expr>> =
     match e with
-    | EApply(_, EFnName(_, name, _, _), _, [EList(_, items)]) when __isAll(name) ->
-      Option.Some(items)
-    | EPipe(_, EList(_, items), [EPipeFnCall(_, name, _, [], _)]) when __isAll(name) ->
-      Option.Some(items)
-    | _ -> Option.None
+    | EApply(_, EFnName(_, name, _, _), _, [EList(_, items)]) when __isAll(name) -> Some(items)
+    | EPipe(_, EList(_, items), [EPipeFnCall(_, name, _, [], _)]) when __isAll(name) -> Some(items)
+    | _ -> None
 
 
   /// The rows and the check of <param e> when it is a `Stdlib.Test.table`, written
@@ -456,7 +451,7 @@ module Test =
     | None ->
       match __resultExpr(e) with
       | EApply(_, EFnName(_, name, _, _), _, [rows, check]) when __isTestFn(name, "table") ->
-        Option.Some((rows, check))
+        Some((rows, check))
       | EPipe(id, first, steps) ->
         match Stdlib.List.last(steps) with
         | Some(EPipeFnCall(_, name, _, [check], _)) when __isTestFn(name, "table") ->
@@ -465,9 +460,9 @@ module Test =
             | [] -> first
             | before -> ProgramTypes.Expr.EPipe(id, first, before)
 
-          Option.Some((rows, check))
-        | _ -> Option.None
-      | _ -> Option.None
+          Some((rows, check))
+        | _ -> None
+      | _ -> None
 
 
   /// Whether <param body> is a `Stdlib.Test.table`, in a group or not.
@@ -492,8 +487,8 @@ module Test =
     : List<String> =
     let check =
       match __table(body) with
-      | Some((_, ELambda(_, _, checkBody))) -> Option.Some(__resultExpr(checkBody))
-      | _ -> Option.None
+      | Some((_, ELambda(_, _, checkBody))) -> Some(__resultExpr(checkBody))
+      | _ -> None
 
     match check, result with
     | Some(e), Fail(_) ->
@@ -514,7 +509,7 @@ module Test =
       | Some((_, check)) -> check
       | None -> body
 
-    __failureLines(ctx, [], Option.Some(check), result)
+    __failureLines(ctx, [], Some(check), result)
 
 
   /// <param source> is what <param result> came from, when the code says.
@@ -555,7 +550,7 @@ module Test =
     | Rows(rows) ->
       rows
       |> Stdlib.List.map(fun((name, row)) ->
-        __failureLines(ctx, Stdlib.List.append(path, name), Option.None, row))
+        __failureLines(ctx, Stdlib.List.append(path, name), None, row))
       |> Stdlib.List.flatten
 
 
@@ -577,16 +572,16 @@ module Test =
   let asTestResult(branchId: Uuid, value: RuntimeTypes.Dval): Option<Stdlib.Test.Result> =
     match resultTypeHash(branchId) with
     | Some(Hash(expected)) -> __asResultOfType(expected, value)
-    | None -> Option.None
+    | None -> None
 
 
   /// Each of <param values> through <param f>, or None if any gives None.
   let __eachOrNone(values: List<'a>, f: 'a -> Option<'b>): Option<List<'b>> =
     let converted = Stdlib.List.filterMap(values, f)
     if Stdlib.List.length(converted) == Stdlib.List.length(values) then
-      Option.Some(converted)
+      Some(converted)
     else
-      Option.None
+      None
 
 
   let __asResultOfType(expected: String, value: RuntimeTypes.Dval): Option<Stdlib.Test.Result> =
@@ -597,17 +592,17 @@ module Test =
       match caseName with
       | "Pass" ->
         match fields with
-        | [] -> Option.Some(Stdlib.Test.Result.Pass)
-        | _ -> Option.None
+        | [] -> Some(Stdlib.Test.Result.Pass)
+        | _ -> None
       | "Fail" ->
         match fields with
         | [DList(_, messages)] ->
           __eachOrNone(messages, fun m ->
             match m with
-            | DString(s) -> Option.Some(s)
-            | _ -> Option.None)
+            | DString(s) -> Some(s)
+            | _ -> None)
           |> Stdlib.Option.map(fun strings -> Stdlib.Test.Result.Fail(strings))
-        | _ -> Option.None
+        | _ -> None
       | "FailedChecks" ->
         match fields with
         | [DList(_, checks)] ->
@@ -616,9 +611,9 @@ module Test =
             | DTuple(DInt64(position), result, []) ->
               __asResultOfType(expected, result)
               |> Stdlib.Option.map(fun result -> (position, result))
-            | _ -> Option.None)
+            | _ -> None)
           |> Stdlib.Option.map(fun checks -> Stdlib.Test.Result.FailedChecks(checks))
-        | _ -> Option.None
+        | _ -> None
       | "Rows" ->
         match fields with
         | [DList(_, rows)] ->
@@ -626,11 +621,11 @@ module Test =
             match row with
             | DTuple(DString(name), result, []) ->
               __asResultOfType(expected, result) |> Stdlib.Option.map(fun result -> (name, result))
-            | _ -> Option.None)
+            | _ -> None)
           |> Stdlib.Option.map(fun rows -> Stdlib.Test.Result.Rows(rows))
-        | _ -> Option.None
-      | _ -> Option.None
-    | _ -> Option.None
+        | _ -> None
+      | _ -> None
+    | _ -> None
 
 
   /// Run this test and judge it. A declaration-level error expectation
@@ -652,24 +647,24 @@ module Test =
         match expected with
         | RuntimeError(message) -> $"error `{message}`"
 
-      Result.Ok(Stdlib.Test.fail($"expected the {expectedText}, got the value {actual}"))
+      Ok(Stdlib.Test.fail($"expected the {expectedText}, got the value {actual}"))
     | Some(expected), Error(error) ->
       let actual = PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error)
       match expected with
       | RuntimeError(message) ->
         if actual == message then
-          Result.Ok(Stdlib.Test.pass())
+          Ok(Stdlib.Test.pass())
         else
-          Result.Ok(Stdlib.Test.fail($"expected the error `{message}`, got `{actual}`"))
+          Ok(Stdlib.Test.fail($"expected the error `{message}`, got `{actual}`"))
     | None, Ok(value) ->
       match asTestResult(branchId, value) with
-      | Some(result) -> Result.Ok(result)
+      | Some(result) -> Ok(result)
       | None ->
-        Result.Error(
+        Error(
           RuntimeTypes.RuntimeError.Error.UncaughtException(
             "the test body did not return a Stdlib.Test.Result",
             []))
-    | None, Error(error) -> Result.Error(error)
+    | None, Error(error) -> Error(error)
 
 
   /// Run one test without keeping a starting snapshot for subsequent tests.
@@ -713,7 +708,7 @@ let declaration(previous: ProgramTypes.PackageOp, op: ProgramTypes.PackageOp): O
   let named(kind: String, loc: ProgramTypes.PackageLocation): Option<String> =
     let path = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
     let fqn = Stdlib.String.join(path, ".")
-    Option.Some($"{kind} {fqn}")
+    Some($"{kind} {fqn}")
 
   match previous, op with
   | AddType(_), SetName(loc, PackageType(_), _) -> named("type", loc)
@@ -722,7 +717,7 @@ let declaration(previous: ProgramTypes.PackageOp, op: ProgramTypes.PackageOp): O
   | AddTrait(_), SetName(loc, PackageTrait(_), _) -> named("trait", loc)
   | AddTraitImpl(_), SetName(loc, PackageTraitImpl(_), _) -> named("impl", loc)
   | AddTest(_), SetName(loc, PackageTest(_), _) -> named("test", loc)
-  | _ -> Option.None
+  | _ -> None
 
 
 /// Duplicate declaration names in <param ops>, formatted as
@@ -738,7 +733,7 @@ let duplicateDeclarations(ops: List<ProgramTypes.PackageOp>): List<String> =
     Stdlib.Dict.set(counts, d, n + 1))
 
   declarations
-  |> Stdlib.List.filter(fun d -> Stdlib.Dict.get(counts, d) != Option.Some(1))
+  |> Stdlib.List.filter(fun d -> Stdlib.Dict.get(counts, d) != Some(1))
   |> Stdlib.List.unique
 
 
@@ -749,23 +744,23 @@ let findAny(
   location: ProgramTypes.PackageLocation)
   : Option<(ProgramTypes.Hash * ProgramTypes.ItemKind)> =
   match Type.find(branchId, location) with
-  | Some(hash) -> Option.Some((hash, ProgramTypes.ItemKind.Type))
+  | Some(hash) -> Some((hash, ProgramTypes.ItemKind.Type))
   | None ->
     match Function.find(branchId, location) with
-    | Some(hash) -> Option.Some((hash, ProgramTypes.ItemKind.Fn))
+    | Some(hash) -> Some((hash, ProgramTypes.ItemKind.Fn))
     | None ->
       match Value.find(branchId, location) with
-      | Some(hash) -> Option.Some((hash, ProgramTypes.ItemKind.Value))
+      | Some(hash) -> Some((hash, ProgramTypes.ItemKind.Value))
       | None ->
         match Trait.find(branchId, location) with
-        | Some(hash) -> Option.Some((hash, ProgramTypes.ItemKind.Trait))
+        | Some(hash) -> Some((hash, ProgramTypes.ItemKind.Trait))
         | None ->
           match TraitImpl.find(branchId, location) with
-          | Some(hash) -> Option.Some((hash, ProgramTypes.ItemKind.TraitImpl))
+          | Some(hash) -> Some((hash, ProgramTypes.ItemKind.TraitImpl))
           | None ->
             match Test.find(branchId, location) with
-            | Some(hash) -> Option.Some((hash, ProgramTypes.ItemKind.Test))
-            | None -> Option.None
+            | Some(hash) -> Some((hash, ProgramTypes.ItemKind.Test))
+            | None -> None
 
 
 /// The deprecation IN EFFECT for this item on <param branchId>, if any: its

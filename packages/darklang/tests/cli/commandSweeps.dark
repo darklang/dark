@@ -35,22 +35,21 @@ let helpTextProblem(text: String): Stdlib.Option.Option<String> =
     |> Stdlib.String.trim
 
   if text == "" then
-    Stdlib.Option.Option.Some("printed nothing")
+    Some("printed nothing")
   else
     match runtimeFailure(text) with
-    | Some(line) ->
-      Stdlib.Option.Option.Some($"printed a runtime error: {line}")
+    | Some(line) -> Some($"printed a runtime error: {line}")
     | None ->
       if soundsLikeMisuse(text) then
-        Stdlib.Option.Option.Some($"sounds like misuse: {first}")
+        Some($"sounds like misuse: {first}")
       // every help opens with what the command is, not with syntax or the name you typed
       else if
         Stdlib.String.startsWith(first, "Usage:")
         || Stdlib.String.startsWith(first, "dark ")
       then
-        Stdlib.Option.Option.Some($"does not start with a summary: {first}")
+        Some($"does not start with a summary: {first}")
       else
-        Stdlib.Option.Option.None
+        None
 
 
 /// What is wrong with `dark <args>` as an answer to a request for help, if anything.
@@ -61,10 +60,10 @@ let helpProblem(
   let cmd = Stdlib.String.join(args, " ")
   let problem =
     match Instance.run(i, args) with
-    | Error(e) -> Stdlib.Option.Option.Some($"could not run: {e}")
+    | Error(e) -> Some($"could not run: {e}")
     | Ok(out) ->
       if out.exitCode != 0 then
-        Stdlib.Option.Option.Some($"exited {Stdlib.display(out.exitCode)}")
+        Some($"exited {Stdlib.display(out.exitCode)}")
       else
         helpTextProblem(out.stdout + out.stderr)
 
@@ -112,9 +111,7 @@ test helpRoutesReachTheHelpText = Instance.withInstance(fun i ->
     [ [ "--help" ], [ "help" ] ]
     |> Stdlib.List.map(fun args ->
       let problem = helpProblem(i, args)
-      Stdlib.Test.expect(
-        problem == Stdlib.Option.Option.None,
-        Stdlib.inspect(problem)))
+      Stdlib.Test.expect(problem == None, Stdlib.inspect(problem)))
 
   Stdlib.Test.all(Stdlib.List.concat(routes, general)))
 
@@ -155,19 +152,16 @@ let sweepRun(
   args: List<String>)
   : (Int64 * String * Stdlib.Option.Option<String>) =
   match Instance.run(i, args) with
-  | Error(e) -> (-1, "", Stdlib.Option.Option.Some($"could not run: {e}"))
+  | Error(e) -> (-1, "", Some($"could not run: {e}"))
   | Ok(out) ->
     let text = Stdlib.String.trim(out.stdout + out.stderr)
     if text == "" then
-      (out.exitCode, text, Stdlib.Option.Option.Some("said nothing"))
+      (out.exitCode, text, Some("said nothing"))
     else
       match runtimeFailure(text) with
       | Some(line) ->
-        (
-          out.exitCode,
-          text,
-          Stdlib.Option.Option.Some($"printed a runtime error: {line}"))
-      | None -> (out.exitCode, text, Stdlib.Option.Option.None)
+        (out.exitCode, text, Some($"printed a runtime error: {line}"))
+      | None -> (out.exitCode, text, None)
 
 
 let firstLine(text: String): String =
@@ -188,13 +182,12 @@ let didNotExit(
   let refused = code != 0
   let why =
     match problem with
-    | Some(p) -> Stdlib.Option.Option.Some(p)
+    | Some(p) -> Some(p)
     | None ->
       if refused == refusal then
-        Stdlib.Option.Option.None
+        None
       else
-        Stdlib.Option.Option.Some(
-          $"exited {Stdlib.display(code)}: {firstLine(text)}")
+        Some($"exited {Stdlib.display(code)}: {firstLine(text)}")
 
   why |> Stdlib.Option.map(fun w -> $"  dark {cmd} -> {w}")
 
@@ -247,13 +240,12 @@ test everyCommandAnswersWhenBare = Instance.withInstance(fun i ->
       let (code, _, problem) = sweepRun(i, [ cmd ])
       let why =
         match problem with
-        | Some(p) -> Stdlib.Option.Option.Some(p)
+        | Some(p) -> Some(p)
         | None ->
           if code == 0 && Stdlib.List.contains(needing, cmd) then
-            Stdlib.Option.Option.Some(
-              "needs an argument, and exited 0 without one")
+            Some("needs an argument, and exited 0 without one")
           else
-            Stdlib.Option.Option.None
+            None
 
       why |> Stdlib.Option.map(fun w -> $"  dark {cmd} -> {w}"))
 

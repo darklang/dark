@@ -50,8 +50,8 @@ impl Display for Json =
 /// {{Integer}}, otherwise a {{Float64}}.
 let parse(jsonString: String): Result<Json, ParseError.ParseError> =
   match Parse.document(jsonString) with
-  | Some(json) -> Result.Ok(json)
-  | None -> Result.Error(ParseError.ParseError.NotJson)
+  | Some(json) -> Ok(json)
+  | None -> Error(ParseError.ParseError.NotJson)
 
 
 module Format =
@@ -235,12 +235,12 @@ module Parse =
   let document(text: String): Option<Json> =
     let tokens = Regex.findAll(text, token) |> Result.withDefault([])
     if String.join(tokens, "") != text then
-      Option.None
+      None
     else
       let significant = List.filter(tokens, fun t -> String.trim(t) != "")
       match value(skipComments(significant)) with
-      | Some((json, rest)) when List.isEmpty(skipComments(rest)) -> Option.Some(json)
-      | _ -> Option.None
+      | Some((json, rest)) when List.isEmpty(skipComments(rest)) -> Some(json)
+      | _ -> None
 
 
   let skipComments(ts: List<String>): List<String> =
@@ -252,19 +252,19 @@ module Parse =
   /// One value. <param ts> starts at its first token.
   let value(ts: List<String>): Option<(Json * List<String>)> =
     match ts with
-    | ["null", ...rest] -> Option.Some((Json.Null, rest))
-    | ["true", ...rest] -> Option.Some((Json.Bool(true), rest))
-    | ["false", ...rest] -> Option.Some((Json.Bool(false), rest))
+    | ["null", ...rest] -> Some((Json.Null, rest))
+    | ["true", ...rest] -> Some((Json.Bool(true), rest))
+    | ["false", ...rest] -> Some((Json.Bool(false), rest))
     | ["[", ...rest] -> items(skipComments(rest), [])
     | ["{", ...rest] -> fields(skipComments(rest), [])
     | [t, ...rest] ->
       match text(t) with
-      | Some(s) -> Option.Some((Json.String(s), rest))
+      | Some(s) -> Some((Json.String(s), rest))
       | None ->
         match number(t) with
-        | Some(n) -> Option.Some((n, rest))
-        | None -> Option.None
-    | [] -> Option.None
+        | Some(n) -> Some((n, rest))
+        | None -> None
+    | [] -> None
 
 
   /// What a string token holds, with its escapes decoded. {{None}} for an
@@ -278,11 +278,11 @@ module Parse =
 
       let decoded = Option.values(pieces)
       if List.length(decoded) == List.length(pieces) then
-        Option.Some(String.join(decoded, ""))
+        Some(String.join(decoded, ""))
       else
-        Option.None
+        None
     else
-      Option.None
+      None
 
 
   /// A run of plain text, a surrogate pair (D800-DBFF then DC00-DFFF), or one
@@ -299,12 +299,12 @@ module Parse =
   /// The text one <var stringPiece> stands for.
   let decode(piece: String): Option<String> =
     if !(Regex.isMatch(piece, "^\\\\") |> Result.withDefault(false)) then
-      Option.Some(piece)
+      Some(piece)
     else if piece == "\\/" then
-      Option.Some("/")
+      Some("/")
     else
       match List.findFirst(Format.namedEscapes, fun((_, e)) -> e == piece) with
-      | Some((c, _)) -> Option.Some(c)
+      | Some((c, _)) -> Some(c)
       | None ->
         let units = Regex.findAll(piece, "[0-9a-fA-F]{4}") |> Result.withDefault([])
         match List.map(units, hexValue) with
@@ -314,7 +314,7 @@ module Parse =
             + (high - firstHighSurrogate) * surrogateSpan
             + (low - firstLowSurrogate))
         | [unit] -> codepointText(unit)
-        | _ -> Option.None
+        | _ -> None
 
 
   /// {{None}} for a surrogate, which is not a scalar a string can hold.
@@ -355,7 +355,7 @@ module Parse =
     else
       // an integer past Int64 is read as a Float64, as JavaScript reads every number
       match Int64.parse(t) with
-      | Ok(i) -> Option.Some(Json.Integer(i))
+      | Ok(i) -> Some(Json.Integer(i))
       | Error(_) ->
         Float64.parse(t)
         |> Result.toOption
@@ -365,22 +365,22 @@ module Parse =
   /// The rest of an array, after its `[`.
   let items(ts: List<String>, acc: List<Json>): Option<(Json * List<String>)> =
     match ts with
-    | ["]", ...rest] when List.isEmpty(acc) -> Option.Some((Json.Array([]), rest))
+    | ["]", ...rest] when List.isEmpty(acc) -> Some((Json.Array([]), rest))
     | _ ->
       match value(ts) with
-      | None -> Option.None
+      | None -> None
       | Some((item, after)) ->
         let acc = List.prepend(acc, item)
         match skipComments(after) with
-        | ["]", ...rest] -> Option.Some((Json.Array(List.reverse(acc)), rest))
+        | ["]", ...rest] -> Some((Json.Array(List.reverse(acc)), rest))
         | [",", ...rest] -> items(skipComments(rest), acc)
-        | _ -> Option.None
+        | _ -> None
 
 
   /// The rest of an object, after its `{`.
   let fields(ts: List<String>, acc: List<(String * Json)>): Option<(Json * List<String>)> =
     match ts with
-    | ["}", ...rest] when List.isEmpty(acc) -> Option.Some((Json.Object([]), rest))
+    | ["}", ...rest] when List.isEmpty(acc) -> Some((Json.Object([]), rest))
     // The colon straight after the key: System.Text.Json refused a comment
     // there, unlike everywhere else.
     | [key, ":", ...rest] ->
@@ -388,29 +388,29 @@ module Parse =
       | Some(k), Some((v, after)) ->
         let acc = List.prepend(acc, (k, v))
         match skipComments(after) with
-        | ["}", ...rest] -> Option.Some((Json.Object(List.reverse(acc)), rest))
+        | ["}", ...rest] -> Some((Json.Object(List.reverse(acc)), rest))
         | [",", ...rest] -> fields(skipComments(rest), acc)
-        | _ -> Option.None
-      | _ -> Option.None
-    | _ -> Option.None
+        | _ -> None
+      | _ -> None
+    | _ -> None
 
 
 /// Reads an exact JSON integer. A Float64 value is never silently truncated or
 /// reinterpreted as an integer, even if its current value is whole.
 let toInt64(j: Json): Option<Int64> =
   match j with
-  | Integer(i) -> Option.Some(i)
-  | _ -> Option.None
+  | Integer(i) -> Some(i)
+  | _ -> None
 
 
 /// Read a JSON number as Float64 only when the conversion is exact.
 let toFloat64(j: Json): Option<Float64> =
   match j with
-  | Float(n) -> Option.Some(n)
+  | Float(n) -> Some(n)
   | Integer(i) ->
     let n = Int64.toFloat64(i)
-    if Int64.fromFloat64(n) == Result.Ok(i) then Option.Some(n) else Option.None
-  | _ -> Option.None
+    if Int64.fromFloat64(n) == Ok(i) then Some(n) else None
+  | _ -> None
 
 
 // ---------------------------------------------------------------------------
@@ -425,9 +425,9 @@ module Helpers =
     match found with
     | Some(pair) ->
       match Tuple2.second(pair) with
-      | String(s) -> Option.Some(s)
-      | _ -> Option.None
-    | None -> Option.None
+      | String(s) -> Some(s)
+      | _ -> None
+    | None -> None
 
 
   /// Get a boolean value from a JSON object's fields
@@ -436,17 +436,17 @@ module Helpers =
     match found with
     | Some(pair) ->
       match Tuple2.second(pair) with
-      | Bool(b) -> Option.Some(b)
-      | _ -> Option.None
-    | None -> Option.None
+      | Bool(b) -> Some(b)
+      | _ -> None
+    | None -> None
 
 
   /// Get a raw JSON value from a JSON object's fields
   let getValue(key: String, fields: List<(String * Json)>): Option<Json> =
     let found = List.findFirst(fields, fun((k, _)) -> k == key)
     match found with
-    | Some(pair) -> Option.Some(Tuple2.second(pair))
-    | None -> Option.None
+    | Some(pair) -> Some(Tuple2.second(pair))
+    | None -> None
 
 
   /// Get an integer value from a JSON object's fields. {{None}} if the key is
@@ -455,7 +455,7 @@ module Helpers =
     let found = List.findFirst(fields, fun((k, _)) -> k == key)
     match found with
     | Some(pair) -> toInt64(Tuple2.second(pair))
-    | None -> Option.None
+    | None -> None
 
 
   /// Read an optional integer while distinguishing an absent or null field
@@ -465,23 +465,23 @@ module Helpers =
     fields: List<(String * Json)>)
     : Result<Option<Int64>, String> =
     match getValue(key, fields) with
-    | None -> Result.Ok(Option.None)
-    | Some(Null) -> Result.Ok(Option.None)
+    | None -> Ok(None)
+    | Some(Null) -> Ok(None)
     | Some(value) ->
       match toInt64(value) with
-      | Some(i) -> Result.Ok(Option.Some(i))
-      | None -> Result.Error($"Invalid JSON integer field: {key}")
+      | Some(i) -> Ok(Some(i))
+      | None -> Error($"Invalid JSON integer field: {key}")
 
 
   /// Get a required integer field. The error distinguishes a missing field
   /// from a field whose value cannot be converted exactly.
   let getInt64Result(key: String, fields: List<(String * Json)>): Result<Int64, String> =
     match getValue(key, fields) with
-    | None -> Result.Error($"Missing JSON integer field: {key}")
+    | None -> Error($"Missing JSON integer field: {key}")
     | Some(value) ->
       match toInt64(value) with
-      | Some(i) -> Result.Ok(i)
-      | None -> Result.Error($"Invalid JSON integer field: {key}")
+      | Some(i) -> Ok(i)
+      | None -> Error($"Invalid JSON integer field: {key}")
 
 
   /// Get an integer field that may be left out. {{Ok}} <param default_> if the
@@ -493,12 +493,12 @@ module Helpers =
     fields: List<(String * Json)>)
     : Result<Int64, String> =
     match getValue(key, fields) with
-    | None -> Result.Ok(default_)
-    | Some(Null) -> Result.Ok(default_)
+    | None -> Ok(default_)
+    | Some(Null) -> Ok(default_)
     | Some(value) ->
       match toInt64(value) with
-      | Some(i) -> Result.Ok(i)
-      | None -> Result.Error($"Invalid JSON integer field: {key}")
+      | Some(i) -> Ok(i)
+      | None -> Error($"Invalid JSON integer field: {key}")
 
 
   /// Get a Float64 field. An integer is converted only if Float64 can hold it
@@ -507,7 +507,7 @@ module Helpers =
     let found = List.findFirst(fields, fun((k, _)) -> k == key)
     match found with
     | Some(pair) -> toFloat64(Tuple2.second(pair))
-    | None -> Option.None
+    | None -> None
 
 
   /// Get an array value from a JSON object's fields (returns [] if not found)

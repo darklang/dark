@@ -67,12 +67,12 @@ test aliasResultWrongTypeRaises =
 
 test genericAliasAtTwoTypes =
   Stdlib.Test.all(
-    [ orElse(Stdlib.Option.Option.Some(1.5), 0.0) |> Stdlib.Test.equal(1.5)
-      orElse(Stdlib.Option.Option.None, "x") |> Stdlib.Test.equal("x") ])
+    [ orElse(Some(1.5), 0.0) |> Stdlib.Test.equal(1.5)
+      orElse(None, "x") |> Stdlib.Test.equal("x") ])
 
 
 test genericAliasWrongTypeArgRaises =
-  floatOr(Stdlib.Option.Option.Some("x"))
+  floatOr(Some("x"))
   => raises "Darklang.Language.Tests.SignatureAliases.floatOr's 1st parameter `m` expects Darklang.Stdlib.Option.Option<Float64>, but got Darklang.Stdlib.Option.Option<String> (Some(\"x\"))"
 
 

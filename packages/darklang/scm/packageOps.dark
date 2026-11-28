@@ -47,7 +47,7 @@ let addAuthored(
   : Result<Authored, String> =
   let duplicates = LanguageTools.PackageManager.duplicateDeclarations(ops)
   if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicates)) then
-    Result.Error("Declared more than once: " + Stdlib.String.join(duplicates, ", "))
+    Error("Declared more than once: " + Stdlib.String.join(duplicates, ", "))
   else
     let (resolvedOps, unresolvedCalls) = LanguageTools.PackageManager.resolveTraitCalls(ops)
     let stabilizedOps = resolvedOps |> LanguageTools.PackageManager.stabilizeHashes
@@ -68,9 +68,9 @@ let addAuthored(
           else
             unresolvedCalls
 
-        Result.Ok(Authored { report = report, unresolvedTraitCalls = calls })
-      | Error(message) -> Result.Error(message)
-    | failed -> Result.Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
+        Ok(Authored { report = report, unresolvedTraitCalls = calls })
+      | Error(message) -> Error(message)
+    | failed -> Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
 
 
 /// Unbind the values a save could not evaluate, and say what that left. A batch (`dark import`,
@@ -98,10 +98,10 @@ let takeBackFailedValues(
       match op with
       | SetName(loc, _, _) ->
         if Stdlib.List.contains(failedLocations, loc) then
-          Option.None
+          None
         else
-          Option.Some(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc))
-      | _ -> Option.None)
+          Some(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc))
+      | _ -> None)
 
   let savedLine =
     match kept with
@@ -139,11 +139,11 @@ let unevaluatedValuesBoundBy(
       match liveBindingFor(branchId, loc) with
       | Some(b) ->
         if b.itemType == "value" && Stdlib.Bool.not(valueEvaluated(b.hash)) then
-          Option.Some((loc, b.hash))
+          Some((loc, b.hash))
         else
-          Option.None
-      | None -> Option.None
-    | _ -> Option.None)
+          None
+      | None -> None
+    | _ -> None)
 
 
 /// Whether the value at <param hash> has a stored runtime value: false when its evaluation never ran
@@ -188,8 +188,7 @@ let unbind(
 
   let ids =
     decodeOpRowEntries(rows)
-    |> Stdlib.List.filterMap(fun((id, _, op)) ->
-      if isOneOf(op) then Option.Some(id) else Option.None)
+    |> Stdlib.List.filterMap(fun((id, _, op)) -> if isOneOf(op) then Some(id) else None)
 
   dropBranchOps(branchId, ids)
 

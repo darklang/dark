@@ -50,26 +50,25 @@ let __entries(path: String): Result<List<(String * Bool)>, Posix.Error> =
     // Built newest-first, then reversed once at the end.
     let result =
       names
-      |> List.fold(Result.Ok([]), fun(acc, name) ->
+      |> List.fold(Ok([]), fun(acc, name) ->
         match acc with
         | Ok(collected) ->
           let fullPath = Path.join([ path, name ])
           match Posix.isSymlink(fullPath) with
-          | Error(e) -> Result.Error(e)
-          | Ok(true) -> Result.Ok(List.prepend(collected, (fullPath, false)))
+          | Error(e) -> Error(e)
+          | Ok(true) -> Ok(List.prepend(collected, (fullPath, false)))
           | Ok(false) ->
             if Posix.isDirectory(fullPath) then
               match __entries(fullPath) with
               | Ok(subEntries) ->
-                Result.Ok(
-                  List.concat(List.reverse(subEntries), List.prepend(collected, (fullPath, true))))
-              | Error(e) -> Result.Error(e)
+                Ok(List.concat(List.reverse(subEntries), List.prepend(collected, (fullPath, true))))
+              | Error(e) -> Error(e)
             else
-              Result.Ok(List.prepend(collected, (fullPath, false)))
-        | Error(e) -> Result.Error(e))
+              Ok(List.prepend(collected, (fullPath, false)))
+        | Error(e) -> Error(e))
 
     result |> Result.map(fun items -> List.reverse(items))
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
 
 
 /// List all files recursively under a directory (full paths).
@@ -77,8 +76,7 @@ let __entries(path: String): Result<List<(String * Bool)>, Posix.Error> =
 let listRecursive(path: String): Result<List<String>, Posix.Error> =
   __entries(path)
   |> Result.map(fun entries ->
-    List.filterMap(entries, fun((entry, isDir)) ->
-      if isDir then Option.None else Option.Some(entry)))
+    List.filterMap(entries, fun((entry, isDir)) -> if isDir then None else Some(entry)))
 
 
 /// Create a temporary directory (like mktemp -d). Returns the path.
@@ -100,15 +98,15 @@ let deleteRecursive(path: String): Result<Unit, Posix.Error> =
     let deleted =
       entries
       |> List.reverse
-      |> List.fold(Result.Ok(), fun(acc, (entry, isDir)) ->
+      |> List.fold(Ok(), fun(acc, (entry, isDir)) ->
         match acc with
         | Ok(_) -> if isDir then Posix.rmdir(entry) else Posix.unlink(entry)
-        | Error(e) -> Result.Error(e))
+        | Error(e) -> Error(e))
 
     match deleted with
     | Ok(_) -> Posix.rmdir(path)
-    | Error(e) -> Result.Error(e)
-  | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
+  | Error(e) -> Error(e)
 
 
 /// Walk a directory tree, returning all entries (files and directories) as full paths, each
@@ -123,14 +121,14 @@ let size(path: String): Result<Int64, Posix.Error> =
   match listRecursive(path) with
   | Ok(files) ->
     files
-    |> List.fold(Result.Ok(0), fun(acc, filePath) ->
+    |> List.fold(Ok(0), fun(acc, filePath) ->
       match acc with
       | Ok(total) ->
         match File.size(filePath) with
-        | Ok(fileSize) -> Result.Ok(total + fileSize)
-        | Error(e) -> Result.Error(e)
-      | Error(e) -> Result.Error(e))
-  | Error(e) -> Result.Error(e)
+        | Ok(fileSize) -> Ok(total + fileSize)
+        | Error(e) -> Error(e)
+      | Error(e) -> Error(e))
+  | Error(e) -> Error(e)
 
 
 /// Create a temporary directory, run a function with it, then clean up.

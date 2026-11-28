@@ -28,31 +28,18 @@ test scalarBoundaries =
 
       Stdlib.Char.fromCodepoint(888u32)
       |> Stdlib.Option.andThen(Stdlib.Char.toCodepoint)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(888u32)) ])
+      |> Stdlib.Test.equal(Some(888u32)) ])
 
 
 test fromInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Codepoint.fromInt64(0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u32))
-
-      Stdlib.Codepoint.fromInt64(255)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u32))
-
-      Stdlib.Codepoint.fromInt64(1114111)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1114111u32))
-
-      Stdlib.Codepoint.fromInt64(55296)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Codepoint.fromInt64(1114112)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Codepoint.fromInt64(-1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Codepoint.fromInt64(4294967296)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.Codepoint.fromInt64(0) |> Stdlib.Test.equal(Some(0u32))
+      Stdlib.Codepoint.fromInt64(255) |> Stdlib.Test.equal(Some(255u32))
+      Stdlib.Codepoint.fromInt64(1114111) |> Stdlib.Test.equal(Some(1114111u32))
+      Stdlib.Codepoint.fromInt64(55296) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt64(1114112) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt64(-1) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt64(4294967296) |> Stdlib.Test.equal(None) ])
 
 
 test properties =

@@ -103,7 +103,7 @@ test shadowing =
       |> Stdlib.Test.equal(6)
 
       (let x = 35
-       match Stdlib.Result.Result.Ok(6) with
+       match Ok(6) with
        | Ok(x) -> x)
       |> Stdlib.Test.equal(6)
 
@@ -112,25 +112,25 @@ test shadowing =
       |> Stdlib.Test.equal([ 3, 4, 5, 6 ])
 
       (let x = 35
-       match Stdlib.Result.Result.Ok(6) with
+       match Ok(6) with
        | Ok(x) -> Stdlib.List.map([ 1, 2, 3, 4 ], fun x -> x + 2))
       |> Stdlib.Test.equal([ 3, 4, 5, 6 ])
 
       Stdlib.List.map([ 1, 2, 3, 4 ], fun x ->
         let x = 35
-        match Stdlib.Result.Result.Ok(6) with
+        match Ok(6) with
         | Ok(x) -> x + 2)
       |> Stdlib.Test.equal([ 8, 8, 8, 8 ])
 
       Stdlib.List.map([ 1, 2, 3, 4 ], fun x ->
-        match Stdlib.Result.Result.Ok(6) with
+        match Ok(6) with
         | Ok(x) ->
           let x = 9
           x + 2)
       |> Stdlib.Test.equal([ 11, 11, 11, 11 ])
 
       Stdlib.List.map([ 1, 2, 3, 4 ], fun x ->
-        match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok(6)) with
+        match Ok(Ok(6)) with
         | Ok(Ok(x)) ->
           let x = 9
           x + 2)

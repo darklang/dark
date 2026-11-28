@@ -12,4 +12,4 @@ test missingValueEvaluatesToNone =
   LanguageTools.PackageManager.Value.evaluate(
     LanguageTools.ProgramTypes.Hash.Hash(
       "0000000000000000000000000000000000000000000000000000000000000000"))
-  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  |> Stdlib.Test.equal(None)

@@ -86,7 +86,7 @@ let show(view: ProgramTypes.PackageLocation): Unit =
 let shown(): Option<ProgramTypes.PackageLocation> =
   match LocalStore.configGet(showKey) with
   | Some(name) when name != "" -> locationOfName(name)
-  | _ -> Option.None
+  | _ -> None
 
 
 /// Where the log ends right now: the newest insert time, and the ids at it.
@@ -179,7 +179,7 @@ let dedupeTouched(touched: List<Touched>): List<Touched> =
 let poll(w: Watch): (Watch * Option<Change>) =
   let now = version()
   if now == w.version then
-    (w, Option.None)
+    (w, None)
   else
     // `since` itself is read again every time: an op stamped at it can land after the clock has
     // moved on. What was seen there already is dropped by id. Millisecond stamps keep that list to
@@ -199,9 +199,9 @@ let poll(w: Watch): (Watch * Option<Change>) =
       // The store moved and no op landed: a config or trace write. Only a `show` is anyone's
       // business, and it is reported as a change that touched nothing; the host reads `shown`.
       if shownNow != w.shown then
-        (next, Option.Some(Change { ops = [], touched = [], unknown = false }))
+        (next, Some(Change { ops = [], touched = [], unknown = false }))
       else
-        (next, Option.None)
+        (next, None)
     else
       SCM.Draft.invalidateCaches()
       let change =
@@ -228,7 +228,7 @@ let poll(w: Watch): (Watch * Option<Change>) =
             reported = reported
             shown = LocalStore.configGet(showKey) }
 
-      (next, Option.Some(change))
+      (next, Some(change))
 
 
 // --- does it touch what I'm showing ---
@@ -261,9 +261,9 @@ let dependents(touched: List<Touched>): List<ProgramTypes.PackageLocation> =
         match d with
         | _hash, location, kind ->
           if Stdlib.List.contains(seen, location) then
-            Option.None
+            None
           else
-            Option.Some(Touched { location = location, kind = kind }))
+            Some(Touched { location = location, kind = kind }))
       |> Stdlib.List.uniqueBy(fun t -> t.location)
 
     (found, Stdlib.List.concat(seen, found |> Stdlib.List.map(fun t -> t.location)))
@@ -311,7 +311,7 @@ type LastGood =
 
 
 let start(entry: ProgramTypes.PackageLocation): LastGood =
-  LastGood { entry = entry, hash = Option.None, report = Option.None, problem = Option.None }
+  LastGood { entry = entry, hash = None, report = None, problem = None }
 
 
 let entryName(entry: ProgramTypes.PackageLocation): String =
@@ -337,7 +337,7 @@ let calleeDeclarations(hash: ProgramTypes.Hash): List<ProgramTypes.PackageOp> =
       PackageManager.Value.get(h) |> Stdlib.Option.map(fun v -> ProgramTypes.PackageOp.AddValue(v))
     | "type" ->
       PackageManager.Type.get(h) |> Stdlib.Option.map(fun t -> ProgramTypes.PackageOp.AddType(t))
-    | _ -> Option.None
+    | _ -> None
 
   let walk(
     frontier: List<(ProgramTypes.Hash * String)>,
@@ -376,30 +376,24 @@ let calleeDeclarations(hash: ProgramTypes.Hash): List<ProgramTypes.PackageOp> =
 /// runs, on the callees it was built against.
 let refresh(branchId: Uuid, lg: LastGood): LastGood =
   match PackageManager.Function.find(branchId, lg.entry) with
-  | None -> { lg with problem = Option.Some($"no function named {entryName(lg.entry)}") }
+  | None -> { lg with problem = Some($"no function named {entryName(lg.entry)}") }
   | Some(newest) ->
-    let moved = lg.hash != Option.Some(newest)
+    let moved = lg.hash != Some(newest)
     if Stdlib.Bool.not(moved) then
-      { lg with report = Option.None, problem = Option.None }
+      { lg with report = None, problem = None }
     else
       match PackageManager.Function.get(newest) with
       | None ->
         { lg with
-            problem =
-              Option.Some($"{entryName(lg.entry)} points at a version the store does not have") }
+            problem = Some($"{entryName(lg.entry)} points at a version the store does not have") }
       | Some(fn) ->
         let candidates =
           Stdlib.List.prepend(calleeDeclarations(newest), ProgramTypes.PackageOp.AddFn(fn))
 
         let report = AtRestTypeChecker.checkPackageOps(candidates)
         match report.verdict with
-        | Failed -> { lg with report = Option.Some(report), problem = Option.None }
-        | _ ->
-          LastGood
-            { entry = lg.entry
-              hash = Option.Some(newest)
-              report = Option.None
-              problem = Option.None }
+        | Failed -> { lg with report = Some(report), problem = None }
+        | _ -> LastGood { entry = lg.entry, hash = Some(newest), report = None, problem = None }
 
 
 /// A callable for the version `lg` is on. `Error` when nothing usable has been found yet.
@@ -408,8 +402,8 @@ let applicable(lg: LastGood): Result<'f, String> =
   | Some(hash) -> Builtin.applicableByHash(ProgramTypes.hashToString(hash), entryName(lg.entry))
   | None ->
     match lg.problem with
-    | Some(problem) -> Result.Error(problem)
-    | None -> Result.Error($"{entryName(lg.entry)} has no version that type-checks")
+    | Some(problem) -> Error(problem)
+    | None -> Error($"{entryName(lg.entry)} has no version that type-checks")
 
 
 /// Resolve a dotted fn name to a callable, as it is bound right now. The startup check for a host
@@ -424,19 +418,19 @@ let applicableByName(branchId: Uuid, name: String): Result<'a -> 'b, String> =
     && (Stdlib.String.toList(segment)
         |> Stdlib.List.all(fun c -> Stdlib.Char.isAlphanumeric(c) || c == '_'))
 
-  let notFound = Result.Error($"No function named {name}")
+  let notFound = Error($"No function named {name}")
   match locationOfName(name) with
-  | None -> Result.Error($"Not a package function name: {name}")
+  | None -> Error($"Not a package function name: {name}")
   | Some(_) ->
     if Stdlib.List.all(Stdlib.String.split(name, "."), isIdentifier) then
-      match Cli.Eval.evaluateValue(Option.None, branchId, name, Cli.Eval.Harmful.Halt) with
+      match Cli.Eval.evaluateValue(None, branchId, name, Cli.Eval.Harmful.Halt) with
       | Ok(f) ->
         match RuntimeTypes.reflect(f) with
-        | DApplicable(AppNamedFn(_)) -> Result.Ok(f)
+        | DApplicable(AppNamedFn(_)) -> Ok(f)
         | _ -> notFound
       | Error(_) -> notFound
     else
-      Result.Error($"Not a package function name: {name}")
+      Error($"Not a package function name: {name}")
 
 
 /// A dotted name as a location: `Owner.Module.fn` -> `{ owner, modules, name }`. `None` for a name
@@ -447,9 +441,9 @@ let locationOfName(name: String): Option<ProgramTypes.PackageLocation> =
   | [fnName, ...revRest] ->
     match Stdlib.List.reverse(revRest) with
     | [owner, ...modules] ->
-      Option.Some(ProgramTypes.PackageLocation { owner = owner, modules = modules, name = fnName })
-    | [] -> Option.None
-  | [] -> Option.None
+      Some(ProgramTypes.PackageLocation { owner = owner, modules = modules, name = fnName })
+    | [] -> None
+  | [] -> None
 
 
 /// One type-check issue as a person reads it: what was wrong first, where at the end in
@@ -476,13 +470,13 @@ let issueText(issue: AtRestTypeChecker.Issue): String =
         | TypeMismatch -> AtRestTypeChecker.tupleParameterHint(expected, actual)
         | _ -> ""
 
-      Option.Some(
+      Some(
         "expected "
         + AtRestTypeChecker.staticTypeToString(expected)
         + ", got "
         + AtRestTypeChecker.staticTypeToString(actual)
         + hint)
-    | _ -> Option.None
+    | _ -> None
 
   match detail, site with
   | Some(d), "" -> d
@@ -506,13 +500,13 @@ let reportText(report: AtRestTypeChecker.Report): String =
 /// One line for a band or a log: why the host is not on the newest version, if it is not.
 let diagnostic(lg: LastGood): Option<String> =
   match lg.problem with
-  | Some(problem) -> Option.Some(problem)
+  | Some(problem) -> Some(problem)
   | None ->
     match lg.report with
     | Some(report) ->
-      Option.Some(
+      Some(
         $"{entryName(lg.entry)}: still on the last good version; the newest has a type error: {reportText(report)}")
-    | None -> Option.None
+    | None -> None
 
 
 /// The one line a host says when a refresh changed something, or nothing when it did not: the
@@ -522,12 +516,12 @@ let transition(before: LastGood, after: LastGood): Option<String> =
   let was = diagnostic(before)
   let now = diagnostic(after)
   match now with
-  | Some(why) -> if now != was then Option.Some(why) else Option.None
+  | Some(why) -> if now != was then Some(why) else None
   | None ->
     if after.hash != before.hash || Stdlib.Option.isSome(was) then
-      Option.Some($"now on the new version of {entryName(after.entry)}")
+      Some($"now on the new version of {entryName(after.entry)}")
     else
-      Option.None
+      None
 
 
 // --- a router that follows edits ---
@@ -596,7 +590,7 @@ let apply(f: 'a -> 'b, arg: 'a): Result<'b, String> =
 let call(lg: LastGood, arg: 'a): Result<'b, String> =
   match applicable(lg) with
   | Ok(f) -> apply(f, arg)
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
 
 
 /// `call` for a fn of two parameters, such as a view's `update(model, event)`. There is no
@@ -604,7 +598,7 @@ let call(lg: LastGood, arg: 'a): Result<'b, String> =
 let call2(lg: LastGood, first: 'a, second: 'b): Result<'c, String> =
   match applicable(lg) with
   | Ok(f) -> apply((fun () -> f(first, second)), ())
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
 
 
 // --- observing a view without a terminal ---
@@ -643,15 +637,15 @@ let versionsNewestFirst(
 /// the report when it does not.
 let atRestFailure(hash: ProgramTypes.Hash): Option<AtRestTypeChecker.Report> =
   match PackageManager.Function.get(hash) with
-  | None -> Option.None
+  | None -> None
   | Some(fn) ->
     let report =
       AtRestTypeChecker.checkPackageOps(
         Stdlib.List.prepend(calleeDeclarations(hash), ProgramTypes.PackageOp.AddFn(fn)))
 
     match report.verdict with
-    | Failed -> Option.Some(report)
-    | _ -> Option.None
+    | Failed -> Some(report)
+    | _ -> None
 
 
 /// The view at <param view> (a module with `init` and `render`), rendered headless. Each of the
@@ -676,30 +670,27 @@ let observe(branchId: Uuid, view: ProgramTypes.PackageLocation): Observation =
     let checked = versions |> Stdlib.List.map(fun h -> (h, atRestFailure(h)))
     let newestReport =
       match checked with
-      | [(_, Some(report)), ...] -> Option.Some(report)
-      | _ -> Option.None
+      | [(_, Some(report)), ...] -> Some(report)
+      | _ -> None
 
     let passing =
       checked
       |> Stdlib.List.filterMap(fun pair ->
         let (h, failure) = pair
         match failure with
-        | None -> Option.Some(h)
-        | Some(_) -> Option.None)
+        | None -> Some(h)
+        | Some(_) -> None)
 
     (newestReport, passing)
 
   let callAt(hash: ProgramTypes.Hash, arg: 'a): Result<'b, String> =
-    call(
-      LastGood
-        { entry = view, hash = Option.Some(hash), report = Option.None, problem = Option.None },
-      arg)
+    call(LastGood { entry = view, hash = Some(hash), report = None, problem = None }, arg)
 
   let (initReport, initVersions) = survey(inView("init"))
   let (renderReport, renderVersions) = survey(inView("render"))
   let report =
     match renderReport with
-    | Some(r) -> Option.Some(r)
+    | Some(r) -> Some(r)
     | None -> initReport
 
   // The first version that runs, and the first error if none did.
@@ -709,19 +700,19 @@ let observe(branchId: Uuid, view: ProgramTypes.PackageLocation): Observation =
     who: String)
     : (Option<'a> * Option<String>) =
     versions
-    |> Stdlib.List.fold((Option.None, Option.None), fun(acc, h) ->
+    |> Stdlib.List.fold((None, None), fun(acc, h) ->
       let (found, firstRte) = acc
       match found with
       | Some(_) -> acc
       | None ->
         match call(h) with
-        | Ok(v) -> (Option.Some(v), firstRte)
+        | Ok(v) -> (Some(v), firstRte)
         | Error(e) ->
           (
-            Option.None,
+            None,
             match firstRte with
             | Some(_) -> firstRte
-            | None -> Option.Some($"{who}: {e}")))
+            | None -> Some($"{who}: {e}")))
 
   // The model from the newest init that runs; its error if the newest one raised.
   let (model, initRte) =
@@ -731,8 +722,8 @@ let observe(branchId: Uuid, view: ProgramTypes.PackageLocation): Observation =
   | None ->
     let rte =
       match initRte with
-      | Some(e) -> Option.Some(e)
-      | None -> Option.Some($"{entryName(inView("init"))} has no version that type-checks")
+      | Some(e) -> Some(e)
+      | None -> Some($"{entryName(inView("init"))} has no version that type-checks")
 
     Observation { report = report, render = "", rte = rte }
   | Some(m) ->
@@ -744,11 +735,11 @@ let observe(branchId: Uuid, view: ProgramTypes.PackageLocation): Observation =
 
     let rte =
       match renderRte with
-      | Some(e) -> Option.Some(e)
+      | Some(e) -> Some(e)
       | None ->
         match picture, renderVersions with
-        | None, [] -> Option.Some($"{entryName(inView("render"))} has no version that type-checks")
-        | _ -> Option.None
+        | None, [] -> Some($"{entryName(inView("render"))} has no version that type-checks")
+        | _ -> None
 
     Observation { report = report, render = Stdlib.Option.withDefault(picture, ""), rte = rte }
 
@@ -820,7 +811,7 @@ module Values =
       let why =
         $"too large to show live values: its last run took {Stdlib.display(run.durationMs)} ms through {Stdlib.display(fns)} fns, and a replay takes many times that (dark traces inspect {Stdlib.String.first(run.id, 8)})"
 
-      Values { byExpr = Stdlib.Dict.empty, problem = Option.None, skipped = Option.Some(why) }
+      Values { byExpr = Stdlib.Dict.empty, problem = None, skipped = Some(why) }
     else
       let (collected, stop) = Tracing.Store.viewTrace(accountID, branchId, run.id)
 
@@ -842,4 +833,4 @@ module Values =
           (Stdlib.display(id), v))
         |> Stdlib.Dict.fromEntries
 
-      Values { byExpr = byExpr, problem = problem, skipped = Option.None }
+      Values { byExpr = byExpr, problem = problem, skipped = None }

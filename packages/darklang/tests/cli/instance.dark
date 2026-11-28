@@ -49,17 +49,15 @@ let cliBinary(): String =
 let makeDir(): Stdlib.Result.Result<String, String> =
   let r = root()
   match Stdlib.Cli.Unix.ensureDirectoryExists(r) with
-  | Error(e) -> Stdlib.Result.Result.Error($"could not create {r}: {e}")
+  | Error(e) -> Error($"could not create {r}: {e}")
   | Ok(_) ->
     match Stdlib.Cli.Posix.mkdtemp($"{r}/") with
-    | Error(e) ->
-      Stdlib.Result.Result.Error(
-        $"could not create a dir in {r}: {Stdlib.display(e)}")
+    | Error(e) -> Error($"could not create a dir in {r}: {Stdlib.display(e)}")
     | Ok(instanceHome) ->
       let dir = instanceHome + "/.darklang"
       match Stdlib.Cli.Unix.ensureDirectoryExists(dir) with
-      | Error(e) -> Stdlib.Result.Result.Error($"could not create {dir}: {e}")
-      | Ok(_) -> Stdlib.Result.Result.Ok(dir)
+      | Error(e) -> Error($"could not create {dir}: {e}")
+      | Ok(_) -> Ok(dir)
 
 
 /// A fresh instance whose store starts as `src`, with a file of its own when `ownFile`.
@@ -81,7 +79,7 @@ let seeded(ownFile: Bool): Stdlib.Result.Result<T, String> =
   let src = seedFrom()
   if Stdlib.Cli.Unix.fileExists(src) then
     match makeDir() with
-    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(dir) ->
       let db = $"{dir}/data.db"
       let start =
@@ -100,13 +98,11 @@ let seeded(ownFile: Bool): Stdlib.Result.Result<T, String> =
           $"{start} && clear=$({traceTables}) && {sql} -cmd 'PRAGMA synchronous=OFF' {db} \"PRAGMA journal_mode=WAL; DELETE FROM config_v0; $clear\" >/dev/null")
 
       if copy.exitCode != 0 then
-        Stdlib.Result.Result.Error(
-          $"could not seed {dir} from {src}: {copy.stderr}")
+        Error($"could not seed {dir} from {src}: {copy.stderr}")
       else
-        Stdlib.Result.Result.Ok(T { dir = dir, cli = cliBinary() })
+        Ok(T { dir = dir, cli = cliBinary() })
   else
-    Stdlib.Result.Result.Error(
-      $"no store to seed an instance from at {src}; build first")
+    Error($"no store to seed an instance from at {src}; build first")
 
 
 /// A fresh instance. Fails with a message rather than half-existing.
@@ -159,7 +155,7 @@ type Call =
 
 /// `args` with nothing piped in, no extra environment and no terminal.
 let command(args: List<String>): Call =
-  Call { args = args, stdin = Stdlib.Option.Option.None, env = [], tty = false }
+  Call { args = args, stdin = None, env = [], tty = false }
 
 
 /// Run one command in this instance. `call` is the same with a failure to start folded in.
@@ -225,9 +221,7 @@ let run(
 
 /// A command with `source` piped into it: its exit code and both streams. See `ran`.
 let runWithStdin(i: T, args: List<String>, source: String): (Int64 * String) =
-  let out =
-    call(i, { command(args) with stdin = Stdlib.Option.Option.Some(source) })
-
+  let out = call(i, { command(args) with stdin = Some(source) })
   (out.exitCode, out.stdout + out.stderr)
 
 

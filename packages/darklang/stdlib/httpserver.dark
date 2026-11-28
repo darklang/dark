@@ -53,13 +53,13 @@ let __parseRouteSegments(route: String): List<RouteSegment> =
   segments
   |> List.filterMap(fun seg ->
     if String.isEmpty(seg) then
-      Option.None
+      None
     else if String.startsWith(seg, ":") then
-      Option.Some(RouteSegment.Variable(String.dropFirst(seg, 1)))
+      Some(RouteSegment.Variable(String.dropFirst(seg, 1)))
     else if String.startsWith(seg, "*") then
-      Option.Some(RouteSegment.Wildcard(String.dropFirst(seg, 1)))
+      Some(RouteSegment.Wildcard(String.dropFirst(seg, 1)))
     else
-      Option.Some(RouteSegment.Literal(seg)))
+      Some(RouteSegment.Literal(seg)))
 
 
 /// Match a single route segment against a path segment
@@ -69,11 +69,11 @@ let __matchSegment(
   remainingPath: List<String>)
   : Option<List<(String * String)>> =
   match routeSeg with
-  | Literal(expected) -> if expected == pathSeg then Option.Some([]) else Option.None
-  | Variable(name) -> Option.Some([ (name, pathSeg) ])
+  | Literal(expected) -> if expected == pathSeg then Some([]) else None
+  | Variable(name) -> Some([ (name, pathSeg) ])
   | Wildcard(name) ->
     let fullPath = String.join(List.prepend(remainingPath, pathSeg), "/")
-    Option.Some([ (name, fullPath) ])
+    Some([ (name, fullPath) ])
 
 
 /// Match a request path against a route pattern
@@ -98,14 +98,14 @@ let __matchRouteSegments(routeSegs: List<RouteSegment>, pathSegs: List<String>):
     let zipped = List.zipShortest(routeSegs, pathSegs)
     let result =
       zipped
-      |> List.fold(Option.Some([]), fun(acc, pair) ->
+      |> List.fold(Some([]), fun(acc, pair) ->
         match acc with
-        | None -> Option.None
+        | None -> None
         | Some(vars) ->
           let (routeSeg, pathSeg) = pair
           match __matchSegment(routeSeg, pathSeg, []) with
-          | Some(newVars) -> Option.Some(List.concat(vars, newVars))
-          | None -> Option.None)
+          | Some(newVars) -> Some(List.concat(vars, newVars))
+          | None -> None)
 
     match result with
     | Some(vars) -> RouteMatch { matched = true, vars = vars }
@@ -139,8 +139,8 @@ let __findHandler(
   match matchingHandler with
   | Some(h) ->
     let routeMatch = __matchRouteSegments(__parseRouteSegments(h.route), pathSegs)
-    Option.Some((h, routeMatch))
-  | None -> Option.None
+    Some((h, routeMatch))
+  | None -> None
 
 
 /// The path of a request's url, as written (not decoded), always starting with
@@ -177,8 +177,8 @@ let getPathParam(req: Http.Request, routePattern: String, paramName: String): Op
     | _ -> false)
   |> (fun result ->
         match result with
-        | Some((_, pathValue)) -> Option.Some(pathValue)
-        | None -> Option.None)
+        | Some((_, pathValue)) -> Some(pathValue)
+        | None -> None)
 
 
 /// A function wrapping a handler: it may change the request before handing it on, change the
@@ -251,9 +251,7 @@ module Middleware =
 
       if https then
         match Url.parse(req.url) with
-        | Ok(u) ->
-          { req with
-              url = Url.toString({ u with scheme = Option.Some("https"), port = Option.None }) }
+        | Ok(u) -> { req with url = Url.toString({ u with scheme = Some("https"), port = None }) }
         | Error(_) -> req
       else
         req)
@@ -372,7 +370,7 @@ let serve(
   onListening: Unit -> Unit)
   : Result<Unit, String> =
   if config.maxBodyBytes < 0 then
-    Result.Error("maxBodyBytes must not be negative")
+    Error("maxBodyBytes must not be negative")
   else
     Builtin.httpServerServe(
       config.address,
@@ -412,7 +410,7 @@ let serveLive(
     | Off -> false
 
   if config.maxBodyBytes < 0 then
-    Result.Error("maxBodyBytes must not be negative")
+    Error("maxBodyBytes must not be negative")
   else
     Builtin.httpServerServeLive(
       config.address,

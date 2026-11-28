@@ -68,10 +68,10 @@ module StandardTypes =
   test foundByName =
     Stdlib.Test.all(
       [ byName([ "Stdlib", "Option" ], "Option")
-        |> Stdlib.Test.equal(carried(Stdlib.Option.Option.None))
+        |> Stdlib.Test.equal(carried(None))
 
         byName([ "Stdlib", "Result" ], "Result")
-        |> Stdlib.Test.equal(carried(Stdlib.Result.Result.Ok()))
+        |> Stdlib.Test.equal(carried(Ok()))
 
         byName([ "Stdlib", "Test" ], "Result")
         |> Stdlib.Test.equal(carried(Stdlib.Test.Result.Pass))
@@ -84,8 +84,8 @@ module NotCallableDiagnostics =
   test noDetailFormatting =
     let render(code: LanguageTools.AtRestTypeChecker.IssueCode): String =
       LanguageTools.AtRestTypeChecker.contextToStringWith(
-        (fun _ -> Stdlib.Option.Option.None),
-        Stdlib.Option.Option.None,
+        (fun _ -> None),
+        None,
         code,
         LanguageTools.AtRestTypeChecker.Context.NoDetail)
 

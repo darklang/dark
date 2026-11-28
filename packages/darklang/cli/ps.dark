@@ -89,14 +89,11 @@ let statusText(branchId: Uuid, status: LanguageTools.Exec.Status): String =
 let psProcess(branchId: Uuid, p: LanguageTools.Exec.Summary): PsProcess =
   let (status, waitingOn, error) =
     match p.status with
-    | Runnable -> ("running", Option.None, Option.None)
-    | Parked(on) -> ("waiting", Option.Some(parkedText(branchId, on)), Option.None)
-    | Done -> ("finished", Option.None, Option.None)
+    | Runnable -> ("running", None, None)
+    | Parked(on) -> ("waiting", Some(parkedText(branchId, on)), None)
+    | Done -> ("finished", None, None)
     | Failed(rte) ->
-      (
-        "failed",
-        Option.None,
-        Option.Some(PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)))
+      ("failed", None, Some(PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)))
 
   PsProcess
     { id = p.id
@@ -138,7 +135,7 @@ let treeRowsWithIds(
     | Some(pid) -> Stdlib.Bool.not(Stdlib.List.contains(ids, pid))
 
   let under(depth: Int64, p: LanguageTools.Exec.Summary): List<(Uuid * List<String>)> =
-    let children = all |> Stdlib.List.filter(fun c -> c.parent == Option.Some(p.id))
+    let children = all |> Stdlib.List.filter(fun c -> c.parent == Some(p.id))
     Stdlib.List.prepend(
       children
       |> Stdlib.List.map(fun c -> under(depth + 1, c))
@@ -170,16 +167,16 @@ let find(prefix: String): Result<LanguageTools.Exec.Summary, String> =
   // Every id starts with "", so an empty prefix would quietly take whichever process came first.
   // A shell variable that came back empty is how a person meets this.
   if prefix == "" then
-    Result.Error("that id is empty -- `dark ps` lists the ids")
+    Error("that id is empty -- `dark ps` lists the ids")
   else
     let matches =
       LanguageTools.Exec.list()
       |> Stdlib.List.filter(fun p -> Stdlib.String.startsWith(Stdlib.display(p.id), prefix))
 
     match matches with
-    | [one] -> Result.Ok(one)
-    | [] -> Result.Error($"no process whose id starts with {prefix} -- `dark ps` lists them")
-    | _ -> Result.Error($"more than one process starts with {prefix}; give more of the id")
+    | [one] -> Ok(one)
+    | [] -> Error($"no process whose id starts with {prefix} -- `dark ps` lists them")
+    | _ -> Error($"more than one process starts with {prefix}; give more of the id")
 
 
 /// "0.3 s ago", "12 s ago", "4 min ago": how long something has been running, at a glance. Past
@@ -313,7 +310,7 @@ let machineByPid(target: String): Option<LanguageTools.Exec.MachineProcess> =
     LanguageTools.Exec.machineList()
     |> Stdlib.List.filter(fun m -> m.pid == pid)
     |> Stdlib.List.head
-  | Error(_) -> Option.None
+  | Error(_) -> None
 
 
 /// Another Dark process in full, from the registry: the whole command line the
@@ -340,7 +337,7 @@ let signalMachine(pid: Int64, how: Stdlib.Exec.Stop): Result<String, String> =
   let known = LanguageTools.Exec.machineList() |> Stdlib.List.filter(fun m -> m.pid == pid)
   let pidText = Stdlib.display(pid)
   match known with
-  | [] -> Result.Error($"no Dark process on this machine has pid {pidText} -- `dark ps` lists them")
+  | [] -> Error($"no Dark process on this machine has pid {pidText} -- `dark ps` lists them")
   | [m, ...] ->
     let signal =
       match how with
@@ -354,28 +351,26 @@ let signalMachine(pid: Int64, how: Stdlib.Exec.Stop): Result<String, String> =
       | Error(_) -> false
 
     if !sent then
-      Result.Error($"could not signal pid {pidText}")
+      Error($"could not signal pid {pidText}")
     else
       match how with
-      | Kill -> Result.Ok($"killed {m.title} (pid {pidText})")
-      | Cancel -> Result.Ok($"asked {m.title} (pid {pidText}) to stop")
+      | Kill -> Ok($"killed {m.title} (pid {pidText})")
+      | Cancel -> Ok($"asked {m.title} (pid {pidText}) to stop")
 
 
 /// Stop a process in this instance by id prefix: `cancel` at its next turn, `kill` now.
 let stopLocal(prefix: String, how: Stdlib.Exec.Stop): Result<String, String> =
   match find(prefix) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(p) ->
     let ok = Stdlib.Exec.stop(Stdlib.Exec.Handle { id = p.id }, how)
     if ok then
       match how with
-      | Kill -> Result.Ok($"killed {Text.shortId(p.id)} without waiting for what it was doing")
+      | Kill -> Ok($"killed {Text.shortId(p.id)} without waiting for what it was doing")
       | Cancel ->
-        Result.Ok(
-          $"asked {Text.shortId(p.id)} to stop; it will, as soon as the work it is doing finishes")
+        Ok($"asked {Text.shortId(p.id)} to stop; it will, as soon as the work it is doing finishes")
     else
-      Result.Error(
-        $"{Text.shortId(p.id)} finished while you were asking -- `dark ps` for what is left")
+      Error($"{Text.shortId(p.id)} finished while you were asking -- `dark ps` for what is left")
 
 
 /// A pid names another Dark process on this machine; anything else is an id prefix in this one.
@@ -417,16 +412,12 @@ let execute(state: AppState, args: List<String>): AppState =
           init = "Darklang.Cli.Ps.Watch.init"
           update = "Darklang.Cli.Ps.Watch.update"
           render = "Darklang.Cli.Ps.Watch.render"
-          every = Option.Some(500)
-          keys = Option.Some("up/down move  |  c cancel  |  k kill  |  esc quit") }
+          every = Some(500)
+          keys = Some("up/down move  |  c cancel  |  k kill  |  esc quit") }
 
     // `--watch` IS the opt-in: a panel whose whole job is to repaint. It follows the store for
     // the same reason it follows the clock.
-    match LiveView.Host.openView(
-            state.currentBranchId,
-            view,
-            Option.None,
-            LiveView.Host.Updates.Live) with
+    match LiveView.Host.openView(state.currentBranchId, view, None, LiveView.Host.Updates.Live) with
     | Ok(_) -> state
     | Error(e) ->
       printErr(e)
@@ -597,15 +588,15 @@ module Watch =
       indexed
       |> Stdlib.List.filterMap(fun((i, r)) ->
         match r with
-        | Machine(_, cells) -> Option.Some(mark(i, cells))
-        | _ -> Option.None)
+        | Machine(_, cells) -> Some(mark(i, cells))
+        | _ -> None)
 
     let localRows =
       indexed
       |> Stdlib.List.filterMap(fun((i, r)) ->
         match r with
-        | Local(_, cells) -> Option.Some(mark(i, cells))
-        | _ -> Option.None)
+        | Local(_, cells) -> Some(mark(i, cells))
+        | _ -> None)
 
     let me = Stdlib.display(Stdlib.Cli.Sys.currentPid())
     Stdlib.Cli.UI.Node.column(

@@ -399,7 +399,7 @@ val viewSpecs =
 /// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
 let extensionViewAt(idx: Int64): Option<ViewDef> =
   if idx < baseViewCount then
-    Option.None
+    None
   else
     Stdlib.List.getAt(extensionViews(), idx - baseViewCount)
 

@@ -26,8 +26,7 @@ test recursiveListingCanBeReadWithSymlinks =
             (
               Stdlib.List.length(results),
               Stdlib.List.all(results, fun ok -> ok)))))
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok((3, true))))
+  |> Stdlib.Test.equal(Ok(Ok((3, true))))
 
 
 // walk lists each directory before its contents, in listing order; listRecursive lists the files
@@ -54,13 +53,4 @@ test walkKeepsSubtreeOrder =
       deleted,
       Stdlib.Cli.Posix.isDirectory(sub)))
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      (
-        [ Stdlib.Result.Result.Ok()
-          Stdlib.Result.Result.Ok()
-          Stdlib.Result.Result.Ok()
-          Stdlib.Result.Result.Ok() ],
-        true,
-        true,
-        Stdlib.Result.Result.Ok(),
-        false)))
+    Ok(([ Ok(), Ok(), Ok(), Ok() ], true, true, Ok(), false)))

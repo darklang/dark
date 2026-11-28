@@ -20,8 +20,8 @@ impl Display for Result<'Ok, 'Err> =
 /// unchanged.
 let map(result: Result<'t, 'e>, fn: 't -> 'u): Result<'u, 'e> =
   match result with
-  | Ok(value) -> Result.Ok(fn(value))
-  | Error(msg) -> Result.Error(msg)
+  | Ok(value) -> Ok(fn(value))
+  | Error(msg) -> Error(msg)
 
 
 /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
@@ -31,9 +31,9 @@ let map(result: Result<'t, 'e>, fn: 't -> 'u): Result<'u, 'e> =
 /// an error.
 let map2(result1: Result<'a, 'e>, result2: Result<'b, 'e>, fn: ('a, 'b) -> 'c): Result<'c, 'e> =
   match result1, result2 with
-  | Ok(v1), Ok(v2) -> Result.Ok(fn(v1, v2))
-  | Error(e1), _ -> Result.Error(e1)
-  | _, Error(e2) -> Result.Error(e2)
+  | Ok(v1), Ok(v2) -> Ok(fn(v1, v2))
+  | Error(e1), _ -> Error(e1)
+  | _, Error(e2) -> Error(e2)
 
 
 /// If all three of <param result1>, <param result2>, and <param result3> are
@@ -49,10 +49,10 @@ let map3(
   fn: ('a, 'b, 'c) -> 'd)
   : Result<'d, 'e> =
   match result1, result2, result3 with
-  | Ok(v1), Ok(v2), Ok(v3) -> Result.Ok(fn(v1, v2, v3))
-  | Error(e1), _, _ -> Result.Error(e1)
-  | _, Error(e2), _ -> Result.Error(e2)
-  | _, _, Error(e3) -> Result.Error(e3)
+  | Ok(v1), Ok(v2), Ok(v3) -> Ok(fn(v1, v2, v3))
+  | Error(e1), _, _ -> Error(e1)
+  | _, Error(e2), _ -> Error(e2)
+  | _, _, Error(e3) -> Error(e3)
 
 
 /// If all four of <param result1>, <param result2>, <param result3>, and
@@ -70,11 +70,11 @@ let map4(
   fn: ('a, 'b, 'c, 'd) -> 'f)
   : Result<'f, 'e> =
   match result1, result2, result3, result4 with
-  | Ok(v1), Ok(v2), Ok(v3), Ok(v4) -> Result.Ok(fn(v1, v2, v3, v4))
-  | Error(e1), _, _, _ -> Result.Error(e1)
-  | _, Error(e2), _, _ -> Result.Error(e2)
-  | _, _, Error(e3), _ -> Result.Error(e3)
-  | _, _, _, Error(e4) -> Result.Error(e4)
+  | Ok(v1), Ok(v2), Ok(v3), Ok(v4) -> Ok(fn(v1, v2, v3, v4))
+  | Error(e1), _, _, _ -> Error(e1)
+  | _, Error(e2), _, _ -> Error(e2)
+  | _, _, Error(e3), _ -> Error(e3)
+  | _, _, _, Error(e4) -> Error(e4)
 
 
 /// If all five of <param result1>, <param result2>, <param result3>, <param
@@ -93,12 +93,12 @@ let map5(
   fn: ('a, 'b, 'c, 'd, 'f) -> 'g)
   : Result<'g, 'e> =
   match result1, result2, result3, result4, result5 with
-  | Ok(v1), Ok(v2), Ok(v3), Ok(v4), Ok(v5) -> Result.Ok(fn(v1, v2, v3, v4, v5))
-  | Error(e1), _, _, _, _ -> Result.Error(e1)
-  | _, Error(e2), _, _, _ -> Result.Error(e2)
-  | _, _, Error(e3), _, _ -> Result.Error(e3)
-  | _, _, _, Error(e4), _ -> Result.Error(e4)
-  | _, _, _, _, Error(e5) -> Result.Error(e5)
+  | Ok(v1), Ok(v2), Ok(v3), Ok(v4), Ok(v5) -> Ok(fn(v1, v2, v3, v4, v5))
+  | Error(e1), _, _, _, _ -> Error(e1)
+  | _, Error(e2), _, _, _ -> Error(e2)
+  | _, _, Error(e3), _, _ -> Error(e3)
+  | _, _, _, Error(e4), _ -> Error(e4)
+  | _, _, _, _, Error(e5) -> Error(e5)
 
 
 /// Applies the function <param fn> to the value inside the {{Ok <var value>}} variant of <param result>
@@ -115,8 +115,8 @@ let mapWithDefault(result: Result<'t, 'e>, default_: 'u, fn: 't -> 'u): 'u =
 /// unchanged.
 let mapError(result: Result<'t, 'e>, fn: 'e -> 'u): Result<'t, 'u> =
   match result with
-  | Ok(value) -> Result.Ok(value)
-  | Error(value) -> Result.Error(fn(value))
+  | Ok(value) -> Ok(value)
+  | Error(value) -> Error(fn(value))
 
 
 /// If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The
@@ -126,7 +126,7 @@ let mapError(result: Result<'t, 'e>, fn: 'e -> 'u): Result<'t, 'u> =
 let andThen(result: Result<'t, 'e>, fn: 't -> Result<'u, 'e>): Result<'u, 'e> =
   match result with
   | Ok(value) -> fn(value)
-  | Error(msg) -> Result.Error(msg)
+  | Error(msg) -> Error(msg)
 
 
 /// If <param result> is {{Ok <var value>}}, returns <var value>. If <param
@@ -140,15 +140,15 @@ let withDefault(result: Result<'t, 'e>, default_: 't): 't =
 /// Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Some <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise.
 let fromOption(option: Option<'t>, error: 'e): Result<'t, 'e> =
   match option with
-  | Some(value) -> Result.Ok(value)
-  | None -> Result.Error(error)
+  | Some(value) -> Ok(value)
+  | None -> Error(error)
 
 
 /// Turn a <type Result> into an <type Option>
 let toOption(result: Result<'t, 'e>): Option<'t> =
   match result with
-  | Ok(value) -> Option.Some(value)
-  | Error(_) -> Option.None
+  | Ok(value) -> Some(value)
+  | Error(_) -> None
 
 
 /// Collect a list of results into a single result. If any of the results
@@ -159,15 +159,15 @@ let collect(results: List<Result<'t, 'e>>): Result<List<'t>, 'e> =
   // was quadratic in the list length: collecting 1,000 results did ~500,000 element copies.
   let folded =
     results
-    |> List.fold(Result.Ok([]), fun(acc, result) ->
+    |> List.fold(Ok([]), fun(acc, result) ->
       match acc, result with
-      | Ok(acc), Ok(result) -> Result.Ok(List.prepend(acc, result))
-      | Ok(_), Error(err) -> Result.Error(err)
-      | Error(err), _ -> Result.Error(err))
+      | Ok(acc), Ok(result) -> Ok(List.prepend(acc, result))
+      | Ok(_), Error(err) -> Error(err)
+      | Error(err), _ -> Error(err))
 
   match folded with
-  | Ok(l) -> Result.Ok(List.reverse(l))
-  | Error(err) -> Result.Error(err)
+  | Ok(l) -> Ok(List.reverse(l))
+  | Error(err) -> Error(err)
 
 
 /// If <param result> is {{Ok <var value>}}, returns true. Otherwise, returns false.
@@ -211,7 +211,7 @@ let toList(result: Result<'t, 'e>): List<'t> =
 let join(result: Result<Result<'t, 'e>, 'e>): Result<'t, 'e> =
   match result with
   | Ok(value) -> value
-  | Error(msg) -> Result.Error(msg)
+  | Error(msg) -> Error(msg)
 
 
 /// Combines a list of results into a single list of unwrapped values.
@@ -222,26 +222,26 @@ let combine(results: List<Result<'t, 'e>>): Result<List<'t>, 'e> =
   // accumulator every element, so this was quadratic in the list length.
   let folded =
     results
-    |> List.fold(Result.Ok([]), fun(acc, result) ->
+    |> List.fold(Ok([]), fun(acc, result) ->
       match acc, result with
-      | Ok(acc), Ok(result) -> Result.Ok(List.prepend(acc, result))
-      | (Ok(_), Error(err)) | (Error(err), _) -> Result.Error(err))
+      | Ok(acc), Ok(result) -> Ok(List.prepend(acc, result))
+      | (Ok(_), Error(err)) | (Error(err), _) -> Error(err))
 
   match folded with
-  | Ok(list) -> Result.Ok(List.reverse(list))
-  | Error(err) -> Result.Error(err)
+  | Ok(list) -> Ok(List.reverse(list))
+  | Error(err) -> Error(err)
 
 
 /// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.
 let values(results: List<Result<'t, 'e>>): Result<List<'t>, 'e> =
   let folded =
     results
-    |> List.fold(Result.Ok([]), fun(acc, result) ->
+    |> List.fold(Ok([]), fun(acc, result) ->
       match acc, result with
-      | Ok(acc), Ok(result) -> Result.Ok(List.prepend(acc, result))
+      | Ok(acc), Ok(result) -> Ok(List.prepend(acc, result))
       | Ok(_), Error(_) -> acc
-      | Error(err), _ -> Result.Error(err))
+      | Error(err), _ -> Error(err))
 
   match folded with
-  | Ok(list) -> Result.Ok(List.reverse(list))
-  | Error(err) -> Result.Error(err)
+  | Ok(list) -> Ok(List.reverse(list))
+  | Error(err) -> Error(err)

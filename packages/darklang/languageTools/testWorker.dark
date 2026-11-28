@@ -12,7 +12,7 @@ let main(args: List<String>): Int64 =
     let dir = Stdlib.Cli.Path.parent(requestPath)
     let privateDirectory = Stdlib.String.startsWith(Stdlib.Cli.Path.basename(dir), "dark-test-")
     if
-      Stdlib.Env.get("HOME") != Option.Some(dir)
+      Stdlib.Env.get("HOME") != Some(dir)
       || Stdlib.Bool.not(privateDirectory)
       || requestPath != Stdlib.Cli.Path.join([ dir, "request.bin" ])
       || resultPath != Stdlib.Cli.Path.join([ dir, "result.bin" ])
@@ -23,7 +23,7 @@ let main(args: List<String>): Int64 =
       // Stored in this private store too, so a nested worker starts on the same branch.
       let branch = SCM.PackageOps.currentBranch()
       let _ =
-        if LocalStore.configGet("current_branch") != Option.Some(Stdlib.display(branch)) then
+        if LocalStore.configGet("current_branch") != Some(Stdlib.display(branch)) then
           SCM.PackageOps.selectBranch(branch)
         else
           branch

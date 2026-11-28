@@ -56,11 +56,8 @@ let itemNamed(
   |> Stdlib.List.filterMap(fun op ->
     match op with
     | SetName(location, target, _) ->
-      if location.name == name then
-        Stdlib.Option.Option.Some(target)
-      else
-        Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None)
+      if location.name == name then Some(target) else None
+    | _ -> None)
   |> Stdlib.List.head
 
 
@@ -118,9 +115,9 @@ let resolved(name: 'a): LanguageTools.ProgramTypes.NameResolution<'a> =
   LanguageTools.ProgramTypes.NameResolution
     { originalName = []
       resolved =
-        Stdlib.Result.Result.Ok(
+        Ok(
           LanguageTools.ProgramTypes.ResolvedName
-            { name = name, location = Stdlib.Option.Option.None }) }
+            { name = name, location = None }) }
 
 
 let unresolved(
@@ -129,8 +126,7 @@ let unresolved(
   LanguageTools.ProgramTypes.NameResolution
     { originalName = parts
       resolved =
-        Stdlib.Result.Result.Error(
-          LanguageTools.ProgramTypes.NameResolutionError.NotFound) }
+        Error(LanguageTools.ProgramTypes.NameResolutionError.NotFound) }
 
 
 let custom(
@@ -288,7 +284,7 @@ let valueNamed(
   body: LanguageTools.ProgramTypes.Expr)
   : LanguageTools.ProgramTypes.PackageValue.PackageValue =
   LanguageTools.ProgramTypes.PackageValue.PackageValue
-    { hash = hash(name), body = body, description = "", typ = Option.None }
+    { hash = hash(name), body = body, description = "", typ = None }
 
 
 let useValue(id: Int64, name: String): LanguageTools.ProgramTypes.Expr =

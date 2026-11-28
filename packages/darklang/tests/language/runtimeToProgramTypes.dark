@@ -91,17 +91,17 @@ test floatsWithoutLiteralSyntax =
   Stdlib.Test.all(
     [ promote(LanguageTools.RuntimeTypes.Dval.DFloat64(0.0 / 0.0))
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "this float has no literal form (NaN, an infinity, or exponent notation)"))
 
       promote(LanguageTools.RuntimeTypes.Dval.DFloat64(1.0 / 0.0))
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "this float has no literal form (NaN, an infinity, or exponent notation)"))
 
       promote(LanguageTools.RuntimeTypes.Dval.DFloat64(1e30))
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "this float has no literal form (NaN, an infinity, or exponent notation)")) ])
 
 
@@ -176,7 +176,7 @@ test recordsAndEnums =
           "Some",
           [ LanguageTools.RuntimeTypes.Dval.DUuid(Stdlib.Uuid.generate()) ]))
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "Uuid has no literal expression (parse one with Stdlib.Uuid.parse)")) ])
 
 
@@ -233,5 +233,5 @@ test valuesWithoutLiteralSyntax =
   Stdlib.Test.all(
     [ promote(LanguageTools.RuntimeTypes.Dval.DUuid(Stdlib.Uuid.generate()))
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "Uuid has no literal expression (parse one with Stdlib.Uuid.parse)")) ])

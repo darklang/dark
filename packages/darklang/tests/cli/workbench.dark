@@ -10,7 +10,7 @@ module Darklang.Cli.Tests.Workbench
 let workbenchState(): Cli.Workbench.State =
   Cli.Workbench.initialState(
     SCM.Branch.mainBranchId,
-    Stdlib.Option.Option.None,
+    None,
     "test-instance",
     Cli.Workbench.Updates.Manual)
 
@@ -436,11 +436,11 @@ let wbPress(
 
 /// A printable key.
 let wbChar(state: Cli.Workbench.State, c: String): WbResult =
-  wbPress(state, Stdlib.Cli.Stdin.Key.Key.NoName, Stdlib.Option.Option.Some(c))
+  wbPress(state, Stdlib.Cli.Stdin.Key.Key.NoName, Some(c))
 
 
 let wbKey(state: Cli.Workbench.State, k: Stdlib.Cli.Stdin.Key.Key): WbResult =
-  wbPress(state, k, Stdlib.Option.Option.None)
+  wbPress(state, k, None)
 
 
 /// Move the nav cursor to a semantic row through the real key handler.
@@ -541,7 +541,7 @@ test workbenchNavbarNavigation =
     r3.action == WbAction.Continued
     && s3.activeView == Cli.Workbench.vScratch
     && Stdlib.Bool.not(Cli.Workbench.navbarFocused(s3))
-    && s3.input == Stdlib.Option.Option.None
+    && s3.input == None
 
   // The nav is one row per view: nothing under Changes, whichever section it is on.
   let rows = Cli.Workbench.navbarRows(s3, 0, 0)
@@ -855,10 +855,7 @@ test workbenchHomeOverview =
     checks
     |> Stdlib.List.filterMap(fun check ->
       let (ok, label) = check
-      if ok then
-        Stdlib.Option.Option.None
-      else
-        Stdlib.Option.Option.Some(label))
+      if ok then None else Some(label))
 
   if Stdlib.List.isEmpty(failures) then
     Stdlib.Test.Result.Pass
@@ -882,21 +879,21 @@ test workbenchNavigationEnums =
 
   let code =
     match Cli.Workbench.openReader(base, "x", Cli.Workbench.Reader.Code) with
-    | Continue(s) -> Stdlib.Option.Option.Some(s.readingIsCode)
-    | _ -> Stdlib.Option.Option.None
+    | Continue(s) -> Some(s.readingIsCode)
+    | _ -> None
 
   let prose =
     match Cli.Workbench.openReader(base, "x", Cli.Workbench.Reader.Prose) with
-    | Continue(s) -> Stdlib.Option.Option.Some(s.readingIsCode)
-    | _ -> Stdlib.Option.Option.None
+    | Continue(s) -> Some(s.readingIsCode)
+    | _ -> None
 
   Stdlib.Test.all(
     [ Stdlib.List.length(recorded.back) |> Stdlib.Test.equal(1)
       Stdlib.List.length(skipped.back) |> Stdlib.Test.equal(0)
       recorded.activeView |> Stdlib.Test.equal(Cli.Workbench.vMatter)
       skipped.activeView |> Stdlib.Test.equal(Cli.Workbench.vMatter)
-      code |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
-      prose |> Stdlib.Test.equal(Stdlib.Option.Option.Some(false)) ])
+      code |> Stdlib.Test.equal(Some(true))
+      prose |> Stdlib.Test.equal(Some(false)) ])
 
 
 test workbenchHistoryRoundTrip =
@@ -1045,7 +1042,7 @@ let openedState(instance: String): Cli.Workbench.State =
   let st =
     Cli.Workbench.initialState(
       SCM.Branch.mainBranchId,
-      Stdlib.Option.Option.None,
+      None,
       instance,
       Cli.Workbench.Updates.Manual)
 

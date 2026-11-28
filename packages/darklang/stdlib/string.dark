@@ -185,14 +185,14 @@ let split(string: String, separator: String): List<String> =
 /// may itself contain `=`. Returns {{None}} if the separator is empty or not found.
 let splitFirst(string: String, separator: String): Option<(String * String)> =
   if separator == "" then
-    Option.None
+    None
   else
     match indexOf(string, separator) with
-    | None -> Option.None
+    | None -> None
     | Some(i) ->
       let before = first(string, i)
       let after = dropFirst(string, i + length(separator))
-      Option.Some((before, after))
+      Some((before, after))
 
 
 /// Splits <param string> in two at the **last** <param separator>.
@@ -202,14 +202,14 @@ let splitFirst(string: String, separator: String): Option<(String * String)> =
 /// See <fn splitFirst> to split at the first one instead.
 let splitLast(string: String, separator: String): Option<(String * String)> =
   if separator == "" then
-    Option.None
+    None
   else
     match lastIndexOf(string, separator) with
-    | None -> Option.None
+    | None -> None
     | Some(i) ->
       let before = first(string, i)
       let after = dropFirst(string, i + length(separator))
-      Option.Some((before, after))
+      Some((before, after))
 
 
 /// Splits <param string> at <param separator> into **at most** <param n> pieces.
@@ -274,8 +274,8 @@ type IndexError =
 /// take characters without the check.
 let slice(string: String, from: Int64, to: Int64): Result<String, IndexError> =
   match Builtin.stringSlice(string, from, to) with
-  | Some(sliced) -> Result.Ok(sliced)
-  | None -> Result.Error(IndexError.IndexOutOfBounds)
+  | Some(sliced) -> Ok(sliced)
+  | None -> Error(IndexError.IndexOutOfBounds)
 
 
 /// Returns the first <param characterCount> characters of <param string>, as a <type String>.
@@ -395,10 +395,7 @@ let endsWith(subject: String, suffix: String): Bool =
 /// Returns {{None}} if <param subject> does not start with <param prefix>.
 let stripPrefix(subject: String, prefix: String): Option<String> =
   let n = length(prefix)
-  if first(subject, n) == prefix then
-    Option.Some(dropFirst(subject, n))
-  else
-    Option.None
+  if first(subject, n) == prefix then Some(dropFirst(subject, n)) else None
 
 
 /// Removes <param suffix> from the end of <param subject>.
@@ -408,9 +405,9 @@ let stripSuffix(subject: String, suffix: String): Option<String> =
   let len = length(subject)
   let start = len - length(suffix)
   if start >= 0 && dropFirst(subject, start) == suffix then
-    Option.Some(first(subject, start))
+    Some(first(subject, start))
   else
-    Option.None
+    None
 
 
 /// Returns {{Some index}} of the first <param searchFor> in <param str>, counted in
@@ -419,7 +416,7 @@ let stripSuffix(subject: String, suffix: String): Option<String> =
 /// in {{"👍🏽"}}.
 let indexOf(str: String, searchFor: String): Option<Int64> =
   let idx = Builtin.stringIndexOf(str, searchFor)
-  if idx == -1 then Option.None else Option.Some(idx)
+  if idx == -1 then None else Some(idx)
 
 
 /// Returns {{Some index}} of the last <param searchFor> in <param str>, counted in Chars
@@ -427,7 +424,7 @@ let indexOf(str: String, searchFor: String): Option<Int64> =
 /// Chars only, as <fn indexOf> does.
 let lastIndexOf(str: String, searchFor: String): Option<Int64> =
   let lastIndex = Builtin.stringLastIndexOf(str, searchFor)
-  if lastIndex == -1 then Option.None else Option.Some(lastIndex)
+  if lastIndex == -1 then None else Some(lastIndex)
 
 
 /// Returns <param string> repeated <param count> times, or {{""}} if <param count>
@@ -447,11 +444,11 @@ type RepeatError =
 /// is past 2147483647, where <fn String.repeat> raises. A count of 0 gives {{Ok ""}}.
 let checkedRepeat(string: String, count: Int64): Result<String, RepeatError> =
   if count < 0 then
-    Result.Error(RepeatError.NegativeCount)
+    Error(RepeatError.NegativeCount)
   else if count > 2147483647 then
-    Result.Error(RepeatError.TooLong)
+    Error(RepeatError.TooLong)
   else
-    Result.Ok(repeat(string, count))
+    Ok(repeat(string, count))
 
 
 /// Splits the given <param str> at each line ending (LF or CRLF) and returns a
@@ -484,8 +481,8 @@ let charAt(str: String, index: Int64): Option<Char> =
       c
       |> toList
       |> List.head
-    | Error(_) -> Option.None
-  | Error(_) -> Option.None
+    | Error(_) -> None
+  | Error(_) -> None
 
 
 /// Orders two strings by code point: negative when <param a> sorts first, 0 when they

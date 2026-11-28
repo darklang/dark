@@ -8,8 +8,8 @@ let fileIn(
   source: String)
   : Stdlib.Option.Option<WrittenTypes.SourceFile.SourceFile> =
   match LanguageTools.Parser.Parse.parse(kind, source) with
-  | Some(SourceFile(file)), _ -> Stdlib.Option.Option.Some(file)
-  | _ -> Stdlib.Option.Option.None
+  | Some(SourceFile(file)), _ -> Some(file)
+  | _ -> None
 
 
 /// The trailing expressions of a script.
@@ -57,16 +57,16 @@ let typeOf(
   match decls($"type X = {source}") with
   | [Type(t)] ->
     match t.definition with
-    | Alias(typ) -> Stdlib.Option.Option.Some(typ)
-    | _ -> Stdlib.Option.Option.None
-  | _ -> Stdlib.Option.Option.None
+    | Alias(typ) -> Some(typ)
+    | _ -> None
+  | _ -> None
 
 
 /// The body of the one fn a source declares.
 let fnBody(source: String): Stdlib.Option.Option<WrittenTypes.Expr> =
   match decls(source) with
-  | [Function(f)] -> Stdlib.Option.Option.Some(f.body)
-  | _ -> Stdlib.Option.Option.None
+  | [Function(f)] -> Some(f.body)
+  | _ -> None
 
 
 /// The type of the one parameter of the one fn a source declares.
@@ -76,9 +76,9 @@ let fnParamType(
   match decls(source) with
   | [Function(f)] ->
     match f.parameters with
-    | [Normal(p)] -> Stdlib.Option.Option.Some(p.typ)
-    | _ -> Stdlib.Option.Option.None
-  | _ -> Stdlib.Option.Option.None
+    | [Normal(p)] -> Some(p.typ)
+    | _ -> None
+  | _ -> None
 
 
 /// The pattern of each arm of the one `match` a script holds.
@@ -115,8 +115,8 @@ let quoteColumns(
 let calls(source: String): Stdlib.Option.Option<(String * Int64)> =
   match exprs(source) with
   | [EApply(_, EFnName(_, name), [], args)] ->
-    Stdlib.Option.Option.Some((name.fn.name, Stdlib.List.length(args)))
-  | _ -> Stdlib.Option.Option.None
+    Some((name.fn.name, Stdlib.List.length(args)))
+  | _ -> None
 
 
 let shown(source: String): String =
@@ -471,10 +471,10 @@ test operators =
       [ "[...a, ...b]", "[x, ...xs]", "[...xs, x]", "[a, ...b, c]" ]
       |> Stdlib.List.map(calls)
       |> Stdlib.Test.equal(
-        [ Stdlib.Option.Option.Some(("concat", 2))
-          Stdlib.Option.Option.Some(("concat", 2))
-          Stdlib.Option.Option.Some(("concat", 2))
-          Stdlib.Option.Option.Some(("flatten", 1)) ])
+        [ Some(("concat", 2))
+          Some(("concat", 2))
+          Some(("concat", 2))
+          Some(("flatten", 1)) ])
 
       // a lone spread is the list itself
       match exprs("[...xs]") with

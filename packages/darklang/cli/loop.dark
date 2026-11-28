@@ -39,7 +39,7 @@ let releasePromptRegion(state: AppState): AppState =
         Stdlib.Cli.Tui.TerminalSession.currentSize())
 
     let _stopped = Stdlib.Cli.Tui.TerminalSession.stopInlineWithView(terminal, parked)
-    { state with promptTerminal = Option.None }
+    { state with promptTerminal = None }
 
 
 /// Erase the rendered prompt region and release its terminal ownership.
@@ -55,7 +55,7 @@ let clearPromptRegion(state: AppState): AppState =
         { rows = [], cursor = Stdlib.Cli.Tui.Cursor.Hidden, mode = Stdlib.Cli.Tui.ViewMode.Inline }
 
     let _stopped = Stdlib.Cli.Tui.TerminalSession.stopInlineWithView(terminal, cleared)
-    { state with promptTerminal = Option.None }
+    { state with promptTerminal = None }
 
 
 let handleKeyInput(
@@ -335,10 +335,10 @@ let renderMainPrompt(
     let tPresent = if state.telemetryEnabled then Telemetry.now() else 0
     let nextTerminal = Stdlib.Cli.Tui.TerminalSession.presentAtSize(terminal, size, promptView)
     if state.telemetryEnabled then Telemetry.log("render.present", tPresent)
-    { state with promptTerminal = Option.Some(nextTerminal) }
+    { state with promptTerminal = Some(nextTerminal) }
   | None ->
     match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, promptView) with
-    | Ok(terminal) -> { state with promptTerminal = Option.Some(terminal) }
+    | Ok(terminal) -> { state with promptTerminal = Some(terminal) }
     | Error(message) ->
       Stdlib.printLine(message)
       { state with isExiting = true }
@@ -379,8 +379,7 @@ let applyKeyRead(
   keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead,
   times: Int64)
   : AppState =
-  let keyPressedMsg =
-    Msg.KeyPressed(keyInput.key, keyInput.modifiers, Option.Some(keyInput.keyChar))
+  let keyPressedMsg = Msg.KeyPressed(keyInput.key, keyInput.modifiers, Some(keyInput.keyChar))
 
   // A page transition ends the burst. Movement can cause one - a SubApp may return Exit or hand off to
   // another page on an arrow - and the rest of a burst must not be delivered to a page that never saw its
@@ -396,10 +395,10 @@ let applyKeyRead(
     match state.currentPage with
     | MainPrompt ->
       if Stdlib.String.contains(keyInput.keyChar, "\n") then
-        Option.Some(Stdlib.String.split(keyInput.keyChar, "\n"))
+        Some(Stdlib.String.split(keyInput.keyChar, "\n"))
       else
-        Option.None
-    | _ -> Option.None
+        None
+    | _ -> None
 
   match promptPasteLines with
   | Some(segments) ->
@@ -415,14 +414,12 @@ let applyKeyRead(
           if seg == "" then
             st
           else
-            Update.updateAppState(
-              st,
-              Msg.KeyPressed(keyInput.key, keyInput.modifiers, Option.Some(seg)))
+            Update.updateAppState(st, Msg.KeyPressed(keyInput.key, keyInput.modifiers, Some(seg)))
 
         if i == lastIdx then
           typed
         else
-          handleKeyInput(typed, Stdlib.Cli.Stdin.Key.Key.Enter, keyInput.modifiers, Option.None))
+          handleKeyInput(typed, Stdlib.Cli.Stdin.Key.Key.Enter, keyInput.modifiers, None))
   | None ->
     (Stdlib.List.checkedRange(1, times) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.fold(state, fun(st, _i) ->

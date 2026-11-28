@@ -64,7 +64,7 @@ let toBranch(row: Branches.BranchRow): Branch =
   Branch
     { id = row.id
       name = if row.name == "" then Stdlib.display(row.id) else row.name
-      parentBranchId = if isMain(row.parent) then Option.None else Option.Some(row.parent)
+      parentBranchId = if isMain(row.parent) then None else Some(row.parent)
       ops = row.ops
       merged = row.merged }
 
@@ -78,7 +78,7 @@ let list(): List<Branch> =
 /// One branch by id. None for main, and for an id nothing is registered under.
 let get(branchId: Uuid): Option<Branch> =
   if isMain(branchId) then
-    Option.None
+    None
   else
     list() |> Stdlib.List.findFirst(fun b -> b.id == branchId)
 
@@ -88,7 +88,7 @@ let get(branchId: Uuid): Option<Branch> =
 let getByName(name: String): Option<Branch> =
   match PackageOps.branchIdForName(name) with
   | Some(id) -> get(id)
-  | None -> Option.None
+  | None -> None
 
 
 /// Start a branch off <param parentId> and return it. Idempotent on the name: asking twice gets
@@ -96,7 +96,7 @@ let getByName(name: String): Option<Branch> =
 let create(name: String, parentId: Uuid): Option<Branch> =
   match PackageOps.ensureBranch(name, parentId) with
   | Ok((id, _created)) -> get(id)
-  | Error(_) -> Option.None
+  | Error(_) -> None
 
 
 /// Rename a branch. One write, because the name is an alias and nothing points at it: ops, per-name
@@ -107,27 +107,27 @@ let create(name: String, parentId: Uuid): Option<Branch> =
 let rename(branchId: Uuid, newName: String): Result<Branch, String> =
   let trimmed = Stdlib.String.trim(newName)
   if trimmed == "" then
-    Result.Error("a branch needs a name")
+    Error("a branch needs a name")
   else if trimmed == mainBranchName then
-    Result.Error($"\"{mainBranchName}\" is taken; it is the trunk's name")
+    Error($"\"{mainBranchName}\" is taken; it is the trunk's name")
   else
     // Whether another branch holds the name is asked inside the rename, in one transaction with it,
     // so two renames cannot both take one name.
     match Actions.branch(Actions.BranchAction.Rename(branchId, trimmed)) with
-    | Error(Refused(NameTaken)) -> Result.Error($"\"{trimmed}\" is already a live branch")
-    | Error(e) -> Result.Error(Actions.failureMessage(e))
+    | Error(Refused(NameTaken)) -> Error($"\"{trimmed}\" is already a live branch")
+    | Error(e) -> Error(Actions.failureMessage(e))
     | Ok(_) ->
       match get(branchId) with
-      | Some(b) -> Result.Ok(b)
-      | None -> Result.Error("no such branch")
+      | Some(b) -> Ok(b)
+      | None -> Error("no such branch")
 
 
 /// Archive a branch: its unmerged ops are discarded and it leaves the listings. Nothing that reached its
 /// parent is touched.
 let delete(branchId: Uuid): Result<Unit, String> =
   match get(branchId) with
-  | None -> Result.Error("no such branch")
+  | None -> Error("no such branch")
   | Some(_) ->
     match PackageOps.archiveBranch(branchId) with
-    | Ok(_) -> Result.Ok()
-    | Error(e) -> Result.Error(e)
+    | Ok(_) -> Ok()
+    | Error(e) -> Error(e)

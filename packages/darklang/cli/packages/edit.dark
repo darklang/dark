@@ -31,13 +31,13 @@ let moduleArgFor(loc: LanguageTools.ProgramTypes.PackageLocation): String =
 /// The PT location inside whatever the traversal resolved, or None for a module.
 let itemLocation(location: PackageLocation): Option<LanguageTools.ProgramTypes.PackageLocation> =
   match location with
-  | Module(_) -> Option.None
-  | Type(loc) -> Option.Some(loc)
-  | Value(loc) -> Option.Some(loc)
-  | Function(loc) -> Option.Some(loc)
-  | Trait(loc) -> Option.Some(loc)
-  | Impl(loc) -> Option.Some(loc)
-  | Test(loc) -> Option.Some(loc)
+  | Module(_) -> None
+  | Type(loc) -> Some(loc)
+  | Value(loc) -> Some(loc)
+  | Function(loc) -> Some(loc)
+  | Trait(loc) -> Some(loc)
+  | Impl(loc) -> Some(loc)
+  | Test(loc) -> Some(loc)
 
 
 /// Read the replacement source and apply it as an edit.
@@ -74,8 +74,7 @@ let patchSource(source: String, patch: String): Result<String, String> =
     replacementLines: List<String>)
     : Result<(List<String> * List<String>), String> =
     if Stdlib.List.isEmpty(originalLines) then
-      Result.Error(
-        "A patch block needs context or removed lines; insertion without context is ambiguous.")
+      Error("A patch block needs context or removed lines; insertion without context is ambiguous.")
     else
       let originalLineCount = Stdlib.List.length(originalLines)
       let matchingOffsets =
@@ -86,15 +85,15 @@ let patchSource(source: String, patch: String): Result<String, String> =
           == originalLines)
 
       match matchingOffsets with
-      | [] -> Result.Error("Patch context does not match the current declaration exactly.")
+      | [] -> Error("Patch context does not match the current declaration exactly.")
       | [offset] ->
-        Result.Ok(
+        Ok(
           (
             Stdlib.List.drop(remainingSource, offset + originalLineCount),
             Stdlib.List.concat(
               patchedLines,
               Stdlib.List.concat(Stdlib.List.take(remainingSource, offset), replacementLines))))
-      | _ -> Result.Error("Patch context is ambiguous: more than one exact match. Add context.")
+      | _ -> Error("Patch context is ambiguous: more than one exact match. Add context.")
 
   let applyPatchBlocks(
     patchLines: List<String>,
@@ -116,7 +115,7 @@ let patchSource(source: String, patch: String): Result<String, String> =
           patchedSource)
     | ["@@", ...remainingPatch] ->
       match applyPatchBlock(remainingSource, patchedLines, originalLines, replacementLines) with
-      | Error(message) -> Result.Error(message)
+      | Error(message) -> Error(message)
       | Ok((remainingSource, patchedLines)) ->
         applyPatchBlocks(remainingPatch, remainingSource, patchedLines, [], [])
     | [line, ...remainingPatch] ->
@@ -143,11 +142,11 @@ let patchSource(source: String, patch: String): Result<String, String> =
           originalLines,
           Stdlib.List.append(replacementLines, Stdlib.String.dropFirst(line, 1)))
       else
-        Result.Error("Expected a context line (space), removal (-), addition (+), or bare @@.")
+        Error("Expected a context line (space), removal (-), addition (+), or bare @@.")
 
   match splitLines(patch) with
   | ["@@", ...remainingPatch] -> applyPatchBlocks(remainingPatch, splitLines(source), [], [], [])
-  | _ -> Result.Error("A context patch must start with bare @@.")
+  | _ -> Error("A context patch must start with bare @@.")
 
 
 /// Explain a patch failure and print the current raw declaration for retry.
@@ -210,10 +209,10 @@ let execute(state: AppState, args: List<String>): AppState =
   let positionalArgs = Stdlib.List.filter(args, fun argument -> argument != "--patch")
   let parsedArguments =
     match usePatch, positionalArgs with
-    | false, [name] -> Result.Ok((name, Option.None))
-    | false, [name, file] -> Result.Ok((name, Option.Some(file)))
-    | true, [name, "-"] -> Result.Ok((name, Option.Some("-")))
-    | _ -> Result.Error("usage: dark edit <name> [file|-] or dark edit <name> --patch -")
+    | false, [name] -> Ok((name, None))
+    | false, [name, file] -> Ok((name, Some(file)))
+    | true, [name, "-"] -> Ok((name, Some("-")))
+    | _ -> Error("usage: dark edit <name> [file|-] or dark edit <name> --patch -")
 
   match parsedArguments with
   | Error(e) ->
@@ -341,7 +340,7 @@ let execute(state: AppState, args: List<String>): AppState =
                               Stdlib.Cli.UI.Colors.dimText(
                                 $"  nothing landed; your edit is still at {path}"))
 
-                            Option.None
+                            None
 
                         result
 

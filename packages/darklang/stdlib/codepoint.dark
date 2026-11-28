@@ -19,8 +19,8 @@ let isValidScalar(codepoint: UInt32): Bool =
 /// otherwise {{None}}: negative, past {{0x10FFFF}}, or a surrogate.
 let fromInt64(i: Int64): Option<UInt32> =
   match UInt32.fromInt64(i) with
-  | Some(codepoint) -> if isValidScalar(codepoint) then Option.Some(codepoint) else Option.None
-  | None -> Option.None
+  | Some(codepoint) -> if isValidScalar(codepoint) then Some(codepoint) else None
+  | None -> None
 
 
 /// Return whether the scalar is a Unicode letter. Invalid scalars return false.

@@ -22,9 +22,9 @@ let parseRelativeTo(
       Stdlib.List.concat(currentPath, relativeParts)
 
   match parts with
-  | [] -> Result.Error("Empty location")
+  | [] -> Error("Empty location")
   | [name] ->
-    Result.Error($"a name starts with its owner, Owner.name or Owner.Module.name; try `Me.{name}`")
+    Error($"a name starts with its owner, Owner.name or Owner.Module.name; try `Me.{name}`")
   | [owner, ...rest] ->
     let name = Stdlib.List.last(rest) |> Stdlib.Option.withDefault("")
     let modules = Stdlib.List.dropLast(rest)
@@ -41,12 +41,12 @@ let parseRelativeTo(
 
     match badModule with
     | Some(bad) ->
-      Result.Error(
+      Error(
         $"module names must start with a capital, and \"{bad}\" does not. "
         + "A lowercase segment is read as the item's NAME, so nothing could refer "
         + "to what this would create.")
     | None ->
-      Result.Ok(
+      Ok(
         LanguageTools.ProgramTypes.PackageLocation
           { owner = owner, modules = modules, name = name })
 

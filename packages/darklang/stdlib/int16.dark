@@ -113,9 +113,9 @@ let parse(s: String): Result<Int16, ParseError> =
   match BigInt.parse(s) with
   | Ok(n) ->
     match BigInt.toInt16(n) with
-    | Some(i) -> Result.Ok(i)
-    | None -> Result.Error(ParseError.OutOfRange)
-  | Error(_) -> Result.Error(ParseError.BadFormat)
+    | Some(i) -> Ok(i)
+    | None -> Error(ParseError.OutOfRange)
+  | Error(_) -> Error(ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int16>.
@@ -277,57 +277,57 @@ impl One for Int16 =
 let checkedAdd(a: Int16, b: Int16): Result<Int16, Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0s16 then sum > a else sum < a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(a: Int16, b: Int16): Result<Int16, Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0s16 then difference < a else difference > a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(a: Int16, b: Int16): Result<Int16, Math.Overflow> =
   let product = BigInt.fromInt16(a) * BigInt.fromInt16(b)
   match BigInt.toInt16(product) with
-  | Some(fits) -> Result.Ok(fits)
-  | None -> Result.Error(Math.Overflow.Overflow)
+  | Some(fits) -> Ok(fits)
+  | None -> Error(Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int16): Result<Int16, Math.Overflow> =
-  if a == -32768s16 then Result.Error(Math.Overflow.Overflow) else Result.Ok(-a)
+  if a == -32768s16 then Error(Math.Overflow.Overflow) else Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int16): Result<Int16, Math.Overflow> =
   if a == -32768s16 then
-    Result.Error(Math.Overflow.Overflow)
+    Error(Math.Overflow.Overflow)
   else if a < 0s16 then
-    Result.Ok(-a)
+    Ok(-a)
   else
-    Result.Ok(a)
+    Ok(a)
 
 
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(base: Int16, exponent: Int16): Result<Int16, Math.PowerError> =
   if exponent < 0s16 then
-    Result.Error(Math.PowerError.NegativeExponent)
+    Error(Math.PowerError.NegativeExponent)
   else if base == 0s16 || base == 1s16 || base == -1s16 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Result.Ok(base ** exponent)
+    Ok(base ** exponent)
   else if exponent >= 16s16 then
     // any other base is at least 2 from zero, and 2 ** 16 is past the Int16 range
-    Result.Error(Math.PowerError.Overflow)
+    Error(Math.PowerError.Overflow)
   else
     let result = BigInt.fromInt16(base) ** BigInt.fromInt16(exponent)
     match BigInt.toInt16(result) with
-    | Some(fits) -> Result.Ok(fits)
-    | None -> Result.Error(Math.PowerError.Overflow)
+    | Some(fits) -> Ok(fits)
+    | None -> Error(Math.PowerError.Overflow)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -338,11 +338,11 @@ let checkedPower(base: Int16, exponent: Int16): Result<Int16, Math.PowerError> =
 /// minimum value divided by -1, where `/` wraps back to the minimum.
 let checkedDivide(a: Int16, b: Int16): Result<Int16, Math.DivisionError> =
   if b == 0s16 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else if b == -1s16 && a == -32768s16 then
-    Result.Error(Math.DivisionError.Overflow)
+    Error(Math.DivisionError.Overflow)
   else
-    Result.Ok(a / b)
+    Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
@@ -351,17 +351,17 @@ let checkedDivide(a: Int16, b: Int16): Result<Int16, Math.DivisionError> =
 /// Use <fn Int16.checkedMod> to wrap around into {{0 <= res < b}} instead.
 let checkedRemainder(value: Int16, divisor: Int16): Result<Int16, Math.DivisionError> =
   if divisor == 0s16 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else
-    Result.Ok(value - value / divisor * divisor)
+    Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: Int16, b: Int16): Result<Int16, Math.ModulusError> =
   if b == 0s16 then
-    Result.Error(Math.ModulusError.ZeroModulus)
+    Error(Math.ModulusError.ZeroModulus)
   else if b < 0s16 then
-    Result.Error(Math.ModulusError.NegativeModulus)
+    Error(Math.ModulusError.NegativeModulus)
   else
-    Result.Ok(a % b)
+    Ok(a % b)

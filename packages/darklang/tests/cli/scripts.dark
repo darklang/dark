@@ -2,20 +2,20 @@ module Darklang.Cli.Tests.Scripts
 
 test unitSucceeds =
   Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DUnit)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+  |> Stdlib.Test.equal(Ok(0))
 
 
 test integerExitCodes =
   Stdlib.Test.all(
     [ Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DBigInt(7z))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(7))
+      |> Stdlib.Test.equal(Ok(7))
 
       Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DInt64(3))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
+      |> Stdlib.Test.equal(Ok(3))
 
       Cli.Run.exitCode(
         LanguageTools.RuntimeTypes.Dval.DBigInt(9223372036854775808z))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1)) ])
+      |> Stdlib.Test.equal(Ok(1)) ])
 
 
 test invalidResultKeepsValue =
@@ -34,28 +34,22 @@ module Eval =
     Stdlib.Option.Option<String>,
     Cli.ExecutionError.ExecutionError> =
     Cli.Eval.evaluateRaw(
-      Stdlib.Option.Option.None,
+      None,
       SCM.Branch.mainBranchId,
       source,
       [],
       Cli.Eval.Harmful.Halt)
 
 
-  test unitIsSilent =
-    evaluate("()")
-    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+  test unitIsSilent = evaluate("()") |> Stdlib.Test.equal(Ok(None))
 
 
   test stringsAreUnquoted =
-    evaluate("\"hello\\nworld\"")
-    |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("hello\nworld")))
+    evaluate("\"hello\\nworld\"") |> Stdlib.Test.equal(Ok(Some("hello\nworld")))
 
 
   test otherValuesArePrinted =
-    evaluate("[1, 2]")
-    |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("[1, 2]")))
+    evaluate("[1, 2]") |> Stdlib.Test.equal(Ok(Some("[1, 2]")))
 
 
 module CallStack =
@@ -87,10 +81,7 @@ module CallStack =
   test lambdaLabel =
     PrettyPrinter.RuntimeTypes.executionPoint(
       SCM.Branch.mainBranchId,
-      LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
-        source(),
-        23u64,
-        Stdlib.Option.Option.None))
+      LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(source(), 23u64, None))
     |> Stdlib.Test.equal("Lambda 23")
 
 
@@ -101,7 +92,7 @@ module CallStack =
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         builtin(),
         23u64,
-        Stdlib.Option.Option.Some(source())))
+        Some(source())))
     |> Stdlib.Test.equal("Lambda in Source (23)")
 
 
@@ -112,7 +103,7 @@ module CallStack =
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         builtin(),
         23u64,
-        Stdlib.Option.Option.Some(source())),
+        Some(source())),
       [ (22u64, 3), (23u64, 4) ])
     |> Stdlib.Test.equal("Lambda in Source (line 4)")
 
@@ -137,7 +128,7 @@ module CallStack =
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         source(),
         23u64,
-        Stdlib.Option.Option.Some(source()))
+        Some(source()))
 
     Stdlib.Test.all(
       [ whereLines([ source(), builtin() ], Cli.ExecutionError.Entry.Script)
@@ -164,7 +155,7 @@ module CallStack =
       LanguageTools.Exec.ExecutionPoint.Lambda(
         LanguageTools.Exec.ExecutionPoint.Source,
         18446744073709551615u64,
-        Stdlib.Option.Option.None)
+        None)
 
     PrettyPrinter.RuntimeTypes.executionPoint(SCM.Branch.mainBranchId, frame)
     |> Stdlib.Test.equal("Lambda 18446744073709551615")

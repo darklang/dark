@@ -304,7 +304,7 @@ let guarded(check: 'a -> Report, input: 'a): Report =
   match guard(check, input) with
   | Ok(report) -> report
   | Error(failure) ->
-    let warning = failureIssue(Option.None, failure)
+    let warning = failureIssue(None, failure)
 
     // This arm empties the WHOLE batch, so say why; callers read `items`, not this.
     // stderr, never stdout: the language server reaches this from its diagnostics, and its stdout
@@ -334,8 +334,8 @@ let failureIssue(nodeId: Option<UInt64>, failure: CheckFailure): Issue =
   Issue
     { code = IssueCode.UnsupportedConstruct
       nodeId = nodeId
-      expected = Option.None
-      actual = Option.None
+      expected = None
+      actual = None
       context = context }
 
 
@@ -395,7 +395,7 @@ let staticTypeToStringWith(
 
 
 let staticTypeToString(typ: StaticType): String =
-  staticTypeToStringWith((fun _ -> Option.None), typ)
+  staticTypeToStringWith((fun _ -> None), typ)
 
 
 let issueCodeToString(code: IssueCode): String =
@@ -737,11 +737,11 @@ let mixedNumbersHint(left: String, right: String): String =
 
   let integer =
     if right == "Float64" && Stdlib.List.contains(integers, left) then
-      Option.Some(left)
+      Some(left)
     else if left == "Float64" && Stdlib.List.contains(integers, right) then
-      Option.Some(right)
+      Some(right)
     else
-      Option.None
+      None
 
   match integer with
   | Some(name) ->
@@ -876,8 +876,8 @@ let issueToStringWith(customTypeName: ProgramTypes.Hash -> Option<String>, issue
 
   let actualName =
     match issue.actual with
-    | Some(actual) -> Option.Some(staticTypeToStringWith(customTypeName, actual))
-    | None -> Option.None
+    | Some(actual) -> Some(staticTypeToStringWith(customTypeName, actual))
+    | None -> None
 
   match issue.context, issue.code, actualName with
   | EnumRequiredForPattern, InvalidPattern, _ when Stdlib.Option.isSome(issue.expected) ->
@@ -911,4 +911,4 @@ let issueToStringWith(customTypeName: ProgramTypes.Hash -> Option<String>, issue
 
 
 let issueToString(issue: Issue): String =
-  issueToStringWith((fun _ -> Option.None), issue)
+  issueToStringWith((fun _ -> None), issue)

@@ -18,61 +18,50 @@ let handleEditorKey(
     saveEditing(state, es)
   else if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.K then
     Step.Continue(
-      { state with
-          editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.killToLineEnd(es.buf) }) })
+      { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.killToLineEnd(es.buf) }) })
   else if modifiers.ctrl then
     Step.Continue(state)
   else
     match key with
-    | Escape -> Step.Continue({ state with editing = Option.None })
+    | Escape -> Step.Continue({ state with editing = None })
     | Enter ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.newline(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.newline(es.buf) }) })
     | Backspace ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.backspace(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.backspace(es.buf) }) })
     | UpArrow ->
       Step.Continue(
-        { state with editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.moveUp(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.moveUp(es.buf) }) })
     | DownArrow ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.moveDown(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.moveDown(es.buf) }) })
     | LeftArrow ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.moveLeft(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.moveLeft(es.buf) }) })
     | RightArrow ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.moveRight(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.moveRight(es.buf) }) })
     | Delete ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.deleteForward(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.deleteForward(es.buf) }) })
     | Home ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.moveLineStart(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.moveLineStart(es.buf) }) })
     | End ->
       Step.Continue(
-        { state with
-            editing = Option.Some({ es with buf = Stdlib.Cli.UI.Editor.moveLineEnd(es.buf) }) })
+        { state with editing = Some({ es with buf = Stdlib.Cli.UI.Editor.moveLineEnd(es.buf) }) })
     | Tab ->
       Step.Continue(
         { state with
-            editing =
-              Option.Some({ es with buf = Stdlib.Cli.UI.Editor.insertChar(es.buf, "  ") }) })
+            editing = Some({ es with buf = Stdlib.Cli.UI.Editor.insertChar(es.buf, "  ") }) })
     | _ ->
       match keyChar with
       | Some(ch) ->
         if ch != "" then
           Step.Continue(
             { state with
-                editing =
-                  Option.Some({ es with buf = Stdlib.Cli.UI.Editor.insertText(es.buf, ch) }) })
+                editing = Some({ es with buf = Stdlib.Cli.UI.Editor.insertText(es.buf, ch) }) })
         else
           Step.Continue(state)
       | None -> Step.Continue(state)
@@ -96,7 +85,7 @@ let handleInputKey(
   if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.U then
     Step.Continue(
       { state with
-          input = Option.Some({ inp with field = Stdlib.Cli.UI.TextField.empty })
+          input = Some({ inp with field = Stdlib.Cli.UI.TextField.empty })
           completionSel = 0 })
   else
     match key with
@@ -105,8 +94,7 @@ let handleInputKey(
     // input mode here. An active filter survives it - `f`, `^u`, ⏎ is how you drop one.
     // A half-typed multi-line REPL statement goes with the prompt it was being typed into; leaving it behind
     // would silently prefix whatever you typed next.
-    | Escape ->
-      Step.Continue({ state with input = Option.None, repl = { state.repl with pending = "" } })
+    | Escape -> Step.Continue({ state with input = None, repl = { state.repl with pending = "" } })
     | UpArrow ->
       // Command bar: move up in the completion dropdown.
       if inp.action == "command" then
@@ -128,7 +116,7 @@ let handleInputKey(
           Step.Continue(
             { state with
                 input =
-                  Option.Some(
+                  Some(
                     { inp with
                         field =
                           Stdlib.Cli.UI.TextField.fromText(
@@ -142,7 +130,7 @@ let handleInputKey(
             Step.Continue(
               { state with
                   input =
-                    Option.Some(
+                    Some(
                       { inp with
                           field = Stdlib.Cli.UI.TextField.fromText(inp.field.text + hint) }) })
       else
@@ -152,8 +140,7 @@ let handleInputKey(
               inp.field,
               Stdlib.Cli.UI.Widget.press(key, modifiers, keyChar)) with
       | Some(next) ->
-        Step.Continue(
-          { state with input = Option.Some({ inp with field = next }), completionSel = 0 })
+        Step.Continue({ state with input = Some({ inp with field = next }), completionSel = 0 })
       | None -> Step.Continue(state)
 
 
@@ -167,7 +154,7 @@ let handleReaderKey(
   // Reader mode: ↑↓ scroll a line, PgUp/PgDn a screenful, Esc/q closes it.
   let scrollUp = Step.Continue({ state with detailScroll = Stdlib.max(0, state.detailScroll - 1) })
   let scrollDown = Step.Continue({ state with detailScroll = state.detailScroll + 1 })
-  let close = Step.Continue({ state with reading = Option.None, detailScroll = 0 })
+  let close = Step.Continue({ state with reading = None, detailScroll = 0 })
   // A page is the terminal height less the chrome, so it lands roughly where your eye already is. Reading a
   // 200-line doc one line at a time is not reading.
   let (_w, h) = Terminal.getSize()
@@ -188,11 +175,11 @@ let handleReaderKey(
       // don't need an esc between them.
       Step.Continue(
         { state with
-            reading = Option.None
+            reading = None
             detailScroll = 0
             completionSel = 0
             input =
-              Option.Some(
+              Some(
                 InputState
                   { prompt = ": "
                     field = Stdlib.Cli.UI.TextField.fromText("")

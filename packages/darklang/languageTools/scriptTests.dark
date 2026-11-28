@@ -33,9 +33,9 @@ let belowLet(sourceFile: WrittenTypes.SourceFile.SourceFile): List<BelowLet> =
     sourceFile.declarations
     |> Stdlib.List.filterMap(fun d ->
       match d with
-      | Function(f) -> Option.Some(f.name.name)
-      | Value(v) -> Option.Some(v.name.name)
-      | _ -> Option.None)
+      | Function(f) -> Some(f.name.name)
+      | Value(v) -> Some(v.name.name)
+      | _ -> None)
 
   let locals =
     Stdlib.List.fold(sourceFile.exprsToEval, Dict {}, fun(acc, e) -> statementLocals(acc, e))
@@ -55,7 +55,7 @@ let belowLet(sourceFile: WrittenTypes.SourceFile.SourceFile): List<BelowLet> =
       |> Stdlib.List.filterMap(fun((name, range)) ->
         match pathToLet(locals, [], name) with
         | Some((calls, letName, letLine)) ->
-          Option.Some(
+          Some(
             BelowLet
               { test = t.name.name
                 range = range
@@ -66,7 +66,7 @@ let belowLet(sourceFile: WrittenTypes.SourceFile.SourceFile): List<BelowLet> =
         | None ->
           match Stdlib.Dict.get(locals, name) with
           | Some(Fn(_)) ->
-            Option.Some(
+            Some(
               BelowLet
                 { test = t.name.name
                   range = range
@@ -74,9 +74,9 @@ let belowLet(sourceFile: WrittenTypes.SourceFile.SourceFile): List<BelowLet> =
                   usesLet = false
                   letName = firstName
                   letLine = firstLine })
-          | _ -> Option.None)
+          | _ -> None)
       |> Stdlib.List.head
-    | _ -> Option.None)
+    | _ -> None)
 
 
 /// The first name a chain of top-level statements binds with `let`, and its line.
@@ -84,10 +84,10 @@ let firstLet(e: WrittenTypes.Expr): Option<(String * Int64)> =
   match e with
   | ELet(_, pattern, _, rest, keywordLet, _) ->
     match letBindings(pattern) with
-    | [name, ...] -> Option.Some((name, keywordLet.start.row + 1))
+    | [name, ...] -> Some((name, keywordLet.start.row + 1))
     | [] -> firstLet(rest)
   | EStatement(_, _, next) -> firstLet(next)
-  | _ -> Option.None
+  | _ -> None
 
 
 /// The names a chain of top-level statements binds, added to <param acc>.
@@ -116,12 +116,12 @@ let pathToLet(
   name: String)
   : Option<(List<String> * String * Int64)> =
   match Stdlib.Dict.get(locals, name) with
-  | Some(Let(line)) -> Option.Some(([], name, line))
+  | Some(Let(line)) -> Some(([], name, line))
   | Some(Fn(uses)) when Stdlib.Bool.not(Stdlib.List.contains(seen, name)) ->
     firstPathToLet(locals, Stdlib.List.append(seen, name), uses)
     |> Stdlib.Option.map(fun((calls, letName, line)) ->
       (Stdlib.List.prepend(calls, name), letName, line))
-  | _ -> Option.None
+  | _ -> None
 
 
 let firstPathToLet(
@@ -130,10 +130,10 @@ let firstPathToLet(
   names: List<String>)
   : Option<(List<String> * String * Int64)> =
   match names with
-  | [] -> Option.None
+  | [] -> None
   | [name, ...rest] ->
     match pathToLet(locals, seen, name) with
-    | Some(path) -> Option.Some(path)
+    | Some(path) -> Some(path)
     | None -> firstPathToLet(locals, seen, rest)
 
 

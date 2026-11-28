@@ -204,8 +204,8 @@ test records =
 // doesn't tell you it came from `Color`.
 test enums =
   Stdlib.Test.all(
-    [ pp(Stdlib.Option.Option.Some(1)) |> Stdlib.Test.equal("Some(1)")
-      pp(Stdlib.Result.Result.Ok(1)) |> Stdlib.Test.equal("Ok(1)") ])
+    [ pp(Some(1)) |> Stdlib.Test.equal("Some(1)")
+      pp(Ok(1)) |> Stdlib.Test.equal("Ok(1)") ])
 
 
 // Name shortening
@@ -315,8 +315,7 @@ test widths =
 test enumTypeNames =
   Stdlib.Test.all(
     [ // nested wrappers print without their type names
-      pp(Stdlib.Option.Option.Some(Stdlib.Option.Option.Some([ 1, 2, 3 ])))
-      |> Stdlib.Test.equal("Some(Some([1, 2, 3]))")
+      pp(Some(Some([ 1, 2, 3 ]))) |> Stdlib.Test.equal("Some(Some([1, 2, 3]))")
 
       // A non-wrapper enum keeps its type name.
       pp(Stdlib.List.chunkBySize([ 1, 2, 3 ], 0))

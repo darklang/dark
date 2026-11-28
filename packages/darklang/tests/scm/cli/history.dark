@@ -138,7 +138,7 @@ test diffAndLogAnswerInJsonWithTheFlagOnEitherSide = scenario(fun dark ->
       rows(json(dark, [ "log", "--json" ]))
       |> Stdlib.List.map(fun op -> number(op, "seq"))
       |> Stdlib.List.head,
-      Stdlib.Option.Option.Some(0),
+      Some(0),
       "on a branch, log --json numbers the ops from the start")
 
     switch(dark, "main")

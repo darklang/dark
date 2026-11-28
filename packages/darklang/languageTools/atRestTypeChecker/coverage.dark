@@ -57,8 +57,8 @@ let render(missing: Missing): String =
         Stdlib.List.zipShortest(names, fields)
         |> Stdlib.List.filterMap(fun((name, field)) ->
           match field with
-          | Anything -> Option.None
-          | _ -> Option.Some(name + " = " + render(field)))
+          | Anything -> None
+          | _ -> Some(name + " = " + render(field)))
 
       if Stdlib.List.isEmpty(named) then
         "…"
@@ -102,38 +102,38 @@ let constructors(
   subst: Dict<Model.Var, Model.Ty>,
   ty: Model.Ty)
   : Option<List<(Constructor * List<Model.Ty>)>> =
-  let (expanded, _) = Types.expand(env, subst, Option.None, ty)
+  let (expanded, _) = Types.expand(env, subst, None, ty)
   match expanded with
-  | TUnit -> Option.Some([ (Constructor.UnitCase, []) ])
-  | TBool -> Option.Some([ (Constructor.BoolCase(false), []), (Constructor.BoolCase(true), []) ])
+  | TUnit -> Some([ (Constructor.UnitCase, []) ])
+  | TBool -> Some([ (Constructor.BoolCase(false), []), (Constructor.BoolCase(true), []) ])
   | TList(element) ->
-    Option.Some(
+    Some(
       [ (Constructor.EmptyList, []), (Constructor.ConsList, [ element, Model.Ty.TList(element) ]) ])
   | TTuple(first, second, rest) ->
     let fields = Stdlib.List.concat([ first, second ], rest)
-    Option.Some([ (Constructor.TupleOf(Stdlib.List.length(fields)), fields) ])
+    Some([ (Constructor.TupleOf(Stdlib.List.length(fields)), fields) ])
   | TCustom(name, args) ->
     match Types.declaration(env, name) with
     | Some(decl) ->
       match decl.definition with
       | Record(fields) ->
         let types = Stdlib.List.map(fields, fun field ->
-          let (t, _) = Types.fieldType(Option.None, decl.typeParams, args, field.typ)
+          let (t, _) = Types.fieldType(None, decl.typeParams, args, field.typ)
           t)
 
-        Option.Some([ (Constructor.RecordOf(Stdlib.List.map(fields, fun f -> f.name)), types) ])
+        Some([ (Constructor.RecordOf(Stdlib.List.map(fields, fun f -> f.name)), types) ])
       | Enum(cases) ->
         // Substitute this enum's type arguments into each case's payload types.
-        Option.Some(
+        Some(
           Stdlib.List.map(cases, fun case ->
             let fields = Stdlib.List.map(case.fields, fun field ->
-              let (t, _) = Types.fieldType(Option.None, decl.typeParams, args, field.typ)
+              let (t, _) = Types.fieldType(None, decl.typeParams, args, field.typ)
               t)
 
             (Constructor.EnumCase(case.name), fields)))
-      | _ -> Option.None
-    | None -> Option.None
-  | _ -> Option.None
+      | _ -> None
+    | None -> None
+  | _ -> None
 
 
 /// Keep the alternatives that can match this constructor and return their field
@@ -229,8 +229,7 @@ let catchAllRows(
     | [] -> []
     | [pattern, ...rest] ->
       alternatives(pattern)
-      |> Stdlib.List.filterMap(fun p ->
-        if isIrrefutable(p) then Option.Some(rest) else Option.None))
+      |> Stdlib.List.filterMap(fun p -> if isIrrefutable(p) then Some(rest) else None))
   |> Stdlib.List.flatten
 
 
@@ -295,12 +294,8 @@ let isExhaustiveByConstructors(
   : Bool =
   let expandable =
     match constructors(env, subst, ty) with
-    | Some(cases) ->
-      if headsCoverAllConstructors(cases, rows) then
-        Option.Some(cases)
-      else
-        Option.None
-    | None -> Option.None
+    | Some(cases) -> if headsCoverAllConstructors(cases, rows) then Some(cases) else None
+    | None -> None
 
   match expandable with
   | Some(cases) ->
@@ -326,14 +321,14 @@ let findUncovered(
   rows: List<List<ProgramTypes.MatchPattern>>)
   : Option<List<Missing>> =
   if depth == 0 then
-    Option.None
+    None
   else
     match types with
-    | [] -> if Stdlib.List.isEmpty(rows) then Option.Some([]) else Option.None
+    | [] -> if Stdlib.List.isEmpty(rows) then Some([]) else None
     | [ty, ...rest] ->
       match constructors(env, subst, ty) with
       | Some(cases) ->
-        Stdlib.List.fold(cases, Option.None, fun(found, (constructor, fieldTypes)) ->
+        Stdlib.List.fold(cases, None, fun(found, (constructor, fieldTypes)) ->
           match found with
           | Some(_) -> found
           | None ->
@@ -342,7 +337,7 @@ let findUncovered(
             if Stdlib.List.isEmpty(specialized) then
               // No row accepts this constructor, so its fields and the remaining
               // columns can be left unspecified in the example.
-              Option.Some(
+              Some(
                 Stdlib.List.prepend(
                   replicate(Stdlib.List.length(rest), Missing.Anything),
                   Missing.Built(constructor, replicate(fieldCount, Missing.Anything))))
@@ -384,13 +379,13 @@ let uncovered(
 
   let rows = Stdlib.List.map(patterns, fun p -> [ p ])
   if isExhaustive(env, subst, [ scrutinee ], rows) then
-    Option.None
+    None
   else
     // Eight recursive search steps bound the attempt to describe a missing value.
     // This limit affects only the example; the coverage decision was made above.
     match findUncovered(env, subst, 8, [ scrutinee ], rows) with
-    | Some([first, ...]) -> Option.Some(first)
-    | _ -> Option.Some(Missing.Anything)
+    | Some([first, ...]) -> Some(first)
+    | _ -> Some(Missing.Anything)
 
 
 /// Check whether two literal patterns match the same value. Patterns that are

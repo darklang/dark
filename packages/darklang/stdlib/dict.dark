@@ -49,9 +49,9 @@ let set(dict: Dict<'k, 'v>, key: 'k, value: 'v): Dict<'k, 'v> =
 /// <fn Dict.set> replaces the existing value instead.
 let insert(dict: Dict<'k, 'v>, key: 'k, value: 'v): Result<Dict<'k, 'v>, DuplicateKey<'k>> =
   if containsKey(dict, key) then
-    Result.Error(DuplicateKey.DuplicateKey(key))
+    Error(DuplicateKey.DuplicateKey(key))
   else
-    Result.Ok(set(dict, key, value))
+    Ok(set(dict, key, value))
 
 
 /// If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged.
@@ -80,8 +80,8 @@ let merge(left: Dict<'k, 'v>, right: Dict<'k, 'v>): Dict<'k, 'v> =
 /// first duplicate in key order.
 let mergeUnique(left: Dict<'k, 'v>, right: Dict<'k, 'v>): Result<Dict<'k, 'v>, DuplicateKey<'k>> =
   match List.findFirst(keys(right), fun k -> containsKey(left, k)) with
-  | Some(key) -> Result.Error(DuplicateKey.DuplicateKey(key))
-  | None -> Result.Ok(merge(left, right))
+  | Some(key) -> Error(DuplicateKey.DuplicateKey(key))
+  | None -> Ok(merge(left, right))
 
 
 /// Combines <param left> and <param right>. For each key in both,
@@ -152,21 +152,21 @@ let fromList(entries: List<('k * 'v)>): Dict<'k, 'v> =
 let fromEntriesUnique(entries: List<('k * 'v)>): Result<Dict<'k, 'v>, DuplicateKey<'k>> =
   let dict = fromEntries(entries)
   if size(dict) == List.length(entries) then
-    Result.Ok(dict)
+    Ok(dict)
   else
     // A duplicate exists; scan the entries again to find the first repeated key.
-    let (_, duplicate) = List.fold(entries, (Dict {}, Option.None), fun((seen, found), (key, _)) ->
+    let (_, duplicate) = List.fold(entries, (Dict {}, None), fun((seen, found), (key, _)) ->
       match found with
       | Some(_) -> (seen, found)
       | None ->
         if containsKey(seen, key) then
-          (seen, Option.Some(key))
+          (seen, Some(key))
         else
           (set(seen, key, true), found))
 
     match duplicate with
-    | Some(key) -> Result.Error(DuplicateKey.DuplicateKey(key))
-    | None -> Result.Ok(dict)
+    | Some(key) -> Error(DuplicateKey.DuplicateKey(key))
+    | None -> Ok(dict)
 
 
 /// Returns {{true}} if the <param dict> contains an entry with <param key>,
@@ -218,6 +218,6 @@ let filterMap(dict: Dict<'k, 'v>, fn: ('k, 'v) -> Option<'b>): Dict<'k, 'b> =
   |> toEntries
   |> List.filterMap(fun((k, v)) ->
     match fn(k, v) with
-    | None -> Option.None
-    | Some(newValue) -> Option.Some((k, newValue)))
+    | None -> None
+    | Some(newValue) -> Some((k, newValue)))
   |> fromEntries

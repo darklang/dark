@@ -57,9 +57,9 @@ let basename(path: String): String =
 let extension(path: String): Option<String> =
   let name = basename(path)
   match String.lastIndexOf(name, ".") with
-  | Some(0) -> Option.None
-  | Some(i) -> Option.Some(String.dropFirst(name, i))
-  | None -> Option.None
+  | Some(0) -> None
+  | Some(i) -> Some(String.dropFirst(name, i))
+  | None -> None
 
 
 /// Replace the extension of a path. The dot is optional:
@@ -112,7 +112,7 @@ let normalize(path: String): String =
 /// Resolve a relative path to an absolute path using the current directory.
 let resolve(path: String): Result<String, Posix.Error> =
   if isAbsolute(path) then
-    Result.Ok(normalize(path))
+    Ok(normalize(path))
   else
     Posix.getCwd() |> Result.map(fun cwd -> normalize(join([ cwd, path ])))
 

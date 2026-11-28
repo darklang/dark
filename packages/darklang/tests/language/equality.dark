@@ -623,35 +623,15 @@ test enumAliases =
 
 test optionsAndResults =
   Stdlib.Test.all(
-    [ Stdlib.Option.Option.None == Stdlib.Option.Option.None
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Option.Option.None
-      != Stdlib.Option.Option.Some(Stdlib.Option.Option.None)
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Option.Option.Some(5) == Stdlib.Option.Option.Some(5)
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Option.Option.Some(5) != Stdlib.Option.Option.Some(6)
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0))
-      != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(1))
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0))
-      == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0))
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Result.Result.Error(0) == Stdlib.Result.Result.Error(0)
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Result.Result.Ok(0) == Stdlib.Result.Result.Ok(0)
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.Result.Result.Ok(0) != Stdlib.Result.Result.Error(0)
-      |> Stdlib.Test.equal(true) ])
+    [ None == None |> Stdlib.Test.equal(true)
+      None != Some(None) |> Stdlib.Test.equal(true)
+      Some(5) == Some(5) |> Stdlib.Test.equal(true)
+      Some(5) != Some(6) |> Stdlib.Test.equal(true)
+      Some(Some(0)) != Some(Some(1)) |> Stdlib.Test.equal(true)
+      Some(Some(0)) == Some(Some(0)) |> Stdlib.Test.equal(true)
+      Error(0) == Error(0) |> Stdlib.Test.equal(true)
+      Ok(0) == Ok(0) |> Stdlib.Test.equal(true)
+      Ok(0) != Error(0) |> Stdlib.Test.equal(true) ])
 
 
 test floatEqualsInt64Raises =
@@ -691,7 +671,7 @@ test leftOperandErrorRaisesFirst =
 
 
 test unitEqualsOptionRaises =
-  () != Stdlib.Option.Option.None
+  () != None
   => raises "Cannot perform equality check on Unit and Darklang.Stdlib.Option.Option<_>"
 
 
@@ -712,7 +692,7 @@ test unitEqualsFloatRaises =
 
 // The left operand's error is raised before the right operand is evaluated.
 test leftOperandErrorRaisesBeforeRight =
-  1 / 0 != Builtin.unwrap(Stdlib.Option.Option.None)
+  1 / 0 != Builtin.unwrap(None)
   => raises "Cannot divide by 0"
 
 
@@ -830,22 +810,22 @@ test stdlibNotEquals =
 
 test unwrap =
   Stdlib.Test.all(
-    [ Stdlib.Option.Option.Some(5)
+    [ Some(5)
       |> Builtin.unwrap
       |> Stdlib.Test.equal(5)
 
-      Stdlib.Result.Result.Ok(true)
+      Ok(true)
       |> Builtin.unwrap
       |> Stdlib.Test.equal(true) ])
 
 
 test unwrapNoneRaises =
-  Stdlib.Option.Option.None |> Builtin.unwrap
+  None |> Builtin.unwrap
   => raises "Cannot unwrap None"
 
 
 test unwrapErrorRaises =
-  Stdlib.Result.Result.Error(5) |> Builtin.unwrap
+  Error(5) |> Builtin.unwrap
   => raises "Cannot unwrap Error: 5"
 
 

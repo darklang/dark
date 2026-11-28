@@ -48,16 +48,10 @@ test discardDropsTheDraftAndLeavesCommittedOpsAlone =
       Authoring.ok(committed)
       Authoring.ok(edit)
       draftBefore > 0 |> Stdlib.Test.equal(true)
-
-      dropped |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(draftBefore))
-
+      dropped |> Stdlib.Test.equal(Ok(draftBefore))
       draftCount() |> Stdlib.Test.equal(0)
-
       committedOpCount() |> Stdlib.Test.equal(committedBefore)
-
-      Authoring.fnHash(m, "dropMe")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
+      Authoring.fnHash(m, "dropMe") |> Stdlib.Test.equal(None)
       Authoring.fnHash(m, "keep") |> Stdlib.Test.equal(keepBefore) ])
 
 
@@ -91,7 +85,7 @@ test discardingAnEmptyDraftChangesNothing =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(committed)
-      discardAll() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+      discardAll() |> Stdlib.Test.equal(Ok(0))
       committedOpCount() |> Stdlib.Test.equal(committedBefore)
       Authoring.fnHash(m, "e") |> Stdlib.Test.equal(before) ])
 
@@ -115,7 +109,7 @@ test collapsingKeepsOneNamingPerName =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       (collapsed |> Stdlib.Result.map(fun n -> n > 0))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Test.equal(Ok(true))
 
       Authoring.fnHash(m, "c") |> Stdlib.Test.equal(before)
 
@@ -140,10 +134,9 @@ test discardingOneNameLeavesTheRestOfTheDraft =
       Stdlib.Option.isSome(keepBefore) |> Stdlib.Test.equal(true)
 
       (dropped |> Stdlib.Result.map(fun n -> n > 0))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Test.equal(Ok(true))
 
-      Authoring.fnHash(m, "dropMe")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Authoring.fnHash(m, "dropMe") |> Stdlib.Test.equal(None)
 
       Authoring.fnHash(m, "keepMe") |> Stdlib.Test.equal(keepBefore)
 
@@ -166,8 +159,5 @@ test discardingANameDropsTheNamingNotTheContent =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Stdlib.Option.isSome(before) |> Stdlib.Test.equal(true)
-
-      dropped |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
-
-      Authoring.fnHash(m, "basis")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      dropped |> Stdlib.Test.equal(Ok(1))
+      Authoring.fnHash(m, "basis") |> Stdlib.Test.equal(None) ])

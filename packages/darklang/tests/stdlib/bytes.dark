@@ -29,20 +29,18 @@ test isEmpty =
 test getAt =
   let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
   Stdlib.Test.all(
-    [ Stdlib.Bytes.getAt(bytes, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(10u8))
+    [ Stdlib.Bytes.getAt(bytes, 0) |> Stdlib.Test.equal(Ok(10u8))
 
-      Stdlib.Bytes.getAt(bytes, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(30u8))
+      Stdlib.Bytes.getAt(bytes, 2) |> Stdlib.Test.equal(Ok(30u8))
 
       Stdlib.Bytes.getAt(bytes, 3)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 3, 2)))
+      |> Stdlib.Test.equal(Error(outOfRange(1, 3, 2)))
 
       Stdlib.Bytes.getAt(bytes, -1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, -1, 2)))
+      |> Stdlib.Test.equal(Error(outOfRange(1, -1, 2)))
 
       Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 0, -1))) ])
+      |> Stdlib.Test.equal(Error(outOfRange(1, 0, -1))) ])
 
 
 // reading numbers
@@ -62,29 +60,24 @@ let outOfRange(
 test readUInt8AndInt8 =
   let bytes = hex("007F80FF")
   Stdlib.Test.all(
-    [ Stdlib.Bytes.readUInt8(bytes, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8))
+    [ Stdlib.Bytes.readUInt8(bytes, 0) |> Stdlib.Test.equal(Ok(0u8))
 
-      Stdlib.Bytes.readUInt8(bytes, 3)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8))
+      Stdlib.Bytes.readUInt8(bytes, 3) |> Stdlib.Test.equal(Ok(255u8))
 
-      Stdlib.Bytes.readInt8(bytes, 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(127s8))
+      Stdlib.Bytes.readInt8(bytes, 1) |> Stdlib.Test.equal(Ok(127s8))
 
-      Stdlib.Bytes.readInt8(bytes, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-128s8))
+      Stdlib.Bytes.readInt8(bytes, 2) |> Stdlib.Test.equal(Ok(-128s8))
 
-      Stdlib.Bytes.readInt8(bytes, 3)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s8))
+      Stdlib.Bytes.readInt8(bytes, 3) |> Stdlib.Test.equal(Ok(-1s8))
 
       Stdlib.Bytes.readUInt8(bytes, 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 4, 3)))
+      |> Stdlib.Test.equal(Error(outOfRange(1, 4, 3)))
 
       Stdlib.Bytes.readInt8(bytes, -1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, -1, 3)))
+      |> Stdlib.Test.equal(Error(outOfRange(1, -1, 3)))
 
       Stdlib.Bytes.readUInt8(Stdlib.Bytes.empty, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 0, -1))) ])
+      |> Stdlib.Test.equal(Error(outOfRange(1, 0, -1))) ])
 
 
 test read16 =
@@ -92,32 +85,26 @@ test read16 =
   let le = Stdlib.Bytes.Endianness.LittleEndian
   let be = Stdlib.Bytes.Endianness.BigEndian
   Stdlib.Test.all(
-    [ Stdlib.Bytes.readUInt16(bytes, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(513u16))
+    [ Stdlib.Bytes.readUInt16(bytes, 0, le) |> Stdlib.Test.equal(Ok(513u16))
 
-      Stdlib.Bytes.readUInt16(bytes, 0, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(258u16))
+      Stdlib.Bytes.readUInt16(bytes, 0, be) |> Stdlib.Test.equal(Ok(258u16))
 
-      Stdlib.Bytes.readInt16(bytes, 2, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16))
+      Stdlib.Bytes.readInt16(bytes, 2, be) |> Stdlib.Test.equal(Ok(-32768s16))
 
-      Stdlib.Bytes.readInt16(bytes, 2, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128s16))
+      Stdlib.Bytes.readInt16(bytes, 2, le) |> Stdlib.Test.equal(Ok(128s16))
 
-      Stdlib.Bytes.readInt16(bytes, 4, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
+      Stdlib.Bytes.readInt16(bytes, 4, le) |> Stdlib.Test.equal(Ok(-1s16))
 
-      Stdlib.Bytes.readUInt16(bytes, 4, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(65535u16))
+      Stdlib.Bytes.readUInt16(bytes, 4, be) |> Stdlib.Test.equal(Ok(65535u16))
 
       Stdlib.Bytes.readUInt16(bytes, 5, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, 5, 4)))
+      |> Stdlib.Test.equal(Error(outOfRange(2, 5, 4)))
 
       Stdlib.Bytes.readInt16(bytes, 6, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, 6, 4)))
+      |> Stdlib.Test.equal(Error(outOfRange(2, 6, 4)))
 
       Stdlib.Bytes.readUInt16(bytes, -1, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, -1, 4))) ])
+      |> Stdlib.Test.equal(Error(outOfRange(2, -1, 4))) ])
 
 
 test read32 =
@@ -125,32 +112,29 @@ test read32 =
   let le = Stdlib.Bytes.Endianness.LittleEndian
   let be = Stdlib.Bytes.Endianness.BigEndian
   Stdlib.Test.all(
-    [ Stdlib.Bytes.readUInt32(bytes, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(44100u32))
+    [ Stdlib.Bytes.readUInt32(bytes, 0, le) |> Stdlib.Test.equal(Ok(44100u32))
 
       Stdlib.Bytes.readUInt32(bytes, 0, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1152122880u32))
+      |> Stdlib.Test.equal(Ok(1152122880u32))
 
       Stdlib.Bytes.readInt32(bytes, 4, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32))
+      |> Stdlib.Test.equal(Ok(-2147483648s32))
 
-      Stdlib.Bytes.readInt32(bytes, 4, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128s32))
+      Stdlib.Bytes.readInt32(bytes, 4, le) |> Stdlib.Test.equal(Ok(128s32))
 
-      Stdlib.Bytes.readInt32(bytes, 8, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
+      Stdlib.Bytes.readInt32(bytes, 8, le) |> Stdlib.Test.equal(Ok(-1s32))
 
       Stdlib.Bytes.readUInt32(bytes, 8, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4294967295u32))
+      |> Stdlib.Test.equal(Ok(4294967295u32))
 
       Stdlib.Bytes.readUInt32(bytes, 9, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 9, 8)))
+      |> Stdlib.Test.equal(Error(outOfRange(4, 9, 8)))
 
       Stdlib.Bytes.readInt32(bytes, 12, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 12, 8)))
+      |> Stdlib.Test.equal(Error(outOfRange(4, 12, 8)))
 
       Stdlib.Bytes.readUInt32(bytes, -4, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, -4, 8))) ])
+      |> Stdlib.Test.equal(Error(outOfRange(4, -4, 8))) ])
 
 
 test read64 =
@@ -158,32 +142,29 @@ test read64 =
   let le = Stdlib.Bytes.Endianness.LittleEndian
   let be = Stdlib.Bytes.Endianness.BigEndian
   Stdlib.Test.all(
-    [ Stdlib.Bytes.readUInt64(bytes, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u64))
+    [ Stdlib.Bytes.readUInt64(bytes, 0, le) |> Stdlib.Test.equal(Ok(1u64))
 
       Stdlib.Bytes.readUInt64(bytes, 0, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(72057594037927936u64))
+      |> Stdlib.Test.equal(Ok(72057594037927936u64))
 
       Stdlib.Bytes.readInt64(bytes, 8, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
+      |> Stdlib.Test.equal(Ok(-9223372036854775808))
 
-      Stdlib.Bytes.readInt64(bytes, 8, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128))
+      Stdlib.Bytes.readInt64(bytes, 8, le) |> Stdlib.Test.equal(Ok(128))
 
-      Stdlib.Bytes.readInt64(bytes, 16, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
+      Stdlib.Bytes.readInt64(bytes, 16, le) |> Stdlib.Test.equal(Ok(-1))
 
       Stdlib.Bytes.readUInt64(bytes, 16, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551615u64))
+      |> Stdlib.Test.equal(Ok(18446744073709551615u64))
 
       Stdlib.Bytes.readUInt64(bytes, 17, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 17, 16)))
+      |> Stdlib.Test.equal(Error(outOfRange(8, 17, 16)))
 
       Stdlib.Bytes.readInt64(bytes, 24, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 24, 16)))
+      |> Stdlib.Test.equal(Error(outOfRange(8, 24, 16)))
 
       Stdlib.Bytes.readInt64(bytes, -8, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, -8, 16))) ])
+      |> Stdlib.Test.equal(Error(outOfRange(8, -8, 16))) ])
 
 
 test readFloats =
@@ -192,34 +173,31 @@ test readFloats =
   let f32 = hex("0000803F7F8000007FC00000")
   let f64 = hex("000000000000F03FFFF00000000000007FF8000000000000")
   Stdlib.Test.all(
-    [ Stdlib.Bytes.readFloat32(f32, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0f32))
+    [ Stdlib.Bytes.readFloat32(f32, 0, le) |> Stdlib.Test.equal(Ok(1.0f32))
 
       Stdlib.Bytes.readFloat32(f32, 4, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0f32 / 0.0f32))
+      |> Stdlib.Test.equal(Ok(1.0f32 / 0.0f32))
 
       Stdlib.Bytes.readFloat32(f32, 8, be)
       |> Stdlib.Result.map(Stdlib.Float32.isNaN)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Test.equal(Ok(true))
 
       Stdlib.Bytes.readFloat32(f32, 9, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 9, 8)))
+      |> Stdlib.Test.equal(Error(outOfRange(4, 9, 8)))
 
-      Stdlib.Bytes.readFloat64(f64, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+      Stdlib.Bytes.readFloat64(f64, 0, le) |> Stdlib.Test.equal(Ok(1.0))
 
-      Stdlib.Bytes.readFloat64(f64, 8, be)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.0 / 0.0))
+      Stdlib.Bytes.readFloat64(f64, 8, be) |> Stdlib.Test.equal(Ok(-1.0 / 0.0))
 
       Stdlib.Bytes.readFloat64(f64, 16, be)
       |> Stdlib.Result.map(Stdlib.Float64.isNaN)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Test.equal(Ok(true))
 
       Stdlib.Bytes.readFloat64(f64, 17, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 17, 16)))
+      |> Stdlib.Test.equal(Error(outOfRange(8, 17, 16)))
 
       Stdlib.Bytes.readFloat64(f64, -1, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, -1, 16))) ])
+      |> Stdlib.Test.equal(Error(outOfRange(8, -1, 16))) ])
 
 
 // any bit pattern but a NaN payload comes back through Float64.toBits unchanged
@@ -248,32 +226,28 @@ test readOutOfRangeSaysWhatFits =
   Stdlib.Bytes.readUInt32(bytes, 9, Stdlib.Bytes.Endianness.LittleEndian)
   |> Stdlib.Result.mapError(Stdlib.display)
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
-      "9 is not a valid offset for a 4-byte read (0 to 8)"))
+    Error("9 is not a valid offset for a 4-byte read (0 to 8)"))
 
 
 test readFromTooShortBufferSaysHowShort =
   Stdlib.Bytes.readUInt32(hex("44AC"), 0, Stdlib.Bytes.Endianness.LittleEndian)
   |> Stdlib.Result.mapError(Stdlib.display)
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
-      "a 4-byte read needs at least 4 bytes, but there are only 2"))
+    Error("a 4-byte read needs at least 4 bytes, but there are only 2"))
 
 
 test readFromOneByteBufferSaysThereIsOnlyOne =
   Stdlib.Bytes.readUInt16(hex("44"), 0, Stdlib.Bytes.Endianness.LittleEndian)
   |> Stdlib.Result.mapError(Stdlib.display)
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
-      "a 2-byte read needs at least 2 bytes, but there is only 1"))
+    Error("a 2-byte read needs at least 2 bytes, but there is only 1"))
 
 
 test getAtOnEmptyBufferSaysItIsEmpty =
   Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
   |> Stdlib.Result.mapError(Stdlib.display)
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
-      "a 1-byte read needs at least 1 byte, but the buffer is empty"))
+    Error("a 1-byte read needs at least 1 byte, but the buffer is empty"))
 
 
 test readFromSharedSlice =
@@ -281,15 +255,12 @@ test readFromSharedSlice =
   let rest = Stdlib.Bytes.drop(whole, 203)
   let le = Stdlib.Bytes.Endianness.LittleEndian
   Stdlib.Test.all(
-    [ Stdlib.Bytes.readUInt8(rest, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(51u8))
+    [ Stdlib.Bytes.readUInt8(rest, 0) |> Stdlib.Test.equal(Ok(51u8))
 
-      Stdlib.Bytes.readUInt16(rest, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(13363u16))
+      Stdlib.Bytes.readUInt16(rest, 0, le) |> Stdlib.Test.equal(Ok(13363u16))
 
       Stdlib.Bytes.readUInt16(rest, 796, le)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(outOfRange(2, 796, 795))) ])
+      |> Stdlib.Test.equal(Error(outOfRange(2, 796, 795))) ])
 
 
 // setAt
@@ -297,85 +268,58 @@ test setAt =
   let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
   Stdlib.Test.all(
     [ Stdlib.Bytes.setAt(bytes, 0, 1u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 1u8, 20u8, 30u8 ])))
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 1u8, 20u8, 30u8 ])))
 
       Stdlib.Bytes.setAt(bytes, 2, 3u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 10u8, 20u8, 3u8 ])))
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 10u8, 20u8, 3u8 ])))
 
       Stdlib.Bytes.setAt(bytes, 3, 1u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
 
       Stdlib.Bytes.setAt(bytes, -1, 1u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
 
       Stdlib.Bytes.setAt(Stdlib.Bytes.empty, 0, 1u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
 
 
 // indexOf / indexOfFrom
 test indexOf =
   let bytes = Stdlib.Utf8.encode("ab\nc\n")
   Stdlib.Test.all(
-    [ Stdlib.Bytes.indexOf(bytes, 10u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
-
-      Stdlib.Bytes.indexOf(bytes, 0u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
-
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
-
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 99)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.Bytes.indexOf(bytes, 10u8) |> Stdlib.Test.equal(Some(2))
+      Stdlib.Bytes.indexOf(bytes, 0u8) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10u8) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 2) |> Stdlib.Test.equal(Some(2))
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 3) |> Stdlib.Test.equal(Some(4))
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 5) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, -1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 99) |> Stdlib.Test.equal(None) ])
 
 
 // lastIndexOf / lastIndexOfFrom
 test lastIndexOf =
   let bytes = Stdlib.Utf8.encode("ab\nc\n")
   Stdlib.Test.all(
-    [ Stdlib.Bytes.lastIndexOf(bytes, 10u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+    [ Stdlib.Bytes.lastIndexOf(bytes, 10u8) |> Stdlib.Test.equal(Some(4))
 
-      Stdlib.Bytes.lastIndexOf(bytes, 97u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.Bytes.lastIndexOf(bytes, 97u8) |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.Bytes.lastIndexOf(bytes, 0u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Bytes.lastIndexOf(bytes, 0u8) |> Stdlib.Test.equal(None)
 
       Stdlib.Bytes.lastIndexOf(Stdlib.Bytes.empty, 10u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 4)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 4) |> Stdlib.Test.equal(Some(4))
 
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 3) |> Stdlib.Test.equal(Some(2))
 
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 1) |> Stdlib.Test.equal(None)
 
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, -1) |> Stdlib.Test.equal(None)
 
       Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 99)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 // lastIndexOf walks back through a large Bytes
@@ -385,8 +329,7 @@ test lastIndexOfLarge =
       Stdlib.Utf8.encode("x"),
       Stdlib.Utf8.encode(Stdlib.String.repeat("a", 100000)))
 
-  Stdlib.Bytes.lastIndexOf(bytes, 120u8)
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+  Stdlib.Bytes.lastIndexOf(bytes, 120u8) |> Stdlib.Test.equal(Some(0))
 
 
 // concat
@@ -394,11 +337,11 @@ test concat =
   Stdlib.Test.all(
     [ Stdlib.Bytes.concat(Stdlib.Utf8.encode("foo"), Stdlib.Utf8.encode("bar"))
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("foobar"))
+      |> Stdlib.Test.equal(Ok("foobar"))
 
       Stdlib.Bytes.concat(Stdlib.Bytes.empty, Stdlib.Utf8.encode("a"))
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("a")) ])
+      |> Stdlib.Test.equal(Ok("a")) ])
 
 
 // concatAll
@@ -409,7 +352,7 @@ test concatAll =
         Stdlib.Utf8.encode("bar") ]
       |> Stdlib.Bytes.concatAll
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("foo-bar"))
+      |> Stdlib.Test.equal(Ok("foo-bar"))
 
       Stdlib.Bytes.concatAll([])
       |> Stdlib.Bytes.length
@@ -447,7 +390,7 @@ test concatAllEdges =
       Stdlib.Bytes.concatAll(
         [ Stdlib.Bytes.take(right, 5), Stdlib.Bytes.drop(left, 400) ])
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("defghabc")) ])
+      |> Stdlib.Test.equal(Ok("defghabc")) ])
 
 
 // map
@@ -471,39 +414,31 @@ test slice =
     : Stdlib.Result.Result<String, String> =
     match r with
     | Ok(b) -> Stdlib.Utf8.decode(b)
-    | Error(_) -> Stdlib.Result.Result.Error("out of bounds")
+    | Error(_) -> Error("out of bounds")
 
   Stdlib.Test.all(
-    [ text(Stdlib.Bytes.slice(bytes, 2, 5))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("cde"))
+    [ text(Stdlib.Bytes.slice(bytes, 2, 5)) |> Stdlib.Test.equal(Ok("cde"))
 
-      text(Stdlib.Bytes.slice(bytes, 0, 6))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+      text(Stdlib.Bytes.slice(bytes, 0, 6)) |> Stdlib.Test.equal(Ok("abcdef"))
 
-      text(Stdlib.Bytes.slice(bytes, 3, 3))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      text(Stdlib.Bytes.slice(bytes, 3, 3)) |> Stdlib.Test.equal(Ok(""))
 
-      text(Stdlib.Bytes.slice(bytes, 6, 6))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      text(Stdlib.Bytes.slice(bytes, 6, 6)) |> Stdlib.Test.equal(Ok(""))
 
       text(Stdlib.Bytes.slice(Stdlib.Bytes.empty, 0, 0))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      |> Stdlib.Test.equal(Ok(""))
 
       Stdlib.Bytes.slice(bytes, 2, 7)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
 
       Stdlib.Bytes.slice(bytes, -1, 2)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
 
       Stdlib.Bytes.slice(bytes, 4, 2)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
 
       Stdlib.Bytes.slice(bytes, 7, 7)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
 
 
 // take: the first bytes; never errors, clamps to the Bytes
@@ -513,20 +448,16 @@ test take =
     Stdlib.Utf8.decode(b)
 
   Stdlib.Test.all(
-    [ text(Stdlib.Bytes.take(bytes, 2))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("ab"))
+    [ text(Stdlib.Bytes.take(bytes, 2)) |> Stdlib.Test.equal(Ok("ab"))
 
-      text(Stdlib.Bytes.take(bytes, 0))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      text(Stdlib.Bytes.take(bytes, 0)) |> Stdlib.Test.equal(Ok(""))
 
-      text(Stdlib.Bytes.take(bytes, -3))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      text(Stdlib.Bytes.take(bytes, -3)) |> Stdlib.Test.equal(Ok(""))
 
-      text(Stdlib.Bytes.take(bytes, 99))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+      text(Stdlib.Bytes.take(bytes, 99)) |> Stdlib.Test.equal(Ok("abcdef"))
 
       text(Stdlib.Bytes.take(Stdlib.Bytes.empty, 3))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("")) ])
+      |> Stdlib.Test.equal(Ok("")) ])
 
 
 // drop: all but the first bytes; never errors, clamps to the Bytes
@@ -536,20 +467,16 @@ test drop =
     Stdlib.Utf8.decode(b)
 
   Stdlib.Test.all(
-    [ text(Stdlib.Bytes.drop(bytes, 2))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("cdef"))
+    [ text(Stdlib.Bytes.drop(bytes, 2)) |> Stdlib.Test.equal(Ok("cdef"))
 
-      text(Stdlib.Bytes.drop(bytes, 0))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+      text(Stdlib.Bytes.drop(bytes, 0)) |> Stdlib.Test.equal(Ok("abcdef"))
 
-      text(Stdlib.Bytes.drop(bytes, -3))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+      text(Stdlib.Bytes.drop(bytes, -3)) |> Stdlib.Test.equal(Ok("abcdef"))
 
-      text(Stdlib.Bytes.drop(bytes, 99))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      text(Stdlib.Bytes.drop(bytes, 99)) |> Stdlib.Test.equal(Ok(""))
 
       text(Stdlib.Bytes.drop(Stdlib.Bytes.empty, 3))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("")) ])
+      |> Stdlib.Test.equal(Ok("")) ])
 
 
 // startsWith / endsWith
@@ -623,42 +550,41 @@ test indexOfSegment =
   let b(s: String): Bytes = Stdlib.Utf8.encode(s)
   Stdlib.Test.all(
     [ Stdlib.Bytes.indexOfSegment(b("abc"), Stdlib.Bytes.empty)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      |> Stdlib.Test.equal(Some(0))
 
       Stdlib.Bytes.indexOfSegment(Stdlib.Bytes.empty, Stdlib.Bytes.empty)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.Bytes.indexOfSegment(b("ab"), b("abc"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Bytes.indexOfSegment(b("ab"), b("abc")) |> Stdlib.Test.equal(None)
 
       Stdlib.Bytes.indexOfSegment(b("abcabc"), b("abc"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      |> Stdlib.Test.equal(Some(0))
 
       Stdlib.Bytes.indexOfSegment(b("xyzabc"), b("abc"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      |> Stdlib.Test.equal(Some(3))
 
       // At 0, `aab` fails on its third byte; the match is at 1.
       Stdlib.Bytes.indexOfSegment(b("aaab"), b("aab"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      |> Stdlib.Test.equal(Some(1))
 
       // Starts with the segment's first byte, but runs off the end.
       Stdlib.Bytes.indexOfSegment(b("xxab"), b("abc"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Bytes.indexOfSegment(b("abcdef"), b("xyz"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Bytes.indexOfSegmentFrom(b("abcabc"), b("abc"), 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      |> Stdlib.Test.equal(Some(3))
 
       Stdlib.Bytes.indexOfSegmentFrom(b("abc"), Stdlib.Bytes.empty, 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      |> Stdlib.Test.equal(Some(3))
 
       Stdlib.Bytes.indexOfSegmentFrom(b("abc"), Stdlib.Bytes.empty, 4)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Bytes.indexOfSegmentFrom(b("abc"), b("a"), -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Bytes.contains(b("a\r\n\r\nb"), b("\r\n\r\n"))
       |> Stdlib.Test.equal(true)
@@ -817,22 +743,19 @@ test dictionaryKeysUseContents =
   let byEmpty = Dict { Stdlib.Bytes.empty: "empty" }
   let overwritten = Stdlib.Dict.fromEntries([ (first, 1), (same, 2) ])
   Stdlib.Test.all(
-    [ Stdlib.Dict.get(dict, same)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("found"))
+    [ Stdlib.Dict.get(dict, same) |> Stdlib.Test.equal(Some("found"))
 
-      Stdlib.Dict.get(dict, different)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Dict.get(dict, different) |> Stdlib.Test.equal(None)
 
       Stdlib.Dict.get(byEmpty, Stdlib.Utf8.encode(""))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("empty"))
+      |> Stdlib.Test.equal(Some("empty"))
 
       Stdlib.Dict.size(overwritten) |> Stdlib.Test.equal(1)
 
-      Stdlib.Dict.get(overwritten, first)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      Stdlib.Dict.get(overwritten, first) |> Stdlib.Test.equal(Some(2))
 
       Stdlib.Dict.get(Dict { (first, 1): "nested" }, (same, 1))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("nested")) ])
+      |> Stdlib.Test.equal(Some("nested")) ])
 
 
 // A test whose error holds unsaved Bytes still reports that error.
@@ -845,8 +768,7 @@ test duplicateBytesKeysAreOneKey =
     [ Dict { a: 1, alsoA: 2 } |> Stdlib.Test.equal(Dict { a: 2 })
 
       Stdlib.Dict.fromEntriesUnique([ (a, 1), (alsoA, 2) ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey(a))) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Dict.DuplicateKey.DuplicateKey(a))) ])
 
 
 let reversed(bytes: Bytes): Bytes =
@@ -867,9 +789,7 @@ test workerCarriesUnsavedBytes =
     | Ok(bytes) ->
       Stdlib.Test.all(
         [ output.exitCode |> Stdlib.Test.equal(0)
-
-          Stdlib.Utf8.decode(bytes)
-          |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("cba")) ])
+          Stdlib.Utf8.decode(bytes) |> Stdlib.Test.equal(Ok("cba")) ])
 
 
 // A slice of more than 64 bytes that is at least an eighth of what it comes from shares
@@ -888,23 +808,19 @@ test sharedSlices =
       inner |> Stdlib.Test.equal(fresh)
 
       Stdlib.Utf8.decode(inner)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.String.repeat("0123456789", 30)))
+      |> Stdlib.Test.equal(Ok(Stdlib.String.repeat("0123456789", 30)))
 
-      Stdlib.Bytes.getAt(inner, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(48u8))
+      Stdlib.Bytes.getAt(inner, 0) |> Stdlib.Test.equal(Ok(48u8))
 
-      Stdlib.Bytes.getAt(inner, 299)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(57u8))
+      Stdlib.Bytes.getAt(inner, 299) |> Stdlib.Test.equal(Ok(57u8))
 
       Stdlib.Bytes.getAt(inner, 300)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 300, 299)))
+      |> Stdlib.Test.equal(Error(outOfRange(1, 300, 299)))
 
-      Stdlib.Bytes.indexOfFrom(inner, 57u8, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9))
+      Stdlib.Bytes.indexOfFrom(inner, 57u8, 0) |> Stdlib.Test.equal(Some(9))
 
       Stdlib.Bytes.indexOfSegment(inner, Stdlib.Utf8.encode("90"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9))
+      |> Stdlib.Test.equal(Some(9))
 
       Stdlib.List.length(Stdlib.Bytes.toList(inner)) |> Stdlib.Test.equal(300)
 
@@ -931,5 +847,4 @@ test workerCarriesSharedSlice =
     | Error(message) -> Stdlib.Test.fail(message)
     | Ok(bytes) ->
       Stdlib.Utf8.decode(bytes)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.String.repeat("ba", 200)))
+      |> Stdlib.Test.equal(Ok(Stdlib.String.repeat("ba", 200)))

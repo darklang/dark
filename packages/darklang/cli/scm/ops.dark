@@ -103,9 +103,9 @@ let help(_state: AppState): String =
 let movedFromOps(verb: String): Option<String> =
   match verb with
   | "branch" | "branches" | "switch" | "merge" | "rebase" | "diff" | "log" | "resolve" ->
-    Option.Some($"dark {verb}")
-  | "archive" -> Option.Some("dark branch archive <id>")
-  | _ -> Option.None
+    Some($"dark {verb}")
+  | "archive" -> Some("dark branch archive <id>")
+  | _ -> None
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -122,9 +122,9 @@ let execute(state: AppState, args: List<String>): AppState =
     // count names the problem where silent help does not.
     let countOf(n: String): Result<Int64, String> =
       match Stdlib.Int64.parse(n) with
-      | Ok(l) when l > 0 -> Result.Ok(l)
-      | Ok(_) -> Result.Error($"ops takes a positive count; got {n}.")
-      | Error(_) -> Result.Error($"\"{n}\" isn't a count. `dark ops 50` shows the 50 most recent.")
+      | Ok(l) when l > 0 -> Ok(l)
+      | Ok(_) -> Error($"ops takes a positive count; got {n}.")
+      | Error(_) -> Error($"\"{n}\" isn't a count. `dark ops 50` shows the 50 most recent.")
 
     match args with
     | [] -> executeList(state, 20)

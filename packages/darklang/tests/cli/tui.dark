@@ -220,11 +220,7 @@ let inlineView(rows: List<String>): Stdlib.Cli.Tui.View =
 
 test inlineFrameEmitsNothingWhenUnchanged =
   let view = inlineView([ "a", "b" ])
-  let output =
-    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(
-      20,
-      Stdlib.Option.Option.Some(view),
-      view)
+  let output = Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Some(view), view)
 
   // An unchanged frame must write literally nothing, or an idle prompt would still churn the terminal.
   if output == "" then
@@ -237,10 +233,7 @@ test inlineFrameMovesRelativeToPreviousCursor =
   let previous = inlineView([ "a", "b" ])
   let next = inlineView([ "a", "B" ])
   let output =
-    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(
-      20,
-      Stdlib.Option.Option.Some(previous),
-      next)
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Some(previous), next)
 
   // Only the changed row is rewritten, and it's addressed by moving from where the last frame left the
   // cursor rather than by absolute position, because inline rows travel with scrollback.

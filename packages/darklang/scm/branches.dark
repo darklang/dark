@@ -89,18 +89,18 @@ let refusalMessage(r: MergeRefusal): String =
 /// for the callers that want the answer before asking for a merge (the confirmation, `--dry-run`).
 let canMerge(branchId: Uuid): Result<Unit, MergeRefusal> =
   if Branch.isMain(branchId) then
-    Result.Error(MergeRefusal.IsMain)
+    Error(MergeRefusal.IsMain)
   else
     let changes = PackageOps.countOf(PackageOps.OpFilter.Own(branchId))
     if changes == 0 then
-      Result.Error(MergeRefusal.NothingToMerge)
+      Error(MergeRefusal.NothingToMerge)
     // "Active" must mean the same here as in the message below, which tells you to merge OR ARCHIVE the
     // children -- counting archived ones as active makes that advice a dead end.
     // A failed read raises rather than answering "no children", so the guard cannot fail open.
     else if Stdlib.List.isEmpty(query(BranchFilter.ChildrenOf(branchId))) then
-      Result.Ok()
+      Ok()
     else
-      Result.Error(MergeRefusal.HasActiveChildren)
+      Error(MergeRefusal.HasActiveChildren)
 
 
 /// The active (unmerged, unarchived) children of <param branchId>, by name.
@@ -134,14 +134,14 @@ let list(): List<BranchRow> =
     // A row whose id will not parse is skipped, not fatal: this feeds every listing and the LSP
     // tree, and one bad row taking all of them down is worse than one branch missing from the list.
     | Ok(id) ->
-      Option.Some(
+      Some(
         BranchRow
           { id = id
             name = b.name
-            parent = Branch.fromTextField(Option.Some(b.parentId))
+            parent = Branch.fromTextField(Some(b.parentId))
             ops = b.ops
             merged = b.merged })
-    | Error(_) -> Option.None)
+    | Error(_) -> None)
 
 
 /// How many branches are already merged. The `dark branches` footer needs the count of what it
@@ -239,7 +239,7 @@ let divergedIn(
       |> Stdlib.Dict.get(nameKey(o, m, n))
       |> Stdlib.Option.withDefault("")
 
-    if current == baseHash then Option.None else Option.Some(fqnOf(o, m, n)))
+    if current == baseHash then None else Some(fqnOf(o, m, n)))
 
 
 /// Names the PARENT has moved since this branch forked. This is the merge GATE, not a view --
@@ -265,8 +265,8 @@ type Rebased =
 /// branch, and merge is unblocked. The union of both halves of <fn rebaseDetailed>, for callers that want one list.
 let rebase(branchId: Uuid): Result<List<String>, String> =
   match rebaseDetailed(branchId) with
-  | Ok(r) -> Result.Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
-  | Error(e) -> Result.Error(e)
+  | Ok(r) -> Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
+  | Error(e) -> Error(e)
 
 
 /// The branch's own callers that still reference a version of something the parent has since moved,
@@ -279,14 +279,14 @@ let outdatedRepoints(branchId: Uuid): Result<List<Actions.Repoint>, String> =
     |> Stdlib.List.filterMap(fun f ->
       match f.detail with
       | Versions(using, current) ->
-        Option.Some(
+        Some(
           Actions.Repoint
             { usage = Conflicts.fqn(f.usage.owner, Propagation.modulesOf(f.usage), f.usage.name)
               dependency = f.dependency
               kind = f.dependencyKind
               fromHash = using
               toHash = current })
-      | _ -> Option.None))
+      | _ -> None))
 
 
 /// The rebase itself, as one action: the divergences and repoints apart (see <type Rebased>), and the
@@ -299,19 +299,19 @@ let outdatedRepoints(branchId: Uuid): Result<List<Actions.Repoint>, String> =
 /// one transaction.
 let rebaseDetailed(branchId: Uuid): Result<Actions.Reconciled, String> =
   match outdatedRepoints(branchId) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(repoints) ->
     match Actions.merge(Actions.MergeAction.Rebase(branchId, repoints)) with
-    | Ok(r) -> Result.Ok(r)
-    | Error(e) -> Result.Error(Actions.failureMessage(e))
+    | Ok(r) -> Ok(r)
+    | Error(e) -> Error(Actions.failureMessage(e))
 
 
 /// "owner.Module.Sub.name" -> (owner, dotted-modules, name). The inverse of <fn fqnOf>, and it has to
 /// stay that way: `dark resolve <name>` is handed back a name a conflict listing printed.
 let parseFqn(fqn: String): Option<(String * String * String)> =
   match Stdlib.String.split(fqn, ".") with
-  | [] -> Option.None
-  | [_single] -> Option.None
+  | [] -> None
+  | [_single] -> None
   | [owner, ...rest] ->
     // The LAST segment is the name; everything between owner and it is the module path.
     let n = Stdlib.List.length(rest)
@@ -321,8 +321,8 @@ let parseFqn(fqn: String): Option<(String * String * String)> =
       |> (fun ms -> Stdlib.String.join(ms, "."))
 
     match Stdlib.List.last(rest) with
-    | Some(name) -> Option.Some((owner, modules, name))
-    | None -> Option.None
+    | Some(name) -> Some((owner, modules, name))
+    | None -> None
 
 
 /// The branch's OWN frontier ops with their ids, oldest-first. Just this branch's tag, not the chain.
@@ -342,8 +342,8 @@ let ownFrontierOpsWithSource(
   ownOpRows(branchId)
   |> Stdlib.List.filterMap(fun row ->
     match Stdlib.Uuid.parse(row.id), row.op with
-    | Ok(id), Some(op) -> Option.Some((id, op, row.source))
-    | _ -> Option.None)
+    | Ok(id), Some(op) -> Some((id, op, row.source))
+    | _ -> None)
 
 
 /// A branch's own op rows, oldest first, each with its `source`. The one query
@@ -365,10 +365,9 @@ let opBindsKey(
   LanguageTools.ProgramTypes.PackageOp.bindingOps(op)
   |> Stdlib.List.filterMap(fun effect ->
     match effect with
-    | SetName(loc, target, _) -> if matches(loc) then Option.Some((loc, target)) else Option.None
-    | Decision(_, loc, _, Override(target)) ->
-      if matches(loc) then Option.Some((loc, target)) else Option.None
-    | _ -> Option.None)
+    | SetName(loc, target, _) -> if matches(loc) then Some((loc, target)) else None
+    | Decision(_, loc, _, Override(target)) -> if matches(loc) then Some((loc, target)) else None
+    | _ -> None)
   |> Stdlib.List.last
 
 
@@ -401,7 +400,7 @@ let resolveKeepMine(branchId: Uuid, fqn: String): Result<Unit, String> =
 /// Parse <param fqn>, keep the version <param keep> names, and word what went wrong.
 let resolveName(branchId: Uuid, fqn: String, keep: Keep): Result<Unit, String> =
   match parseFqn(fqn) with
-  | None -> Result.Error($"can't parse a name from \"{fqn}\"")
+  | None -> Error($"can't parse a name from \"{fqn}\"")
   | Some((owner, modules, name)) ->
     let resolution =
       match keep with
@@ -409,9 +408,9 @@ let resolveName(branchId: Uuid, fqn: String, keep: Keep): Result<Unit, String> =
       | Theirs -> Actions.Resolution.TakeTheirs(branchId, owner, modules, name)
 
     match Actions.resolve(resolution) with
-    | Ok(_) -> Result.Ok()
+    | Ok(_) -> Ok()
     // The NAME, because this reaches a person through `dark resolve` and a name is what they typed.
     | Error(Refused(NotBound)) ->
-      Result.Error(
+      Error(
         $"branch \"{PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve")
-    | Error(e) -> Result.Error(Actions.failureMessage(e))
+    | Error(e) -> Error(Actions.failureMessage(e))

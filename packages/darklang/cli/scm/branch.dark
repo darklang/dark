@@ -30,15 +30,15 @@ let lookupRef(branchRef: String): Option<Uuid> =
   // The resolution itself is in `SCM.PackageOps.resolveBranchRef`, because the LSP needs the same
   // answer. What stays here is the WORDS.
   match SCM.PackageOps.resolveBranchRef(branchRef) with
-  | Found(id) -> Option.Some(id)
-  | NotFound -> Option.None
+  | Found(id) -> Some(id)
+  | NotFound -> None
   | UnknownId(_) ->
     printErr($"no branch with id {branchRef} in this store.")
     printHint("  `dark branches` lists the branches here.")
-    Option.None
+    None
   | Ambiguous ->
     printErr($"\"{branchRef}\" matches more than one branch -- use more of the id, or its name.")
-    Option.None
+    None
 
 
 /// The id of the branch you just named, or None having said why. What every READ verb goes through: a
@@ -46,11 +46,11 @@ let lookupRef(branchRef: String): Option<Uuid> =
 /// an empty branch it just invented.
 let resolveRef(branchRef: String): Option<Uuid> =
   match lookupRef(branchRef) with
-  | Some(id) -> Option.Some(id)
+  | Some(id) -> Some(id)
   | None ->
     printErr($"no branch \"{branchRef}\".")
     printHint("  `dark branches` lists them.")
-    Option.None
+    None
 
 
 /// Show the current branch (or main).
@@ -172,14 +172,14 @@ let executeSwitchTo(state: AppState, branchRef: String, ifMissing: IfMissing): A
           if SCM.PackageOps.branchIsMerged(existing) then
             startOrRefuse(ref, parentId, ifMissing)
           else
-            Option.Some((existing, false))
+            Some((existing, false))
         | NotFound -> startOrRefuse(ref, parentId, ifMissing)
         | UnknownId(_) ->
           let _ = lookupRef(ref)
-          Option.None
+          None
         | Ambiguous ->
           let _ = lookupRef(ref)
-          Option.None
+          None
 
       match resolved with
       | None -> SCM.PackageOps.currentBranch()
@@ -467,15 +467,15 @@ let startOrRefuse(name: String, parentId: Uuid, ifMissing: IfMissing): Option<(U
     printErr($"There is no branch named `{name}`.{Accepts.didYouMean(name, names)}")
     printHint($"  to start it: dark switch -c {name}")
     printHint("  `dark branches` lists them.")
-    Option.None
+    None
 
 
 let start(name: String, parentId: Uuid): Option<(Uuid * Bool)> =
   match SCM.PackageOps.ensureBranch(name, parentId) with
-  | Ok(pair) -> Option.Some(pair)
+  | Ok(pair) -> Some(pair)
   | Error(e) ->
     printErr(SCM.Actions.failureMessage(e))
-    Option.None
+    None
 
 
 /// `dark switch [-c] [<id>]`. No argument reports where you are rather than switching, so a bare

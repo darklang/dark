@@ -2,10 +2,7 @@ module Darklang.Language.Tests.ErrorPropagation
 
 module Error =
   test map2WrongArgRaises =
-    Stdlib.Option.map2(
-      Stdlib.Option.Option.Some(10),
-      "not an option",
-      fun((a, b)) -> "1")
+    Stdlib.Option.map2(Some(10), "not an option", fun((a, b)) -> "1")
     => raises "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
 
 
@@ -61,17 +58,17 @@ module ErrorPropagation =
 
 
   test someArg =
-    Stdlib.Option.Option.Some(Language.Tests.raiseRuntimeError("test"))
+    Some(Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
 
   test errorArg =
-    Stdlib.Result.Result.Error(Language.Tests.raiseRuntimeError("test"))
+    Error(Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
 
   test okArg =
-    Stdlib.Result.Result.Ok(Language.Tests.raiseRuntimeError("test"))
+    Ok(Language.Tests.raiseRuntimeError("test"))
     => raises "Uncaught exception: test"
 
 

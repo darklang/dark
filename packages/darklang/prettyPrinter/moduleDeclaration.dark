@@ -185,9 +185,9 @@ module ModuleDeclaration =
         match fn.resolved with
         | Ok(resolved) ->
           match resolved.name with
-          | Package(h) -> Option.Some(h)
-          | _ -> Option.None
-        | Error(_) -> Option.None))
+          | Package(h) -> Some(h)
+          | _ -> None
+        | Error(_) -> None))
     |> Stdlib.List.flatten
 
 
@@ -273,8 +273,8 @@ let moduleDeclaration(ctx: ProgramTypes.Context, m: ModuleDeclaration.Module): S
   let ctx = { ctx with width = Stdlib.max(1, ctx.width - 2) }
   let section(rendered: List<String>): Option<String> =
     match rendered with
-    | [] -> Option.None
-    | rendered -> Option.Some(Stdlib.String.join(rendered, "\n\n"))
+    | [] -> None
+    | rendered -> Some(Stdlib.String.join(rendered, "\n\n"))
 
   let parts =
     [ section(m.types |> Stdlib.List.map(fun t -> ProgramTypes.packageType(ctx, t)))

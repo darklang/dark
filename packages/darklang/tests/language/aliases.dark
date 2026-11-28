@@ -163,10 +163,8 @@ module ResultAlias =
 
   test resultAlias =
     Stdlib.Test.all(
-      [ getIntResultValue(Stdlib.Result.Result.Ok(5)) |> Stdlib.Test.equal(5)
-
-        getIntResultValue(Stdlib.Result.Result.Error("error"))
-        |> Stdlib.Test.equal(0) ])
+      [ getIntResultValue(Ok(5)) |> Stdlib.Test.equal(5)
+        getIntResultValue(Error("error")) |> Stdlib.Test.equal(0) ])
 
 
 module RecordWithTypeArgs =
@@ -262,25 +260,11 @@ module RecordWithRecursiveTypeArgs =
   test recursiveAlias =
     Inner
       { a = 5
-        b =
-          Stdlib.Result.Result.Ok(
-            Inner
-              { a = 6
-                b =
-                  Stdlib.Result.Result.Ok(
-                    Inner
-                      { a = 7, b = Stdlib.Result.Result.Error("test") }) }) }
+        b = Ok(Inner { a = 6, b = Ok(Inner { a = 7, b = Error("test") }) }) }
     |> Stdlib.Test.equal(
       Alias
         { a = 5
-          b =
-            Stdlib.Result.Result.Ok(
-              Alias
-                { a = 6
-                  b =
-                    Stdlib.Result.Result.Ok(
-                      Alias
-                        { a = 7, b = Stdlib.Result.Result.Error("test") }) }) })
+          b = Ok(Alias { a = 6, b = Ok(Alias { a = 7, b = Error("test") }) }) })
 
 
 module MultiNestedRecordAlias =
@@ -384,8 +368,7 @@ module EnumWithRecursiveTypeArgs =
 
 
   test recursiveAlias =
-    Alias.B(Stdlib.Result.Result.Ok(Alias.A(5)))
-    |> Stdlib.Test.equal(Inner.B(Stdlib.Result.Result.Ok(Inner.A(5))))
+    Alias.B(Ok(Alias.A(5))) |> Stdlib.Test.equal(Inner.B(Ok(Inner.A(5))))
 
 
 // One generic alias at two types is two types: its parameter is bound per use, not once.
@@ -399,7 +382,4 @@ module GenericAliasAtTwoTypes =
 
 
   test recordWithBoth =
-    (Both
-       { a = Stdlib.Option.Option.Some(1.5)
-         b = Stdlib.Option.Option.Some("x") }).b
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("x"))
+    (Both { a = Some(1.5), b = Some("x") }).b |> Stdlib.Test.equal(Some("x"))

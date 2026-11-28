@@ -78,7 +78,7 @@ let bindSession(state: State, name: String, rhs: String): (Option<Repl.Binding> 
       | _ -> rhs
 
     (
-      Option.Some(Repl.Binding { name = name, source = rhs, value = shown, captured = false }),
+      Some(Repl.Binding { name = name, source = rhs, value = shown, captured = false }),
       // Reason on its own line: on one line with the value it would run past the pane edge and be clipped
       // mid-word, losing the only part that explains the `~`.
       $"{name} = {shown}\nre-runs each eval: {reason}")
@@ -96,14 +96,14 @@ let bindSession(state: State, name: String, rhs: String): (Option<Repl.Binding> 
       | Error(m) -> m
       | Ok(_) -> message
 
-    (Option.None, "not bound - " + plainMessage)
+    (None, "not bound - " + plainMessage)
   | Ok(None) -> fallback("nothing to capture")
   | Ok(Some(out)) ->
     match Repl.readCaptured(out) with
     | Some(source) ->
       // Captured: the source IS the value, so both fields are the same literal.
       (
-        Option.Some(Repl.Binding { name = name, source = source, value = source, captured = true }),
+        Some(Repl.Binding { name = name, source = source, value = source, captured = true }),
         $"{name} = {source}")
     | None -> fallback(Stdlib.String.trim(Stdlib.String.dropFirst(Stdlib.String.trim(out), 4)))
 

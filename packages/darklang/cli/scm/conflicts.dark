@@ -64,8 +64,8 @@ let renderItem(branchId: Uuid, itemType: String, hash: String, name: String): St
     |> Stdlib.List.filterMap(fun a ->
       let (kind, rendered) = a
       match rendered with
-      | Some(r) -> Option.Some((kind, r))
-      | None -> Option.None)
+      | Some(r) -> Some((kind, r))
+      | None -> None)
     |> Stdlib.List.head
 
   match found with

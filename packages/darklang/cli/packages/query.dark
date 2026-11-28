@@ -181,9 +181,8 @@ let getDirectSubmodules(
   results.submodules
   |> Stdlib.List.filterMap(fun modulePath ->
     match Stdlib.List.drop(modulePath, currentPathLength) with
-    | [] -> Option.None
-    | [nextPart, ...] ->
-      if Stdlib.String.isEmpty(nextPart) then Option.None else Option.Some(nextPart))
+    | [] -> None
+    | [nextPart, ...] -> if Stdlib.String.isEmpty(nextPart) then None else Some(nextPart))
   |> Stdlib.List.unique
   |> Stdlib.List.sort
 

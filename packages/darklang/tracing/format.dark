@@ -47,11 +47,11 @@ val defaultValueBudget = 2000
 /// whether `--full` is worth asking for in a way "14,208 characters" does not.
 let sizeHint(dv: LanguageTools.RuntimeTypes.Dval): Option<String> =
   match dv with
-  | DList(_, items) -> Option.Some($"{Stdlib.display(Stdlib.List.length(items))} items")
+  | DList(_, items) -> Some($"{Stdlib.display(Stdlib.List.length(items))} items")
   | DDict(_, _, entries) ->
-    Option.Some($"{Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
-  | DString(s) -> Option.Some($"{Stdlib.display(Stdlib.String.length(s))} characters")
-  | _ -> Option.None
+    Some($"{Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
+  | DString(s) -> Some($"{Stdlib.display(Stdlib.String.length(s))} characters")
+  | _ -> None
 
 
 /// Pretty-print a Dval as a single compact line (no indentation, no embedded newlines), to a
@@ -100,17 +100,14 @@ let compactDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
 /// is not CLI-specific.
 let replayStop(branchId: Uuid, stop: ReplayStop): (String * Option<String>) =
   match stop with
-  | InvalidId -> ("not an id", Option.None)
-  | TraceNotFound -> ("no run has this id", Option.None)
-  | InputNoLongerParses -> ("the run's input no longer parses", Option.None)
-  | MissingHandler ->
-    ("this run has no source to replay and no handler recorded against it", Option.None)
-  | HostFailure(message) -> (message, Option.None)
+  | InvalidId -> ("not an id", None)
+  | TraceNotFound -> ("no run has this id", None)
+  | InputNoLongerParses -> ("the run's input no longer parses", None)
+  | MissingHandler -> ("this run has no source to replay and no handler recorded against it", None)
+  | HostFailure(message) -> (message, None)
   | Raised(err) ->
     let rendered = PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, err)
     if ReplayStop.isDrift(stop) then
-      (
-        rendered,
-        Option.Some("the store has changed since this ran, so the replay no longer resolves"))
+      (rendered, Some("the store has changed since this ran, so the replay no longer resolves"))
     else
-      (rendered, Option.None)
+      (rendered, None)

@@ -99,12 +99,7 @@ let definiteError(
 /// Callers supply a warning code classified by isWarning.
 let warning(code: IssueCode, at: Option<Int64>, context: Context): Model.Finding =
   Model.Finding
-    { code = code
-      at = at
-      expected = Option.None
-      actual = Option.None
-      definite = false
-      context = context }
+    { code = code, at = at, expected = None, actual = None, definite = false, context = context }
 
 
 // --------------------
@@ -312,8 +307,8 @@ let resolvedType(
   match name.resolved with
   | Ok(resolved) ->
     match resolved.name with
-    | Package(hash) -> Option.Some(hash)
-  | Error(_) -> Option.None
+    | Package(hash) -> Some(hash)
+  | Error(_) -> None
 
 
 /// Do these two types agree on their HEAD alone, ignoring arguments entirely?
@@ -356,8 +351,8 @@ let resolvedTrait(
   match name.resolved with
   | Ok(resolved) ->
     match resolved.name with
-    | Package(hash) -> Option.Some(hash)
-  | Error(_) -> Option.None
+    | Package(hash) -> Some(hash)
+  | Error(_) -> None
 
 
 /// Convert a declared type reference, adding conversion problems to found.
@@ -479,14 +474,14 @@ let rigid(names: List<String>): Dict<String, Model.Ty> =
 let bindParams(names: List<String>, args: List<Model.Ty>): Option<Dict<String, Model.Ty>> =
   // A declaration with no parameters given no arguments, the common case, needs no zip.
   if Stdlib.List.isEmpty(names) && Stdlib.List.isEmpty(args) then
-    Option.Some(Dict {})
+    Some(Dict {})
   else
     match Stdlib.List.zip(names, args) with
     | Ok(pairs) ->
-      Option.Some(
+      Some(
         Stdlib.List.fold(pairs, Dict {}, fun(mapping, (name, t)) ->
           Stdlib.Dict.set(mapping, name, t)))
-    | Error(_) -> Option.None
+    | Error(_) -> None
 
 
 /// Convert a declared field type using the type arguments supplied for its owner.
@@ -507,8 +502,8 @@ let fieldType(
       error(
         IssueCode.TypeMismatch,
         at,
-        Option.None,
-        Option.None,
+        None,
+        None,
         Context.Arity(count(typeParams), count(typeArgs)))
 
     (Model.Ty.TError, [ problem ])
@@ -636,8 +631,8 @@ let arityMismatch(
   error(
     IssueCode.TypeMismatch,
     at,
-    Option.None,
-    Option.Some(ty),
+    None,
+    Some(ty),
     Context.TypeArity(name, count(decl.typeParams), count(args)))
 
 
@@ -662,43 +657,41 @@ let expandDeep(
   match walk(subst, ty) with
   | TCustom(name, args) ->
     match expandDeepAll(env, subst, at, seen, args, []) with
-    | Error(problem) -> Result.Error(problem)
+    | Error(problem) -> Error(problem)
     | Ok(args) ->
       match declaration(env, name) with
-      | None ->
-        Result.Error(warning(IssueCode.MissingTypeDeclaration, at, Context.TypeUnavailable(name)))
+      | None -> Error(warning(IssueCode.MissingTypeDeclaration, at, Context.TypeUnavailable(name)))
       | Some(decl) ->
         match decl.definition with
         | Alias(target) ->
           if Stdlib.List.contains(seen, name) then
-            Result.Error(warning(IssueCode.AliasCycle, at, Context.AliasCycleReferenced))
+            Error(warning(IssueCode.AliasCycle, at, Context.AliasCycleReferenced))
           else
             match bindParams(decl.typeParams, args) with
-            | None ->
-              Result.Error(arityMismatch(at, Model.Ty.TCustom(name, args), name, decl, args))
+            | None -> Error(arityMismatch(at, Model.Ty.TCustom(name, args), name, decl, args))
             | Some(mapping) ->
               let (target, _) = fromReferenceInto(mapping, at, [], target)
               expandDeep(env, subst, at, Stdlib.List.prepend(seen, name), target)
-        | _ -> Result.Ok(Model.Ty.TCustom(name, args))
+        | _ -> Ok(Model.Ty.TCustom(name, args))
   | TList(inner) -> Stdlib.Result.map(one(inner), fun t -> Model.Ty.TList(t))
   | TStream(inner) -> Stdlib.Result.map(one(inner), fun t -> Model.Ty.TStream(t))
   | TDict(key, value) ->
     match expandDeepAll(env, subst, at, seen, [ key, value ], []) with
-    | Ok([key, value]) -> Result.Ok(Model.Ty.TDict(key, value))
-    | Ok(_) -> Result.Ok(ty)
-    | Error(problem) -> Result.Error(problem)
+    | Ok([key, value]) -> Ok(Model.Ty.TDict(key, value))
+    | Ok(_) -> Ok(ty)
+    | Error(problem) -> Error(problem)
   | TTuple(first, second, rest) ->
     let parts = Stdlib.List.concat([ first, second ], rest)
     match expandDeepAll(env, subst, at, seen, parts, []) with
-    | Ok([first, second, ...rest]) -> Result.Ok(Model.Ty.TTuple(first, second, rest))
-    | Ok(_) -> Result.Ok(ty)
-    | Error(problem) -> Result.Error(problem)
+    | Ok([first, second, ...rest]) -> Ok(Model.Ty.TTuple(first, second, rest))
+    | Ok(_) -> Ok(ty)
+    | Error(problem) -> Error(problem)
   | TFn(parameters, ret) ->
     match expandDeepAll(env, subst, at, seen, Stdlib.List.prepend(parameters, ret), []) with
-    | Ok([ret, ...parameters]) -> Result.Ok(Model.Ty.TFn(parameters, ret))
-    | Ok(_) -> Result.Ok(ty)
-    | Error(problem) -> Result.Error(problem)
-  | other -> Result.Ok(other)
+    | Ok([ret, ...parameters]) -> Ok(Model.Ty.TFn(parameters, ret))
+    | Ok(_) -> Ok(ty)
+    | Error(problem) -> Error(problem)
+  | other -> Ok(other)
 
 
 /// Expand a list of types, stopping at the first expansion failure. done holds
@@ -712,11 +705,11 @@ let expandDeepAll(
   done: List<Model.Ty>)
   : Result<List<Model.Ty>, Model.Finding> =
   match tys with
-  | [] -> Result.Ok(Stdlib.List.reverse(done))
+  | [] -> Ok(Stdlib.List.reverse(done))
   | [t, ...rest] ->
     match expandDeep(env, subst, at, seen, t) with
     | Ok(expanded) -> expandDeepAll(env, subst, at, seen, rest, Stdlib.List.prepend(done, expanded))
-    | Error(problem) -> Result.Error(problem)
+    | Error(problem) -> Error(problem)
 
 
 /// Resolve outer aliases and return the resulting custom type's hash, arguments,
@@ -735,11 +728,11 @@ let declarationFor(
     match declaration(env, name) with
     | Some(decl) ->
       if Stdlib.List.length(decl.typeParams) == Stdlib.List.length(args) then
-        (Option.Some((name, args, decl)), found)
+        (Some((name, args, decl)), found)
       else
-        (Option.None, found)
-    | None -> (Option.None, found)
-  | _ -> (Option.None, found)
+        (None, found)
+    | None -> (None, found)
+  | _ -> (None, found)
 
 
 // --------------------

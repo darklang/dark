@@ -35,7 +35,7 @@ let dependencyReview(changed: List<Conflicts.Binding>): Result<Deps.DependencyRe
 
 let draftRepoints(changed: List<Conflicts.Binding>): Result<List<Repoint>, String> =
   if Stdlib.List.isEmpty(changed) then
-    Result.Ok([])
+    Ok([])
   else
     dependencyReview(changed)
     |> Stdlib.Result.map(fun((_, repoints)) -> repointsFromReview(repoints))

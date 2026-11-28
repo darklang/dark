@@ -19,18 +19,18 @@ let parseArgs(rest: List<String>, acc: Args): Args =
   | ["--body", "-", ...tail] ->
     match Stdlib.Cli.Stdin.readAll() with
     | Ok(text) -> parseArgs(tail, { acc with body = text })
-    | Error(e) -> { acc with error = Option.Some(e) }
+    | Error(e) -> { acc with error = Some(e) }
   | ["--body", value, ...tail] -> parseArgs(tail, { acc with body = value })
   | ["--header", value, ...tail] ->
     match Stdlib.String.splitFirst(value, ":") with
     | Some((name, v)) when Stdlib.String.trim(name) != "" ->
       let header = (Stdlib.String.trim(name), Stdlib.String.trim(v))
       parseArgs(tail, { acc with headers = Stdlib.List.append(acc.headers, header) })
-    | _ -> { acc with error = Option.Some($"Invalid --header: {value} (use name:value)") }
+    | _ -> { acc with error = Some($"Invalid --header: {value} (use name:value)") }
   | ["--allow", value, ...tail] ->
     parseArgs(tail, { acc with allow = Stdlib.List.append(acc.allow, value) })
   | [flag, ...] when Stdlib.String.startsWith(flag, "--") ->
-    { acc with error = Option.Some($"Unknown or incomplete flag: {flag}") }
+    { acc with error = Some($"Unknown or incomplete flag: {flag}") }
   | [word, ...tail] ->
     parseArgs(tail, { acc with positional = Stdlib.List.append(acc.positional, word) })
 
@@ -132,9 +132,7 @@ let responseLines(response: Stdlib.Http.Response): List<String> =
 
 let execute(state: AppState, args: List<String>): AppState =
   let parsed =
-    parseArgs(
-      args,
-      Args { positional = [], headers = [], body = "", allow = [], error = Option.None })
+    parseArgs(args, Args { positional = [], headers = [], body = "", allow = [], error = None })
 
   match parsed.error, parsed.positional with
   | Some(err), _ ->

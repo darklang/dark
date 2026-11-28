@@ -13,12 +13,12 @@ let resolveTypeHash(
   typePath: String)
   : Result<LanguageTools.ProgramTypes.Hash, String> =
   match Traversal.traverse(branchId, currentLocation, typePath) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(Type(loc)) ->
     match LanguageTools.PackageManager.Type.find(branchId, loc) with
-    | Some(typeHash) -> Result.Ok(typeHash)
-    | None -> Result.Error($"Type not found: {typePath}")
-  | Ok(_) -> Result.Error($"{typePath} is not a type. find-values looks for values OF a type.")
+    | Some(typeHash) -> Ok(typeHash)
+    | None -> Error($"Type not found: {typePath}")
+  | Ok(_) -> Error($"{typePath} is not a type. find-values looks for values OF a type.")
 
 
 let execute(state: AppState, args: List<String>): AppState =

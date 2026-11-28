@@ -28,14 +28,9 @@ test mixedListRaises =
 
 test dictLiterals =
   Stdlib.Test.all(
-    [ (Dict { "a": 5 } |> Stdlib.Dict.get("a"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
-
-      (Dict { "": 5 } |> Stdlib.Dict.get(""))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
-
-      (Dict { "a": 5 } |> Stdlib.Dict.get("b"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ (Dict { "a": 5 } |> Stdlib.Dict.get("a")) |> Stdlib.Test.equal(Some(5))
+      (Dict { "": 5 } |> Stdlib.Dict.get("")) |> Stdlib.Test.equal(Some(5))
+      (Dict { "a": 5 } |> Stdlib.Dict.get("b")) |> Stdlib.Test.equal(None) ])
 
 
 // A key written twice in a literal keeps its last value.
@@ -51,7 +46,7 @@ test mixedTupleListRaises =
 
 
 test mixedTypeArgListRaises =
-  [ Stdlib.Option.Option.Some(1), Stdlib.Option.Option.Some("a") ]
+  [ Some(1), Some("a") ]
   => raises "Cannot add a Darklang.Stdlib.Option.Option<String> (Some(\"a\")) to a list of Darklang.Stdlib.Option.Option<Int64>. Failed at index 1."
 
 

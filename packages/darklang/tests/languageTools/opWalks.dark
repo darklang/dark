@@ -29,7 +29,7 @@ let declare(
       LanguageTools.ProgramTypes.PackageLocation
         { owner = "Test", modules = [ "Dup" ], name = name },
       LanguageTools.ProgramTypes.Reference.PackageFn(fn.hash),
-      Stdlib.Option.Option.None) ]
+      None) ]
 
 
 let one(): LanguageTools.ProgramTypes.Expr =
@@ -43,8 +43,7 @@ let unresolvedCall(name: String): LanguageTools.ProgramTypes.Expr =
     LanguageTools.ProgramTypes.NameResolution
       { originalName = Stdlib.String.split(name, ".")
         resolved =
-          Stdlib.Result.Result.Error(
-            LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
+          Error(LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
     [],
     [])
 

@@ -100,8 +100,7 @@ let resolveGenericName(
     match name with
     | None ->
       ProgramTypes.NameResolution
-        { originalName = given
-          resolved = Result.Error(ProgramTypes.NameResolutionError.InvalidName) }
+        { originalName = given, resolved = Error(ProgramTypes.NameResolutionError.InvalidName) }
     | Some(name) ->
       // split a `_v[n]` version suffix off the written name (`map_v2` →
       // name `map`, version 2) — mirrors the F# resolver's
@@ -157,11 +156,11 @@ let resolveGenericName(
       // are skipped. An invalid written name skips the search entirely.
       let (resolved, location) =
         if usesInternalPackagePrefix || Stdlib.Bool.not(isValidName) then
-          (Result.Error(ProgramTypes.NameResolutionError.InvalidName), Option.None)
+          (Error(ProgramTypes.NameResolutionError.InvalidName), None)
         else
           Stdlib.List.fold(
             namesToTry(ctx.owner, ctx.currentModule, genericName),
-            (Result.Error(ProgramTypes.NameResolutionError.NotFound), Option.None),
+            (Error(ProgramTypes.NameResolutionError.NotFound), None),
             fun(acc, nameToTry) ->
               let (currentResult, currentLoc) = acc
               match currentResult with
@@ -169,7 +168,7 @@ let resolveGenericName(
               | Error(_) ->
                 match tryResolve(ctx.pm, ctx.branchId, nameToTry) with
                 | Error(()) -> acc
-                | Ok((success, loc)) -> (Result.Ok(success), loc))
+                | Ok((success, loc)) -> (Ok(success), loc))
 
       // Pair the resolved name with the location that produced it. This
       // makes "location without resolution" unrepresentable: on Error,
@@ -189,15 +188,14 @@ module TypeName =
     name: GenericName)
     : Result<(ProgramTypes.FQTypeName.FQTypeName * Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
-    | [] -> Result.Error()
+    | [] -> Error()
     | [owner, ...modules] ->
       let location =
         ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name.name }
 
       match pm.findType((branchId, location)) with
-      | Some(hash) ->
-        Result.Ok((ProgramTypes.FQTypeName.FQTypeName.Package(hash), Option.Some(location)))
-      | None -> Result.Error()
+      | Some(hash) -> Ok((ProgramTypes.FQTypeName.FQTypeName.Package(hash), Some(location)))
+      | None -> Error()
 
 
   let resolve(
@@ -214,15 +212,14 @@ module TraitName =
     name: GenericName)
     : Result<(ProgramTypes.FQTraitName.FQTraitName * Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
-    | [] -> Result.Error()
+    | [] -> Error()
     | [owner, ...modules] ->
       let location =
         ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name.name }
 
       match pm.findTrait((branchId, location)) with
-      | Some(hash) ->
-        Result.Ok((ProgramTypes.FQTraitName.FQTraitName.Package(hash), Option.Some(location)))
-      | None -> Result.Error()
+      | Some(hash) -> Ok((ProgramTypes.FQTraitName.FQTraitName.Package(hash), Some(location)))
+      | None -> Error()
 
 
   /// Like a type name, then, for a bare name, as a stdlib trait: `impl Add for
@@ -255,7 +252,7 @@ module ValueName =
     name: GenericName)
     : Result<(ProgramTypes.FQValueName.FQValueName * Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
-    | [] -> Result.Error()
+    | [] -> Error()
     | [owner, ...modules] ->
       if owner == "Builtin" && modules == [] then
         if Stdlib.Option.isSome(findBuiltinValue(name.name, name.version)) then
@@ -263,17 +260,16 @@ module ValueName =
             ProgramTypes.FQValueName.Builtin { name = name.name, version = name.version }
             |> ProgramTypes.FQValueName.FQValueName.Builtin
 
-          Result.Ok((fqn, Option.None))
+          Ok((fqn, None))
         else
-          Result.Error()
+          Error()
       else
         let location =
           ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name.name }
 
         match pm.findValue((branchId, location)) with
-        | Some(hash) ->
-          Result.Ok((ProgramTypes.FQValueName.FQValueName.Package(hash), Option.Some(location)))
-        | None -> Result.Error()
+        | Some(hash) -> Ok((ProgramTypes.FQValueName.FQValueName.Package(hash), Some(location)))
+        | None -> Error()
 
 
   let resolve(
@@ -290,7 +286,7 @@ module FnName =
     name: GenericName)
     : Result<(ProgramTypes.FQFnName.FQFnName * Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
-    | [] -> Result.Error()
+    | [] -> Error()
     | [owner, ...modules] ->
       if owner == "Builtin" && modules == [] then
         if Stdlib.Option.isSome(findBuiltinFn(name.name, name.version)) then
@@ -298,17 +294,16 @@ module FnName =
             ProgramTypes.FQFnName.Builtin { name = name.name, version = name.version }
             |> ProgramTypes.FQFnName.FQFnName.Builtin
 
-          Result.Ok((fqn, Option.None))
+          Ok((fqn, None))
         else
-          Result.Error()
+          Error()
       else
         let location =
           ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name.name }
 
         match pm.findFn((branchId, location)) with
-        | Some(hash) ->
-          Result.Ok((ProgramTypes.FQFnName.FQFnName.Package(hash), Option.Some(location)))
-        | None -> Result.Error()
+        | Some(hash) -> Ok((ProgramTypes.FQFnName.FQFnName.Package(hash), Some(location)))
+        | None -> Error()
 
 
   /// `Show.show`: the path's last module segment names a trait with a method

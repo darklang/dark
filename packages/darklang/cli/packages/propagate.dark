@@ -140,7 +140,7 @@ type Followed =
 
 
 let nothingFollowed(): Followed =
-  Followed { names = [], broken = [], failure = Option.None }
+  Followed { names = [], broken = [], failure = None }
 
 
 /// Whether a save type-checks the dependents that followed it. `Skip` leaves `broken` empty.
@@ -220,8 +220,8 @@ let repointNow(
             Stdlib.Dict.get(issuesByRef, r.toRef) |> Stdlib.Option.map(fun why -> (nameOf(r), why)))
           |> Stdlib.List.unique
 
-      Followed { names = names, broken = broken, failure = Option.None }
-    | Error(e) -> Followed { names = [], broken = [], failure = Option.Some(e) }
+      Followed { names = names, broken = broken, failure = None }
+    | Error(e) -> Followed { names = [], broken = [], failure = Some(e) }
 
 
 /// A binding that existed before this save. Method functions count too.
@@ -243,10 +243,10 @@ let updatedItems(
       let kind = LanguageTools.ProgramTypes.Reference.kind(reference)
       let previous = getAllPreviousHashes(branchId, location, kind)
       if Stdlib.List.isEmpty(previous) then
-        Option.None
+        None
       else
-        Option.Some(UpdatedItem { location = location, kind = kind, previous = previous })
-    | _ -> Option.None)
+        Some(UpdatedItem { location = location, kind = kind, previous = previous })
+    | _ -> None)
   |> Stdlib.List.uniqueBy(fun item -> item.location)
 
 
@@ -270,9 +270,7 @@ let repointSaved(
           followerCheck)
       | None ->
         Followed
-          { names = []
-            broken = []
-            failure = Option.Some("A saved binding could not be resolved.") }
+          { names = [], broken = [], failure = Some("A saved binding could not be resolved.") }
 
     let failure =
       match combined.failure with

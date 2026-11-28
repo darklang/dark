@@ -55,7 +55,7 @@ let createTypeInline(
           { writtenType with
               description = Stdlib.Option.withDefault(description, writtenType.description) }
 
-        Option.Some(
+        Some(
           saveAuthored(
             state,
             location,
@@ -73,10 +73,10 @@ let createTypeInline(
                   LanguageTools.ProgramTypes.PackageOp.SetName(
                     location,
                     LanguageTools.ProgramTypes.Reference.PackageType(packageType.hash),
-                    Option.None) ]
+                    None) ]
 
-              Option.Some((ops, packageType.hash, unresolvedNames))))
-      | _ -> Option.None)
+              Some((ops, packageType.hash, unresolvedNames))))
+      | _ -> None)
 
 
 let help(_state: AppState): String =

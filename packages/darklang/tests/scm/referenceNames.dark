@@ -84,9 +84,9 @@ test dependencyReadsExcludeAParentsDraft =
     SCM.PackageOps.liveReferenceSources(branch)
     |> Stdlib.List.filterMap(fun((location, _)) ->
       if location.owner == "Tests" && location.modules == [ m ] then
-        Stdlib.Option.Option.Some(location.name)
+        Some(location.name)
       else
-        Stdlib.Option.Option.None)
+        None)
     |> Stdlib.List.sort
 
   let dependencies(branch: Uuid, allCallers: Bool): List<String> =
@@ -102,9 +102,9 @@ test dependencyReadsExcludeAParentsDraft =
     stale
     |> Stdlib.List.filterMap(fun((usage, _, _, _, _)) ->
       if usage.owner == "Tests" && usage.modules == [ m ] then
-        Stdlib.Option.Option.Some(usage.name)
+        Some(usage.name)
       else
-        Stdlib.Option.Option.None)
+        None)
 
   Stdlib.Test.all(
     [ staleCallers(child) |> Stdlib.Test.equal([])

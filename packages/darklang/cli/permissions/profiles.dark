@@ -74,13 +74,13 @@ val listing =
 let resolve(name: String, args: List<String>): Result<LanguageTools.Permissions.Policy, String> =
   let found = all |> Stdlib.List.findFirst(fun profile -> profile.name == name)
   match found with
-  | None -> Result.Error($"unknown permission profile: {name}")
+  | None -> Error($"unknown permission profile: {name}")
   | Some(profile) ->
     match profile.needsRoot, args with
-    | false, [] -> Result.Ok(fromEffects(defaultEffects))
+    | false, [] -> Ok(fromEffects(defaultEffects))
     | true, [root] ->
       if Stdlib.Bool.not(LanguageTools.Permissions.isAbsolutePath(root)) then
-        Result.Error("profile root must be an absolute directory path; ~ and * are not expanded")
+        Error("profile root must be an absolute directory path; ~ and * are not expanded")
       else
         let read =
           LanguageTools.Permissions.Rule.FileRead(LanguageTools.Permissions.Scope.Only(root))
@@ -105,5 +105,5 @@ let resolve(name: String, args: List<String>): Result<LanguageTools.Permissions.
               LanguageTools.Permissions.Rule.Effect(LanguageTools.Permissions.Effect.PackageWrite)
               LanguageTools.Permissions.Rule.Effect(LanguageTools.Permissions.Effect.Runtime) ]
 
-        Result.Ok({ policy with allow = Stdlib.List.concat(policy.allow, rules) })
-    | _ -> Result.Error("usage: " + usage(profile))
+        Ok({ policy with allow = Stdlib.List.concat(policy.allow, rules) })
+    | _ -> Error("usage: " + usage(profile))

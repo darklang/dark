@@ -2,38 +2,35 @@ module Darklang.Language.Tests.Enums
 
 test options =
   Stdlib.Test.all(
-    [ Stdlib.Option.Option.None |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.List.head([]) == Stdlib.Option.Option.None
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.List.head([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ None |> Stdlib.Test.equal(None)
+      Stdlib.List.head([]) == None |> Stdlib.Test.equal(true)
+      Stdlib.List.head([]) |> Stdlib.Test.equal(None) ])
 
 
 test okPayloadErrorRaises =
-  Stdlib.Result.Result.Ok(Language.Tests.raiseRuntimeError("err"))
+  Ok(Language.Tests.raiseRuntimeError("err"))
   => raises "Uncaught exception: err"
 
 
 test somePayloadErrorRaises =
-  Stdlib.Option.Option.Some(Language.Tests.raiseRuntimeError("err"))
+  Some(Language.Tests.raiseRuntimeError("err"))
   => raises "Uncaught exception: err"
 
 
 test errorPayloadErrorRaises =
-  Stdlib.Result.Result.Error(Language.Tests.raiseRuntimeError("err"))
+  Error(Language.Tests.raiseRuntimeError("err"))
   => raises "Uncaught exception: err"
 
 
 module Errors =
   module Builtins =
     test noneWithPayloadRaises =
-      Stdlib.Option.Option.None(5)
+      None(5)
       => raises "Expected 0 fields in Darklang.Stdlib.Option.Option.`None`, but got 1"
 
 
     test someWithTwoPayloadsRaises =
-      Stdlib.Option.Option.Some(5, 6)
+      Some(5, 6)
       => raises "Expected 1 field in Darklang.Stdlib.Option.Option.`Some`, but got 2"
 
 
@@ -173,10 +170,9 @@ module MixedCases =
              EnumOfMixedCases.Y(5)
              EnumOfMixedCases.Z("testZ", 2) ]
          match Stdlib.List.getAt(values, 3) with
-         | Some(z) -> Stdlib.Result.Result.Ok(z)
-         | None -> Stdlib.Result.Result.Error("Failure"))
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2)))
+         | Some(z) -> Ok(z)
+         | None -> Error("Failure"))
+        |> Stdlib.Test.equal(Ok(EnumOfMixedCases.Z("testZ", 2)))
 
         ([ EnumOfMixedCases.W
            EnumOfMixedCases.X("testX")

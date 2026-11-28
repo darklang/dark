@@ -78,5 +78,5 @@ test listJson = Instance.withInstance(fun i ->
 
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 0, "config list --json")
-        Stdlib.Test.equal(keep, Stdlib.Option.Option.Some(("50", "set"))) ])
+        Stdlib.Test.equal(keep, Some(("50", "set"))) ])
   | Ok(_) -> Stdlib.Test.fail($"expected an array, got {out}"))

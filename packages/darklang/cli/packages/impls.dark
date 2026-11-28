@@ -17,12 +17,12 @@ let traitHashAt(
   traitPath: String)
   : Result<LanguageTools.ProgramTypes.Hash, String> =
   match Traversal.traverse(branchId, currentLocation, traitPath) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(Trait(loc)) ->
     match LanguageTools.PackageManager.Trait.find(branchId, loc) with
-    | Some(h) -> Result.Ok(h)
-    | None -> Result.Error($"Trait not found: {traitPath}")
-  | Ok(_) -> Result.Error($"{traitPath} is not a trait.")
+    | Some(h) -> Ok(h)
+    | None -> Error($"Trait not found: {traitPath}")
+  | Ok(_) -> Error($"{traitPath} is not a trait.")
 
 
 /// The trait as written, then under `Stdlib.` (the operator traits are what
@@ -41,20 +41,20 @@ let resolveTrait(
     | _ -> traitPath
 
   match traitHashAt(state.currentBranchId, state.packageData.currentLocation, traitPath) with
-  | Ok(h) -> Result.Ok(h)
+  | Ok(h) -> Ok(h)
   | Error(msg) ->
     if
       Stdlib.String.startsWith(traitPath, "Stdlib.")
       || Stdlib.String.startsWith(traitPath, "Darklang.")
     then
-      Result.Error(msg)
+      Error(msg)
     else
       match traitHashAt(
               state.currentBranchId,
               state.packageData.currentLocation,
               $"Stdlib.{traitPath}") with
-      | Ok(h) -> Result.Ok(h)
-      | Error(_) -> Result.Error(msg)
+      | Ok(h) -> Ok(h)
+      | Error(_) -> Error(msg)
 
 
 /// Where code calls an implementation's methods: through its trait, never at the impl's
@@ -75,7 +75,7 @@ let traitLocation(
   : Option<LanguageTools.ProgramTypes.PackageLocation> =
   match i.trait_.resolved with
   | Ok(r) -> r.location
-  | Error(_) -> Option.None
+  | Error(_) -> None
 
 
 /// The name a call to <param method> of the trait at <param loc> uses: the fn beside the trait
@@ -108,26 +108,26 @@ let operatorSyntax(
   : Option<String> =
   if loc.owner == "Darklang" && loc.modules == [ "Stdlib" ] then
     match method with
-    | "add" -> Option.Some("a + b")
-    | "subtract" -> Option.Some("a - b")
-    | "multiply" -> Option.Some("a * b")
-    | "divide" -> Option.Some("a / b")
-    | "modulo" -> Option.Some("a % b")
-    | "power" -> Option.Some("a ** b")
-    | "negate" -> Option.Some("-a")
-    | "bitwiseAnd" -> Option.Some("a & b")
-    | "bitwiseOr" -> Option.Some("a | b")
-    | "bitwiseXor" -> Option.Some("a ^ b")
-    | "bitwiseNot" -> Option.Some("~a")
-    | "shiftLeft" -> Option.Some("a << b")
-    | "shiftRight" -> Option.Some("a >> b")
-    | "lessThan" -> Option.Some("a < b")
-    | "lessThanOrEqualTo" -> Option.Some("a <= b")
-    | "greaterThan" -> Option.Some("a > b")
-    | "greaterThanOrEqualTo" -> Option.Some("a >= b")
-    | _ -> Option.None
+    | "add" -> Some("a + b")
+    | "subtract" -> Some("a - b")
+    | "multiply" -> Some("a * b")
+    | "divide" -> Some("a / b")
+    | "modulo" -> Some("a % b")
+    | "power" -> Some("a ** b")
+    | "negate" -> Some("-a")
+    | "bitwiseAnd" -> Some("a & b")
+    | "bitwiseOr" -> Some("a | b")
+    | "bitwiseXor" -> Some("a ^ b")
+    | "bitwiseNot" -> Some("~a")
+    | "shiftLeft" -> Some("a << b")
+    | "shiftRight" -> Some("a >> b")
+    | "lessThan" -> Some("a < b")
+    | "lessThanOrEqualTo" -> Some("a <= b")
+    | "greaterThan" -> Some("a > b")
+    | "greaterThanOrEqualTo" -> Some("a >= b")
+    | _ -> None
   else
-    Option.None
+    None
 
 
 /// Each method of <param i> as a person would type the call: `a % b`, `Stdlib.display(v)`, or

@@ -26,9 +26,9 @@ let currentlyBound(
   PackageOps.liveBindingFor(parent, location)
   |> Stdlib.Option.andThen(fun b ->
     if b.itemType == LanguageTools.ProgramTypes.ItemKind.toString(kind) then
-      Option.Some(LanguageTools.ProgramTypes.Hash.Hash(b.hash))
+      Some(LanguageTools.ProgramTypes.Hash.Hash(b.hash))
     else
-      Option.None)
+      None)
 
 
 /// Fill in `previous` on every SetName in `ops` that does not already carry one.

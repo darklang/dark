@@ -240,8 +240,7 @@ module Batches =
       (fun t -> t == nestedTupleType(1000000)),
       nestedTupleType(1000000))
     |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Error(
-        LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep))
+      Error(LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep))
 
 
   // And it is not simply always failing: the same shape, shallow, comes back Ok.
@@ -250,7 +249,7 @@ module Batches =
       [ LanguageTools.AtRestTypeChecker.guard(
           (fun t -> t == nestedTupleType(2)),
           nestedTupleType(2))
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+        |> Stdlib.Test.equal(Ok(true))
 
         checkValueAsts(
           [ valueNamed("deep-value", nestedListExpr(5000))
@@ -344,7 +343,7 @@ module Guarded =
     match reference with
     | PackageType(h) ->
       if h == hash("broken") then
-        Builtin.unwrap(Stdlib.Option.Option.None)
+        Builtin.unwrap(None)
       else
         let name = if h == hash("first") then "first" else "last"
         let typ = declared(name, [], recordOf([ ("value", tInt()) ]))
@@ -406,7 +405,7 @@ module Guarded =
     let (report, output) =
       Cli.Workbench.captureOutputAnd(fun () ->
         LanguageTools.AtRestTypeChecker.guarded(
-          (fun _ -> Builtin.unwrap(Stdlib.Option.Option.None)),
+          (fun _ -> Builtin.unwrap(None)),
           []))
 
     (summary(report), output)
@@ -588,11 +587,11 @@ module Invariants =
     reference: LanguageTools.ProgramTypes.Reference)
     : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
     match reference with
-    | PackageType(h) -> Builtin.unwrap(Stdlib.Option.Option.None)
-    | PackageValue(h) -> Stdlib.Option.Option.None
+    | PackageType(h) -> Builtin.unwrap(None)
+    | PackageValue(h) -> None
     | PackageFn(h) ->
       if h == hash("broken") then
-        Builtin.unwrap(Stdlib.Option.Option.None)
+        Builtin.unwrap(None)
       else
         let fn =
           if h == hash("good") then
@@ -600,8 +599,7 @@ module Invariants =
           else
             fnNamed("bad", [], [ ("x", tInt()) ], tUnit(), arg(2))
 
-        Stdlib.Option.Option.Some(
-          LanguageTools.ProgramTypes.PackageOp.AddFn(fn))
+        Some(LanguageTools.ProgramTypes.PackageOp.AddFn(fn))
 
 
   let branchReport(): LanguageTools.AtRestTypeChecker.Report =
@@ -629,8 +627,7 @@ module Invariants =
 
         itemSummary(
           branchReport(),
-          Stdlib.Option.Option.Some(
-            LanguageTools.ProgramTypes.Reference.PackageFn(hash("good"))))
+          Some(LanguageTools.ProgramTypes.Reference.PackageFn(hash("good"))))
         |> Stdlib.Test.equal("checked:") ])
 
 

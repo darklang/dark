@@ -188,20 +188,20 @@ let renderMaybeFocused(state: State, focus: Focus, placeholder: String, width: I
 /// "done" means for the whole form, not for one field).
 let handleTextKey(state: State, kp: Widget.KeyPress): Option<State> =
   match kp.key with
-  | Backspace -> Option.Some(backspace(state))
-  | Delete -> Option.Some(deleteForward(state))
-  | LeftArrow -> Option.Some(moveLeft(state))
-  | RightArrow -> Option.Some(moveRight(state))
-  | Home -> Option.Some(moveToStart(state))
-  | End -> Option.Some(moveToEnd(state))
-  | Spacebar -> Option.Some(insert(state, " "))
-  | Tab -> Option.None
-  | Enter -> Option.None
-  | Escape -> Option.None
+  | Backspace -> Some(backspace(state))
+  | Delete -> Some(deleteForward(state))
+  | LeftArrow -> Some(moveLeft(state))
+  | RightArrow -> Some(moveRight(state))
+  | Home -> Some(moveToStart(state))
+  | End -> Some(moveToEnd(state))
+  | Spacebar -> Some(insert(state, " "))
+  | Tab -> None
+  | Enter -> None
+  | Escape -> None
   | _ ->
     match kp.char with
-    | Some(c) -> if isTypeable(c) then Option.Some(insert(state, c)) else Option.None
-    | None -> Option.None
+    | Some(c) -> if isTypeable(c) then Some(insert(state, c)) else None
+    | None -> None
 
 
 let view(state: State, region: Layout.Region): List<Layout.Span> =

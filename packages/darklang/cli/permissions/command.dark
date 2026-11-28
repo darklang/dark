@@ -123,7 +123,7 @@ let approvalsMatching(
     let matching = Stdlib.List.filter(approvals, fun approval -> approval.hash == hash)
     if Stdlib.List.isEmpty(matching) then
       [ LanguageTools.Permissions.Approval
-          { hash = hash, name = Option.None, policy = Option.None, explicitRules = Option.None } ]
+          { hash = hash, name = None, policy = None, explicitRules = None } ]
     else
       matching
 
@@ -146,11 +146,11 @@ let packageAccessFor(
   hash: String)
   : (Bool * List<(String * LanguageTools.Permissions.Policy)>) =
   let approvals =
-    approvalsMatching(named, Option.Some(hash))
+    approvalsMatching(named, Some(hash))
     |> Stdlib.List.filterMap(fun approval ->
       match approval.name, approval.policy with
-      | Some(name), Some(policy) -> Option.Some((name, policy))
-      | _ -> Option.None)
+      | Some(name), Some(policy) -> Some((name, policy))
+      | _ -> None)
 
   (Builtin.pmFnIsBundled(hash), approvals)
 
@@ -170,8 +170,8 @@ let explicitApprovalFor(
   accountID: Option<Uuid>,
   name: String)
   : Option<LanguageTools.Permissions.Policy> =
-  approvalsOf(accountID, Option.None)
-  |> Stdlib.List.filter(fun a -> a.name == Option.Some(name))
+  approvalsOf(accountID, None)
+  |> Stdlib.List.filter(fun a -> a.name == Some(name))
   |> Stdlib.List.head
   |> Stdlib.Option.andThen(fun approval -> approval.explicitRules)
 
@@ -389,7 +389,7 @@ let accessFacts(accountID: Option<Uuid>, hash: String): AccessReportFacts =
       bundled = bundled
       approvals = approvals
       approvedAs = approvedAs
-      olderApproval = Option.None
+      olderApproval = None
       instancePolicy = currentPolicy() }
 
 
@@ -444,13 +444,13 @@ let editPolicy(
 let parseRuleList(args: List<String>): Result<List<LanguageTools.Permissions.Rule>, String> =
   if Stdlib.List.any(args, fun arg -> Stdlib.String.contains(arg, ";")) then
     LanguageTools.Permissions.splitRuleSpecs(Stdlib.String.join(args, " "))
-    |> Stdlib.List.fold(Result.Ok([]), fun(result, spec) ->
+    |> Stdlib.List.fold(Ok([]), fun(result, spec) ->
       match result with
-      | Error(bad) -> Result.Error(bad)
+      | Error(bad) -> Error(bad)
       | Ok(rules) ->
         match LanguageTools.Permissions.parseRuleText(spec) with
-        | Some(more) -> Result.Ok(Stdlib.List.concat(rules, more))
-        | None -> Result.Error(spec))
+        | Some(more) -> Ok(Stdlib.List.concat(rules, more))
+        | None -> Error(spec))
   else
     let parsed =
       match args with
@@ -458,8 +458,8 @@ let parseRuleList(args: List<String>): Result<List<LanguageTools.Permissions.Rul
       | _ -> parseRuleArgs(args)
 
     match parsed with
-    | Some(rules) -> Result.Ok(rules)
-    | None -> Result.Error(Stdlib.String.join(args, " "))
+    | Some(rules) -> Ok(rules)
+    | None -> Error(Stdlib.String.join(args, " "))
 
 
 /// Parse rule arguments and pass them to <param edit>, or report invalid input. One rule that does
@@ -483,8 +483,8 @@ let editRules(
 let replacePolicy(specs: List<String>): Result<LanguageTools.Permissions.Policy, String> =
   let specs = LanguageTools.Permissions.splitRuleSpecs(Stdlib.String.join(specs, " "))
   match LanguageTools.Permissions.parse(specs) with
-  | Ok(policy) -> Result.Ok(policy)
-  | Error(bad) -> Result.Error(invalidRuleText(bad))
+  | Ok(policy) -> Ok(policy)
+  | Error(bad) -> Error(invalidRuleText(bad))
 
 
 // Named consumer approvals.
@@ -496,8 +496,8 @@ let replacePolicy(specs: List<String>): Result<LanguageTools.Permissions.Policy,
 let latestVersion(branchId: Uuid, name: String): Option<String> =
   let location = LanguageTools.ProgramTypes.parsePackageLocation(name)
   match LanguageTools.PackageManager.Function.find(branchId, location) with
-  | Some(hash) -> Option.Some(LanguageTools.ProgramTypes.hashToString(hash))
-  | None -> Option.None
+  | Some(hash) -> Some(LanguageTools.ProgramTypes.hashToString(hash))
+  | None -> None
 
 
 /// The version this account has APPROVED for <param name>, if any.
@@ -527,7 +527,7 @@ let sameRequirements(
 /// It still allows only what you approved before. Returns the message to show if kept.
 let carryApprovalForward(accountID: Option<Uuid>, branchId: Uuid, name: String): Option<String> =
   let (expected, named) = approvalSnapshot(accountID)
-  let previous = named |> Stdlib.List.findFirst(fun approval -> approval.name == Option.Some(name))
+  let previous = named |> Stdlib.List.findFirst(fun approval -> approval.name == Some(name))
   match previous, latestVersion(branchId, name) with
   | Some(approval), Some(latest) when approval.hash != latest ->
     let rules = approval.explicitRules
@@ -554,10 +554,10 @@ let carryApprovalForward(accountID: Option<Uuid>, branchId: Uuid, name: String):
 
       match saved with
       | Ok(_) ->
-        Option.Some($"Kept the approval for {name}: the edited version needs the same permissions.")
-      | Error(_) -> Option.None
-    | _ -> Option.None
-  | _ -> Option.None
+        Some($"Kept the approval for {name}: the edited version needs the same permissions.")
+      | Error(_) -> None
+    | _ -> None
+  | _ -> None
 
 
 /// `requirements`/`show` accept a logical name (resolved to its latest version)
@@ -569,8 +569,8 @@ let resolveVersionArg(state: AppState, arg: String): Option<String> =
     // A raw hash must name a stored version; otherwise the analysis would
     // report an unknown version as merely "incomplete".
     match LanguageTools.PackageManager.Function.get(LanguageTools.ProgramTypes.Hash.Hash(arg)) with
-    | Some(_) -> Option.Some(arg)
-    | None -> Option.None
+    | Some(_) -> Some(arg)
+    | None -> None
 
 
 /// Keep version and requirements labels aligned; do not repeat an unchanged version.
@@ -657,7 +657,7 @@ let parseApprovalRules(
   specs: List<String>)
   : Result<Option<LanguageTools.Permissions.Policy>, String> =
   if Stdlib.List.isEmpty(specs) then
-    Result.Ok(Option.None)
+    Ok(None)
   else
     match replacePolicy(specs) with
     | Ok(policy) ->
@@ -669,9 +669,8 @@ let parseApprovalRules(
         |> Stdlib.List.map(canonicalRule)
         |> Stdlib.List.unique
 
-      Result.Ok(
-        Option.Some({ policy with allow = normalize(policy.allow), deny = normalize(policy.deny) }))
-    | Error(message) -> Result.Error(message)
+      Ok(Some({ policy with allow = normalize(policy.allow), deny = normalize(policy.deny) }))
+    | Error(message) -> Error(message)
 
 
 /// Adding access keeps both saved grants and explicit denies.
@@ -884,9 +883,7 @@ let approveNamed(
         false
       else
         let (expected, named) = approvalSnapshot(state.accountID)
-        let previous =
-          named |> Stdlib.List.findFirst(fun approval -> approval.name == Option.Some(name))
-
+        let previous = named |> Stdlib.List.findFirst(fun approval -> approval.name == Some(name))
         let policy =
           match previous with
           | Some(approval) when approval.hash == hash ->
@@ -895,7 +892,7 @@ let approveNamed(
             | None -> added
           | _ -> added
 
-        let rules = Option.Some(policy)
+        let rules = Some(policy)
         let previousVersion = previous |> Stdlib.Option.map(fun approval -> approval.hash)
         let requirements = showVersionRequirements(name, previousVersion, hash)
         match previous with
@@ -927,7 +924,7 @@ let updateNamed(
   : Bool =
   let accountID = state.accountID
   let (expected, named) = approvalSnapshot(accountID)
-  let previous = named |> Stdlib.List.findFirst(fun approval -> approval.name == Option.Some(name))
+  let previous = named |> Stdlib.List.findFirst(fun approval -> approval.name == Some(name))
   match parseApprovalRules(specs) with
   | Error(message) ->
     printErr(message)
@@ -956,11 +953,11 @@ let updateNamed(
 
         let rules =
           match saved, givenRules with
-          | Some(saved), Some(added) -> Option.Some(addApprovalRules(saved, added))
-          | Some(saved), None -> Option.Some(saved)
+          | Some(saved), Some(added) -> Some(addApprovalRules(saved, added))
+          | Some(saved), None -> Some(saved)
           | None, _ -> givenRules
 
-        let requirements = showVersionRequirements(name, Option.Some(approved), latest)
+        let requirements = showVersionRequirements(name, Some(approved), latest)
         reviewAndApprove(
           accountID,
           name,
@@ -990,23 +987,23 @@ let withVersion(state: AppState, target: String, show: String -> List<String>): 
 /// None for the ones that take no argument. Drives `execute`'s
 /// missing-argument arm and `complete`.
 val subcommands =
-  [ ("list", Option.None)
-    ("profile", Option.None)
-    ("allow", Option.Some("allow <rule>;…"))
-    ("deny", Option.Some("deny <rule>;…"))
-    ("remove", Option.Some("remove [--for <fn>] <rules> | remove --for <fn> --all"))
+  [ ("list", None)
+    ("profile", None)
+    ("allow", Some("allow <rule>;…"))
+    ("deny", Some("deny <rule>;…"))
+    ("remove", Some("remove [--for <fn>] <rules> | remove --for <fn> --all"))
     // `set` with nothing would otherwise replace the policy with deny-all;
     // that is what `clear` is for.
-    ("set", Option.Some("set <rule>;… (or `clear`)"))
-    ("clear", Option.None)
-    ("approve", Option.Some("approve --for <fn> <rules>"))
-    ("update", Option.Some("update <fn> [<rule>;…]"))
-    ("unapprove", Option.Some("unapprove <fn>"))
-    ("approved", Option.None)
-    ("requirements", Option.Some("requirements <fn|hash>"))
-    ("show", Option.Some("show <fn|hash>"))
-    ("approvals", Option.None)
-    ("revoke-package", Option.Some("revoke-package <hash>")) ]
+    ("set", Some("set <rule>;… (or `clear`)"))
+    ("clear", None)
+    ("approve", Some("approve --for <fn> <rules>"))
+    ("update", Some("update <fn> [<rule>;…]"))
+    ("unapprove", Some("unapprove <fn>"))
+    ("approved", None)
+    ("requirements", Some("requirements <fn|hash>"))
+    ("show", Some("show <fn|hash>"))
+    ("approvals", None)
+    ("revoke-package", Some("revoke-package <hash>")) ]
 
 
 /// The usage line for a subcommand given without its argument, if it needs one.
@@ -1037,17 +1034,17 @@ let permissionArgs(args: List<String>): FlagParser.Parsed =
 let permissionTarget(parsed: FlagParser.Parsed): Result<Option<String>, String> =
   let targets = parsed.options |> Stdlib.List.filter(fun((flag, _)) -> flag == "--for")
   match targets with
-  | [] -> Result.Ok(Option.None)
+  | [] -> Ok(None)
   | [(_, name)] when name != "" && Stdlib.Bool.not(Stdlib.String.startsWith(name, "-")) ->
-    Result.Ok(Option.Some(name))
-  | [_] -> Result.Error("--for needs a function name or a saved script name")
-  | _ -> Result.Error("Specify --for only once.")
+    Ok(Some(name))
+  | [_] -> Error("--for needs a function name or a saved script name")
+  | _ -> Error("Specify --for only once.")
 
 
 /// Remove all saved rules for a name, including approvals of older code or scripts.
 let removeNamedApproval(state: AppState, name: String): AppState =
   let (expected, approvals) = approvalSnapshot(state.accountID)
-  if Stdlib.List.any(approvals, fun approval -> approval.name == Option.Some(name)) then
+  if Stdlib.List.any(approvals, fun approval -> approval.name == Some(name)) then
     removeNamedApprovalFor(state.accountID, expected, name)
     Stdlib.printLine(
       Stdlib.Cli.UI.Colors.success(
@@ -1066,16 +1063,16 @@ let removeApprovalRules(
   : Result<LanguageTools.Permissions.Policy, String> =
   let saved = Stdlib.List.concat(policy.allow, policy.deny)
   if Stdlib.List.isEmpty(rules) then
-    Result.Error("Give a saved rule to remove, or use --all.")
+    Error("Give a saved rule to remove, or use --all.")
   else if
     Stdlib.List.any(rules, fun rule -> Stdlib.Bool.not(Stdlib.List.contains(saved, rule)))
   then
-    Result.Error("A requested rule is not saved; nothing was removed.")
+    Error("A requested rule is not saved; nothing was removed.")
   else
     let keep(rule: LanguageTools.Permissions.Rule): Bool =
       Stdlib.Bool.not(Stdlib.List.contains(rules, rule))
 
-    Result.Ok(
+    Ok(
       { policy with
           allow = Stdlib.List.filter(policy.allow, keep)
           deny = Stdlib.List.filter(policy.deny, keep) })
@@ -1090,7 +1087,7 @@ let removeNamedRules(
   let (expected, approvals) = approvalSnapshot(state.accountID)
   let saved =
     approvals
-    |> Stdlib.List.findFirst(fun approval -> approval.name == Option.Some(name))
+    |> Stdlib.List.findFirst(fun approval -> approval.name == Some(name))
     |> Stdlib.Option.andThen(fun approval -> approval.policy)
 
   match saved with
@@ -1179,9 +1176,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | ["clear"] ->
     exitWith(
       state,
-      editPolicy(
-        (fun _ -> Result.Ok(LanguageTools.Permissions.empty())),
-        "✓ policy is now deny-all"))
+      editPolicy((fun _ -> Ok(LanguageTools.Permissions.empty())), "✓ policy is now deny-all"))
   | ["set", ...specs] ->
     exitWith(state, editPolicy((fun _ -> replacePolicy(specs)), "✓ policy replaced"))
   | ["approve", ...args] ->
@@ -1234,8 +1229,8 @@ let execute(state: AppState, args: List<String>): AppState =
                   approvedAs = Stdlib.List.filter(facts.approvedAs, fun n -> n == name)
                   olderApproval =
                     match approvedVersionOf(state.accountID, name) with
-                    | Some(version) when version != hash -> Option.Some(version)
-                    | _ -> Option.None }
+                    | Some(version) when version != hash -> Some(version)
+                    | _ -> None }
 
           renderAccessReport(name, facts)))
   | ["revoke-package", hash] -> exitWith(state, revokeHash(state.accountID, hash))

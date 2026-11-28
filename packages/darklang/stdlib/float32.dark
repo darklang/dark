@@ -156,21 +156,18 @@ impl Divide for Float32 =
 
 /// {{Ok}} <param result> if it is finite, otherwise {{Error Overflow}}
 let __noOverflow(result: Float32): Result<Float32, Math.Overflow> =
-  if isFinite(result) then
-    Result.Ok(result)
-  else
-    Result.Error(Math.Overflow.Overflow)
+  if isFinite(result) then Ok(result) else Error(Math.Overflow.Overflow)
 
 
 /// {{Ok}} <param result> if it is finite, otherwise {{Error NotANumber}} for NaN or
 /// {{Error}} <param ifInfinite> for an infinity
 let __finite(result: Float32, ifInfinite: Math.NonFinite): Result<Float32, Math.NonFinite> =
   if isFinite(result) then
-    Result.Ok(result)
+    Ok(result)
   else if isNaN(result) then
-    Result.Error(Math.NonFinite.NotANumber)
+    Error(Math.NonFinite.NotANumber)
   else
-    Result.Error(ifInfinite)
+    Error(ifInfinite)
 
 
 /// Adds <param a> to <param b>, or {{Error Overflow}} where the sum is not finite
@@ -194,7 +191,7 @@ let checkedMultiply(a: Float32, b: Float32): Result<Float32, Math.Overflow> =
 /// and {{Error Overflow}} where the quotient is too large
 let checkedDivide(a: Float32, b: Float32): Result<Float32, Math.NonFinite> =
   if b == 0.0f32 then
-    Result.Error(Math.NonFinite.DivisionByZero)
+    Error(Math.NonFinite.DivisionByZero)
   else
     __finite(a / b, Math.NonFinite.Overflow)
 
@@ -221,8 +218,8 @@ let checkedSqrt(a: Float32): Result<Float32, Math.NonFinite> =
 /// as {{"NaN"}}, {{"Infinity"}} or a number too large for the type
 let checkedParse(s: String): Result<Float32, ParseError> =
   match parse(s) with
-  | Ok(f) when isFinite(f) -> Result.Ok(f)
-  | _ -> Result.Error(ParseError.BadFormat)
+  | Ok(f) when isFinite(f) -> Ok(f)
+  | _ -> Error(ParseError.BadFormat)
 
 
 /// <fn Float32.fromFloat64>, or {{Error Overflow}} where <param a> is too large for a
@@ -259,15 +256,15 @@ impl Compare for Float32 =
 /// Refuses a NaN limit, like <fn Float64.clampRefusingNaN>.
 let clampRefusingNaN(value: Float32, limitA: Float32, limitB: Float32): Result<Float32, String> =
   if isNaN(limitA) || isNaN(limitB) then
-    Result.Error("clampRefusingNaN requires limits that are numbers")
+    Error("clampRefusingNaN requires limits that are numbers")
   else
     let (lower, upper) = if limitA < limitB then (limitA, limitB) else (limitB, limitA)
     if value < lower then
-      Result.Ok(lower)
+      Ok(lower)
     else if value > upper then
-      Result.Ok(upper)
+      Ok(upper)
     else
-      Result.Ok(value)
+      Ok(value)
 
 
 /// Returns the <type Float32> nearest to the number in <param s>, ties to even,
@@ -275,8 +272,8 @@ let clampRefusingNaN(value: Float32, limitA: Float32, limitB: Float32): Result<F
 /// through a Float64.
 let parse(s: String): Result<Float32, ParseError> =
   match Builtin.float32Parse(s) with
-  | Some(f) -> Result.Ok(f)
-  | None -> Result.Error(ParseError.BadFormat)
+  | Some(f) -> Ok(f)
+  | None -> Error(ParseError.BadFormat)
 
 
 /// Returns true if <param f> is NaN

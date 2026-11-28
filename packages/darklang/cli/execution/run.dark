@@ -16,12 +16,12 @@ type Approval =
 /// Unit succeeds; BigInt and Int64 supply the script's exit code.
 let exitCode(value: LanguageTools.RuntimeTypes.Dval): Result<Int64, ExecutionError.ExecutionError> =
   match value with
-  | DUnit -> Result.Ok(0)
-  | DInt64(code) -> Result.Ok(code)
+  | DUnit -> Ok(0)
+  | DInt64(code) -> Ok(code)
   // a `BigInt` past Int64 is no exit code the OS could carry, so it fails like any other
-  | DBigInt(code) -> Result.Ok(Stdlib.BigInt.toInt64(code) |> Stdlib.Option.withDefault(1))
+  | DBigInt(code) -> Ok(Stdlib.BigInt.toInt64(code) |> Stdlib.Option.withDefault(1))
   | _ ->
-    Result.Error(
+    Error(
       ExecutionError.ExecutionError.Runtime(
         LanguageTools.RuntimeTypes.RuntimeError.Error.CLI(
           LanguageTools.RuntimeTypes.RuntimeError.CLIs.Error.NonIntReturned(value)),
@@ -51,12 +51,12 @@ let parseAndExecute(
       options.grants,
       (match approval with
        | Offer when Stdlib.Bool.not(options.sandbox) && Stdlib.Cli.UI.Prompt.canAsk() ->
-         Option.Some(askPermission)
-       | _ -> Option.None))
+         Some(askPermission)
+       | _ -> None))
 
   match result with
   | Ok(value) -> exitCode(value)
-  | Error(error) -> Result.Error(error)
+  | Error(error) -> Error(error)
 
 
 // `run-script <path> [args...]` — execute a Dark script file, or a package function by name.
@@ -85,7 +85,7 @@ let splitArgumentsAfter(
 /// Whether <param arg> starts with a `-`. By its first byte, not its first character, so a `-`
 /// that a combining mark follows still counts, as it does for the host.
 let isFlag(arg: String): Bool =
-  arg != "-" && Stdlib.String.getByteAt(arg, 0) == Option.Some(45u8)
+  arg != "-" && Stdlib.String.getByteAt(arg, 0) == Some(45u8)
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -93,7 +93,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let asksForHelp =
     Stdlib.List.contains(options, "--help")
     || Stdlib.List.contains(options, "-h")
-    || Stdlib.List.head(args) == Option.Some("help")
+    || Stdlib.List.head(args) == Some("help")
 
   if asksForHelp then
     Registry.executeCommandHelp("run-script", state)
@@ -349,7 +349,7 @@ let askPermission(request: (String * List<String>)): Int64 =
   let fileNote =
     [ (coversChildren, "File paths include children.")
       (writes, "Write access includes creating, overwriting and deleting.") ]
-    |> Stdlib.List.filterMap(fun((shown, note)) -> if shown then Option.Some(note) else Option.None)
+    |> Stdlib.List.filterMap(fun((shown, note)) -> if shown then Some(note) else None)
 
   if Stdlib.List.isEmpty(fileNote) then
     ()
@@ -456,9 +456,9 @@ let runScriptMeasured(
       // What the script cost, net of the measuring harness itself: see Perf.floor.
       let harness = LanguageTools.Perf.floor()
       let (raw, result) = LanguageTools.Perf.measure(run)
-      (Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
+      (Some(LanguageTools.Perf.minus(raw, harness)), result)
     else
-      (Option.None, run())
+      (None, run())
 
   let newState = handleResult(state, result, entry)
   noteMisplacedAllow(newState, scriptPath, args)

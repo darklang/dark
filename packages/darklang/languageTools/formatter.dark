@@ -423,21 +423,21 @@ let declaration(
         trailingComments = byKey(trailingInside, fun c -> c.node)
         compactFnBody = layout == FnLayout.Compact
         hasComments = Stdlib.Bool.not(Stdlib.List.isEmpty(inside))
-        knownBindings = Option.Some(known) }
+        knownBindings = Some(known) }
 
   let asWritten(): (String * String * List<String>) =
     (aboveText, sourceOf(file, d), [ declarationName(file, d) ])
 
   let printed =
     match d.item with
-    | Fn(name, fn) -> Option.Some(PrettyPrinter.ProgramTypes.packageFnNamed(ctx, name, fn))
-    | Type(name, t) -> Option.Some(PrettyPrinter.ProgramTypes.packageTypeNamed(ctx, name, t))
-    | Value(name, v) -> Option.Some(PrettyPrinter.ProgramTypes.packageValueNamed(ctx, name, v))
-    | Test(name, t) -> Option.Some(PrettyPrinter.ProgramTypes.packageTestNamed(ctx, name, t))
-    | Trait(name, t) -> Option.Some(PrettyPrinter.ProgramTypes.packageTraitNamed(ctx, name, t))
-    | Impl(i, memberPath, members) -> Option.Some(implBlock(ctx, memberPath, i, members))
-    | Module(_, _, _) -> Option.None
-    | Verbatim -> Option.None
+    | Fn(name, fn) -> Some(PrettyPrinter.ProgramTypes.packageFnNamed(ctx, name, fn))
+    | Type(name, t) -> Some(PrettyPrinter.ProgramTypes.packageTypeNamed(ctx, name, t))
+    | Value(name, v) -> Some(PrettyPrinter.ProgramTypes.packageValueNamed(ctx, name, v))
+    | Test(name, t) -> Some(PrettyPrinter.ProgramTypes.packageTestNamed(ctx, name, t))
+    | Trait(name, t) -> Some(PrettyPrinter.ProgramTypes.packageTraitNamed(ctx, name, t))
+    | Impl(i, memberPath, members) -> Some(implBlock(ctx, memberPath, i, members))
+    | Module(_, _, _) -> None
+    | Verbatim -> None
 
   match d.item with
   | Module(name, header, inner) ->
@@ -535,12 +535,12 @@ let declarations(
             && Stdlib.List.isEmpty(names)
             && Stdlib.Bool.not(Stdlib.String.contains(text, "\n"))
           then
-            Option.Some((above, text, names))
+            Some((above, text, names))
           else
-            Option.None
+            None
         else
-          Option.None
-      | _ -> Option.None)
+          None
+      | _ -> None)
 
   // The length of the run of short fns each one is in.
   let runs =
@@ -675,7 +675,7 @@ let parse(source: String): Result<File, String> =
 /// parser's complaint.
 let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, String> =
   match parse(source) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(file) ->
     let comments = placeComments(file)
     let bindings = PrettyPrinter.ProgramTypes.knownBindings(branchId, namesIn(source))
@@ -713,8 +713,8 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
     let docsAfter = docLines(text)
     if before == after && docsBefore == docsAfter then
       match meaningChange(file, text) with
-      | None -> Result.Ok(Formatted { text = text, asWritten = asWritten })
-      | Some(e) -> Result.Error(e)
+      | None -> Ok(Formatted { text = text, asWritten = asWritten })
+      | Some(e) -> Error(e)
     else
       let lost =
         Stdlib.List.concat(before, docsBefore)
@@ -723,7 +723,7 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
         |> Stdlib.List.head
         |> Stdlib.Option.withDefault("(their order)")
 
-      Result.Error($"formatting would change its comments, starting with: {lost}")
+      Error($"formatting would change its comments, starting with: {lost}")
 
 
 /// Each declaration in <param ds> with what it means, a module's by what is in it.
@@ -741,15 +741,15 @@ let meanings(file: File, path: String, ds: List<Declaration>): List<(String * St
 /// meaning of, or that it doesn't parse. None when every declaration means what it did.
 let meaningChange(file: File, formatted: String): Option<String> =
   if formatted == file.text then
-    Option.None
+    None
   else
     match parse(formatted) with
-    | Error(e) -> Option.Some($"formatting would leave it not parsing: {e}")
+    | Error(e) -> Some($"formatting would leave it not parsing: {e}")
     | Ok(after) ->
       let was = meanings(file, "", file.declarations)
       let now = meanings(after, "", after.declarations)
       if was == now then
-        Option.None
+        None
       else
         let first =
           Stdlib.List.zipShortest(was, now)
@@ -759,4 +759,4 @@ let meaningChange(file: File, formatted: String): Option<String> =
           |> Stdlib.Option.map(fun pair -> Stdlib.Tuple2.first(Stdlib.Tuple2.first(pair)))
           |> Stdlib.Option.withDefault("the declarations after the last one it keeps")
 
-        Option.Some($"formatting would change what {first} means")
+        Some($"formatting would change what {first} means")

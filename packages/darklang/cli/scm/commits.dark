@@ -135,7 +135,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let limit =
     match args with
     | [n] -> Stdlib.Int64.parse(n) |> Stdlib.Result.toOption
-    | _ -> Option.Some(20)
+    | _ -> Some(20)
 
   // A branch name is the thing people put here, because `dark log <branch>` takes one. Answering with
   // the help, or defaulting the count, would be answering plausibly rather than refusing.

@@ -41,7 +41,7 @@ let openBranchPicker(state: State): Step =
 /// Switch the process overlay before reading anything for the destination.
 /// Stay in the same view; Home keeps the switched branch selected.
 let switchWorkbenchBranch(state: State, id: Uuid, name: String): State =
-  let moved = onBranch({ state with overlay = Overlay.NoOverlay, input = Option.None }, id)
+  let moved = onBranch({ state with overlay = Overlay.NoOverlay, input = None }, id)
   let moved = { moved with filter = "", detailScroll = 0 }
   let items = reloadItems(moved)
   let selected =
@@ -99,9 +99,9 @@ let handleBranchPickerKey(
   | _ ->
     let field =
       if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.U then
-        Option.Some(Stdlib.Cli.UI.TextField.fromText(""))
+        Some(Stdlib.Cli.UI.TextField.fromText(""))
       else if modifiers.ctrl then
-        Option.None
+        None
       else
         Stdlib.Cli.UI.TextField.handleTextKey(
           picker.field,

@@ -31,79 +31,45 @@ module UserDefined =
 
   val unitValue = ()
 
-  val enumValue = Stdlib.Option.Option.Some(5)
+  val enumValue = Some(5)
 
 
   test values =
     Stdlib.Test.all(
       [ stringValue |> Stdlib.Test.equal("test")
-
         "test" |> Stdlib.Test.equal(stringValue)
-
         UserDefined.stringValue |> Stdlib.Test.equal("test")
-
         int64Value |> Stdlib.Test.equal(5)
-
         UserDefined.int64Value |> Stdlib.Test.equal(5)
-
         intValue |> Stdlib.Test.equal(5)
-
         UserDefined.intValue |> Stdlib.Test.equal(5)
-
         uint64Value |> Stdlib.Test.equal(5u64)
-
         UserDefined.uint64Value |> Stdlib.Test.equal(5u64)
-
         int32Value |> Stdlib.Test.equal(5s32)
-
         UserDefined.int32Value |> Stdlib.Test.equal(5s32)
-
         uint32Value |> Stdlib.Test.equal(5u32)
-
         UserDefined.uint32Value |> Stdlib.Test.equal(5u32)
-
         int16Value |> Stdlib.Test.equal(5s16)
-
         UserDefined.int16Value |> Stdlib.Test.equal(5s16)
-
         uint16Value |> Stdlib.Test.equal(5u16)
-
         UserDefined.uint16Value |> Stdlib.Test.equal(5u16)
-
         int8Value |> Stdlib.Test.equal(5s8)
-
         UserDefined.int8Value |> Stdlib.Test.equal(5s8)
-
         uint8Value |> Stdlib.Test.equal(5u8)
-
         UserDefined.uint8Value |> Stdlib.Test.equal(5u8)
-
         floatValue |> Stdlib.Test.equal(5.6)
-
         UserDefined.floatValue |> Stdlib.Test.equal(5.6)
-
         boolValue |> Stdlib.Test.equal(true)
-
         UserDefined.boolValue |> Stdlib.Test.equal(true)
-
         tupleValue |> Stdlib.Test.equal((1, 2, 3))
-
         UserDefined.tupleValue |> Stdlib.Test.equal((1, 2, 3))
-
         charValue |> Stdlib.Test.equal('c')
-
         UserDefined.charValue |> Stdlib.Test.equal('c')
-
         unitValue |> Stdlib.Test.equal(())
-
         UserDefined.unitValue |> Stdlib.Test.equal(())
-
-        enumValue |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
-
-        UserDefined.enumValue |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
-
-        Stdlib.Result.Result.Ok(5)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5)) ])
+        enumValue |> Stdlib.Test.equal(Some(5))
+        UserDefined.enumValue |> Stdlib.Test.equal(Some(5))
+        Ok(5) |> Stdlib.Test.equal(Ok(5)) ])
 
 
   type MyRecord =
@@ -139,5 +105,4 @@ module Package =
         Test.Values.tupleValue |> Stdlib.Test.equal((1, 2, 3))
         Test.Values.charValue |> Stdlib.Test.equal('c')
         Test.Values.unitValue |> Stdlib.Test.equal(())
-        Test.Values.enumValue
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5)) ])
+        Test.Values.enumValue |> Stdlib.Test.equal(Some(5)) ])

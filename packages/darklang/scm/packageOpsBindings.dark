@@ -35,8 +35,8 @@ let bindingFromOp(
   // An Override chooses a binding without recording an earlier version.
   let previous =
     match op with
-    | SetName(_, _, Some(h)) -> Option.Some(LanguageTools.ProgramTypes.hashToString(h))
-    | _ -> Option.None
+    | SetName(_, _, Some(h)) -> Some(LanguageTools.ProgramTypes.hashToString(h))
+    | _ -> None
 
   match op with
   | Decision(_, location, _, Override(target)) | SetName(location, target, _) ->
@@ -60,8 +60,8 @@ let bindingFromOp(
           author = ""
           previous = previous }
 
-    Option.Some((Conflicts.bindingKey(location.owner, modules, location.name), binding))
-  | _ -> Option.None
+    Some((Conflicts.bindingKey(location.owner, modules, location.name), binding))
+  | _ -> None
 
 
 /// What a name points to after applying the operations.
@@ -99,26 +99,23 @@ let nameEntriesFromOpRows(
         match effect with
         | Unbind(location, _) ->
           let modules = Stdlib.String.join(location.modules, ".")
-          Option.Some(
+          Some(
             (
-              bindingSortKey(ts, Option.None),
+              bindingSortKey(ts, None),
               Conflicts.bindingKey(location.owner, modules, location.name),
               NameWord
                 { owner = location.owner
                   modules = modules
                   name = location.name
-                  binding = Option.None }))
+                  binding = None }))
         | _ ->
           bindingFromOp(effect, ts)
           |> Stdlib.Option.map(fun((k, b)) ->
             (
-              bindingSortKey(b.originTs, Option.Some(b.hash)),
+              bindingSortKey(b.originTs, Some(b.hash)),
               k,
               NameWord
-                { owner = b.owner
-                  modules = b.modules
-                  name = b.name
-                  binding = Option.Some(b) }))))
+                { owner = b.owner, modules = b.modules, name = b.name, binding = Some(b) }))))
     |> Stdlib.List.flatten
 
   entries

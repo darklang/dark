@@ -36,18 +36,18 @@ module Lookup =
             f.name.name == "listMap" && f.name.version == 0s32))
 
         LanguageTools.findBuiltinFn("int64ToFloat64", 999s32)
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.findBuiltinFn("notARegisteredBuiltin", 0s32)
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         Stdlib.List.all(LanguageTools.allBuiltinValues(), fun value ->
           LanguageTools.findBuiltinValue(value.name.name, value.name.version)
-          == Stdlib.Option.Option.Some(value))
+          == Some(value))
         |> Stdlib.Test.equal(true)
 
         LanguageTools.findBuiltinValue("notARegisteredBuiltin", 0s32)
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
 module Resolution =

@@ -74,7 +74,7 @@ test shellQuoteRoundTrips =
 // A child on this process's own terminal still hands back its exit code.
 test inheritedChildExitCode =
   Stdlib.Cli.Process.__childInteractive("/bin/sh", [ "-c", "exit 5" ])
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5))
+  |> Stdlib.Test.equal(Ok(5))
 
 
 test capturesOutputAndExit =
@@ -172,19 +172,18 @@ test nonExecutableFileIsEacces =
     match Stdlib.Cli.Process.run(path, []) with
     | Error(error) -> Stdlib.Cli.Posix.Error.kind(error)
     | Ok(_) -> Stdlib.Cli.Posix.ErrorKind.Other)
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ErrorKind.PermissionDenied))
+  |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ErrorKind.PermissionDenied))
 
 
 test rejectsInvalidTimeout =
   Stdlib.Cli.Process.runWithTimeout(0, "/bin/true", [])
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error("timeoutMs must be positive"))
+  |> Stdlib.Test.equal(Error("timeoutMs must be positive"))
 
 
 test timesOut =
   Stdlib.Test.onRealClock(fun () ->
     Stdlib.Cli.Process.runWithTimeout(5, "/bin/sh", [ "-c", "sleep 1" ]))
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Process timed out"))
+  |> Stdlib.Test.equal(Error("Process timed out"))
 
 
 test interactiveRoundTrip =
@@ -217,23 +216,19 @@ test emptyInputDoesNotBlock =
 
 
 test invalidChildPoll =
-  Builtin.runtimeChildPoll(-1z)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+  Builtin.runtimeChildPoll(-1z) |> Stdlib.Test.equal(Error(9))
 
 
 test invalidChildDescriptors =
-  Builtin.runtimeChildDescriptors(-1z)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+  Builtin.runtimeChildDescriptors(-1z) |> Stdlib.Test.equal(Error(9))
 
 
 test invalidChildClose =
-  Builtin.runtimeChildClose(-1z)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+  Builtin.runtimeChildClose(-1z) |> Stdlib.Test.equal(Error(9))
 
 
 test reportsOS =
-  Stdlib.Cli.OS.getOS()
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Cli.OS.OS.Linux))
+  Stdlib.Cli.OS.getOS() |> Stdlib.Test.equal(Ok(Stdlib.Cli.OS.OS.Linux))
 
 
 test reportsRuntimeHost =

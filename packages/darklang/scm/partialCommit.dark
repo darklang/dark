@@ -56,7 +56,7 @@ let namingsFrom(entries: List<PackageOps.DraftEntry>): List<Selected> =
           LanguageTools.ProgramTypes.ItemKind.toString(
             LanguageTools.ProgramTypes.Reference.kind(target))
 
-        Option.Some(
+        Some(
           Selected
             { fqn = fqnOf(location)
               itemType = itemType
@@ -65,8 +65,8 @@ let namingsFrom(entries: List<PackageOps.DraftEntry>): List<Selected> =
                   LanguageTools.ProgramTypes.Reference.hash(target))
               opId = e.id
               ts = e.ts
-              metadataBefore = Option.None })
-      | _ -> Option.None))
+              metadataBefore = None })
+      | _ -> None))
   |> Stdlib.List.flatten
 
 
@@ -76,13 +76,13 @@ let draftAddedHashes(entries: List<PackageOps.DraftEntry>): List<String> =
   entries
   |> Stdlib.List.filterMap(fun e ->
     match e.op with
-    | AddFn(f) -> Option.Some(LanguageTools.ProgramTypes.hashToString(f.hash))
-    | AddType(t) -> Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-    | AddValue(v) -> Option.Some(LanguageTools.ProgramTypes.hashToString(v.hash))
-    | AddTrait(t) -> Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-    | AddTraitImpl(i) -> Option.Some(LanguageTools.ProgramTypes.hashToString(i.hash))
-    | AddTest(test) -> Option.Some(LanguageTools.ProgramTypes.hashToString(test.hash))
-    | _ -> Option.None)
+    | AddFn(f) -> Some(LanguageTools.ProgramTypes.hashToString(f.hash))
+    | AddType(t) -> Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+    | AddValue(v) -> Some(LanguageTools.ProgramTypes.hashToString(v.hash))
+    | AddTrait(t) -> Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+    | AddTraitImpl(i) -> Some(LanguageTools.ProgramTypes.hashToString(i.hash))
+    | AddTest(test) -> Some(LanguageTools.ProgramTypes.hashToString(test.hash))
+    | _ -> None)
 
 
 /// Find dependencies of these hashes that still have draft content or names.
@@ -134,17 +134,17 @@ let contentIdIfWanted(wantedHashes: List<String>, e: PackageOps.DraftEntry): Opt
 
   let target =
     match e.op with
-    | AddFn(f) -> Option.Some(hashOf(f.hash))
-    | AddType(t) -> Option.Some(hashOf(t.hash))
-    | AddValue(v) -> Option.Some(hashOf(v.hash))
-    | AddTrait(t) -> Option.Some(hashOf(t.hash))
-    | AddTraitImpl(i) -> Option.Some(hashOf(i.hash))
-    | AddTest(test) -> Option.Some(hashOf(test.hash))
-    | _ -> Option.None
+    | AddFn(f) -> Some(hashOf(f.hash))
+    | AddType(t) -> Some(hashOf(t.hash))
+    | AddValue(v) -> Some(hashOf(v.hash))
+    | AddTrait(t) -> Some(hashOf(t.hash))
+    | AddTraitImpl(i) -> Some(hashOf(i.hash))
+    | AddTest(test) -> Some(hashOf(test.hash))
+    | _ -> None
 
   match target with
-  | Some(h) -> if Stdlib.List.contains(wantedHashes, h) then Option.Some(e.id) else Option.None
-  | None -> Option.None
+  | Some(h) -> if Stdlib.List.contains(wantedHashes, h) then Some(e.id) else None
+  | None -> None
 
 
 /// Return this operation's ID if it updates documentation or deprecation for a selected name.
@@ -152,18 +152,14 @@ let contentIdIfWanted(wantedHashes: List<String>, e: PackageOps.DraftEntry): Opt
 let docIdIfWanted(wantedFqns: List<String>, e: PackageOps.DraftEntry): Option<String> =
   let location =
     match e.op with
-    | UpdateDoc(location, _, _, _, _) -> Option.Some(location)
-    | Deprecate(location, _, _, _, _) -> Option.Some(location)
-    | Undeprecate(location, _, _) -> Option.Some(location)
-    | _ -> Option.None
+    | UpdateDoc(location, _, _, _, _) -> Some(location)
+    | Deprecate(location, _, _, _, _) -> Some(location)
+    | Undeprecate(location, _, _) -> Some(location)
+    | _ -> None
 
   match location with
-  | Some(loc) ->
-    if Stdlib.List.contains(wantedFqns, fqnOf(loc)) then
-      Option.Some(e.id)
-    else
-      Option.None
-  | None -> Option.None
+  | Some(loc) -> if Stdlib.List.contains(wantedFqns, fqnOf(loc)) then Some(e.id) else None
+  | None -> None
 
 
 /// Which names `--include=` asked for that the draft doesn't hold.
@@ -255,16 +251,16 @@ let closeOverNamings(
         if Stdlib.List.contains(ids, entry.id) then
           match entry.op with
           | Rename(oldLocation, _, target, snapshots, _) ->
-            Option.Some(
+            Some(
               Stdlib.List.concat(
-                required(oldLocation, target, Option.Some(entry.ts)),
+                required(oldLocation, target, Some(entry.ts)),
                 snapshots
                 |> Stdlib.List.map(fun snapshot ->
-                  required(snapshot.location, snapshot.target, Option.Some(entry.ts)))
+                  required(snapshot.location, snapshot.target, Some(entry.ts)))
                 |> Stdlib.List.flatten))
-          | _ -> Option.None
+          | _ -> None
         else
-          Option.None)
+          None)
       |> Stdlib.List.flatten
 
     let next =

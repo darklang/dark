@@ -327,8 +327,7 @@ module Builtins =
       | Ok(ops) ->
         let report = LanguageTools.AtRestTypeChecker.checkPackageOps(ops)
         report.items
-        |> Stdlib.List.filter(fun i ->
-          Option.Some(i.item) == itemNamed(ops, "f"))
+        |> Stdlib.List.filter(fun i -> Some(i.item) == itemNamed(ops, "f"))
         |> Stdlib.List.map(fun i -> i.diagnostics)
         |> Stdlib.List.flatten
         |> Stdlib.List.map(fun issue ->

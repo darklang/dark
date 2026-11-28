@@ -115,31 +115,31 @@ module CommonPrefix =
        state,
        Stdlib.Cli.Stdin.Key.Key.Tab,
        mods,
-       Stdlib.Option.Option.None)).prompt.text
+       None)).prompt.text
 
 
 // `fil` with `filter` and `filterMap` completes to `filter`
 test commonPrefixExtendsPartial =
   CommonPrefix.extend("fil", [ "filter", "filterMap" ])
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("filter"))
+  |> Stdlib.Test.equal(Some("filter"))
 
 
 // once the shared part is typed, there is nothing to add, so the picker opens
 test commonPrefixAlreadyTyped =
   CommonPrefix.extend("filter", [ "filter", "filterMap" ])
-  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  |> Stdlib.Test.equal(None)
 
 
 // only the last argument is replaced
 test commonPrefixInArgument =
   CommonPrefix.extend("branch switch fea", [ "feature-a", "feature-b" ])
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("branch switch feature-"))
+  |> Stdlib.Test.equal(Some("branch switch feature-"))
 
 
 // completions that match without starting with the partial are left to the picker
 test commonPrefixNotAPrefixMatch =
   CommonPrefix.extend("Map", [ "filterMap", "flatMap" ])
-  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  |> Stdlib.Test.equal(None)
 
 
 // through the key handler: `commi` matches `commit` and `commits`

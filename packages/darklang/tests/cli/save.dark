@@ -373,7 +373,7 @@ module ImportSave =
   test otherIncompleteChecksExitZero =
     let warning =
       LanguageTools.AtRestTypeChecker.failureIssue(
-        Stdlib.Option.Option.None,
+        None,
         LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep)
 
     let report =

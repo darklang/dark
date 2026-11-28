@@ -199,10 +199,10 @@ module RuntimeError =
   let joinWithStringHint(left: ValueType, right: ValueType): ErrorSegments =
     let other =
       match left, right with
-      | Known(KTString), Known(KTString) -> Option.None
-      | Known(KTString), other -> Option.Some(other)
-      | other, Known(KTString) -> Option.Some(other)
-      | _ -> Option.None
+      | Known(KTString), Known(KTString) -> None
+      | Known(KTString), other -> Some(other)
+      | other, Known(KTString) -> Some(other)
+      | _ -> None
 
     match other with
     | Some(vt) when displayHint(vt) != "" ->

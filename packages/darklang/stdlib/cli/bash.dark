@@ -41,9 +41,9 @@ let addAlias(alias: String, command: String): Result<Unit, String> =
     match overwriteBashrc(updatedContent) with
     | Ok(()) ->
       printSourceHint()
-      Result.Ok()
-    | Error(e) -> Result.Error(e)
-  | Error(e) -> Result.Error(e)
+      Ok()
+    | Error(e) -> Error(e)
+  | Error(e) -> Error(e)
 
 
 /// Add a directory to PATH in .bashrc
@@ -52,17 +52,17 @@ let addToPath(dir: String): Result<Unit, String> =
 
   // A missing rc file is an empty one: a fresh account often has none, and refusing here used to
   // fail an install after the binary was already in place.
-  let existing = if FileSystem.pathExists("$HOME/.bashrc") then readBashrc() else Result.Ok("")
+  let existing = if FileSystem.pathExists("$HOME/.bashrc") then readBashrc() else Ok("")
   match existing with
   | Ok(content) ->
     // Check if PATH export for this dir already exists (not just any reference to the dir)
     if String.contains(content, exportLine) then
-      Result.Ok()
+      Ok()
     else
       let updatedContent = content + "\n" + exportLine
       match overwriteBashrc(updatedContent) with
       | Ok(()) ->
         printSourceHint()
-        Result.Ok()
-      | Error(e) -> Result.Error(e)
-  | Error(e) -> Result.Error(e)
+        Ok()
+      | Error(e) -> Error(e)
+  | Error(e) -> Error(e)

@@ -134,10 +134,10 @@ let initialStateFrom(
       selected = selectableRow(homeItems, 0, 1)
       focus = Stdlib.Cli.UI.SplitPane.Focus.First
       detailScroll = 0
-      reading = Option.None
+      reading = None
       readingIsCode = false
-      input = Option.None
-      editing = Option.None
+      input = None
+      editing = None
       accountId = accountId
       instanceName = instanceName
       message = ""

@@ -129,9 +129,9 @@ let execute(state: AppState, args: List<String>): AppState =
       | Some(depthArg) ->
         let depthStr = Stdlib.String.dropFirst(depthArg, 8)  // Remove "--depth="
         match Stdlib.Int64.parse(depthStr) with
-        | Ok(depth) when depth > 0 && depth <= 10 -> Option.Some(depth)
-        | _ -> Option.None
-      | None -> Option.Some(2)  // Default depth of 2 for concise but useful view
+        | Ok(depth) when depth > 0 && depth <= 10 -> Some(depth)
+        | _ -> None
+      | None -> Some(2)  // Default depth of 2 for concise but useful view
 
     match depth with
     | None ->
@@ -146,9 +146,9 @@ let execute(state: AppState, args: List<String>): AppState =
       // question, and says nothing about the path you gave.
       let startLocation =
         match pathArgs with
-        | [] -> Result.Ok(state.packageData.currentLocation)
+        | [] -> Ok(state.packageData.currentLocation)
         | [pathStr] -> Traversal.traverse(branchId, state.packageData.currentLocation, pathStr)
-        | _ -> Result.Error("tree takes at most one path")
+        | _ -> Error("tree takes at most one path")
 
       match startLocation with
       | Error(e) ->

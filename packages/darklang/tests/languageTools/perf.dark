@@ -65,7 +65,7 @@ test bestKeepsTheLowestOfEachField =
 
 
 test bestOfNothingIsNone =
-  LanguageTools.Perf.best([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  LanguageTools.Perf.best([]) |> Stdlib.Test.equal(None)
 
 
 // The counters are exact, so `ab` can be checked on them: 50 lambda applications against 10.

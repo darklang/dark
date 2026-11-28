@@ -55,7 +55,7 @@ let createValueInline(
           { writtenValue with
               description = Stdlib.Option.withDefault(description, writtenValue.description) }
 
-        Option.Some(
+        Some(
           saveAuthored(
             state,
             location,
@@ -73,10 +73,10 @@ let createValueInline(
                   LanguageTools.ProgramTypes.PackageOp.SetName(
                     location,
                     LanguageTools.ProgramTypes.Reference.PackageValue(packageValue.hash),
-                    Option.None) ]
+                    None) ]
 
-              Option.Some((ops, packageValue.hash, unresolvedNames))))
-      | _ -> Option.None)
+              Some((ops, packageValue.hash, unresolvedNames))))
+      | _ -> None)
 
 
 let help(_state: AppState): String =

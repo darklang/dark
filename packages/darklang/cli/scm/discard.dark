@@ -35,9 +35,9 @@ let restoreCallers(
       |> Stdlib.List.filterMap(fun target ->
         let hash = LanguageTools.ProgramTypes.Reference.hash(target)
         if LanguageTools.ProgramTypes.Reference.kind(target) == kind && hash != restored then
-          Option.Some(hash)
+          Some(hash)
         else
-          Option.None)
+          None)
       |> Stdlib.List.unique
 
     Packages.Propagate.repointNow(
@@ -56,9 +56,9 @@ let restoreCallers(
         edges
         |> Stdlib.List.filterMap(fun((caller, _, target, dependency)) ->
           if dependency == loc && Stdlib.List.contains(discarded, target) then
-            Option.Some(PropagateCmd.dotted(caller))
+            Some(PropagateCmd.dotted(caller))
           else
-            Option.None)
+            None)
         |> Stdlib.List.unique
         |> Stdlib.List.iter(fun caller ->
           Stderr.line(
@@ -130,9 +130,9 @@ let execute(state: AppState, args: List<String>): AppState =
             | Decision(_, location, _, Override(target))
             | Decision(_, location, _, Restore(_, target, _))
               when location == loc ->
-              Option.Some(target)
-            | Rename(_, location, target, _, _) when location == loc -> Option.Some(target)
-            | _ -> Option.None)
+              Some(target)
+            | Rename(_, location, target, _, _) when location == loc -> Some(target)
+            | _ -> None)
 
         match SCM.PackageOps.discardDraftName(loc.owner, loc.modules, loc.name) with
         | Ok(n) ->

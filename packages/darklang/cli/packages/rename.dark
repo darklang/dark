@@ -22,25 +22,23 @@ let referenceAt(
   let modulePath = Stdlib.List.prepend(location.modules, location.owner)
   let results = Query.searchExactMatch(branchId, modulePath, location.name)
   match results.fns with
-  | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn(i.entity.hash))
+  | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageFn(i.entity.hash))
   | [] ->
     match results.types with
-    | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageType(i.entity.hash))
+    | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageType(i.entity.hash))
     | [] ->
       match results.values with
-      | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue(i.entity.hash))
+      | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageValue(i.entity.hash))
       | [] ->
         match results.traits with
-        | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait(i.entity.hash))
+        | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageTrait(i.entity.hash))
         | [] ->
           match results.impls with
-          | [i, ...] ->
-            Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.entity.hash))
+          | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.entity.hash))
           | [] ->
             match results.tests with
-            | [i, ...] ->
-              Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest(i.entity.hash))
-            | [] -> Option.None
+            | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageTest(i.entity.hash))
+            | [] -> None
 
 
 let execute(state: AppState, args: List<String>): AppState =

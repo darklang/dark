@@ -71,10 +71,10 @@ let createTraitInline(
           Stdlib.Cli.UI.Colors.hint(
             $"Rename it to `trait {location.name}<...> = ...`, or change the target."))
 
-        Option.Some(failed(state))
+        Some(failed(state))
       | Trait(t) ->
         let t = { t with description = Stdlib.Option.withDefault(description, t.description) }
-        Option.Some(
+        Some(
           saveAuthored(
             state,
             location,
@@ -85,8 +85,8 @@ let createTraitInline(
               let (packageTrait, ops, unresolvedNames) =
                 LanguageTools.WrittenTypesToProgramTypes.traitWithOps(ctx, t)
 
-              Option.Some((ops, packageTrait.hash, unresolvedNames))))
-      | _ -> Option.None)
+              Some((ops, packageTrait.hash, unresolvedNames))))
+      | _ -> None)
 
 
 let help(_state: AppState): String =

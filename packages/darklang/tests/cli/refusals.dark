@@ -333,10 +333,10 @@ test eachRefusalSaysWhyOnStderrAndExits1 = Instance.withInstance(fun i ->
       let (args, reason) = row
       let (code, out, err) = streams(i, args)
       if code == 1 && out == "" && err == reason then
-        Stdlib.Option.Option.None
+        None
       else
         let cmd = Stdlib.String.join(args, " ")
-        Stdlib.Option.Option.Some(
+        Some(
           $"  dark {cmd} -> exit {Stdlib.display(code)}, stdout {Stdlib.inspect(out)}, stderr {Stdlib.inspect(err)}"))
 
   Stdlib.Test.expect(

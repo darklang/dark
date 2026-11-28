@@ -31,7 +31,7 @@ module PermissionsEdits =
   test removingOneRuleKeepsOtherGrantsAndDenies =
     Cli.Permissions.Command.removeApprovalRules(saved(), [ clock ])
     |> Stdlib.Test.equal(
-      Result.Ok(
+      Ok(
         LanguageTools.Permissions.Policy
           { allow = [ random ], deny = [ native ] }))
 
@@ -39,13 +39,12 @@ module PermissionsEdits =
   test missingRuleRefusesTheWholeEdit =
     Cli.Permissions.Command.removeApprovalRules(saved(), [ clock, stdout ])
     |> Stdlib.Test.equal(
-      Result.Error("A requested rule is not saved; nothing was removed."))
+      Error("A requested rule is not saved; nothing was removed."))
 
 
   test emptyRuleListNeedsAnExplicitChoice =
     Cli.Permissions.Command.removeApprovalRules(saved(), [])
-    |> Stdlib.Test.equal(
-      Result.Error("Give a saved rule to remove, or use --all."))
+    |> Stdlib.Test.equal(Error("Give a saved rule to remove, or use --all."))
 
 
   test matchingRulesAreRemovedFromBothLists =
@@ -55,7 +54,7 @@ module PermissionsEdits =
 
     Cli.Permissions.Command.removeApprovalRules(policy, [ clock ])
     |> Stdlib.Test.equal(
-      Result.Ok(
+      Ok(
         LanguageTools.Permissions.Policy
           { allow = [ random ], deny = [ native ] }))
 
@@ -65,7 +64,7 @@ module PermissionsEdits =
       LanguageTools.Permissions.Policy { allow = [ clock ], deny = [] }
 
     Cli.Permissions.Command.removeApprovalRules(policy, [ clock ])
-    |> Stdlib.Test.equal(Result.Ok(LanguageTools.Permissions.empty()))
+    |> Stdlib.Test.equal(Ok(LanguageTools.Permissions.empty()))
 
 
   test instanceEditsRemoveBeforeAdding =
@@ -95,9 +94,9 @@ module PermissionsEdits =
   let named(name: String, hash: String): LanguageTools.Permissions.Approval =
     LanguageTools.Permissions.Approval
       { hash = hash
-        name = Option.Some(name)
-        policy = Option.Some(saved())
-        explicitRules = Option.None }
+        name = Some(name)
+        policy = Some(saved())
+        explicitRules = None }
 
 
   test hashRemovalSelectsEveryAliasAndOnlyThatVersion =
@@ -110,13 +109,10 @@ module PermissionsEdits =
   test unknownHashKeepsItsUnnamedPlaceholder =
     Cli.Permissions.Command.approvalsMatching(
       [ named("Me.other", "J") ],
-      Option.Some("H"))
+      Some("H"))
     |> Stdlib.Test.equal(
       [ LanguageTools.Permissions.Approval
-          { hash = "H"
-            name = Option.None
-            policy = Option.None
-            explicitRules = Option.None } ])
+          { hash = "H", name = None, policy = None, explicitRules = None } ])
 
 
   test versionsKeepDistinctNamesForIdenticalCode =

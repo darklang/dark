@@ -38,7 +38,7 @@ test telemetryLogRotatesPast64MB = Instance.withInstance(fun i ->
 
       ran
       |> Stdlib.Result.map(fun o -> o.exitCode)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+      |> Stdlib.Test.equal(Ok(0))
 
       sizeOf(log + ".1") |> Stdlib.Test.equal("67108865")
 

@@ -68,14 +68,14 @@ let annotate(
       Stdlib.List.prepend(
         TraceVerbs.whyEmpty("run something that calls it"),
         $"no recorded trace went through {fn} yet"),
-      Option.None)
+      None)
   | Some(r) ->
     let entry = LanguageTools.ProgramTypes.parsePackageLocation(fn)
     match LanguageTools.PackageManager.Function.find(branchId, entry) with
-    | None -> ([ $"no function named {fn} on this branch" ], Option.None)
+    | None -> ([ $"no function named {fn} on this branch" ], None)
     | Some(hash) ->
       match LanguageTools.PackageManager.Function.get(hash) with
-      | None -> ([ $"{fn} resolves to a version this store cannot load" ], Option.None)
+      | None -> ([ $"{fn} resolves to a version this store cannot load" ], None)
       | Some(fnDef) ->
         let (collected, stop) = Tracing.Store.viewTrace(accountID, branchId, r.id)
         let problem = TraceVerbs.problemJson(branchId, r.id, stop)
@@ -104,7 +104,7 @@ let pickCursor(ids: List<String>, cursor: Int64, keep: Option<String>): Int64 =
   let found =
     match keep with
     | Some(id) -> Stdlib.List.findFirstIndex(ids, fun i -> i == id)
-    | None -> Option.None
+    | None -> None
 
   match found with
   | Some(i) -> i
@@ -165,12 +165,12 @@ let reload(
 
 
 let init(): Model =
-  let accountID = Option.None
+  let accountID = None
   let branchId = SCM.PackageOps.currentBranch()
 
   // `traces show <fn> --watch` sets it before opening this view; unset, nothing is followed.
   let fn = Stdlib.Option.withDefault(LanguageTools.LocalStore.configGet(fnKey), "")
-  reload(accountID, branchId, fn, 0, Option.None)
+  reload(accountID, branchId, fn, 0, None)
 
 
 let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
@@ -189,8 +189,8 @@ let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
     reload(m.accountID, m.branchId, m.fn, m.cursor, here)
   | Key(k) ->
     match k.key with
-    | UpArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor - 1, Option.None)
-    | DownArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor + 1, Option.None)
+    | UpArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor - 1, None)
+    | DownArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor + 1, None)
     | _ -> m
 
 

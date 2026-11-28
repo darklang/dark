@@ -41,16 +41,16 @@ let overlay(existing: List<Segment>, next: Segment): List<Segment> =
       |> List.filterMap(fun seg ->
         let segEnd = seg.col + seg.width
         if segEnd <= next.col || seg.col >= nextEnd then
-          Option.Some(seg)
+          Some(seg)
         else if seg.col < next.col then
           let keepWidth = next.col - seg.col
-          Option.Some(
+          Some(
             Segment
               { col = seg.col
                 text = Tui.Text.clipToWidth(seg.text, keepWidth)
                 width = keepWidth })
         else
-          Option.None)
+          None)
 
     List.append(kept, next)
 

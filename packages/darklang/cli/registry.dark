@@ -987,11 +987,10 @@ module Registry =
     commands: List<CommandHandler>,
     name: String)
     : Result<CommandHandler, List<String>> =
-    match
-      commands
-      |> Stdlib.List.findFirst(fun cmd -> cmd.name == name || Stdlib.List.contains(cmd.aliases, name))
-    with
-    | Some(handler) -> Result.Ok(handler)
+    match commands
+          |> Stdlib.List.findFirst(fun cmd ->
+            cmd.name == name || Stdlib.List.contains(cmd.aliases, name)) with
+    | Some(handler) -> Ok(handler)
     | None ->
       let names =
         commands
@@ -1018,6 +1017,7 @@ module Registry =
             (fun(state, args) ->
                Stdlib.printErrorLine(
                  View.formatError($"Unknown command: {name}.{Accepts.nearHint(near)}"))
+
                Stdlib.printErrorLine("Use 'help' to see available commands.")
                { state with exitCode = 1 })
           help = (fun _state -> $"No help available for command: {name}")
@@ -1194,11 +1194,11 @@ module Registry =
         match Stdlib.List.findFirst(commands, fun cmd -> cmd.name == name) with
         | Some(cmd) ->
           match cmd.aliases with
-          | [] -> Option.Some($"  {cmd.name} - {cmd.description}")
+          | [] -> Some($"  {cmd.name} - {cmd.description}")
           | aliases ->
             let aliasText = Stdlib.String.join(aliases, ", ")
-            Option.Some($"  {cmd.name} ({aliasText}) - {cmd.description}")
-        | None -> Option.None)
+            Some($"  {cmd.name} ({aliasText}) - {cmd.description}")
+        | None -> None)
 
     let commandLines = Stdlib.String.join(formattedCommands, "\n")
     $"{groupName}:\n{commandLines}"

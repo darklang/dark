@@ -46,12 +46,12 @@ let exprsAsValues(
 
     [ LanguageTools.ProgramTypes.PackageOp.AddValue(
         LanguageTools.ProgramTypes.PackageValue.PackageValue
-          { hash = placeholder, body = e, description = "", typ = Option.None })
+          { hash = placeholder, body = e, description = "", typ = None })
 
       LanguageTools.ProgramTypes.PackageOp.SetName(
         location,
         LanguageTools.ProgramTypes.Reference.PackageValue(placeholder),
-        Stdlib.Option.Option.None) ])
+        None) ])
   |> Stdlib.List.flatten
 
 
@@ -60,19 +60,13 @@ let addedHash(
   op: LanguageTools.ProgramTypes.PackageOp)
   : Stdlib.Option.Option<String> =
   match op with
-  | AddType(t) ->
-    Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-  | AddValue(v) ->
-    Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(v.hash))
-  | AddFn(f) ->
-    Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(f.hash))
-  | AddTrait(t) ->
-    Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-  | AddTraitImpl(i) ->
-    Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(i.hash))
-  | AddTest(t) ->
-    Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(t.hash))
-  | _ -> Stdlib.Option.Option.None
+  | AddType(t) -> Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+  | AddValue(v) -> Some(LanguageTools.ProgramTypes.hashToString(v.hash))
+  | AddFn(f) -> Some(LanguageTools.ProgramTypes.hashToString(f.hash))
+  | AddTrait(t) -> Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+  | AddTraitImpl(i) -> Some(LanguageTools.ProgramTypes.hashToString(i.hash))
+  | AddTest(t) -> Some(LanguageTools.ProgramTypes.hashToString(t.hash))
+  | _ -> None
 
 
 /// Swap each parsed item for its stabilized self, found by its placeholder hash.
@@ -83,7 +77,7 @@ let restabilize(
   let look = fun op ->
     match addedHash(op) with
     | Some(h) -> Stdlib.Dict.get(stable, h)
-    | None -> Stdlib.Option.Option.None
+    | None -> None
 
   match decl with
   | Type(t) ->
@@ -177,8 +171,8 @@ let stabilize(
     Stdlib.List.zipShortest(all, stableAll)
     |> Stdlib.List.filterMap(fun((before, after)) ->
       match addedHash(before) with
-      | Some(h) -> Stdlib.Option.Option.Some((h, after))
-      | None -> Stdlib.Option.Option.None)
+      | Some(h) -> Some((h, after))
+      | None -> None)
     |> Stdlib.Dict.fromList
 
   let stableExprs =
@@ -240,9 +234,7 @@ let parseOnAs(
   source: String)
   : Stdlib.Result.Result<Parsed, String> =
   match LanguageTools.Parser.Parse.initialParseAs(kind, source) with
-  | Error(e) ->
-    Stdlib.Result.Result.Error(
-      LanguageTools.Parser.Parse.ParseError.toString(e))
+  | Error(e) -> Error(LanguageTools.Parser.Parse.ParseError.toString(e))
   | Ok(parsedFile) ->
     let (tree, ops, unresolved) =
       LanguageTools.WrittenTypesToProgramTypes.parsedFileAsSourceFile(
@@ -250,7 +242,7 @@ let parseOnAs(
         parsedFile)
 
     let (stableTree, stableOps, exprHashes) = stabilize(tree, ops)
-    Stdlib.Result.Result.Ok(
+    Ok(
       Parsed
         { tree = stableTree
           ops = stableOps
@@ -284,12 +276,12 @@ let bindings(ops: List<LanguageTools.ProgramTypes.PackageOp>): List<String> =
       let path =
         Stdlib.String.join(Stdlib.List.prepend(loc.modules, loc.owner), ".")
 
-      Stdlib.Option.Option.Some(
+      Some(
         $"bind {kind} {path}.{loc.name} {LanguageTools.ProgramTypes.hashToString(hash)}")
     | _ ->
       match addedHash(op) with
-      | Some(h) -> Stdlib.Option.Option.Some("content " + h)
-      | None -> Stdlib.Option.Option.None)
+      | Some(h) -> Some("content " + h)
+      | None -> None)
 
 
 let problemUnless(same: Bool, label: String, what: String): List<String> =
@@ -582,11 +574,11 @@ let runsDeclaredFn(
       |> Stdlib.List.filterMap(fun op ->
         match op with
         | SetName(loc, PackageFn(_), _) ->
-          Stdlib.Option.Option.Some(
+          Some(
             Stdlib.String.join(
               Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ]),
               "."))
-        | _ -> Stdlib.Option.Option.None)
+        | _ -> None)
 
     match fnNames with
     | [fnName] ->

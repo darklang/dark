@@ -31,27 +31,27 @@ test fromChar =
       Stdlib.String.toList("1")
       |> Stdlib.List.head
       |> Stdlib.Option.map(Stdlib.String.fromChar)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("1"))
+      |> Stdlib.Test.equal(Some("1"))
 
       Stdlib.String.toList("👩‍👩‍👧‍👦")
       |> Stdlib.List.head
       |> Stdlib.Option.map(Stdlib.String.fromChar)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("👩‍👩‍👧‍👦"))
+      |> Stdlib.Test.equal(Some("👩‍👩‍👧‍👦"))
 
       Stdlib.String.toList("🏳️‍⚧️‍️")
       |> Stdlib.List.head
       |> Stdlib.Option.map(Stdlib.String.fromChar)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("🏳️‍⚧️‍️"))
+      |> Stdlib.Test.equal(Some("🏳️‍⚧️‍️"))
 
       Stdlib.String.toList("👱🏾")
       |> Stdlib.List.head
       |> Stdlib.Option.map(Stdlib.String.fromChar)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("👱🏾"))
+      |> Stdlib.Test.equal(Some("👱🏾"))
 
       Stdlib.String.toList("Z̤͔ͧ̑̓")
       |> Stdlib.List.head
       |> Stdlib.Option.map(Stdlib.String.fromChar)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Z̤͔ͧ̑̓")) ])
+      |> Stdlib.Test.equal(Some("Z̤͔ͧ̑̓")) ])
 
 
 test fromList =
@@ -619,72 +619,64 @@ test splitFastPath =
 test splitFirst =
   Stdlib.Test.all(
     [ Stdlib.String.splitFirst("a|b", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("a", "b")))
+      |> Stdlib.Test.equal(Some(("a", "b")))
 
       Stdlib.String.splitFirst("a|b|c|d", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("a", "b|c|d")))
+      |> Stdlib.Test.equal(Some(("a", "b|c|d")))
 
       Stdlib.String.splitFirst("key=value", "=")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("key", "value")))
+      |> Stdlib.Test.equal(Some(("key", "value")))
 
       Stdlib.String.splitFirst("PATH=/usr/bin:/bin", "=")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("PATH", "/usr/bin:/bin")))
+      |> Stdlib.Test.equal(Some(("PATH", "/usr/bin:/bin")))
 
       Stdlib.String.splitFirst("Date: Wed, 14 May 2026 09:00:00 GMT", ": ")
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(("Date", "Wed, 14 May 2026 09:00:00 GMT")))
+      |> Stdlib.Test.equal(Some(("Date", "Wed, 14 May 2026 09:00:00 GMT")))
 
-      Stdlib.String.splitFirst("abc", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitFirst("abc", "|") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.splitFirst("", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitFirst("", "|") |> Stdlib.Test.equal(None)
 
       Stdlib.String.splitFirst("|abc", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("", "abc")))
+      |> Stdlib.Test.equal(Some(("", "abc")))
 
       Stdlib.String.splitFirst("abc|", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("abc", "")))
+      |> Stdlib.Test.equal(Some(("abc", "")))
 
-      Stdlib.String.splitFirst("||", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("", "|")))
+      Stdlib.String.splitFirst("||", "|") |> Stdlib.Test.equal(Some(("", "|")))
 
       Stdlib.String.splitFirst("a==b==c", "==")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("a", "b==c")))
+      |> Stdlib.Test.equal(Some(("a", "b==c")))
 
-      Stdlib.String.splitFirst("no-sep-here", "==")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitFirst("no-sep-here", "==") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.splitFirst("abc", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitFirst("abc", "") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.splitFirst("", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitFirst("", "") |> Stdlib.Test.equal(None)
 
       Stdlib.String.splitFirst("hello😄world", "😄")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("hello", "world")))
+      |> Stdlib.Test.equal(Some(("hello", "world")))
 
       Stdlib.String.splitFirst("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("🧑🏽‍🦰", "🧑🏻‍🍼")))
+      |> Stdlib.Test.equal(Some(("🧑🏽‍🦰", "🧑🏻‍🍼")))
 
       // ZWJ separator at start, end, and with non-BMP prefix.
       Stdlib.String.splitFirst("🧑🏼‍💻rest", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("", "rest")))
+      |> Stdlib.Test.equal(Some(("", "rest")))
 
       Stdlib.String.splitFirst("rest🧑🏼‍💻", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("rest", "")))
+      |> Stdlib.Test.equal(Some(("rest", "")))
 
       Stdlib.String.splitFirst("żółw🧑🏼‍💻tail", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("żółw", "tail")))
+      |> Stdlib.Test.equal(Some(("żółw", "tail")))
 
       // BMP-but-multi-char-codepoint prefix (combining marks): "ą́" is "a" +
       // combining acute.
       Stdlib.String.splitFirst("ą́|b", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("ą́", "b")))
+      |> Stdlib.Test.equal(Some(("ą́", "b")))
 
       // Mid-grapheme search returns None: 🧑 alone is not a complete EGC of 🧑🏼‍💻.
-      Stdlib.String.splitFirst("🧑🏼‍💻", "🧑")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.String.splitFirst("🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None) ])
 
 
 test filter =
@@ -712,24 +704,19 @@ test filterMap =
   Stdlib.Test.all(
     [ Stdlib.String.filterMap("a-b_c", fun c ->
         if c == '-' then
-          Stdlib.Option.Option.None
+          None
         else if c == '_' then
-          Stdlib.Option.Option.Some(' ')
+          Some(' ')
         else
-          Stdlib.Option.Option.Some(Stdlib.Char.toUppercase(c)))
+          Some(Stdlib.Char.toUppercase(c)))
       |> Stdlib.Test.equal("AB C")
 
-      Stdlib.String.filterMap("", fun c -> Stdlib.Option.Option.Some(c))
-      |> Stdlib.Test.equal("")
+      Stdlib.String.filterMap("", fun c -> Some(c)) |> Stdlib.Test.equal("")
 
-      Stdlib.String.filterMap("abc", fun _ -> Stdlib.Option.Option.None)
-      |> Stdlib.Test.equal("")
+      Stdlib.String.filterMap("abc", fun _ -> None) |> Stdlib.Test.equal("")
 
       Stdlib.String.filterMap("x🧑🏼‍💻y", fun c ->
-        if c == 'x' then
-          Stdlib.Option.Option.None
-        else
-          Stdlib.Option.Option.Some(c))
+        if c == 'x' then None else Some(c))
       |> Stdlib.Test.equal("🧑🏼‍💻y") ])
 
 
@@ -755,119 +742,95 @@ test flatMap =
 
 test splitLast =
   Stdlib.Test.all(
-    [ Stdlib.String.splitLast("a|b", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("a", "b")))
+    [ Stdlib.String.splitLast("a|b", "|") |> Stdlib.Test.equal(Some(("a", "b")))
 
       Stdlib.String.splitLast("a|b|c|d", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("a|b|c", "d")))
+      |> Stdlib.Test.equal(Some(("a|b|c", "d")))
 
       Stdlib.String.splitLast("archive.tar.gz", ".")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("archive.tar", "gz")))
+      |> Stdlib.Test.equal(Some(("archive.tar", "gz")))
 
-      Stdlib.String.splitLast("abc", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitLast("abc", "|") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.splitLast("", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitLast("", "|") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.splitLast("abc", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.splitLast("abc", "") |> Stdlib.Test.equal(None)
 
       Stdlib.String.splitLast("|abc", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("", "abc")))
+      |> Stdlib.Test.equal(Some(("", "abc")))
 
       Stdlib.String.splitLast("abc|", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("abc", "")))
+      |> Stdlib.Test.equal(Some(("abc", "")))
 
-      Stdlib.String.splitLast("||", "|")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("|", "")))
+      Stdlib.String.splitLast("||", "|") |> Stdlib.Test.equal(Some(("|", "")))
 
       Stdlib.String.splitLast("a==b==c", "==")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("a==b", "c")))
+      |> Stdlib.Test.equal(Some(("a==b", "c")))
 
       Stdlib.String.splitLast("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼🧑🏼‍💻x", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼", "x")))
+      |> Stdlib.Test.equal(Some(("🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼", "x")))
 
       Stdlib.String.splitLast("żółw.ł", ".")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("żółw", "ł")))
+      |> Stdlib.Test.equal(Some(("żółw", "ł")))
 
       // Mid-grapheme search returns None: 🧑 alone is not a complete EGC of 🧑🏼‍💻.
-      Stdlib.String.splitLast("🧑🏼‍💻", "🧑")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.String.splitLast("🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None) ])
 
 
 test stripPrefix =
   Stdlib.Test.all(
     [ Stdlib.String.stripPrefix("--verbose", "--")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("verbose"))
+      |> Stdlib.Test.equal(Some("verbose"))
 
-      Stdlib.String.stripPrefix("verbose", "--")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.stripPrefix("verbose", "--") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.stripPrefix("abc", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("abc"))
+      Stdlib.String.stripPrefix("abc", "") |> Stdlib.Test.equal(Some("abc"))
 
-      Stdlib.String.stripPrefix("abc", "abc")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(""))
+      Stdlib.String.stripPrefix("abc", "abc") |> Stdlib.Test.equal(Some(""))
 
-      Stdlib.String.stripPrefix("ab", "abc")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.stripPrefix("ab", "abc") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.stripPrefix("", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(""))
+      Stdlib.String.stripPrefix("", "") |> Stdlib.Test.equal(Some(""))
 
-      Stdlib.String.stripPrefix("", "a")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.stripPrefix("", "a") |> Stdlib.Test.equal(None)
 
       // Only the first occurrence is removed.
-      Stdlib.String.stripPrefix("aaa", "a")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("aa"))
+      Stdlib.String.stripPrefix("aaa", "a") |> Stdlib.Test.equal(Some("aa"))
 
       Stdlib.String.stripPrefix("🧑🏼‍💻rest", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("rest"))
+      |> Stdlib.Test.equal(Some("rest"))
 
-      Stdlib.String.stripPrefix("żółw", "żó")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("łw"))
+      Stdlib.String.stripPrefix("żółw", "żó") |> Stdlib.Test.equal(Some("łw"))
 
       // "ą́" is "a" + combining acute; "a" alone is not a whole grapheme of it.
-      Stdlib.String.stripPrefix("ą́b", "a")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.stripPrefix("ą́b", "a") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.stripPrefix("🧑🏼‍💻", "🧑")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.String.stripPrefix("🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None) ])
 
 
 test stripSuffix =
   Stdlib.Test.all(
     [ Stdlib.String.stripSuffix("notes.txt", ".txt")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("notes"))
+      |> Stdlib.Test.equal(Some("notes"))
 
-      Stdlib.String.stripSuffix("notes.md", ".txt")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.stripSuffix("notes.md", ".txt") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.stripSuffix("abc", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("abc"))
+      Stdlib.String.stripSuffix("abc", "") |> Stdlib.Test.equal(Some("abc"))
 
-      Stdlib.String.stripSuffix("abc", "abc")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(""))
+      Stdlib.String.stripSuffix("abc", "abc") |> Stdlib.Test.equal(Some(""))
 
-      Stdlib.String.stripSuffix("bc", "abc")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.stripSuffix("bc", "abc") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.stripSuffix("", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(""))
+      Stdlib.String.stripSuffix("", "") |> Stdlib.Test.equal(Some(""))
 
-      Stdlib.String.stripSuffix("aaa", "a")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("aa"))
+      Stdlib.String.stripSuffix("aaa", "a") |> Stdlib.Test.equal(Some("aa"))
 
       Stdlib.String.stripSuffix("rest🧑🏼‍💻", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("rest"))
+      |> Stdlib.Test.equal(Some("rest"))
 
-      Stdlib.String.stripSuffix("żółw", "łw")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("żó"))
+      Stdlib.String.stripSuffix("żółw", "łw") |> Stdlib.Test.equal(Some("żó"))
 
-      Stdlib.String.stripSuffix("🧑🏼‍💻", "💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.String.stripSuffix("🧑🏼‍💻", "💻") |> Stdlib.Test.equal(None) ])
 
 
 test splitN =
@@ -1518,73 +1481,55 @@ test contains =
 test slice =
   Stdlib.Test.all(
     [ Stdlib.String.slice("abcd", -2, 4)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("a\r\nb", 1, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("\r\n"))
+      Stdlib.String.slice("a\r\nb", 1, 2) |> Stdlib.Test.equal(Ok("\r\n"))
 
       Stdlib.String.last("a\r\n", 1) |> Stdlib.Test.equal("\r\n")
 
       Stdlib.String.slice("abcd", -5, -6)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", -5, 1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", 0, -1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("abcd", 2, 3)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("c"))
+      Stdlib.String.slice("abcd", 2, 3) |> Stdlib.Test.equal(Ok("c"))
 
-      Stdlib.String.slice("abcd", 0, 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcd"))
+      Stdlib.String.slice("abcd", 0, 4) |> Stdlib.Test.equal(Ok("abcd"))
 
-      Stdlib.String.slice("abcd", 4, 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      Stdlib.String.slice("abcd", 4, 4) |> Stdlib.Test.equal(Ok(""))
 
-      Stdlib.String.slice("", 0, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      Stdlib.String.slice("", 0, 0) |> Stdlib.Test.equal(Ok(""))
 
       Stdlib.String.slice("abcd", 2, 6)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", 3, 2)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
       Stdlib.String.slice("abcd", 5, 6)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", 2, 5)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("✋✋🏻✋🏿"))
+      Stdlib.String.slice("🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", 2, 5) |> Stdlib.Test.equal(Ok("✋✋🏻✋🏿"))
 
-      Stdlib.String.slice("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇", 1, 3)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("ä͖̭̈̇lͮ̒ͫ"))
+      Stdlib.String.slice("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇", 1, 3) |> Stdlib.Test.equal(Ok("ä͖̭̈̇lͮ̒ͫ"))
 
       Stdlib.String.slice("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽", 2, 6)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("﷽﷽﷽﷽"))
+      |> Stdlib.Test.equal(Ok("﷽﷽﷽﷽"))
 
       Stdlib.String.slice("👱👱🏻👱🏼👱🏽👱🏾👱🏿", 2, 6)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("👱🏼👱🏽👱🏾👱🏿"))
+      |> Stdlib.Test.equal(Ok("👱🏼👱🏽👱🏾👱🏿"))
 
       Stdlib.String.slice("🧟‍♀️🧟‍♂️", 2, 4)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", 2, 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("🏳️‍⚧️‍️🇵🇷"))
+      Stdlib.String.slice("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", 2, 4) |> Stdlib.Test.equal(Ok("🏳️‍⚧️‍️🇵🇷"))
 
       Stdlib.String.slice("abc", 0, 4503599627370498)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.String.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds)) ])
 
 
 test first =
@@ -1693,141 +1638,109 @@ test padEnd =
 test indexOf =
   Stdlib.Test.all(
     [ Stdlib.String.indexOf("hello world", "world")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(6))
+      |> Stdlib.Test.equal(Some(6))
 
-      Stdlib.String.indexOf("hello world", "earth")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf("hello world", "earth") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.indexOf("", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.String.indexOf("", "") |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.String.indexOf("hello", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.String.indexOf("hello", "") |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.String.indexOf("", "hello")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf("", "hello") |> Stdlib.Test.equal(None)
 
       // Counted in EGCs: "👱👱🏻" is 2, "👨‍❤️‍💋‍👨" is 1, "żółw" is 4.
       Stdlib.String.indexOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼👱🏽")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      |> Stdlib.Test.equal(Some(2))
 
-      Stdlib.String.indexOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼👱🏿")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼👱🏿") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.indexOf("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "👩‍👩‍👧‍👦")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.String.indexOf("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "👩‍👩‍👧‍👦") |> Stdlib.Test.equal(Some(1))
 
       Stdlib.String.indexOf("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", "🧑🏽‍🦰")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      |> Stdlib.Test.equal(Some(4))
 
-      Stdlib.String.indexOf("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", "👱🏽")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", "👱🏽") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.indexOf("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "🧑🏻‍🍼")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "🧑🏻‍🍼") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.indexOf("🇺🇸🇵🇷", "🇵🇷")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.String.indexOf("🇺🇸🇵🇷", "🇵🇷") |> Stdlib.Test.equal(Some(1))
 
-      Stdlib.String.indexOf(decomposedEx(), "x")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.String.indexOf(decomposedEx(), "x") |> Stdlib.Test.equal(Some(1))
 
-      Stdlib.String.indexOf("éx", "x")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.String.indexOf("éx", "x") |> Stdlib.Test.equal(Some(1))
 
       // A match must start and end on EGC boundaries.
-      Stdlib.String.indexOf("🧑🏼‍💻", "🧑")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf("🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.indexOf("🧑🧑🏼‍💻", "🧑")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.String.indexOf("🧑🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.String.indexOf("👍🏽👍", "👍")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.String.indexOf("👍🏽👍", "👍") |> Stdlib.Test.equal(Some(1))
 
-      Stdlib.String.indexOf("👩‍👩‍👧👩", "👩")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.String.indexOf("👩‍👩‍👧👩", "👩") |> Stdlib.Test.equal(Some(1))
 
-      Stdlib.String.indexOf("🇵🇷🇺🇸", "🇷🇺")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf("🇵🇷🇺🇸", "🇷🇺") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.indexOf(decomposedEx(), "e")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.indexOf(decomposedEx(), "e") |> Stdlib.Test.equal(None)
 
       // Mostly ASCII, with clusters that are not before, between and after the matches.
       Stdlib.String.indexOf("hello 👍🏽 world 👍", "👍")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(14))
+      |> Stdlib.Test.equal(Some(14))
 
-      Stdlib.String.indexOf("a b👍🏽 a", "a")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.String.indexOf("a b👍🏽 a", "a") |> Stdlib.Test.equal(Some(0))
 
       Stdlib.String.indexOf("ab" + decomposedEx(), "x")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      |> Stdlib.Test.equal(Some(3))
 
       Stdlib.String.indexOf("ab" + decomposedEx(), "be")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 test lastIndexOf =
   Stdlib.Test.all(
     [ Stdlib.String.lastIndexOf("hello world hello", "hello")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(12))
+      |> Stdlib.Test.equal(Some(12))
 
       Stdlib.String.lastIndexOf("hello world", "earth")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
-      Stdlib.String.lastIndexOf("", "hello")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.lastIndexOf("", "hello") |> Stdlib.Test.equal(None)
 
       // An empty search finds the end of the string.
-      Stdlib.String.lastIndexOf("", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.String.lastIndexOf("", "") |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.String.lastIndexOf("hello", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
+      Stdlib.String.lastIndexOf("hello", "") |> Stdlib.Test.equal(Some(5))
 
-      Stdlib.String.lastIndexOf("👱👱🏻", "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      Stdlib.String.lastIndexOf("👱👱🏻", "") |> Stdlib.Test.equal(Some(2))
 
       Stdlib.String.lastIndexOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👱🏼")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      |> Stdlib.Test.equal(Some(2))
 
-      Stdlib.String.lastIndexOf("a🧑🏼‍💻b🧑🏼‍💻c", "🧑🏼‍💻")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      Stdlib.String.lastIndexOf("a🧑🏼‍💻b🧑🏼‍💻c", "🧑🏼‍💻") |> Stdlib.Test.equal(Some(3))
 
-      Stdlib.String.lastIndexOf("żółw🧑🏽‍🦰🧑🏻‍🍼", "🧑🏻‍🍼")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
+      Stdlib.String.lastIndexOf("żółw🧑🏽‍🦰🧑🏻‍🍼", "🧑🏻‍🍼") |> Stdlib.Test.equal(Some(5))
 
-      Stdlib.String.lastIndexOf("🇵🇷🇺🇸🇵🇷", "🇵🇷")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      Stdlib.String.lastIndexOf("🇵🇷🇺🇸🇵🇷", "🇵🇷") |> Stdlib.Test.equal(Some(2))
 
-      Stdlib.String.lastIndexOf("éxéx", "x")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      Stdlib.String.lastIndexOf("éxéx", "x") |> Stdlib.Test.equal(Some(3))
 
       // A match must start and end on EGC boundaries.
-      Stdlib.String.lastIndexOf("🧑🏼‍💻🧑🏼‍💻", "🧑")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.lastIndexOf("🧑🏼‍💻🧑🏼‍💻", "🧑") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.lastIndexOf("🧑🏼‍💻🧑", "🧑")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.String.lastIndexOf("🧑🏼‍💻🧑", "🧑") |> Stdlib.Test.equal(Some(1))
 
-      Stdlib.String.lastIndexOf("👍👍🏽", "👍")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.String.lastIndexOf("👍👍🏽", "👍") |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.String.lastIndexOf("👩👩‍👩‍👧", "👩")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.String.lastIndexOf("👩👩‍👩‍👧", "👩") |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.String.lastIndexOf("🇵🇷🇺🇸", "🇷🇺")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.lastIndexOf("🇵🇷🇺🇸", "🇷🇺") |> Stdlib.Test.equal(None)
 
-      Stdlib.String.lastIndexOf(decomposedEx(), "e")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.lastIndexOf(decomposedEx(), "e") |> Stdlib.Test.equal(None)
 
       Stdlib.String.lastIndexOf(decomposedEx(), "x")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      |> Stdlib.Test.equal(Some(1))
 
       Stdlib.String.lastIndexOf("a👍 b👍🏽 c👍", "👍")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7)) ])
+      |> Stdlib.Test.equal(Some(7)) ])
 
 
 test compare =
@@ -1862,53 +1775,43 @@ test compare =
 
 test head =
   Stdlib.Test.all(
-    [ Stdlib.String.head("hello world")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('h'))
+    [ Stdlib.String.head("hello world") |> Stdlib.Test.equal(Some('h'))
 
-      Stdlib.String.head("") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.head("") |> Stdlib.Test.equal(None)
 
       // Decoding composed `e` and the accent into one character, U+00E9.
       Stdlib.String.head(decomposedEx())
       |> Stdlib.Option.map(fun c ->
         Stdlib.Utf8.encode(Stdlib.String.fromChar(c)) |> Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ 195u8, 169u8 ])) ])
+      |> Stdlib.Test.equal(Some([ 195u8, 169u8 ])) ])
 
 
 test charAt =
   Stdlib.Test.all(
-    [ Stdlib.String.charAt("", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+    [ Stdlib.String.charAt("", 0) |> Stdlib.Test.equal(None)
 
-      Stdlib.String.charAt("abc", -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.charAt("abc", -1) |> Stdlib.Test.equal(None)
 
-      Stdlib.String.charAt("abc", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('a'))
+      Stdlib.String.charAt("abc", 0) |> Stdlib.Test.equal(Some('a'))
 
-      Stdlib.String.charAt("abc", 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('c'))
+      Stdlib.String.charAt("abc", 2) |> Stdlib.Test.equal(Some('c'))
 
-      Stdlib.String.charAt("abc", 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.charAt("abc", 3) |> Stdlib.Test.equal(None)
 
-      Stdlib.String.charAt("a👨‍❤️‍💋‍👨b", 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('👨‍❤️‍💋‍👨'))
+      Stdlib.String.charAt("a👨‍❤️‍💋‍👨b", 1) |> Stdlib.Test.equal(Some('👨‍❤️‍💋‍👨'))
 
-      Stdlib.String.charAt("a👨‍❤️‍💋‍👨b", 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('b'))
+      Stdlib.String.charAt("a👨‍❤️‍💋‍👨b", 2) |> Stdlib.Test.equal(Some('b'))
 
-      Stdlib.String.charAt(decomposedEx(), 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('x'))
+      Stdlib.String.charAt(decomposedEx(), 1) |> Stdlib.Test.equal(Some('x'))
 
       Stdlib.String.charAt("abc", 9223372036854775807)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.String.charAt("a\r\nb", 1)
       |> Stdlib.Option.map(Stdlib.String.fromChar)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("\r\n"))
+      |> Stdlib.Test.equal(Some("\r\n"))
 
-      Stdlib.String.charAt("a\r\nb", 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('b')) ])
+      Stdlib.String.charAt("a\r\nb", 2) |> Stdlib.Test.equal(Some('b')) ])
 
 
 test repeat =
@@ -1942,26 +1845,20 @@ test repeatRaisesPastInt32 =
 
 test checkedRepeat =
   Stdlib.Test.all(
-    [ Stdlib.String.checkedRepeat("ab", 3)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("ababab"))
+    [ Stdlib.String.checkedRepeat("ab", 3) |> Stdlib.Test.equal(Ok("ababab"))
 
-      Stdlib.String.checkedRepeat("ab", 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      Stdlib.String.checkedRepeat("ab", 0) |> Stdlib.Test.equal(Ok(""))
 
-      Stdlib.String.checkedRepeat("", 5)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      Stdlib.String.checkedRepeat("", 5) |> Stdlib.Test.equal(Ok(""))
 
       Stdlib.String.checkedRepeat("ab", -1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.RepeatError.NegativeCount))
+      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.NegativeCount))
 
       Stdlib.String.checkedRepeat("ab", -3000000000)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.RepeatError.NegativeCount))
+      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.NegativeCount))
 
       Stdlib.String.checkedRepeat("ab", 3000000000)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.String.RepeatError.TooLong)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.TooLong)) ])
 
 
 test padding =
@@ -2006,37 +1903,28 @@ test codepointLength =
 
 test getByteAt =
   Stdlib.Test.all(
-    [ Stdlib.String.getByteAt("abc", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(97u8))
+    [ Stdlib.String.getByteAt("abc", 0) |> Stdlib.Test.equal(Some(97u8))
 
-      Stdlib.String.getByteAt("abc", 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(98u8))
+      Stdlib.String.getByteAt("abc", 1) |> Stdlib.Test.equal(Some(98u8))
 
-      Stdlib.String.getByteAt("abc", 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(99u8))
+      Stdlib.String.getByteAt("abc", 2) |> Stdlib.Test.equal(Some(99u8))
 
       // UTF-8 encodes é as C3 A9.
-      Stdlib.String.getByteAt("é", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(195u8))
+      Stdlib.String.getByteAt("é", 0) |> Stdlib.Test.equal(Some(195u8))
 
-      Stdlib.String.getByteAt("é", 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(169u8))
+      Stdlib.String.getByteAt("é", 1) |> Stdlib.Test.equal(Some(169u8))
 
-      Stdlib.String.getByteAt("é", 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.getByteAt("é", 2) |> Stdlib.Test.equal(None)
 
-      Stdlib.String.getByteAt("abc", 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.getByteAt("abc", 3) |> Stdlib.Test.equal(None)
 
-      Stdlib.String.getByteAt("", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.getByteAt("", 0) |> Stdlib.Test.equal(None)
 
-      Stdlib.String.getByteAt("abc", -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.String.getByteAt("abc", -1) |> Stdlib.Test.equal(None)
 
       // Oversized indices return None.
       Stdlib.String.getByteAt("abc", 4503599627370498)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 test getByteAtMatchesToBytes =
@@ -2136,14 +2024,9 @@ test appendComposesUnicode =
 // head returns the whole grapheme cluster.
 test headUsesWholeGraphemes =
   Stdlib.Test.all(
-    [ Stdlib.String.head("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('👱'))
-
-      Stdlib.String.head("🧟‍♀️🧟‍♂️")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('🧟‍♀️'))
-
-      Stdlib.String.head("👨‍❤️‍💋‍👨")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some('👨‍❤️‍💋‍👨')) ])
+    [ Stdlib.String.head("👱👱🏻👱🏼👱🏽👱🏾👱🏿") |> Stdlib.Test.equal(Some('👱'))
+      Stdlib.String.head("🧟‍♀️🧟‍♂️") |> Stdlib.Test.equal(Some('🧟‍♀️'))
+      Stdlib.String.head("👨‍❤️‍💋‍👨") |> Stdlib.Test.equal(Some('👨‍❤️‍💋‍👨')) ])
 
 
 test mapRejectsNonCharResult =
