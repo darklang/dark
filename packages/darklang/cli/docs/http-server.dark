@@ -81,6 +81,21 @@ checks the rest: `Status.toInt64(Status.tooManyRequests)` is 429, and
 `matchRoute pattern path` is the lower-level form. It returns a record, not an
 Option: `{ matched: Bool, vars: List<String * String> }`.
 
+## Testing a router without a server
+
+`request` calls the router once, in-process, as a default `serve` would, and
+prints the status, headers and body. No port, no bind permission, no background
+process:
+
+  request MyApp.router GET /hello
+  request MyApp.router POST /items --header content-type:application/json --body -
+
+A test calls it the same way, with `Stdlib.Http.Request.make`:
+
+  test hello =
+    let req = Stdlib.Http.Request.make("GET", "/hello", [], Stdlib.Bytes.empty)
+    MyApp.router(req).statusCode |> Stdlib.Test.equal(200)
+
 ## Permissions and file storage
 
 Grant the bind address and port before starting the server:

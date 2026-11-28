@@ -1,0 +1,196 @@
+module Darklang.Cli.Http.Request
+
+// Call a router in-process, as `serve` would for one request, and print what it answered.
+
+type Args =
+  { positional: List<String>
+    headers: List<(String * String)>
+    body: String
+    allow: List<String>
+    error: Option<String> }
+
+
+val methods = [ "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ]
+
+
+let parseArgs(rest: List<String>, acc: Args): Args =
+  match rest with
+  | [] -> acc
+  | ["--body", "-", ...tail] ->
+    match Stdlib.Cli.Stdin.readAll() with
+    | Ok(text) -> parseArgs(tail, { acc with body = text })
+    | Error(e) -> { acc with error = Option.Some(e) }
+  | ["--body", value, ...tail] -> parseArgs(tail, { acc with body = value })
+  | ["--header", value, ...tail] ->
+    match Stdlib.String.splitFirst(value, ":") with
+    | Some((name, v)) when Stdlib.String.trim(name) != "" ->
+      let header = (Stdlib.String.trim(name), Stdlib.String.trim(v))
+      parseArgs(tail, { acc with headers = Stdlib.List.append(acc.headers, header) })
+    | _ -> { acc with error = Option.Some($"Invalid --header: {value} (use name:value)") }
+  | ["--allow", value, ...tail] ->
+    parseArgs(tail, { acc with allow = Stdlib.List.append(acc.allow, value) })
+  | [flag, ...] when Stdlib.String.startsWith(flag, "--") ->
+    { acc with error = Option.Some($"Unknown or incomplete flag: {flag}") }
+  | [word, ...tail] ->
+    parseArgs(tail, { acc with positional = Stdlib.List.append(acc.positional, word) })
+
+
+let usageLines(): List<String> =
+  [ "Usage: request <router-path> <METHOD> <path> [--header name:value]... [--body TEXT|-] [--allow <rules>]"
+    ""
+    "Calls the router once, in this process, as `serve` would for one request, and prints the"
+    "status, the headers and the body. The handler sees what a default `serve` hands it (url"
+    "http://127.0.0.1:8080/..., the default middleware); the request's log line goes to stderr."
+    "No port, no server; the call is recorded like an `eval`."
+    ""
+    "Arguments:"
+    "  router-path         Dotted path to a router fn (Request -> Response)"
+    "  METHOD              GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS"
+    "  path                The request target, starting with /: /items?limit=2"
+    "  --header name:value A request header; repeat for more"
+    "  --body TEXT         The request body; `-` reads it from stdin"
+    "  --allow <rules>     Allow resources for this call only, as `run --allow` does"
+    ""
+    "Examples:"
+    "  request Darklang.DemoData.HttpServerTest.router GET /hello"
+    "  request My.Api.router POST /items --header content-type:application/json --body '{\"name\":\"a\"}'"
+    "  echo hi | request My.Api.router POST /echo --body -" ]
+
+
+let literal(s: String): String =
+  "\"" + PrettyPrinter.escapeSpecialCharacters(s) + "\""
+
+
+/// Where `serve` listens by default: the url and Host header a handler sees from it.
+val authority = "127.0.0.1:" + Stdlib.display(Stdlib.Net.Port.httpAlt)
+
+
+/// The expression that makes the call: what `serve` runs per request, the router through
+/// `Middleware.__handle` with the default middleware. It starts with the router's name, so the
+/// trace says what was called.
+let callExpression(
+  router: String,
+  method: String,
+  path: String,
+  headers: List<(String * String)>,
+  body: String)
+  : String =
+  let hasHost =
+    Stdlib.List.any(headers, fun((name, _)) -> Stdlib.String.toLowercase(name) == "host")
+
+  let headers = if hasHost then headers else [ ("Host", authority), ...headers ]
+  let headerList =
+    headers
+    |> Stdlib.List.map(fun((name, value)) -> "(" + literal(name) + ", " + literal(value) + ")")
+    |> Stdlib.String.join(", ")
+
+  let bodyBytes =
+    if body == "" then
+      "Stdlib.Bytes.empty"
+    else
+      "Stdlib.Utf8.encode(" + literal(body) + ")"
+
+  let request =
+    "Stdlib.Http.Request.make("
+    + literal(method)
+    + ", "
+    + literal("http://" + authority + path)
+    + ", ["
+    + headerList
+    + "], "
+    + bodyBytes
+    + ")"
+
+  router
+  + " |> fun handler -> Stdlib.HttpServer.Middleware.__handle(Stdlib.HttpServer.Middleware.defaults(), handler, "
+  + request
+  + ")"
+
+
+let responseLines(response: Stdlib.Http.Response): List<String> =
+  let reason =
+    match Stdlib.Http.Status.fromInt64(response.statusCode) with
+    | Ok(status) -> Stdlib.Http.Status.reason(status)
+    | Error(_) -> ""
+
+  let status = Stdlib.String.trim($"{response.statusCode} {reason}")
+  // the server's own header, which a handler's replaces
+  let ownServer =
+    Stdlib.List.any(response.headers, fun((name, _)) -> Stdlib.String.toLowercase(name) == "server")
+
+  let all =
+    if ownServer then
+      response.headers
+    else
+      [ ("Server", "darklang"), ...response.headers ]
+
+  let headers = all |> Stdlib.List.map(fun((name, value)) -> name + ": " + value)
+  let body = Stdlib.Utf8.decodeWithReplacement(response.body)
+  let tail = if body == "" then [] else [ "", body ]
+  Stdlib.List.flatten([ [ status ], headers, tail ])
+
+
+let execute(state: AppState, args: List<String>): AppState =
+  let parsed =
+    parseArgs(
+      args,
+      Args { positional = [], headers = [], body = "", allow = [], error = Option.None })
+
+  match parsed.error, parsed.positional with
+  | Some(err), _ ->
+    printErr(err)
+    failed(state)
+  | None, [router, method, path] ->
+    let method = Stdlib.String.toUppercase(method)
+    if Stdlib.Bool.not(Stdlib.List.contains(methods, method)) then
+      printErr($"Unknown method: {method} (one of {Stdlib.String.join(methods, ", ")})")
+      failed(state)
+    else if Stdlib.Bool.not(Stdlib.String.startsWith(path, "/")) then
+      printErr($"The path must start with /: {path}")
+      failed(state)
+    else
+      match Permissions.Command.replacePolicy([ Stdlib.String.join(parsed.allow, ";") ]) with
+      | Error(message) ->
+        printErr(message)
+        failed(state)
+      | Ok(grants) when Stdlib.Bool.not(Stdlib.List.isEmpty(grants.deny)) ->
+        printErr("--allow takes allow rules only")
+        failed(state)
+      | Ok(grants) ->
+        let router = TraceVerbs.canonicalFnName(state.currentBranchId, router)
+        let location = LanguageTools.ProgramTypes.parsePackageLocation(router)
+        match LanguageTools.PackageManager.Function.find(state.currentBranchId, location) with
+        | None ->
+          printErr($"No function named {router} -- is it defined and committed on this branch?")
+          failed(state)
+        | Some(_) ->
+          let expr = callExpression(router, method, path, parsed.headers, parsed.body)
+          match Eval.evaluateValueUnder(
+                  state.accountID,
+                  state.currentBranchId,
+                  expr,
+                  Eval.Harmful.Halt,
+                  grants) with
+          | Ok(response) ->
+            Stdlib.printLines(responseLines(response))
+            state
+          | Error(err) ->
+            let message =
+              ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err)
+
+            let lines =
+              ExecutionError.whereLines(state.currentBranchId, err, ExecutionError.Entry.Call)
+
+            printErr(Stdlib.String.join(Stdlib.List.prepend(lines, message), "\n"))
+            failed(state)
+  | None, _ ->
+    Stdlib.List.iter(usageLines(), fun line -> Stdlib.printErrorLine(line))
+    failed(state)
+
+
+let help(_state: AppState): String =
+  Stdlib.String.join(usageLines(), "\n")
+
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
+  []
