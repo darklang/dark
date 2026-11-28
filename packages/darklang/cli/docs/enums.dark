@@ -3,37 +3,67 @@ module Darklang.Cli.Docs.Enums
 let content(): String =
   """# Enums
 
+An enum defines a fixed set of cases. Each case can have zero or more fields.
+
 ## Define
-  type Status =                 // one case per line, even when there is only one
+
+An enum must have at least one case. Case names must start with an uppercase
+letter and be unique within the enum.
+
+Start each case with `|`. If a case has fields, list their types in parentheses,
+separated by commas.
+
+  type Status =
     | Pending
-    | Done(Int64)
+    | Done(count: Int64)
+    | Failed(String, Int64)
 
-  type Shape =
-    | Seg(Point, Point)           // two fields, separated by commas
-    | Path(Point * Point)         // one field, a tuple
+You can label fields to describe what they hold. Use the same field order when constructing or matching a case.
 
-  type Key =
-    | Pressed(key: Char, shift: Bool)  // labels are documentation only
+Enum fields can contain records, other enums, or the enum itself. Enums can also
+have type parameters, such as `Option<'a>`.
+
+Enum types with the same case names, field types, and field labels in the same
+order are treated as the same type, even if they have different type names.
 
 ## Construct
+
+Write the type name followed by a dot and the case name. If the case has fields,
+provide their values in parentheses. Each value must match its declared type.
+
   Status.Pending
   Status.Done(42)
-  Some(5)            // Option/Result constructors can be bare
-  Ok("yes")
-  MyType.Case(value) // other enums need the type prefix
-  Shape.Seg(a, b)    // several fields: commas, like a call's arguments
+  Status.Failed("Printer offline", 7)
 
-## Match (the type prefix is optional)
+The cases `Some`, `None`, `Ok`, and `Error` can be used without a type name.
+
+## Pattern matching
+
+Match enum cases by name. The type name is optional in patterns.
+A field pattern can match a specific value or bind it to a variable. Use `_` to
+match any field value without binding it.
+
   match status with
+  | Done(0) -> "nothing completed"
+  | Done(count) -> $"done: {count}"
   | Pending -> "waiting"
-  | Done(n) -> $"done: {n}"
+  | Failed(message, _) -> message
 
-  match opt with
-  | Some(v) -> v
-  | None -> default
+See `dark docs pattern-matching` for more examples.
 
-## Gotcha: a tuple inside a constructor needs double parens
-  match x with
-  | Some((a, b)) -> ...     // one field containing a tuple
-  | None -> ...
-  // `Some(a, b)` is two fields, and Some has one."""
+## Tuple fields
+
+In a case definition, `(String, Int64)` defines two fields, while
+`(String * Int64)` defines one tuple field.
+When constructing or matching a case that holds a tuple, use an extra pair of
+parentheses around the tuple.
+
+  let attempt = Some(("Printer offline", 7))
+  match attempt with
+  | Some((message, _)) -> message
+  | None -> "no error"
+
+## Equality
+
+Two enum values are equal if they have the same type, the same case, and equal
+field values."""
