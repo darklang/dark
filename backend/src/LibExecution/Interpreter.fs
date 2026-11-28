@@ -2785,9 +2785,32 @@ let private packageFnCallData
           match thinWrapper with
           | ValueSome biFn -> fastOpTagOf biFn.name
           | ValueNone -> ValueNone
+        harmful =
+          // The generation first, so a fold during the lookup leaves this stale, not wrong.
+          let generation = exeState.fns.implGeneration ()
+          struct (exeState.branchId,
+                  generation,
+                  exeState.fns.isHarmful exeState.branchId fn.hash)
         fn = fn }
     exeState.packageFnCallCache[fn.hash] <- d
     d
+
+
+/// `isHarmful` for a fn called before: the answer worked out with its call data, while the branch
+/// and the package generation are the ones it was worked out for.
+let private isHarmfulHere
+  (exeState : ExecutionState)
+  (callData : PackageFnCallData)
+  (pkg : FQFnName.Package)
+  : bool =
+  let struct (branch, generation, harmful) = callData.harmful
+  if
+    obj.ReferenceEquals(branch, exeState.branchId)
+    && generation = exeState.fns.implGeneration ()
+  then
+    harmful
+  else
+    exeState.fns.isHarmful exeState.branchId pkg
 
 
 /// The first non-bundled function establishes an invocation's approval.
@@ -4655,7 +4678,7 @@ let private tryCallKnown
           newArgRegs.head
           newArgRegs.tail
       )
-      || (exeState.fns.isHarmful exeState.branchId pkg && not exeState.allowHarmful)
+      || (isHarmfulHere exeState callData pkg && not exeState.allowHarmful)
     then
       false
     else
@@ -4851,10 +4874,16 @@ let private applyPackageFn
   (ctx : ApplyContext)
   (pkg : FQFnName.Package)
   : ApplyOutcome =
+  let mutable callData = Unchecked.defaultof<PackageFnCallData>
+  let known = exeState.packageFnCallCache.TryGetValue(pkg, &callData)
   // Harmful-deprecation runtime halt.
   // Checked before even fetching the fn so the error is surfaced
   // whether or not the fn definition is still available.
-  let isHarmful = exeState.fns.isHarmful exeState.branchId pkg
+  let isHarmful =
+    if known then
+      isHarmfulHere exeState callData pkg
+    else
+      exeState.fns.isHarmful exeState.branchId pkg
   if isHarmful && not exeState.allowHarmful then
     RTE.DeprecatedItemHalted pkg |> raiseRTE
   // A forwarder whose builtin is already known needs neither the fn nor the package call
@@ -4878,10 +4907,8 @@ let private applyPackageFn
   // so none of them ever matched. Taking it out turned the optimisation on for the whole
   // standard library.
   //
-  // Looked up once, here, for both the wrapper and the call below: a fn that has been called
+  // Looked up once, above, for both the wrapper and the call below: a fn that has been called
   // before needs neither the fetch nor another look in this cache.
-  let mutable callData = Unchecked.defaultof<PackageFnCallData>
-  let known = exeState.packageFnCallCache.TryGetValue(pkg, &callData)
   let earlyWrapper =
     if
       List.isEmpty typeArgs

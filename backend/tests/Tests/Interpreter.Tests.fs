@@ -1666,12 +1666,43 @@ module Reload =
           "the old version still takes an Int64"
     }
 
+  /// A fn's call data remembers whether it is a harmful deprecation as of the package
+  /// generation. Marking it harmful moves the generation on, so the next call halts.
+  let harmfulAfterItsFirstCall =
+    testTask "a fn marked harmful after its first call halts the next one" {
+      let n = int64 (System.Random.Shared.Next(1_000, 1_000_000_000))
+      let! ops = authorIntoMain $"module Darklang.{m}\n\nlet harmed(): Int64 = {n}"
+      let hash = hashBoundTo ops "harmed"
+      let state = executionStateFor pmPT false
+      let! before = call state (applicableFor hash)
+      Expect.equal before (RT.DInt64 n) "it runs before it is marked"
+
+      let (PT.Hash h) = hash
+      let generation = state.fns.implGeneration () + 1
+      let marked =
+        { state with
+            fns =
+              { state.fns with
+                  isHarmful = fun _ fn -> fn = RT.Hash h
+                  implGeneration = fun () -> generation } }
+      match!
+        LibExecution.Execution.executeApplicable
+          marked
+          marked.access
+          (applicableFor hash)
+          (NEList.singleton RT.DUnit)
+      with
+      | Error(RTE.DeprecatedItemHalted _, _) -> ()
+      | other -> failtest $"expected the call to halt, got {other}"
+    }
+
   let tests =
     testList
       "Reload"
       [ heldReferencesKeepTheirHash
         lookupStillRunningAtAnEditIsNotKept
-        aliasChecksFollowAnEdit ]
+        aliasChecksFollowAnEdit
+        harmfulAfterItsFirstCall ]
 
 
 /// A bounded fn remembers that its bounds held, so it does not prove them again on every call.
