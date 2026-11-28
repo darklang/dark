@@ -290,7 +290,7 @@ test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
 
 
 /// A module saved again without some of its names says which are still there.
-test moduleSaveNamesWhatItLeftBehind = Instance.withInstance(fun instance ->
+test importNamesWhatItLeftBehind = Instance.withInstance(fun instance ->
   let _ =
     Instance.runWithStdin(
       instance,
