@@ -414,3 +414,10 @@ test aMistypedFlagOrAStrayWordChangesNothing = Instance.withInstance(fun i ->
       Instance.exitedWith(xCode, 1, "and saves nothing")
       Instance.exitedWith(fnCode, 1, "fn refuses a word after the definition")
       Instance.exitedWith(fCode, 1, "and saves nothing") ]))
+
+
+/// Looking up a router is not a run: a serve that stops on a name with no fn leaves no trace.
+test aRouterLookupLeavesNoTrace = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "serve", "Tests.NoSuch.router" ])
+  let (_, listed, _) = Instance.streams(i, [ "traces", "list", "--plain" ])
+  Stdlib.Test.equal(listed, ""))

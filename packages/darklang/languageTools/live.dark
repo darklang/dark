@@ -396,10 +396,15 @@ let refresh(branchId: Uuid, lg: LastGood): LastGood =
         | _ -> LastGood { entry = lg.entry, hash = Some(newest), report = None, problem = None }
 
 
+/// A callable for the fn version `hash`; `name` is what its errors call it.
+let applicableAt(hash: ProgramTypes.Hash, name: String): Result<'f, String> =
+  Builtin.applicableByHash(ProgramTypes.hashToString(hash), name)
+
+
 /// A callable for the version `lg` is on. `Error` when nothing usable has been found yet.
 let applicable(lg: LastGood): Result<'f, String> =
   match lg.hash with
-  | Some(hash) -> Builtin.applicableByHash(ProgramTypes.hashToString(hash), entryName(lg.entry))
+  | Some(hash) -> applicableAt(hash, entryName(lg.entry))
   | None ->
     match lg.problem with
     | Some(problem) -> Error(problem)
@@ -410,25 +415,20 @@ let applicable(lg: LastGood): Result<'f, String> =
 /// that takes a name on the command line: a name that resolves to nothing is reported before
 /// anything starts, and a host that follows edits then holds the LOCATION, not this value.
 ///
-/// Eval does the resolving: a fn's name, evaluated, is the fn. Only a dotted name of plain
-/// identifiers gets that far, so the name cannot run code.
+/// A store lookup, not an eval: an eval is a run, and leaves a trace of its own.
 let applicableByName(branchId: Uuid, name: String): Result<'a -> 'b, String> =
   let isIdentifier(segment: String): Bool =
     segment != ""
     && (Stdlib.String.toList(segment)
         |> Stdlib.List.all(fun c -> Stdlib.Char.isAlphanumeric(c) || c == '_'))
 
-  let notFound = Error($"No function named {name}")
   match locationOfName(name) with
   | None -> Error($"Not a package function name: {name}")
-  | Some(_) ->
+  | Some(location) ->
     if Stdlib.List.all(Stdlib.String.split(name, "."), isIdentifier) then
-      match Cli.Eval.evaluateValue(None, branchId, name, Cli.Eval.Harmful.Halt) with
-      | Ok(f) ->
-        match RuntimeTypes.reflect(f) with
-        | DApplicable(AppNamedFn(_)) -> Ok(f)
-        | _ -> notFound
-      | Error(_) -> notFound
+      match PackageManager.Function.find(branchId, location) with
+      | Some(hash) -> applicableAt(hash, name)
+      | None -> Error($"No function named {name}")
     else
       Error($"Not a package function name: {name}")
 
