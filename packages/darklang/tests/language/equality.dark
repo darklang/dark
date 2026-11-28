@@ -290,150 +290,150 @@ test bytesDatesAndUuids =
 // Separately written lambdas are unequal. Comparing them does not execute their bodies.
 test lambdas =
   Stdlib.Test.all(
-    [ ((fun x -> y)) == ((fun x -> y)) |> Stdlib.Test.equal(false)
+    [ (fun x -> y) == (fun x -> y) |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1s128
-          y))
-      == ((fun x ->
-             let y = 1s128
-             y))
+      (fun x ->
+         let y = 1s128
+         y)
+      == (fun x ->
+            let y = 1s128
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1s128
-          y))
-      != ((fun x ->
-             let y = 2s128
-             x))
+      (fun x ->
+         let y = 1s128
+         y)
+      != (fun x ->
+            let y = 2s128
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1u128
-          y))
-      == ((fun x ->
-             let y = 1u128
-             y))
+      (fun x ->
+         let y = 1u128
+         y)
+      == (fun x ->
+            let y = 1u128
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1u128
-          y))
-      != ((fun x ->
-             let y = 2u128
-             x))
+      (fun x ->
+         let y = 1u128
+         y)
+      != (fun x ->
+            let y = 2u128
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1
-          y))
-      == ((fun x ->
-             let y = 1
-             y))
+      (fun x ->
+         let y = 1
+         y)
+      == (fun x ->
+            let y = 1
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1
-          y))
-      != ((fun x ->
-             let y = 2
-             x))
+      (fun x ->
+         let y = 1
+         y)
+      != (fun x ->
+            let y = 2
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1s32
-          y))
-      == ((fun x ->
-             let y = 1s32
-             y))
+      (fun x ->
+         let y = 1s32
+         y)
+      == (fun x ->
+            let y = 1s32
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1s32
-          y))
-      != ((fun x ->
-             let y = 2s32
-             x))
+      (fun x ->
+         let y = 1s32
+         y)
+      != (fun x ->
+            let y = 2s32
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1u32
-          y))
-      == ((fun x ->
-             let y = 1u32
-             y))
+      (fun x ->
+         let y = 1u32
+         y)
+      == (fun x ->
+            let y = 1u32
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1u32
-          y))
-      != ((fun x ->
-             let y = 2u32
-             x))
+      (fun x ->
+         let y = 1u32
+         y)
+      != (fun x ->
+            let y = 2u32
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1s16
-          y))
-      == ((fun x ->
-             let y = 1s16
-             y))
+      (fun x ->
+         let y = 1s16
+         y)
+      == (fun x ->
+            let y = 1s16
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1s16
-          y))
-      != ((fun x ->
-             let y = 2s16
-             x))
+      (fun x ->
+         let y = 1s16
+         y)
+      != (fun x ->
+            let y = 2s16
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1u16
-          y))
-      == ((fun x ->
-             let y = 1u16
-             y))
+      (fun x ->
+         let y = 1u16
+         y)
+      == (fun x ->
+            let y = 1u16
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1u16
-          y))
-      != ((fun x ->
-             let y = 2u16
-             x))
+      (fun x ->
+         let y = 1u16
+         y)
+      != (fun x ->
+            let y = 2u16
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1s8
-          y))
-      == ((fun x ->
-             let y = 1s8
-             y))
+      (fun x ->
+         let y = 1s8
+         y)
+      == (fun x ->
+            let y = 1s8
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1s8
-          y))
-      != ((fun x ->
-             let y = 2s8
-             x))
+      (fun x ->
+         let y = 1s8
+         y)
+      != (fun x ->
+            let y = 2s8
+            x)
       |> Stdlib.Test.equal(true)
 
-      ((fun x ->
-          let y = 1u8
-          y))
-      == ((fun x ->
-             let y = 1u8
-             y))
+      (fun x ->
+         let y = 1u8
+         y)
+      == (fun x ->
+            let y = 1u8
+            y)
       |> Stdlib.Test.equal(false)
 
-      ((fun x ->
-          let y = 1u8
-          y))
-      != ((fun x ->
-             let y = 2u8
-             x))
+      (fun x ->
+         let y = 1u8
+         y)
+      != (fun x ->
+            let y = 2u8
+            x)
       |> Stdlib.Test.equal(true) ])
 
 
