@@ -1,6 +1,5 @@
 1 Darklang.Cli.Compile.approvedPolicy Darklang.Stdlib.Cli.Dir.createRecursive
 1 Darklang.Cli.Compile.approvedPolicy Darklang.Stdlib.Cli.File.writeText
-1 Darklang.Cli.Compile.approvedPolicy Darklang.Stdlib.Json.serialize
 1 Darklang.Cli.Compile.checkJsonLines Darklang.Stdlib.Json.serialize
 1 Darklang.Cli.Compile.download Darklang.Stdlib.Cli.Dir.createRecursive
 1 Darklang.Cli.Compile.download Darklang.Stdlib.Cli.File.readBytes
@@ -64,8 +63,6 @@
 1 Darklang.Cli.runInteractiveLoop Darklang.Stdlib.Host.await
 1 Darklang.Compiler.Darkc.directory Darklang.Stdlib.Cli.Env.home
 1 Darklang.Compiler.Darkc.stdlibPrepared Darklang.Stdlib.Cli.FileSystem.listDirectory
-1 Darklang.Compiler.PackageServer.browse Darklang.Stdlib.Json.serialize
-1 Darklang.Compiler.PackageServer.hashJson Darklang.Stdlib.Json.serialize
 1 Darklang.Compiler.Prepare.availableDisk Darklang.Stdlib.Cli.Env.home
 1 Darklang.Compiler.Prepare.availableDisk Darklang.Stdlib.Cli.FileSystem.isDirectory
 1 Darklang.Compiler.Prepare.availableDisk Darklang.Stdlib.Cli.Process.run
@@ -85,5 +82,3 @@
 3 Darklang.Cli.Completion.completeFilesystemPath Darklang.Stdlib.Cli.FileSystem.getDirectoryContents
 3 Darklang.Cli.Installation.Download.replaceBinary Darklang.Stdlib.Cli.executeWithUnitOrStdErr
 3 Darklang.Cli.Installation.Download.smokeTest Darklang.Stdlib.Cli.execute
-3 Darklang.Compiler.PackageServer.withLocation Darklang.Stdlib.Json.serialize
-6 Darklang.Compiler.PackageServer.entity Darklang.Stdlib.Json.serialize

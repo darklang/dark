@@ -36,9 +36,10 @@ let parseLocation(name: String): Option<LanguageTools.ProgramTypes.PackageLocati
   | _ -> None
 
 
-let json(body: Option<String>): Response =
+let json(body: Option<Result<String, Stdlib.Json.SerializeError.SerializeError>>): Response =
   match body with
-  | Some(text) -> Stdlib.Http.responseWithJson(200, text)
+  | Some(Ok(text)) -> Stdlib.Http.responseWithJson(200, text)
+  | Some(Error(e)) -> Stdlib.Http.serverError(Stdlib.display(e))
   | None -> Stdlib.Http.notFound()
 
 
@@ -52,9 +53,7 @@ let browse(modules: List<String>): Response =
         exactMatch = false }
 
   let results = LanguageTools.PackageManager.Search.search(branchId, query)
-  Stdlib.Http.responseWithJson(
-    200,
-    Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>(results))
+  json(Some(Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.Search.SearchResults>(results)))
 
 
 /// `/search`: the compiler only ever asks for one module's direct contents.
@@ -68,32 +67,32 @@ let search(req: Request): Response =
 let entity(
   kind: LanguageTools.ProgramTypes.ItemKind,
   hash: LanguageTools.ProgramTypes.Hash)
-  : Option<String> =
+  : Option<Result<String, Stdlib.Json.SerializeError.SerializeError>> =
   match kind with
   | Fn ->
     LanguageTools.PackageManager.Function.get(hash)
     |> Stdlib.Option.map(fun item ->
-      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>(item))
+      Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>(item))
   | Type ->
     LanguageTools.PackageManager.Type.get(hash)
     |> Stdlib.Option.map(fun item ->
-      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>(item))
+      Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>(item))
   | Value ->
     LanguageTools.PackageManager.Value.get(hash)
     |> Stdlib.Option.map(fun item ->
-      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>(item))
+      Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>(item))
   | Trait ->
     LanguageTools.PackageManager.Trait.get(hash)
     |> Stdlib.Option.map(fun item ->
-      Stdlib.Json.serialize<LanguageTools.ProgramTypes.Trait.Trait>(item))
+      Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.Trait.Trait>(item))
   | TraitImpl ->
     LanguageTools.PackageManager.TraitImpl.get(hash)
     |> Stdlib.Option.map(fun item ->
-      Stdlib.Json.serialize<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>(item))
+      Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>(item))
   | Test ->
     LanguageTools.PackageManager.Test.get(hash)
     |> Stdlib.Option.map(fun item ->
-      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageTest.PackageTest>(item))
+      Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.PackageTest.PackageTest>(item))
 
 
 val locationRoute = "/:location"
@@ -115,7 +114,8 @@ let location(req: Request): Response =
 
 let hashJson(hash: Option<LanguageTools.ProgramTypes.Hash>): Response =
   hash
-  |> Stdlib.Option.map(fun item -> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>(item))
+  |> Stdlib.Option.map(fun item ->
+    Stdlib.Json.checkedSerialize<LanguageTools.ProgramTypes.Hash>(item))
   |> json
 
 
@@ -141,21 +141,21 @@ let withLocation(kind: String, req: Request): Response =
     | "type" ->
       LanguageTools.PackageManager.Type.getWithLocation(branchId, hash)
       |> Stdlib.Option.map(fun item ->
-        Stdlib.Json.serialize<
+        Stdlib.Json.checkedSerialize<
           LanguageTools.ProgramTypes.LocatedItem<
             LanguageTools.ProgramTypes.PackageType.PackageType>>(item))
       |> json
     | "value" ->
       LanguageTools.PackageManager.Value.getWithLocation(branchId, hash)
       |> Stdlib.Option.map(fun item ->
-        Stdlib.Json.serialize<
+        Stdlib.Json.checkedSerialize<
           LanguageTools.ProgramTypes.LocatedItem<
             LanguageTools.ProgramTypes.PackageValue.PackageValue>>(item))
       |> json
     | _ ->
       LanguageTools.PackageManager.Function.getWithLocation(branchId, hash)
       |> Stdlib.Option.map(fun item ->
-        Stdlib.Json.serialize<
+        Stdlib.Json.checkedSerialize<
           LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>(
           item))
       |> json

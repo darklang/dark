@@ -292,9 +292,12 @@ let approvedPolicy(
   | Approved(policy) ->
     let path = Compiler.Darkc.policyPath(hash)
     let _ = Stdlib.Cli.Dir.createRecursive(Stdlib.Cli.Path.parent(path))
-    Stdlib.Cli.File.writeText(path, Stdlib.Json.serialize<LanguageTools.Permissions.Policy>(policy))
+    Stdlib.Json.checkedSerialize<LanguageTools.Permissions.Policy>(policy)
+    |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+    |> Stdlib.Result.andThen(fun text ->
+      Stdlib.Cli.File.writeText(path, text) |> Stdlib.Result.mapError(fun e -> Stdlib.display(e)))
     |> Stdlib.Result.map(fun _ -> Some(path))
-    |> Stdlib.Result.mapError(fun e -> $"Could not write {path}: {Stdlib.display(e)}")
+    |> Stdlib.Result.mapError(fun e -> $"Could not write {path}: {e}")
 
 
 /// What darkc's <param reason> means, as the end of a sentence.
