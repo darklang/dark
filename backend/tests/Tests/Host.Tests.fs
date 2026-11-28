@@ -715,6 +715,22 @@ let systemFactsDoNotGrantSensitiveQueries =
     | other -> failtest $"local host fact must not need Native, got {other}"
   }
 
+let otherOsOperationIsUnsupported =
+  testTask "an allowed kernel operation only another OS has fails with ENOSYS" {
+    let access = Permission.Access.start Permission.Policy.allowAll
+    let path = "/tmp/dark-other-os"
+    let op =
+      if System.OperatingSystem.IsMacOS() then
+        HT.PosixOp.UtimensAt(path, 0L, 0L, 0L, 0L)
+      else
+        HT.PosixOp.SetattrlistTimes(path, 0L, 0L, 0L, 0L)
+    let! outcome = LibExecution.Host.perform access (HT.Operation.Posix op)
+    match outcome with
+    | HT.Outcome.Failed failure ->
+      Expect.equal failure.errno LibExecution.HostPosix.ENOSYS "the host's ENOSYS"
+    | other -> failtest $"expected ENOSYS, got {other}"
+  }
+
 let tempPrefixDoesNotAuthorizeARandomSibling =
   testTask "mkstemp authorizes its containing directory, not its prefix" {
     let prefix = $"/tmp/dark-permission-{System.Guid.NewGuid()}-"
@@ -1760,6 +1776,7 @@ let tests =
       ownedChildWaitAllowsCleanup
       watchQueuesRetainScopedPathAuthority
       systemFactsDoNotGrantSensitiveQueries
+      otherOsOperationIsUnsupported
       rawClocksRequireClockPermission
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink

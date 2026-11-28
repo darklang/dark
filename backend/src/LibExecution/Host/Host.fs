@@ -1134,6 +1134,51 @@ let private browserRefusal (op : Operation) : Option<Outcome> =
     | _ -> None
 
 
+type private KernelOs =
+  | Linux
+  | Darwin
+
+/// The one table of kernel operations that exist on only one OS. Elsewhere an allowed call fails
+/// with that host's ENOSYS instead of reaching the kernel, so a package fn over one runs on every
+/// OS and fails as Unsupported where the OS lacks it.
+let private onlyOn (op : HostTypes.PosixOp) : Option<KernelOs> =
+  match op with
+  | HostTypes.PosixOp.UtimensAt _
+  | HostTypes.PosixOp.CopyFileRange _
+  | HostTypes.PosixOp.CloneFile _
+  | HostTypes.PosixOp.UnameBytes
+  | HostTypes.PosixOp.SchedGetaffinity _
+  | HostTypes.PosixOp.ClockGettime _
+  | HostTypes.PosixOp.InotifyInit1 _
+  | HostTypes.PosixOp.InotifyAddWatch _
+  | HostTypes.PosixOp.Ppoll _
+  | HostTypes.PosixOp.GetcwdBytes _ -> Some Linux
+  | HostTypes.PosixOp.SetattrlistTimes _
+  | HostTypes.PosixOp.FclonefileAt _
+  | HostTypes.PosixOp.SysctlBytes _
+  | HostTypes.PosixOp.MachAbsoluteTime
+  | HostTypes.PosixOp.MachTimebaseInfo
+  | HostTypes.PosixOp.PollDarwin _
+  | HostTypes.PosixOp.Kqueue
+  | HostTypes.PosixOp.KeventVnode _
+  | HostTypes.PosixOp.FcntlGetPath _ -> Some Darwin
+  | _ -> None
+
+let private hostKernelOs : Option<KernelOs> =
+  if System.OperatingSystem.IsMacOS() then Some Darwin
+  elif System.OperatingSystem.IsLinux() then Some Linux
+  else None
+
+let private otherOsRefusal (op : Operation) : Option<Outcome> =
+  match op, hostKernelOs with
+  | Operation.Posix posix, Some host ->
+    match onlyOn posix with
+    | Some os when os <> host ->
+      Some(Outcome.Failed(failureOfErrno (HostPosix.ENOSYS, "not on this OS")))
+    | _ -> None
+  | _ -> None
+
+
 type private DescriptorRight =
   | Read
   | Write
@@ -1501,8 +1546,8 @@ let private performWithSession
             match resolve () with
             | Error outcome -> outcome
             | Ok((_, resolved) as prepared) ->
-              match denial prepared with
-              | Some denied -> denied
+              match denial prepared |> Option.orElse (otherOsRefusal op) with
+              | Some refused -> refused
               | None ->
                 // POSIX adapters are synchronous. Keep the descriptor lease
                 // through the kernel call, including close and multi-fd copy.
@@ -1523,8 +1568,8 @@ let private performWithSession
             match resolve () with
             | Error outcome -> Task.FromResult outcome
             | Ok((_, resolved) as prepared) ->
-              match denial prepared with
-              | Some denied -> Task.FromResult denied
+              match denial prepared |> Option.orElse (otherOsRefusal op) with
+              | Some refused -> Task.FromResult refused
               | None -> execute resolved.execute
         | _ ->
           match resolve op with

@@ -22,6 +22,9 @@ let private isArm32 = RuntimeInformation.ProcessArchitecture = Architecture.Arm
 /// when `isPosix` is false.
 let private isWasm = System.OperatingSystem.IsBrowser()
 
+/// ENOSYS in the host's numbering: 78 on macOS, 38 on Linux. The browser answers as Linux.
+let ENOSYS = if isMac then 78 else 38
+
 do
   if not isMac && not isArm64 && not isX64 && not isArm32 && not isWasm then
     raise (
@@ -118,7 +121,7 @@ module private Managed =
       Ok(0x8000 ||| 0o644, f.Length, secs f.LastWriteTimeUtc)
     else
       Error(2, "No such file or directory")
-  let enosys () = Error(38, "not available in the browser")
+  let enosys () = Error(ENOSYS, "not available in the browser")
 
   /// Descriptors over `FileStream`, so the descriptor half of the Posix builtins
   /// works against the in-memory filesystem. `Stdlib.Cli.File.readText` reads through
@@ -401,7 +404,7 @@ let private modeFromStatBuffer (buf : IntPtr) : int =
 /// The policy boundary owns the no-follow walk; Dark owns the record layout.
 let statBuffer (path : string) : Result<byte[], int * string> =
   if isWasm || OperatingSystem.IsWindows() then
-    Error(38, "kernel stat unavailable on this target")
+    Error(ENOSYS, "kernel stat unavailable on this target")
   else
     let bytes = Array.zeroCreate<byte> 256
     let pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned)
@@ -415,7 +418,7 @@ let directoryBytes (fd : int) (count : int) : Result<byte[], int * string> =
   if count < 0 then
     Error(22, "Invalid argument")
   elif isWasm || OperatingSystem.IsWindows() then
-    Error(38, "kernel directory reads unavailable on this target")
+    Error(ENOSYS, "kernel directory reads unavailable on this target")
   else
     let bytes = Array.zeroCreate<byte> count
     let position = Marshal.AllocHGlobal 8
@@ -459,7 +462,7 @@ let fclonefileAt source path flags : Result<unit, int * string> =
   if isWasm then
     Managed.enosys ()
   elif not isMac then
-    Error(38, "fclonefileat is unavailable")
+    Error(ENOSYS, "fclonefileat is unavailable")
   else
     let metadata = Array.zeroCreate<byte> 256
     if fstat_raw (source, metadata) < 0 then
@@ -483,7 +486,7 @@ let inotifyInit1 flags : Result<int, int * string> =
 
 let inotifyAddWatch fd path mask : Result<int, int * string> =
   if isWasm || isMac then
-    Error((if isMac then 78 else 38), "inotify is unavailable")
+    Error(ENOSYS, "inotify is unavailable")
   else
     withLinuxMetadataPath path (fun heldPath ->
       // The final user entry was checked without following links. The internal
@@ -598,7 +601,7 @@ let chmod (path : string) (mode : int) : Result<unit, int * string> =
       let rc = fchmodat2_raw (d, n, mode, AT_SYMLINK_NOFOLLOW)
       if rc >= 0 then
         Ok()
-      elif Marshal.GetLastPInvokeError() = 38 then
+      elif Marshal.GetLastPInvokeError() = ENOSYS then
         withLinuxMetadataPath path (fun held ->
           unitResult (fchmodat_raw (-100, held, mode, 0)))
       else
@@ -612,9 +615,7 @@ let utimensAt
   (modifySec : int64)
   (modifyNanos : int64)
   : Result<unit, int * string> =
-  if isMac then
-    Error(78, "Function not implemented")
-  elif isWasm then
+  if isWasm then
     Managed.enosys ()
   elif
     isArm32
@@ -714,7 +715,7 @@ let nanosleep (seconds : int64) (nanos : int64) : int * byte[] =
   // Filled by the kernel when the sleep is interrupted.
   let remaining = Array.zeroCreate<byte> (width * 2)
   if isWasm then
-    (-38, remaining)
+    (-ENOSYS, remaining)
   elif seconds < 0L || nanos < 0L || nanos >= 1000000000L then
     (-22, remaining)
   elif
@@ -895,31 +896,31 @@ let copyFileRange source destination count : Result<int64, int * string> =
   if count < 0 then
     Error(22, "Invalid argument")
   elif isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     let rc = copyFileRange_raw (source, destination, count)
     if rc < 0L then failed () else Ok rc
 
 let cloneFile (source : int) (destination : int) : Result<unit, int * string> =
   if isMac || isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     unitResult (ioctl_raw (destination, 0x40049409UL, IntPtr source))
 
 let ftruncate fd length =
   if isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     unitResult (ftruncate_raw (fd, length))
 let fchmod fd mode =
   if isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     unitResult (fchmod_raw (fd, mode))
 
 let fstat fd : Result<byte[], int * string> =
   if isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     let bytes = Array.zeroCreate<byte> 256
     let rc = fstat_raw (fd, bytes)
@@ -930,7 +931,7 @@ let getentropy count : Result<byte[], int * string> =
   if count < 0 || count > 256 then
     Error(22, "Invalid argument")
   elif isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     let bytes = Array.zeroCreate<byte> count
     let rc = getentropy_raw bytes
@@ -942,7 +943,7 @@ let pread fd count offset : Result<byte[], int * string> =
   if count < 0 then
     Error(22, "Invalid argument")
   elif isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     let bytes = Array.zeroCreate<byte> count
     let rc = pread_raw (fd, bytes, offset)
@@ -950,7 +951,7 @@ let pread fd count offset : Result<byte[], int * string> =
 
 let pwrite fd bytes offset : Result<int, int * string> =
   if isWasm || OperatingSystem.IsWindows() then
-    Error(38, "unavailable")
+    Error(ENOSYS, "unavailable")
   else
     let rc = pwrite_raw (fd, bytes, offset)
     if rc < 0 then failed () else Ok rc
@@ -1012,9 +1013,6 @@ let private AT_FDCWD = -100
 // Resolve every component without following any symlink.
 [<Literal>]
 let private RESOLVE_NO_SYMLINKS = 0x04UL
-
-[<Literal>]
-let private ENOSYS = 38
 
 // A per-process kernel probe: cleared once by the first ENOSYS so later opens skip straight to
 // the fallback. A racing reader that still sees `true` only makes one more failing call.

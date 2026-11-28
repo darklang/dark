@@ -340,6 +340,22 @@ test setFileTimes =
       stamped |> Stdlib.Test.equal(Ok(Ok(5678))) ])
 
 
+// A kernel call only the other OS has fails here as Unsupported, before any permission check
+test otherOsCallIsUnsupported =
+  let missing = "/definitely/missing/dark-time"
+  let otherOs =
+    if Stdlib.Cli.Posix.__abiMac() then
+      Builtin.syscallUtimensAt(missing, 0, 0, 0, 0)
+    else
+      Builtin.syscallSetattrlistTimes(missing, 0, 0, 0, 0)
+
+  otherOs
+  |> Stdlib.Result.mapError(fun code ->
+    Stdlib.Cli.Posix.Error.kind(Stdlib.Cli.Posix.__fromErrno(code)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.Unsupported))
+
+
 test pidFromInt64 =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.Pid.fromInt64(1)

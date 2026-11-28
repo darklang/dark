@@ -2,7 +2,8 @@
 /// Linux (x86_64, aarch64, armv7) and macOS only. Will not work on Windows.
 module Darklang.Stdlib.Cli.Posix
 
-/// An operating system. Error numbers past about 34 differ between them.
+/// An operating system whose kernel errors Posix reads. Error numbers past about 34 differ
+/// between them. Windows joins when Posix calls run there; its error codes are not errno.
 type Os =
   | Linux
   | Darwin
