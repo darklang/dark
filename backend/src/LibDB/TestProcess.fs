@@ -264,6 +264,47 @@ let withStoreSnapshot
       | _ -> ()
   }
 
+/// Where this process keeps its starting stores, removed as it exits.
+let private keptIn =
+  lazy
+    (let dir =
+      System.IO.Directory.CreateTempSubdirectory("dark-snapshot-kept-").FullName
+     System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ ->
+       try
+         System.IO.Directory.Delete(dir, true)
+       with _ ->
+         ())
+     dir)
+
+/// The last starting store this process made, by the store and branch it was made from, with the
+/// store's data version as it was made. A run on a store that has not changed since links to it
+/// instead of making another. Only the last is kept.
+let private kept =
+  System.Collections.Generic.Dictionary<string * System.Guid, int64 * string>()
+
+/// A starting store for a run on <param branchId>, made from the live store now or kept from an
+/// earlier run while the live store has not changed.
+let private startingStore (branchId : System.Guid) : Result<string, string> =
+  lock kept (fun () ->
+    let key = LibDB.Sqlite.currentDbPath, branchId
+    // read before the store is: a write in between makes the next run make its own
+    let version = LibDB.Sqlite.DataVersion.current ()
+    match kept.TryGetValue key with
+    | true, (madeAt, file) when madeAt = version -> Ok file
+    | _ ->
+      for KeyValue(_, (_, old)) in kept do
+        System.IO.File.Delete old
+      kept.Clear()
+      let file =
+        System.IO.Path.Combine(keptIn.Force(), $"{System.Guid.NewGuid()}.db")
+      LibDB.Sqlite.Backup.toTestBaseline file
+      |> Result.map (fun () ->
+        setConfig
+          file
+          [ "live.autopush", "off"; "current_branch", string branchId ]
+        kept[key] <- (version, file)
+        file))
+
 /// The run's starting store: the live store without its traces, a layer root (`-layer` empty) so
 /// that each worker's store is a link to it, never a copy. It records the run's branch and has
 /// automatic publishing off.
@@ -271,10 +312,17 @@ let createRunSnapshot
   (branchId : System.Guid)
   (path : string)
   : Result<unit, string> =
-  LibDB.Sqlite.Backup.toTestBaseline path
-  |> Result.map (fun () ->
-    setConfig path [ "live.autopush", "off"; "current_branch", string branchId ]
-    System.IO.File.WriteAllText(path + "-layer", ""))
+  startingStore branchId
+  |> Result.bind (fun file ->
+    match hardLink file path with
+    | Ok() -> Ok()
+    | Error _ ->
+      try
+        System.IO.File.Copy(file, path)
+        Ok()
+      with e ->
+        Error e.Message)
+  |> Result.map (fun () -> System.IO.File.WriteAllText(path + "-layer", ""))
 
 
 type Outcome =
