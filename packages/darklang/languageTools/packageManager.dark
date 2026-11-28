@@ -336,18 +336,12 @@ module Test =
     Builtin.pmTestRunsInProcess(hash)
 
 
-  /// Share a read-only starting store on <param branchId> across the tests executed
-  /// by <param run>. Every test that cannot run in-process gets a fresh process on
-  /// it; one that writes reruns on a private copy. Cached-only runs create no
-  /// snapshot; cleanup also runs if the callback fails.
+  /// Share one starting store on <param branchId> across the tests executed by
+  /// <param run>. Every test that cannot run in-process gets a fresh process on a
+  /// layer over it. Cached-only runs create no snapshot; cleanup also runs if the
+  /// callback fails.
   let withStoreSnapshot(branchId: Uuid, seed: Int64, run: Run -> 'a): 'a =
     Builtin.pmTestWithStoreSnapshot(branchId, fun id -> run(Run { id = id, seed = seed }))
-
-
-  /// Whether the test <param hash> wrote to <param run>'s shared snapshot and so
-  /// ran again on a private copy.
-  let reran(run: Run, hash: ProgramTypes.Hash): Bool =
-    Builtin.pmTestReran(run.id, hash)
 
 
   /// Conservative proof that a passing result is reusable, one answer per hash,

@@ -271,9 +271,8 @@ let private executeInProcessTest
     else
       Some(reflectOutcome result))
 
-/// Every other package test executes its own hash in a fresh worker on the run's read-only
-/// snapshot when sharing is available. A refused write triggers a retry on a private copy;
-/// only the retry's result is used. If sharing fails, start on a private copy.
+/// Every other package test executes its own hash in a fresh worker on a layer over the run's
+/// starting store. If no layer can be made, it starts on a private copy.
 let private executeIsolatedTest
   (caller : ExecutionState)
   (vm : VMState)
@@ -290,7 +289,7 @@ let private executeIsolatedTest
       target = LibDB.TestProcess.Target.PackageTest(hash, seed) }
   let outcome =
     LibDB.TestProcess.run
-      (LibDB.TestProcess.Shared runId)
+      (LibDB.TestProcess.Layered runId)
       guest
       vm
       access
@@ -660,28 +659,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-    { name = fn "pmTestReran" 0
-      typeParams = []
-      parameters =
-        [ Param.make "runId" TUuid "The test run"
-          Param.make
-            "testHash"
-            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "Hash of the package test" ]
-      returnType = TBool
-      description =
-        "Whether the test wrote to the run's shared store and so ran again on a copy."
-      fn =
-        (function
-        | _, _, _, [| DUuid runId; hashDval |] ->
-          let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
-          LibDB.TestProcess.reranIn runId hash |> DBool
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      // Changes as tests finish, so keep it in program order.
-      callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
     { name = fn "pmExecuteTest" 0
