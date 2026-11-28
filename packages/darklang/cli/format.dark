@@ -182,8 +182,8 @@ let help(_state: AppState): String =
     "A directory means every .dark file under it. `-` formats stdin to stdout."
     ""
     "  --check        change nothing; list the files that aren't formatted, and exit 1 if any"
-    "  --as-written   also list the declarations kept as written: a trait or an impl, or one"
-    "                 where a comment couldn't be placed"
+    "  --as-written   also list the declarations kept as written, where a comment couldn't be"
+    "                 placed"
     ""
     "Formatting never changes what code means: every declaration hashes as it did." ]
   |> Stdlib.String.join("\n")

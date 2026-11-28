@@ -114,8 +114,7 @@ type File =
 /// A formatted file.
 type Formatted =
   { text: String
-    /// The declarations printed as written: the ones the printer can't print yet (traits and
-    /// impls), and any where printing would have lost a comment.
+    /// The declarations printed as written: any where printing would have lost a comment.
     asWritten: List<String> }
 
 
