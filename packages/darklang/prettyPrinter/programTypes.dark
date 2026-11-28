@@ -2573,12 +2573,12 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
     match record with
     | EVariable(_, _) | EArg(_, _) | EUnwrap(_, _) | ERecordFieldAccess(_, _, _) ->
       Stdlib.Pretty.Doc.Concat(exprDoc(ctx, record), field)
-    | _ -> Stdlib.Pretty.Doc.Concat(parens(exprDoc(ctx, record)), field)
+    | _ -> Stdlib.Pretty.Doc.Concat(parenthesized(ctx, record), field)
   | EUnwrap(_id, operand) ->
     match operand with
     | EVariable(_, _) | EArg(_, _) | ERecordFieldAccess(_, _, _) | EUnwrap(_, _) ->
       Stdlib.Pretty.Doc.Concat(exprDoc(ctx, operand), Stdlib.Pretty.text("?"))
-    | _ -> Stdlib.Pretty.Doc.Concat(parens(exprDoc(ctx, operand)), Stdlib.Pretty.text("?"))
+    | _ -> Stdlib.Pretty.Doc.Concat(parenthesized(ctx, operand), Stdlib.Pretty.text("?"))
   | e -> docOfText(exprString(ctx, e))
 
 
@@ -2615,6 +2615,8 @@ let parenthesized(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pret
       parens(commented(ctx, LanguageTools.ProgramTypes.Expr.toID(e), build))
     else
       parens(build(ctx))
+  // Already in parentheses of their own.
+  | ELambda(_, _, _) | ETuple(_, _, _, _) -> exprDoc(ctx, e)
   | _ -> parens(exprDoc(ctx, e))
 
 

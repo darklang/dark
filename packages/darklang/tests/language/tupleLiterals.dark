@@ -29,11 +29,11 @@ test firstElementErrorRaises =
 // Tuple indices start at 1.
 test elementAccess =
   Stdlib.Test.all(
-    [ ((1, "two")).1 |> Stdlib.Test.equal(1)
+    [ (1, "two").1 |> Stdlib.Test.equal(1)
 
-      ((1, "two")).2 |> Stdlib.Test.equal("two")
+      (1, "two").2 |> Stdlib.Test.equal("two")
 
-      ((1, 2, 3, 4)).4 |> Stdlib.Test.equal(4)
+      (1, 2, 3, 4).4 |> Stdlib.Test.equal(4)
 
       (let t = (true, 'c', 3)
        t.3)
@@ -55,7 +55,7 @@ test elementAccess =
        t.1 + t.2)
       |> Stdlib.Test.equal(3)
 
-      ((1, 2)).1 |> Stdlib.Test.equal(1)
+      (1, 2).1 |> Stdlib.Test.equal(1)
 
       (let t = (1, (2, 3))
        t.2.2 |> (fun v -> v + 10))
