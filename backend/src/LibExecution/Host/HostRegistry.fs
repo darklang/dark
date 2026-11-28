@@ -98,13 +98,11 @@ let register (title : string) (command : string) (branch : string) : unit =
           ()
       AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> remove ())
       // A TERM does not always reach ProcessExit through a blocking wait; remove the file
-      // first, then let the default termination proceed.
+      // first. Termination is not ours to decide: a `serve` cancels it to finish its requests.
       if not (OperatingSystem.IsWindows()) then
         Runtime.InteropServices.PosixSignalRegistration.Create(
           Runtime.InteropServices.PosixSignal.SIGTERM,
-          (fun ctx ->
-            remove ()
-            ctx.Cancel <- false)
+          (fun _ -> remove ())
         )
         |> ignore<Runtime.InteropServices.PosixSignalRegistration>
     with _ ->
