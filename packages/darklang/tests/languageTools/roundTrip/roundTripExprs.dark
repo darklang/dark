@@ -668,6 +668,20 @@ test exprsPreserveBothAccesses =
         "(fun((str1, str2)) -> str1 + str2)") ])
 
 
+// A lambda last hugs its call only when the arguments before it fit on the call's line.
+test exprsLambdaLastAfterLongArgument =
+  Stdlib.Test.all(
+    [ roundTrip(
+        "lambda last, after a lambda of several lines",
+        "f(xs, (fun x ->\n  let y = x + 1\n  y), fun z -> z)",
+        "f(\n  xs,\n  (fun x ->\n     let y = x + 1\n     y),\n  fun z -> z)")
+
+      roundTrip(
+        "lambda last, after short arguments",
+        "Stdlib.List.fold(xs, 0, fun(acc, x) ->\n  let y = acc + x\n  y)",
+        "Stdlib.List.fold(xs, 0, fun(acc, x) ->\n  let y = acc + x\n  y)") ])
+
+
 test exprsIfExpressions =
   Stdlib.Test.all(
     [ // if expressions

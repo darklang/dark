@@ -1665,15 +1665,21 @@ let callArgs(
         Stdlib.Pretty.concatAll(
           [ Stdlib.Pretty.text("("), before, lambda, Stdlib.Pretty.text(")") ])
 
+      // Only when the arguments before the lambda fit on the call's line: one that takes several
+      // lines would leave the rest of the call far to the right.
       let hugged =
-        Stdlib.Pretty.concatAll(
-          [ Stdlib.Pretty.text("(")
-            Stdlib.Pretty.group(before)
-            lambdaBrokenDoc(pats, bodyDoc)
-            Stdlib.Pretty.text(")") ])
+        match Stdlib.Pretty.group(before) with
+        | Group(_, flatWidth) as grouped when flatWidth >= 0 ->
+          Stdlib.Pretty.Doc.FitsOr(
+            Stdlib.Pretty.concatAll(
+              [ Stdlib.Pretty.text("(")
+                grouped
+                lambdaBrokenDoc(pats, bodyDoc)
+                Stdlib.Pretty.text(")") ]),
+            brokenArgs)
+        | _ -> brokenArgs
 
-      Stdlib.Pretty.group(
-        Stdlib.Pretty.Doc.IfFlat(onOneLine, Stdlib.Pretty.Doc.FitsOr(hugged, brokenArgs)))
+      Stdlib.Pretty.group(Stdlib.Pretty.Doc.IfFlat(onOneLine, hugged))
     | _ -> wrap(docs)
 
 
