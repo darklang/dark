@@ -795,6 +795,11 @@ jobs:
   deploy-preview:
     executor: simple-executor
     steps:
+      - run:
+          name: Install deploy dependencies
+          # ci-deploy.sh and host.sh are bash and use curl, jq, gzip and git; alpine has none of
+          # them, and without bash every step here would fail with 127.
+          command: apk add --no-cache bash git openssh-client curl jq gzip
       - checkout
       - run:
           name: Was this build published?
