@@ -10,6 +10,10 @@ open Prelude
 ///
 /// MIRRORS `Darklang.SCM.Branch.mainBranchId`. Rule on both sides: compare against `Main`, never
 /// against a literal "main".
+///
+/// Equality and ordering are the guid's. Written out because the generated ones go through F#'s
+/// generic hashing, and a branch id keys caches looked up on every package call.
+[<CustomEquality; CustomComparison>]
 type BranchId =
   /// Named `Id`, not `BranchId`: a case with the same name as its type shadows the type for QUALIFIED
   /// access, and `PT.BranchId.Main` then fails with "'Main' is not defined".
@@ -18,6 +22,25 @@ type BranchId =
   // Explicit ToString -- F# unions' default override goes through StructuredPrintfImpl
   // reflection, which is broken under AOT trimming. Same reason as `Hash`.
   override this.ToString() = let (Id g) = this in string g
+
+  override this.GetHashCode() = let (Id g) = this in g.GetHashCode()
+
+  override this.Equals(other : obj) =
+    match other with
+    | :? BranchId as b -> (this :> System.IEquatable<BranchId>).Equals b
+    | _ -> false
+
+  interface System.IEquatable<BranchId> with
+    member this.Equals(Id other) = let (Id g) = this in g.Equals other
+
+  interface System.IComparable<BranchId> with
+    member this.CompareTo(Id other) = let (Id g) = this in g.CompareTo other
+
+  interface System.IComparable with
+    member this.CompareTo(other : obj) =
+      match other with
+      | :? BranchId as b -> (this :> System.IComparable<BranchId>).CompareTo b
+      | _ -> invalidArg "other" "not a BranchId"
 
   /// Main's branch id: an ordinary branch id, a uuid like every other. Well-known rather than minted,
   /// because main is the one branch that exists before anything creates it, and it has no `branches` row
