@@ -212,8 +212,11 @@ type ViewFrame =
 let viewTraceTree(
   /// The CLI passes the logged-in account. None keeps the caller's account.
   accountID: Option<Uuid>,
+
   branchId: Uuid,
+
   traceID: String,
+
   /// Extra iterations to keep, as (site, which one, counting from 0). A view holds the first
   /// and last few of each site; this is how one in between is reached, by running the view
   /// again and asking for it. `[]` for an ordinary view.

@@ -567,12 +567,17 @@ let printCallsJson(branchId: Uuid, fnName: String): Bool =
 /// with no source. What an agent wants, since it can read the code already.
 let showCodeJson(
   accountID: Option<Uuid>,
+
   branchId: Uuid,
+
   typed: String,
+
   tracePrefix: Option<String>,
+
   /// What `--iteration` was given, if anything. An agent asking for the middle of a long loop
   /// gets it fetched, exactly as the page does; without this it sees only the first and last few.
   iterationArg: Option<String>,
+
   /// `--full`: no budget on a value. The default caps each one and says what it cut; an agent
   /// that has decided it wants the whole thing asks for it rather than guessing.
   full: Bool)
@@ -764,9 +769,12 @@ let insideFn(
 /// The loops of a trace, in the order they first ran.
 let loopsOf(
   frames: List<Tracing.Store.ViewFrame>,
+
   fnNames: List<(String * String)>,
+
   /// How many times each loop went round as RECORDED, for the iterations a replay could not reach.
   recordedIterations: List<(String * Int64)>,
+
   /// The hash of the function being viewed. A trace goes through many functions and only the
   /// loops inside THIS one belong on its page: offering `map` while reading a function that
   /// contains no loop sends someone looking for something that is not there.
@@ -998,11 +1006,15 @@ let iterationsToFetch(
 /// context that makes the iteration mean anything.
 let valuesOfFrame(
   branchId: Uuid,
+
   base': Dict<String, String>,
+
   frameValues: List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)>,
+
   /// EVERY frame of the loop, not just the chosen one. Needed to know which lines belong to
   /// the loop's body, which is what makes blanking them safe.
   loopFrameIds: List<String>,
+
   frameId: String)
   : Dict<String, String> =
   // Every line this loop's body ever wrote a value to, across all of its iterations.
