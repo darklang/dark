@@ -12,10 +12,9 @@
 #     scripts/run-tests --final       the last run before a merge: ahead of the other waiters for
 #                                     a slot (scripts/testing/_suite-slot)
 #
-# The suites share nothing they write: the F# tests use rundir/test-data.db,
-# rundir/split-sequenced/ and rundir/split-sequenced-2/, package-tests uses rundir/package-tests/,
-# and each gate its own rundir and HOME. Each suite's output goes to
-# rundir/logs/run-tests/<suite>.log.
+# The suites share nothing they write: the F# tests use rundir/test-data.db and
+# rundir/split-sequenced{,-2,-3}/, package-tests uses rundir/package-tests/, and each gate its
+# own rundir and HOME. Each suite's output goes to rundir/logs/run-tests/<suite>.log.
 #
 # Not here: first-day, which needs a release binary (`gates first-day <binary>`), and the build's
 # own Python tests (scripts/testing/test-build-planning.py, .circleci/test_*.py).
@@ -82,8 +81,8 @@ counts() {
   local log="$LOGS/$1.log"
   case "$1" in
     fsharp)
-      plain "$log" | grep -oE '(\[sequenced(-2)?\] )?.*EXPECTO! [0-9,]+ tests run.*errored' \
-        | sed -E 's/.*\[(sequenced(-2)?)\].*EXPECTO! /\1: /; s/.*EXPECTO! /parallel: /' \
+      plain "$log" | grep -oE '(\[sequenced(-[23])?\] )?.*EXPECTO! [0-9,]+ tests run.*errored' \
+        | sed -E 's/.*\[(sequenced(-[23])?)\].*EXPECTO! /\1: /; s/.*EXPECTO! /parallel: /' \
         | sed -E 's/ in [0-9:.]+ for tests –/:/' | paste -sd ';' | sed 's/;/; /g' ;;
     package-tests)
       plain "$log" | grep -E '[0-9,]+ passed, [0-9,]+ failed' | tail -1 | cut -d';' -f1 ;;

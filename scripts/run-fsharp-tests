@@ -41,8 +41,8 @@ case "${1:-}" in
   --find)   exec python3.12 scripts/testing/_test-explorer.py find "${@:2}" ;;
 esac
 
-# --split runs the sequenced tests in a second process alongside the parallel ones. A
-# filter could leave either half empty, so it is whole-suite only.
+# --split runs the sequenced tests in processes of their own alongside the parallel ones. A
+# filter could leave one of them empty, so it is whole-suite only.
 if [[ "$SPLIT" == "true" && "$FILTERED" == "true" ]]; then
   echo "--split runs the whole suite; it does not take a filter, --shard or --kind." >&2
   exit 1
@@ -255,13 +255,17 @@ src.backup(dst)' "$DB_PATH" "$home/.darklang/${DARK_CONFIG_DB_NAME}"
 }
 
 if [[ "$SPLIT" == "true" ]]; then
-  # Two shares, whole groups each, as even as the groups allow: the sequenced tests in one
-  # process ran well past the parallel ones. These groups take about half of the sequenced
-  # time (on CI: OpsProjections 30s, PackageTests 28s, scheduler 17s, spread 6s); rebalance
-  # here when the timings move. Keep CliTraces and CliTraceVerbs together, in that order.
-  SEQ_SECOND_SHARE=PackageTests,OpsProjections,scheduler,spread
-  start_sequenced sequenced 1 --skip-groups "$SEQ_SECOND_SHARE"
+  # Three shares, whole groups each, as even as the groups allow: the sequenced tests in one
+  # process ran well past the parallel ones. The second share's groups take about half of the
+  # rest (on CI: OpsProjections 30s, PackageTests 28s, scheduler 17s). spread has a share of
+  # its own: on a Debug build it is about 100s, each case forcing work onto every core.
+  # Rebalance here when the timings move. Keep CliTraces and CliTraceVerbs together, in that
+  # order.
+  SEQ_SECOND_SHARE=PackageTests,OpsProjections,scheduler
+  SEQ_THIRD_SHARE=spread
+  start_sequenced sequenced 1 --skip-groups "$SEQ_SECOND_SHARE,$SEQ_THIRD_SHARE"
   start_sequenced sequenced-2 2 --only-groups "$SEQ_SECOND_SHARE"
+  start_sequenced sequenced-3 3 --only-groups "$SEQ_THIRD_SHARE"
   EXPECTO_ARGS+=(--kind parallel)
 fi
 
