@@ -402,28 +402,6 @@ test unitEqualsFloatRaises =
 test leftOperandErrorRaisesBeforeRight =
   (1 / 0) != (Builtin.unwrap(None)) => raises "Cannot divide by 0"
 
-// Other ways to call it
-test equalsForms =
-  Stdlib.Test.all(
-    [ 1s128 == 1s128 |> Stdlib.Test.equal(true)
-      (==)(1s128, 1s128) |> Stdlib.Test.equal(true)
-      1u128 == 1u128 |> Stdlib.Test.equal(true)
-      (==)(1u128, 1u128) |> Stdlib.Test.equal(true)
-      1 == 1 |> Stdlib.Test.equal(true)
-      (==)(1, 1) |> Stdlib.Test.equal(true)
-      1s32 == 1s32 |> Stdlib.Test.equal(true)
-      (==)(1s32, 1s32) |> Stdlib.Test.equal(true)
-      1u32 == 1u32 |> Stdlib.Test.equal(true)
-      (==)(1u32, 1u32) |> Stdlib.Test.equal(true)
-      1s16 == 1s16 |> Stdlib.Test.equal(true)
-      (==)(1s16, 1s16) |> Stdlib.Test.equal(true)
-      1u16 == 1u16 |> Stdlib.Test.equal(true)
-      (==)(1u16, 1u16) |> Stdlib.Test.equal(true)
-      1s8 == 1s8 |> Stdlib.Test.equal(true)
-      (==)(1s8, 1s8) |> Stdlib.Test.equal(true)
-      1u8 == 1u8 |> Stdlib.Test.equal(true)
-      (==)(1u8, 1u8) |> Stdlib.Test.equal(true) ])
-
 test stdlibEquals =
   Stdlib.Test.all(
     [ Stdlib.equals(1s128, 1s128) |> Stdlib.Test.equal(true)

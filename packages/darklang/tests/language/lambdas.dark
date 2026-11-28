@@ -10,23 +10,6 @@ test lambdaEquality =
        Stdlib.List.prepend([], fn) == [ fn ])
       |> Stdlib.Test.equal(true) ])
 
-test mapAndApply =
-  Stdlib.Test.all(
-    [ // Test that empty parameters are removed
-      (let y = (fun(x, ___) -> x + 1)
-       Stdlib.List.map([ 1, 2, 3, 4 ], y))
-      |> Stdlib.Test.equal([ 2, 3, 4, 5 ])
-      (let y = (fun x -> x + 1)
-       Stdlib.List.map([ 1, 2, 3, 4 ], y))
-      |> Stdlib.Test.equal([ 2, 3, 4, 5 ])
-      (let y = (fun(a, b) -> a + b) in y(2, 3)) |> Stdlib.Test.equal(5)
-      (let y = (fun((a, b)) -> a + b) in y((2, 3))) |> Stdlib.Test.equal(5)
-      (let y = (fun msg -> Darklang.Language.Tests.raiseRuntimeError(msg))
-       Stdlib.List.map([], y))
-      |> Stdlib.Test.equal([])
-      (let y = (fun(a, b) -> a * b) in Stdlib.List.fold([ 1, 2, 3, 4 ], 1, y))
-      |> Stdlib.Test.equal(24) ])
-
 test mapRaisesFirstCallbackError =
   (let y = (fun msg -> Darklang.Language.Tests.raiseRuntimeError(msg))
    Stdlib.List.map([ "1", "2", "3", "4" ], y))

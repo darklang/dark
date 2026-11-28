@@ -4,18 +4,6 @@ test bytesValueIsNotCallable =
   Stdlib.Bytes.empty()
   => raises "Cannot call a Bytes value as a function."
 
-test lambdasAndOperators =
-  Stdlib.Test.all(
-    [ (let fn = (fun x -> x + 1)
-       fn(6))
-      |> Stdlib.Test.equal(7)
-      (let fn = (+)
-       fn(3, 4))
-      |> Stdlib.Test.equal(7)
-      (let fn = (fun(a, b) -> Stdlib.max(a, b))
-       fn(3, 7))
-      |> Stdlib.Test.equal(7) ])
-
 // `map` gives its callback one argument, and a two-parameter lambda takes two, so it raises.
 test callbackGivenTooFewArguments =
   ([ 1, 2 ] |> Stdlib.List.map(fun(x, y) -> x))

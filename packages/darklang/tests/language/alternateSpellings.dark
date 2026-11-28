@@ -1,0 +1,81 @@
+module Darklang.Language.Tests.AlternateSpellings
+
+// Tests of a construct written a way `dark format` rewrites: an operator as a function (`(+)`)
+// and an empty `___` parameter. The skip list keeps this file as written.
+
+test lambdasAndOperators =
+  Stdlib.Test.all(
+    [ (let fn = (fun x -> x + 1)
+       fn(6))
+      |> Stdlib.Test.equal(7)
+      (let fn = (+)
+       fn(3, 4))
+      |> Stdlib.Test.equal(7)
+      (let fn = (fun(a, b) -> Stdlib.max(a, b))
+       fn(3, 7))
+      |> Stdlib.Test.equal(7) ])
+
+// Other ways to call `==`
+test equalsForms =
+  Stdlib.Test.all(
+    [ 1s128 == 1s128 |> Stdlib.Test.equal(true)
+      (==)(1s128, 1s128) |> Stdlib.Test.equal(true)
+      1u128 == 1u128 |> Stdlib.Test.equal(true)
+      (==)(1u128, 1u128) |> Stdlib.Test.equal(true)
+      1 == 1 |> Stdlib.Test.equal(true)
+      (==)(1, 1) |> Stdlib.Test.equal(true)
+      1s32 == 1s32 |> Stdlib.Test.equal(true)
+      (==)(1s32, 1s32) |> Stdlib.Test.equal(true)
+      1u32 == 1u32 |> Stdlib.Test.equal(true)
+      (==)(1u32, 1u32) |> Stdlib.Test.equal(true)
+      1s16 == 1s16 |> Stdlib.Test.equal(true)
+      (==)(1s16, 1s16) |> Stdlib.Test.equal(true)
+      1u16 == 1u16 |> Stdlib.Test.equal(true)
+      (==)(1u16, 1u16) |> Stdlib.Test.equal(true)
+      1s8 == 1s8 |> Stdlib.Test.equal(true)
+      (==)(1s8, 1s8) |> Stdlib.Test.equal(true)
+      1u8 == 1u8 |> Stdlib.Test.equal(true)
+      (==)(1u8, 1u8) |> Stdlib.Test.equal(true) ])
+
+let userFn(): Int64 = 6
+
+test functions =
+  Stdlib.Test.all(
+    [ (() |> userFn) |> Stdlib.Test.equal(6)
+      ([] |> Stdlib.List.prepend(2)) |> Stdlib.Test.equal([ 2 ])
+      // nested function
+      ([] |> Stdlib.List.prepend(1 + (1 + 3))) |> Stdlib.Test.equal([ 5 ])
+      ([] |> Stdlib.List.prepend(1 + ((+)(1, 3)))) |> Stdlib.Test.equal([ 5 ]) ])
+
+module FnName =
+  test pipeIntoBoundFn =
+    Stdlib.Test.all(
+      [ (let fn = (fun x -> x + 1)
+         6 |> fn)
+        |> Stdlib.Test.equal(7)
+        (let fn = (+)
+         3 |> fn(4))
+        |> Stdlib.Test.equal(7)
+        (let fn = (-)
+         11 |> fn(4))
+        |> Stdlib.Test.equal(7)
+        (let fn = (fun(a, b) -> Stdlib.max(a, b))
+         3 |> fn(7))
+        |> Stdlib.Test.equal(7) ])
+
+test mapAndApply =
+  Stdlib.Test.all(
+    [ // Test that empty parameters are removed
+      (let y = (fun(x, ___) -> x + 1)
+       Stdlib.List.map([ 1, 2, 3, 4 ], y))
+      |> Stdlib.Test.equal([ 2, 3, 4, 5 ])
+      (let y = (fun x -> x + 1)
+       Stdlib.List.map([ 1, 2, 3, 4 ], y))
+      |> Stdlib.Test.equal([ 2, 3, 4, 5 ])
+      (let y = (fun(a, b) -> a + b) in y(2, 3)) |> Stdlib.Test.equal(5)
+      (let y = (fun((a, b)) -> a + b) in y((2, 3))) |> Stdlib.Test.equal(5)
+      (let y = (fun msg -> Darklang.Language.Tests.raiseRuntimeError(msg))
+       Stdlib.List.map([], y))
+      |> Stdlib.Test.equal([])
+      (let y = (fun(a, b) -> a * b) in Stdlib.List.fold([ 1, 2, 3, 4 ], 1, y))
+      |> Stdlib.Test.equal(24) ])
