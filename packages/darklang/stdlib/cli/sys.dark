@@ -7,7 +7,7 @@ let currentUser(): Option<String> =
   | Some(u) -> Some(u)
   | None ->
     match Env.get("USER") with
-    | Some(u) -> Option.Some(u)
+    | Some(u) -> Some(u)
     | None -> Posix.__accountLookup(Posix.__decimal(Posix.__uid()), 0)
 
 

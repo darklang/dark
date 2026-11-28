@@ -3266,7 +3266,7 @@ let packageFnNamed(
         |> Stdlib.String.split(".")
         |> Stdlib.List.last
 
-      let symbolPart = if name == Option.Some(symbol) then "" else $" \"{symbol}\""
+      let symbolPart = if name == Some(symbol) then "" else $" \"{symbol}\""
       ("extern", $"from \"{library}\"{symbolPart}")
     | _ -> ("let", " =")
 

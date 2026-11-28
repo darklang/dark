@@ -408,7 +408,7 @@ let __copyWriteAt(
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __copyWriteAt(write, bytes, offset)
-      | _ -> Result.Error(e)
+      | _ -> Error(e)
     | Ok(count) ->
       if count <= 0 || count > length then
         Error(Posix.Error.BadKernelReply)
@@ -428,7 +428,7 @@ let __copyBuffered(
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __copyBuffered(read, write, offset)
-    | _ -> Result.Error(e)
+    | _ -> Error(e)
   | Ok(bytes) ->
     let length = Bytes.length(bytes)
     if length == 0 then
@@ -474,7 +474,7 @@ let __copyKernelCopy(
 
 let __copyTransfer(source: BigInt, destination: BigInt): Result<Unit, Posix.Error> =
   match Posix.__cloneFile(source, destination) with
-  | Ok(()) -> Result.Ok()
+  | Ok(()) -> Ok()
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __copyTransfer(source, destination)
@@ -639,7 +639,7 @@ let __watchLoop(
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __watchLoop(fd, intervalMs, shouldStop, fn)
-      | _ -> Result.Error(e)
+      | _ -> Error(e)
     | Ok(record) ->
       Posix.__kernelField(record, 6, 2)
       |> Result.andThen(fun returned ->
@@ -668,7 +668,7 @@ let __watchLinux(
     Ok()
   else
     match Posix.__inotifyInit1(526336) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(raw) ->
       let fd = Posix.Fd { __fd = raw }
       let result =
@@ -729,7 +729,7 @@ let __watchVnodeLoop(
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn)
-      | _ -> Result.Error(e)
+      | _ -> Error(e)
     | Ok(buffer) ->
       __watchVnodeEvents(buffer, 0, false, false)
       |> Result.andThen(fun pair ->
@@ -742,7 +742,7 @@ let __watchCloseBoth(queue: BigInt, source: BigInt): Result<Unit, Posix.Error> =
   let first = Posix.fdClose(Posix.Fd { __fd = queue })
   let second = Posix.fdClose(Posix.Fd { __fd = source })
   match first with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(()) -> second
 
 
@@ -758,13 +758,13 @@ let __watchDarwin(
     // O_EVTONLY holds the vnode without needing data-access permission. The
     // trusted open boundary supplies no-follow and scoped read authorization.
     match Posix.openFile(path, 32768, Posix.FileMode { __mode = 0 }) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(sourceFd) ->
       let source = sourceFd.__fd
       match Posix.__kqueue() with
       | Error(e) ->
         let _ = Posix.fdClose(sourceFd)
-        Result.Error(e)
+        Error(e)
       | Ok(queue) ->
         let result =
           // EV_ADD | EV_ENABLE | EV_CLEAR; seven vnode-change notes.

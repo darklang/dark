@@ -1047,7 +1047,7 @@ let __pathGetCwd(): Result<String, Error> =
   let bytes =
     if __abiMac() then
       match open(".", __abiOpenDirectory(), 0) with
-      | Error(e) -> Result.Error(__fromErrno(e))
+      | Error(e) -> Error(__fromErrno(e))
       | Ok(fd) ->
         let result = fcntlGetPath(fd)
         let closed = close(fd)

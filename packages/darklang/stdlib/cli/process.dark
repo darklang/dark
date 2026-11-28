@@ -378,8 +378,8 @@ let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __childPoll(fds, milliseconds)
-    | _ -> Result.Error(e)
-  | Ok(_) -> Result.Ok()
+    | _ -> Error(e)
+  | Ok(_) -> Ok()
 
 
 let __childDescriptors(
