@@ -10,7 +10,9 @@ open LibSerialization.Binary.Serializers.Common
 
 module Hash =
   let write (w : BinaryWriter) (Hash h : Hash) = String.write w h
-  let read (r : BinaryReader) : Hash = Hash(String.read r)
+  // Interned: runtime code compares hashes all the time (call caches, type names), and equal
+  // strings that are one object compare without reading their characters.
+  let read (r : BinaryReader) : Hash = Hash(System.String.Intern(String.read r))
 
 
 module NameResolutionError =
