@@ -29,8 +29,7 @@ let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 let defaultRequestTimeoutMs : int = 30_000
 
 /// How long a stopping server waits for the requests it is already serving before it closes
-/// anyway. Under Docker's 10 s stop timeout, the shortest of the usual managers' (launchd 20 s,
-/// Kubernetes 30 s, systemd 90 s), so the server exits on its own before one kills it.
+/// anyway. Short enough that it exits on its own before a service manager gives up and kills it.
 let drainGraceMs : int = 8_000
 
 
