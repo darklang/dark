@@ -28,7 +28,7 @@ module RoundtripTests =
   // most of the time, it should end up being the same as the source.
   // if there are known exceptions, break down individual mappings as separate tests
 
-  let types : RT.Types = { package = pmRT.getType }
+  let types : RT.Types = RT.Types.ofPackage pmRT.getType
 
   let testRoundtrip
     (testName : string)

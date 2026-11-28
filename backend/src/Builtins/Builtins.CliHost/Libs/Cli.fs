@@ -985,7 +985,7 @@ let childState
   : RT.ExecutionState =
   { parentState with
       tracing = tracing
-      types = { package = pm.getType }
+      types = RT.Types.ofPackage pm.getType
       // The script's own traits are grafted onto `pm` too; dispatch reads them here.
       traits = { trait_ = pm.getTrait }
       values = { parentState.values with package = pm.getValue }

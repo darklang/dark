@@ -6650,7 +6650,21 @@ and ExecutionState =
   }
 
 
-and Types = { package : FQTypeName.Package -> Option<PackageType.PackageType> }
+/// Made with `Types.ofPackage`, which gives each one its own caches: tests mint their own package
+/// managers and reuse type names across different declarations, so a cache keyed on the name alone
+/// is only right per `Types`.
+and Types =
+  {
+    package : FQTypeName.Package -> Option<PackageType.PackageType>
+    /// Declarations already looked up (`Types.find`).
+    declarations :
+      ConcurrentDictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>
+    /// Types already resolved (`TypeChecker.resolveType`).
+    resolved :
+      ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
+      List<string * ValueType> *
+      TypeDeclaration.Definition>
+  }
 
 /// Trait lookup by hash. Its one field is named unlike `Types.package` so that a
 /// `{ package = … }` record literal keeps inferring `Types`.
@@ -6687,39 +6701,22 @@ and Functions =
 
 
 module Types =
-  let empty = { package = (fun _ -> None) }
+  let ofPackage
+    (package : FQTypeName.Package -> Option<PackageType.PackageType>)
+    : Types =
+    { package = package
+      declarations = ConcurrentDictionary()
+      resolved = ConcurrentDictionary() }
 
-  /// Declarations already looked up, per `Types` instance.
-  ///
-  /// Without it every lookup made a fresh `Some`, even though the package manager behind it is
-  /// already a cache hit. `unwrapAlias` reaches it constantly.
-  ///
-  /// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe, since a
-  /// type name is a content hash, and it isn't: tests mint their own package managers and reuse
-  /// names across different declarations. Caching the whole `Option` means a hit allocates nothing.
-  ///
-  /// Concurrent on both levels, and it has to be. `find` had no mutable state before this cache, so
-  /// nothing stopped two threads calling it at once, and plenty do: the test suite runs its cases in
-  /// parallel against one `Types`. A plain `Dictionary` here corrupted itself within seconds under
-  /// that, and a get-then-add on the outer table let two threads build two caches, one of which then
-  /// took writes nobody would ever read.
-  type private DeclCache =
-    System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>
+  let empty = ofPackage (fun _ -> None)
 
-  let private declCache =
-    System.Runtime.CompilerServices.ConditionalWeakTable<Types, DeclCache>()
-
-  let private newDeclCache =
-    System.Runtime.CompilerServices.ConditionalWeakTable<Types, DeclCache>
-      .CreateValueCallback(fun _ -> DeclCache())
-
+  /// Caching the whole `Option` means a hit allocates nothing. Concurrent, and it has to be: the
+  /// test suite runs its cases in parallel against one `Types`.
   let find
     (types : Types)
     (name : FQTypeName.FQTypeName)
     : Option<TypeDeclaration.T> =
-    // `GetValue`, not a `TryGetValue`/`AddOrUpdate` pair: the pair is not atomic, and this is the
-    // one place the cache for a `Types` is created.
-    let cache = declCache.GetValue(types, newDeclCache)
+    let cache = types.declarations
 
     match Lookup.tryFindV name cache with
     | ValueSome hit -> hit
