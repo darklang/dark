@@ -36,7 +36,8 @@ let resolveTrait(
   let traitPath =
     match Search.operatorAlias(traitPath) with
     | Some(name)
-      when Stdlib.String.first(name, 1) != Stdlib.String.toLowercase(Stdlib.String.first(name, 1)) ->
+      when Stdlib.String.first(name, 1)
+           != Stdlib.String.toLowercase(Stdlib.String.first(name, 1)) ->
       name
     | _ -> traitPath
 

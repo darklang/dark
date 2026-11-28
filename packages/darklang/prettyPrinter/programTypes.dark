@@ -2279,7 +2279,8 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
   | EFnName(_id, fnName, _, []) -> docOfText(NameResolution.fnName(ctx, fnName))
   | EValue(_id, value) -> docOfText(NameResolution.valueName(ctx, value))
   | EString(id, segments)
-    when Stdlib.Bool.not(Stdlib.Dict.isEmpty(ctx.tripleQuoted)) && Stdlib.Dict.containsKey(ctx.tripleQuoted, Stdlib.display(id)) ->
+    when Stdlib.Bool.not(Stdlib.Dict.isEmpty(ctx.tripleQuoted))
+         && Stdlib.Dict.containsKey(ctx.tripleQuoted, Stdlib.display(id)) ->
     match tripleQuotedString(ctx, segments) with
     | Some(t) -> Stdlib.Pretty.text(t)
     | None -> docOfText(exprString(ctx, e))

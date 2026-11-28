@@ -279,7 +279,9 @@ let executeFiltered(
 
       match Stdlib.List.last(path) |> Stdlib.Option.andThen(Stdlib.String.head) with
       | Some(c)
-        when Stdlib.Char.isUppercase(c) && path != rootPath && Stdlib.List.take(path, Stdlib.List.length(rootPath)) == rootPath ->
+        when Stdlib.Char.isUppercase(c)
+             && path != rootPath
+             && Stdlib.List.take(path, Stdlib.List.length(rootPath)) == rootPath ->
         Some(path)
       | _ -> None)
 
