@@ -29,3 +29,34 @@ test dictionarySignatures =
         LanguageTools.ProgramTypes.TypeReference.TString,
         LanguageTools.ProgramTypes.TypeReference.TBool)
       |> Stdlib.Test.equal(false) ])
+
+
+// `d` and `e` hash the same, but each calls its own callee and follows only its edits.
+test twinCallersSavedTogetherKeepTheirOwnCallee = Instance.withInstance(fun i ->
+  let source =
+    [ "let a(): Int64 = 7"
+      "let a2(): Int64 = 7"
+      "let d(): Int64 = a() + 3"
+      "let e(): Int64 = a2() + 3" ]
+    |> Stdlib.String.join("\n")
+
+  let (defined, out) =
+    Instance.runWithStdin(i, [ "module", "/Me.Twin", "-" ], source)
+
+  let d = Instance.said(i, [ "view", "Me.Twin.d", "--raw" ])
+  let e = Instance.said(i, [ "view", "Me.Twin.e", "--raw" ])
+  let (edited, editOut) =
+    Instance.runWithStdin(
+      i,
+      [ "edit", "Me.Twin.a", "-" ],
+      "let a(): Int64 = 70")
+
+  let dNow = Instance.said(i, [ "eval", "Me.Twin.d()" ])
+  let eNow = Instance.said(i, [ "eval", "Me.Twin.e()" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(defined, 0, out)
+      Instance.says(d, "a() + 3", "d calls a")
+      Instance.says(e, "a2() + 3", "e calls a2")
+      Instance.exitedWith(edited, 0, editOut)
+      Stdlib.String.trim(dNow) |> Stdlib.Test.equal("73")
+      Stdlib.String.trim(eNow) |> Stdlib.Test.equal("10") ]))

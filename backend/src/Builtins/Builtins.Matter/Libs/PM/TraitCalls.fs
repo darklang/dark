@@ -891,78 +891,47 @@ let private resolveIn
                   resolvedImpls = impls
                   boundImpls = bounds }
 
-        let mappings =
+        // Two items with one hash are one item, parsed twice. A resolution is keyed by node id,
+        // and the checker answers for only one copy's ids. Unresolved, the other copy would
+        // rehash apart from its twin, with every caller after it. So the answer moves onto each
+        // copy by position, and each copy keeps its own names.
+        let positionsByHash =
+          ops
+          |> List.choose Positions.bodyOf
+          |> List.groupBy (fun (_, hash, _) -> hash)
+          |> Map.map (List.map (fun (_, _, body) -> Positions.ofBody body))
+        let answers =
           resolved
-          |> Map.toList
-          |> List.fold
-            (fun mappings (itemHash, resolutions) ->
-              match mappingOf resolutions with
-              | Some mapping -> Map.add itemHash mapping mappings
-              | None -> mappings)
-            Map.empty
+          |> Map.mapWithIndex (fun hash resolutions ->
+            Map.tryFind hash positionsByHash
+            |> Option.defaultValue []
+            |> List.tryPick (fun positions ->
+              Encoding.encode positions resolutions))
 
-        let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
-          Map.tryFind hash mappings
+        let mappingFor
+          (op : PT.PackageOp)
+          : Option<LibDB.AstTransformer.HashMapping> =
+          Positions.bodyOf op
+          |> Option.bind (fun (_, hash, body) ->
+            match Map.tryFind hash answers with
+            | Some(Some answer) -> Encoding.decode (Positions.ofBody body) answer
+            | Some None -> Map.tryFind hash resolved
+            | None -> None)
+          |> Option.bind mappingOf
 
-        let transformed =
+        let rewritten =
           ops
           |> List.map (fun op ->
-            match op with
-            | PT.PackageOp.AddFn fn ->
-              match mappingFor fn.hash with
-              | Some mapping ->
-                PT.PackageOp.AddFn(LibDB.AstTransformer.transformFn mapping fn)
-              | None -> op
-            | PT.PackageOp.AddValue value ->
-              match mappingFor value.hash with
-              | Some mapping ->
-                PT.PackageOp.AddValue(
-                  LibDB.AstTransformer.transformValue mapping value
-                )
-              | None -> op
-            | PT.PackageOp.AddTest test ->
-              match mappingFor test.hash with
-              | Some mapping ->
-                PT.PackageOp.AddTest(
-                  LibDB.AstTransformer.transformTest mapping test
-                )
-              | None -> op
+            match op, mappingFor op with
+            | PT.PackageOp.AddFn fn, Some mapping ->
+              PT.PackageOp.AddFn(LibDB.AstTransformer.transformFn mapping fn)
+            | PT.PackageOp.AddValue value, Some mapping ->
+              PT.PackageOp.AddValue(
+                LibDB.AstTransformer.transformValue mapping value
+              )
+            | PT.PackageOp.AddTest test, Some mapping ->
+              PT.PackageOp.AddTest(LibDB.AstTransformer.transformTest mapping test)
             | _ -> op)
-
-        // Two items with one hash are one item, parsed twice. A resolution is keyed by node id
-        // and the two parses have different ids, so only the copy the checker saw is resolved, and
-        // which copy that is depends on how the batch was split. The unresolved copy then rehashes
-        // apart from its twin, with every caller after it: loading the package tests alongside
-        // the rest moved 340 production fns this way, `Cli.executeCliCommand` among them. So
-        // the copy that was resolved stands for every copy; ids do not enter the hash.
-        let bodyHash (op : PT.PackageOp) : Option<PT.Hash> =
-          match op with
-          | PT.PackageOp.AddFn fn -> Some fn.hash
-          | PT.PackageOp.AddValue value -> Some value.hash
-          | PT.PackageOp.AddTest test -> Some test.hash
-          | _ -> None
-        let rewrittenByHash =
-          List.zip ops transformed
-          |> List.choose (fun (before, after) ->
-            // Structurally: the twin gets the same mapping, and comes back rebuilt but
-            // unchanged, since none of the mapping's node ids are its own.
-            if before = after then
-              None
-            else
-              bodyHash before |> Option.map (fun h -> h, after))
-          |> Map.ofList
-        let rewritten =
-          List.zip ops transformed
-          |> List.map (fun (before, after) ->
-            if before <> after then
-              after
-            else
-              match
-                bodyHash before
-                |> Option.bind (fun h -> Map.tryFind h rewrittenByHash)
-              with
-              | Some rewritten -> rewritten
-              | None -> after)
         (rewritten, failed))
 
 
@@ -974,11 +943,6 @@ let private resolveIn
 type UnresolvedCall =
   | Function of at : id * name : string
   | Operator of at : id * op : PT.InfixFnName
-
-let private callNodeId (call : UnresolvedCall) : id =
-  match call with
-  | Function(at, _)
-  | Operator(at, _) -> at
 
 /// The calls in <param expr> that will be decided at run time rather than by this save: a trait
 /// method or a trait operator still `Unknown`, and a call into a BOUNDED fn that recorded nothing
@@ -1112,24 +1076,6 @@ let resolveTraitCalls
       let bounded = Set.ofList boundedCallees
       let isBounded h = Set.contains h bounded
 
-      let callsFromSource originalBody resolvedBody =
-        match unresolved isBounded resolvedBody with
-        | [] -> []
-        | calls ->
-          // Resolution can copy a twin's body. Keep this declaration's names and ids.
-          let originalCalls =
-            unresolved isBounded originalBody
-            |> List.map (fun call -> callNodeId call, call)
-            |> Map.ofList
-          let originalIds =
-            List.zip (Positions.ofBody resolvedBody) (Positions.ofBody originalBody)
-            |> Map.ofList
-          calls
-          |> List.map (fun call ->
-            Map.tryFind (callNodeId call) originalIds
-            |> Option.bind (fun at -> Map.tryFind at originalCalls)
-            |> Option.defaultValue call)
-
       let nextOps =
         match ops with
         | [] -> []
@@ -1138,10 +1084,10 @@ let resolveTraitCalls
         List.zip3 ops resolved nextOps
         |> List.collect (fun (original, rewritten, next) ->
           match Positions.bodyOf original, Positions.bodyOf rewritten with
-          | Some(_, hash, originalBody), Some(_, _, resolvedBody) when
+          | Some(_, hash, _), Some(_, _, resolvedBody) when
             not (Set.contains hash failed)
             ->
-            let calls = callsFromSource originalBody resolvedBody
+            let calls = unresolved isBounded resolvedBody
             if List.isEmpty calls then
               []
             else
