@@ -462,8 +462,8 @@ let unify
 /// Scoping per `Types` costs nothing in practice, since a server has one for the life of the
 /// process.
 ///
-/// Only the non-alias branch is cached: resolving an alias depends on the caller's type symbol
-/// table, so its answer isn't a function of the name.
+/// An alias is cached only when it has no type params of its own: one that has them resolves
+/// through the caller's type symbol table, so its answer isn't a function of the name.
 let private resolvedTypeCache =
   System.Runtime.CompilerServices.ConditionalWeakTable<Types, System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
   List<string * ValueType> *
@@ -528,8 +528,13 @@ let rec resolveType
                   | None -> (targetParam, vt)
                 | _ -> (targetParam, vt))
 
-            resolveType types threadID tst innerTypeName []
-            |> (fun (resolvedName, _, def) -> (resolvedName, mappedInnerArgsVT, def))
+            let result =
+              resolveType types threadID tst innerTypeName []
+              |> (fun (resolvedName, _, def) ->
+                (resolvedName, mappedInnerArgsVT, def))
+            if List.isEmpty typeArgs && List.isEmpty decl.typeParams then
+              (cacheFor types)[typeName] <- result
+            result
 
         | _ -> RTE.TypeNotFound typeName |> raiseRTE
 
