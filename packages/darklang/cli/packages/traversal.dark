@@ -2,10 +2,10 @@ module Darklang.Cli.Packages.Traversal
 
 // Path segment type for navigation
 type PathSegment =
-  | Root           // Go to root (/)
-  | Here           // Stay here (.)
-  | Up             // Go up one level (..)
-  | Into(String) // Go into a named entity/module
+  | Root  // Go to root (/)
+  | Here  // Stay here (.)
+  | Up  // Go up one level (..)
+  | Into(String)  // Go into a named entity/module
 
 
 let parsePath(pathStr: String): List<PathSegment> =

@@ -146,6 +146,28 @@ let private commentSpots
   (starts, rows)
 
 
+/// Every field and case of a type's body, every field of a case, and an alias's type, with
+/// where it is. They have no ids, so each goes by the key the printer looks its comments up by:
+/// `field name`, `case Name`, `case Name 0`, `alias`. Only unique within its type, which is all
+/// placing needs: a declaration's comments are placed among its own nodes.
+let rec private typeParts (ds : List<WT.Declaration>) : List<string * WT.Range> =
+  ds
+  |> List.collect (fun d ->
+    match d with
+    | WT.DModule m -> typeParts m.declarations
+    | WT.DType { definition = WT.TDAlias typ } ->
+      [ ("alias", WT.typeReferenceRange typ) ]
+    | WT.DType { definition = WT.TDRecord fields } ->
+      fields |> List.map (fun (f, _) -> ($"field {snd f.name}", f.range))
+    | WT.DType { definition = WT.TDEnum cases } ->
+      cases
+      |> List.collect (fun (pipe, c) ->
+        let name = snd c.name
+        ($"case {name}", { c.range with start = pipe.start })
+        :: (c.fields |> List.mapi (fun i f -> ($"case {name} {i}", f.range))))
+    | _ -> [])
+
+
 let private declRange (d : WT.Declaration) : WT.Range =
   match d with
   | WT.DFunction f -> f.range
@@ -651,16 +673,13 @@ let private parse (state : ExecutionState) (source : string) : Result<Dval, stri
     // node's parts before it.
     let (starts, rows) = commentSpots tokens
     let ranges =
-      ctx.ranges
-      |> Seq.filter (fun kv ->
-        starts.Contains(packed kv.Value.start)
-        || rows.Contains(int64 kv.Value.end_.row))
-      |> Seq.map (fun kv ->
-        DTuple(
-          DString(string kv.Key),
-          DInt64(packed kv.Value.start),
-          [ DInt64(packed kv.Value.end_) ]
-        ))
+      Seq.append
+        (ctx.ranges |> Seq.map (fun kv -> (string kv.Key, kv.Value)))
+        (typeParts sf.declarations)
+      |> Seq.filter (fun (_, r : WT.Range) ->
+        starts.Contains(packed r.start) || rows.Contains(int64 r.end_.row))
+      |> Seq.map (fun (key, r) ->
+        DTuple(DString key, DInt64(packed r.start), [ DInt64(packed r.end_) ]))
       |> List.ofSeq
     // The strings written between triple quotes, which lowering doesn't keep.
     let tripleQuoted =

@@ -226,11 +226,11 @@ module RecordWithTypeArgsDifferentName =
 
   type LessInner<'b, 'a> = Inner<'a, 'b>
 
-  type Outer<'x> = LessInner<'x, Int64> // { a: 'x, b: Int64 }
+  type Outer<'x> = LessInner<'x, Int64>  // { a: 'x, b: Int64 }
 
-  type Outest<'y> = Outer<'y> // { a: 'y, b: Int64 }
+  type Outest<'y> = Outer<'y>  // { a: 'y, b: Int64 }
 
-  type MostOutest = Outest<String> // { a: Int64, b: String }
+  type MostOutest = Outest<String>  // { a: Int64, b: String }
 
 
   test reorderedTypeArgs =
@@ -339,7 +339,7 @@ module EnumWithTypeArgsDifferentName =
 
   type Outest<'y> = Outer<'y>
 
-  type MostOutest = Outest<String> // effectively: `| A(Int64) | B(String)`
+  type MostOutest = Outest<String>  // effectively: `| A(Int64) | B(String)`
 
 
   test reorderedTypeArgs =
