@@ -427,7 +427,8 @@ let decoded(e: LanguageTools.ProgramTypes.Expr): String =
         // itself here: this helper checks escape decoding, not execution.
         match inner with
         | EApply(_, EFnName(_, name, _, _), [], [literal])
-          when name.originalName == [ "Darklang", "Stdlib", "Display", "display" ] ->
+          when name.originalName
+               == [ "Darklang", "Stdlib", "Display", "display" ] ->
           decoded(literal)
         | _ -> decoded(inner))
     |> Stdlib.String.join("")

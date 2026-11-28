@@ -78,7 +78,11 @@ let definitionFromArgs(args: List<String>): Result<String, String> =
   // A file, when the one argument could be one: a declaration has spaces, a path here does
   // not, and asking the host about a declaration-shaped "path" that is longer than a file
   // name may fail closed (the link check treats what it cannot inspect as a link).
-  | [path] when if Stdlib.String.contains(path, " ") then false else Stdlib.Cli.File.exists(path) ->
+  | [path]
+    when if Stdlib.String.contains(path, " ") then
+           false
+         else
+           Stdlib.Cli.File.exists(path) ->
     match Stdlib.Cli.File.readText(path) with
     | Ok(source) -> Ok(source)
     | Error(_) -> Ok(path)

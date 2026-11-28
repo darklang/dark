@@ -1450,7 +1450,7 @@ let flat(d: Stdlib.Pretty.Doc): String =
   Stdlib.Pretty.render(1000000, d)
 
 
-/// <param e> on one line, for where code can't break: a `when` guard, an interpolation.
+/// <param e> on one line, for where code can't break: an interpolation.
 let flatExpr(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   flat(exprDoc({ ctx with oneLine = true }, e))
 
@@ -2279,7 +2279,8 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
   | EFnName(_id, fnName, _, []) -> docOfText(NameResolution.fnName(ctx, fnName))
   | EValue(_id, value) -> docOfText(NameResolution.valueName(ctx, value))
   | EString(id, segments)
-    when Stdlib.Bool.not(Stdlib.Dict.isEmpty(ctx.tripleQuoted)) && Stdlib.Dict.containsKey(ctx.tripleQuoted, Stdlib.display(id)) ->
+    when Stdlib.Bool.not(Stdlib.Dict.isEmpty(ctx.tripleQuoted))
+         && Stdlib.Dict.containsKey(ctx.tripleQuoted, Stdlib.display(id)) ->
     match tripleQuotedString(ctx, segments) with
     | Some(t) -> Stdlib.Pretty.text(t)
     | None -> docOfText(exprString(ctx, e))
@@ -2295,15 +2296,18 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
       cases
       |> Stdlib.List.map(fun case ->
         commented(ctx, patternId(case.pat), fun ctx ->
-          // `| p when c ->` on one line when it fits; otherwise `when c ->` on the next.
+          // `| p when c ->` on one line when it fits; otherwise `when c ->` on the next, and a
+          // `c` too long for that line breaks under itself.
           let whenPart =
             match case.whenCondition with
             | Some(cond) ->
               Stdlib.Pretty.Doc.Nest(
                 2,
-                Stdlib.Pretty.Doc.Concat(
-                  Stdlib.Pretty.Doc.Line,
-                  Stdlib.Pretty.text($"when {flatExpr(ctx, cond)} ->")))
+                Stdlib.Pretty.concatAll(
+                  [ Stdlib.Pretty.Doc.Line
+                    Stdlib.Pretty.text("when ")
+                    Stdlib.Pretty.Doc.Align(exprDoc(ctx, cond))
+                    Stdlib.Pretty.text(" ->") ]))
             | None -> Stdlib.Pretty.text(" ->")
 
           // A bare `|` in the body would be read back as the next ARM, so wrap it.
