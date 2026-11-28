@@ -14,19 +14,31 @@ let session(text: String): Lsp.Session<Unit, Parsed> =
         analysis = Lsp.Analysed.Ready(Lsp.Examples.Toy.parse(text))
         previous = Option.None }
 
-  Lsp.Session { state = (), documents = Stdlib.Dict.fromList([ (doc.uri, doc) ]), client = Json.Null }
+  Lsp.Session
+    { state = ()
+      documents = Stdlib.Dict.fromList([ (doc.uri, doc) ])
+      client = Json.Null }
 
 
-let ask(server: Lsp.Server<Unit, Parsed>, session: Lsp.Session<Unit, Parsed>, method: String, params: String): String =
-  match Stdlib.List.findFirst(Lsp.Loop.methods(server), fun m -> m.name == method) with
+let ask(
+  server: Lsp.Server<Unit, Parsed>,
+  session: Lsp.Session<Unit, Parsed>,
+  method: String,
+  params: String)
+  : String =
+  match Stdlib.List.findFirst(Lsp.Loop.methods(server), fun m ->
+          m.name == method) with
   | None -> "not supported"
   | Some(m) ->
-    match m.answer(session, Stdlib.Json.parse<Json>(params) |> Builtin.unwrap) with
+    match m.answer(
+            session,
+            Stdlib.Json.parse<Json>(params) |> Builtin.unwrap) with
     | Ok(json) -> Stdlib.AltJson.format(json)
     | Error(e) -> $"error {e.code}"
 
 
-val at = "{\"textDocument\":{\"uri\":\"file:///a.toy\"},\"position\":{\"line\":1,\"character\":4}}"
+val at =
+  "{\"textDocument\":{\"uri\":\"file:///a.toy\"},\"position\":{\"line\":1,\"character\":4}}"
 
 
 test capabilitiesFollowTheHandlers =
@@ -34,10 +46,15 @@ test capabilitiesFollowTheHandlers =
   let has(key: String): Bool = Stdlib.Option.isSome(Lsp.Read.at(caps, [ key ]))
   Stdlib.Test.all(
     [ has("hoverProvider") |> Stdlib.Test.equal(true)
+
       has("completionProvider") |> Stdlib.Test.equal(true)
+
       has("textDocumentSync") |> Stdlib.Test.equal(true)
+
       has("definitionProvider") |> Stdlib.Test.equal(false)
-      Lsp.Read.bool(caps, [ "completionProvider", "resolveProvider" ]) |> Stdlib.Test.equal(Option.Some(false)) ])
+
+      Lsp.Read.bool(caps, [ "completionProvider", "resolveProvider" ])
+      |> Stdlib.Test.equal(Option.Some(false)) ])
 
 
 test handlersAnswerTheirMethods =
@@ -45,19 +62,26 @@ test handlersAnswerTheirMethods =
   let toy = Lsp.Examples.Toy.server()
   Stdlib.Test.all(
     [ ask(toy, s, "textDocument/hover", at)
-      |> Stdlib.Test.equal("{\"contents\":{\"kind\":\"markdown\",\"value\":\"`a` is 1\"}}")
+      |> Stdlib.Test.equal(
+        "{\"contents\":{\"kind\":\"markdown\",\"value\":\"`a` is 1\"}}")
 
       ask(toy, s, "textDocument/completion", at)
       |> Stdlib.Test.equal(
         "{\"isIncomplete\":false,\"items\":[{\"label\":\"a\",\"kind\":6,\"data\":null},{\"label\":\"b\",\"kind\":6,\"data\":null}]}")
 
       // a document that is not open has nothing to hover
-      ask(toy, s, "textDocument/hover", "{\"textDocument\":{\"uri\":\"file:///b.toy\"},\"position\":{\"line\":0,\"character\":0}}")
+      ask(
+        toy,
+        s,
+        "textDocument/hover",
+        "{\"textDocument\":{\"uri\":\"file:///b.toy\"},\"position\":{\"line\":0,\"character\":0}}")
       |> Stdlib.Test.equal("null")
 
-      ask(toy, s, "textDocument/definition", at) |> Stdlib.Test.equal("not supported")
+      ask(toy, s, "textDocument/definition", at)
+      |> Stdlib.Test.equal("not supported")
 
-      Lsp.Examples.Toy.parse("a = 1\noops\n").bad |> Stdlib.Test.equal([ 1 ]) ])
+      (Lsp.Examples.Toy.parse("a = 1\noops\n")).bad
+      |> Stdlib.Test.equal([ 1 ]) ])
 
 
 test methodsAndMiddlewareCompose =
@@ -65,15 +89,17 @@ test methodsAndMiddlewareCompose =
   let shout(m: Lsp.Method<Unit, Parsed>): Lsp.Method<Unit, Parsed> =
     { m with
         answer =
-          fun(s, p) ->
-            m.answer(s, p)
-            |> Stdlib.Result.map(fun j -> Json.String(Stdlib.String.toUppercase(Stdlib.AltJson.format(j)))) }
+          (fun(s, p) ->
+             m.answer(s, p)
+             |> Stdlib.Result.map(fun j ->
+               Json.String(
+                 Stdlib.String.toUppercase(Stdlib.AltJson.format(j))))) }
 
   let mine =
     Lsp.Method
       { name = "textDocument/hover"
         capability = Option.Some(("hoverProvider", Json.Bool(true)))
-        answer = fun(_, _) -> Result.Ok(Json.String("mine"))
+        answer = (fun(_, _) -> Result.Ok(Json.String("mine")))
         writes = false }
 
   let s = session("a = 1\nb = a\n")
@@ -82,7 +108,8 @@ test methodsAndMiddlewareCompose =
       |> Stdlib.Test.equal("\"mine\"")
 
       ask({ toy with middleware = [ shout ] }, s, "textDocument/hover", at)
-      |> Stdlib.Test.equal("\"{\\\"CONTENTS\\\":{\\\"KIND\\\":\\\"MARKDOWN\\\",\\\"VALUE\\\":\\\"`A` IS 1\\\"}}\"") ])
+      |> Stdlib.Test.equal(
+        "\"{\\\"CONTENTS\\\":{\\\"KIND\\\":\\\"MARKDOWN\\\",\\\"VALUE\\\":\\\"`A` IS 1\\\"}}\"") ])
 
 
 test utf16Columns =
@@ -93,19 +120,26 @@ test utf16Columns =
 
   Stdlib.Test.all(
     [ Lsp.Text.width("a😀é") |> Stdlib.Test.equal(4)
+
       Lsp.Text.splitAt("a😀b", 3) |> Stdlib.Test.equal(("a😀", "b"))
+
       Lsp.Text.replace("let a = 1\nlet 😀 = 2\n", r(1, 6, 1, 7), "x")
       |> Stdlib.Test.equal("let a = 1\nlet 😀x= 2\n")
-      Lsp.Text.replace("one\ntwo\nthree", r(0, 1, 2, 2), "") |> Stdlib.Test.equal("oree")
+
+      Lsp.Text.replace("one\ntwo\nthree", r(0, 1, 2, 2), "")
+      |> Stdlib.Test.equal("oree")
+
       Lsp.Text.before("ab\ncd\nef", Lsp.Position { line = 2, character = 1 }, 1)
       |> Stdlib.Test.equal("cd\ne")
+
       Lsp.Text.wordAt("x = abc_1 + y", Lsp.Position { line = 0, character = 6 })
       |> Stdlib.Test.equal(Option.Some("abc_1")) ])
 
 
 test tokenEncoding =
   let t(line: Int64, start: Int64, length: Int64, tokenType: Int64): Lsp.Token =
-    Lsp.Token { line = line, start = start, length = length, tokenType = tokenType }
+    Lsp.Token
+      { line = line, start = start, length = length, tokenType = tokenType }
 
   Lsp.Write.tokens([ t(0, 0, 3, 0), t(0, 4, 1, 8), t(2, 2, 5, 1) ])
   |> Stdlib.AltJson.format

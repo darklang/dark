@@ -30,7 +30,9 @@ test storeUris =
       { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "map" }
 
   let uri =
-    LanguageTools.LanguageServer.Names.uriOf(loc, LanguageTools.ProgramTypes.ItemKind.Fn)
+    LanguageTools.LanguageServer.Names.uriOf(
+      loc,
+      LanguageTools.ProgramTypes.ItemKind.Fn)
 
   Stdlib.Test.all(
     [ uri |> Stdlib.Test.equal("darkfs:/Darklang/Stdlib/List/map.fn.dark")
@@ -42,7 +44,8 @@ test storeUris =
             loc,
             LanguageTools.ProgramTypes.ItemKind.Fn)))
 
-      LanguageTools.LanguageServer.Names.parseUri("darkfs:/Darklang/Stdlib/List.dark")
+      LanguageTools.LanguageServer.Names.parseUri(
+        "darkfs:/Darklang/Stdlib/List.dark")
       |> Stdlib.Test.equal(
         Option.Some(
           LanguageTools.LanguageServer.Names.StoreDoc.Module(
@@ -136,7 +139,8 @@ test callUnderCursor =
         "f(Stdlib.String.padStart(s, \"a, b\", ")
       |> Stdlib.Test.equal(Option.Some(("Stdlib.String.padStart", 2, false)))
 
-      LanguageTools.LanguageServer.Completion.callAt("xs\n  |> Stdlib.List.map(")
+      LanguageTools.LanguageServer.Completion.callAt(
+        "xs\n  |> Stdlib.List.map(")
       |> Stdlib.Test.equal(Option.Some(("Stdlib.List.map", 0, true)))
 
       LanguageTools.LanguageServer.Completion.callAt("g(h(1), [2, 3], ")
@@ -182,7 +186,8 @@ test bindingOrder =
 
 test ourCapabilitiesFollowOurHandlers =
   let caps =
-    Lsp.Loop.capabilities(Lsp.Loop.methods(LanguageTools.LanguageServer.server(false)))
+    Lsp.Loop.capabilities(
+      Lsp.Loop.methods(LanguageTools.LanguageServer.server(false)))
 
   [ "hoverProvider"
     "definitionProvider"
@@ -203,7 +208,8 @@ test ourCapabilitiesFollowOurHandlers =
     "documentLinkProvider"
     "renameProvider"
     "callHierarchyProvider" ]
-  |> Stdlib.List.filter(fun key -> Stdlib.Option.isNone(Lsp.Read.at(caps, [ key ])))
+  |> Stdlib.List.filter(fun key ->
+    Stdlib.Option.isNone(Lsp.Read.at(caps, [ key ])))
   |> Stdlib.Test.equal([])
 
 
@@ -232,6 +238,10 @@ test extendingOurHover =
     | None -> Option.None
 
   Stdlib.Test.all(
-    [ hover(0, 4) |> Stdlib.Test.equal(Option.Some("Something to come back to."))
+    [ hover(0, 4)
+      |> Stdlib.Test.equal(Option.Some("Something to come back to."))
+
       // a parameter is still ours to describe
-      hover(1, 25) |> Stdlib.Test.equal(Option.Some("```darklang\n(parameter) x: Int64\n```")) ])
+      hover(1, 25)
+      |> Stdlib.Test.equal(
+        Option.Some("```darklang\n(parameter) x: Int64\n```")) ])

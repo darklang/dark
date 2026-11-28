@@ -40,11 +40,7 @@ let diagnostic(
   message: String)
   : Lsp.Diagnostic =
   Lsp.Diagnostic
-    { range = range(r)
-      severity = severity
-      code = code
-      message = message
-      data = Option.None }
+    { range = range(r), severity = severity, code = code, message = message, data = Option.None }
 
 
 // --- the checker's findings, placed on the items they are about ---
@@ -301,11 +297,10 @@ let check(
   previous: Option<Analysis>,
   ops: List<ProgramTypes.PackageOp>)
   : AtRestTypeChecker.Report =
-  let traitsOrImpls =
-    Stdlib.List.any(ops, fun op ->
-      match op with
-      | AddTrait(_) | AddTraitImpl(_) -> true
-      | _ -> false)
+  let traitsOrImpls = Stdlib.List.any(ops, fun op ->
+    match op with
+    | AddTrait(_) | AddTraitImpl(_) -> true
+    | _ -> false)
 
   let known =
     match previous with
@@ -314,7 +309,8 @@ let check(
         Stdlib.Dict.empty
       else
         p.checked
-        |> Stdlib.List.map(fun i -> (ProgramTypes.hashToString(ProgramTypes.Reference.hash(i.item)), i))
+        |> Stdlib.List.map(fun i ->
+          (ProgramTypes.hashToString(ProgramTypes.Reference.hash(i.item)), i))
         |> Stdlib.Dict.fromList
     | None -> Stdlib.Dict.empty
 
@@ -412,7 +408,8 @@ let analyse(session: Session, doc: Document): Analysis =
       { empty with
           parsed = Option.Some(file)
           diagnostics =
-            Stdlib.List.flatten([ syntaxDiagnostics, names, checkerDiagnostics(sf.range, srcs, report) ])
+            Stdlib.List.flatten(
+              [ syntaxDiagnostics, names, checkerDiagnostics(sf.range, srcs, report) ])
           typeHints = typeHints(branchId, file, srcs, report)
           ops = ops
           checked = report.items }

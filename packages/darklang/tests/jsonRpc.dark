@@ -8,19 +8,35 @@ let roundTrip(m: JsonRpc.Message): JsonRpc.Body =
 
 
 test messagesRoundTrip =
-  let request = JsonRpc.Message.Request(JsonRpc.Id.Number(7), "textDocument/hover", Json.Object([]))
+  let request =
+    JsonRpc.Message.Request(
+      JsonRpc.Id.Number(7),
+      "textDocument/hover",
+      Json.Object([]))
+
   let notification = JsonRpc.Message.Notification("initialized", Json.Null)
-  let response = JsonRpc.Message.Response(Option.Some(JsonRpc.Id.Text("a")), Result.Ok(Json.Bool(true)))
+  let response =
+    JsonRpc.Message.Response(
+      Option.Some(JsonRpc.Id.Text("a")),
+      Result.Ok(Json.Bool(true)))
+
   let failed =
     JsonRpc.Message.Response(
       Option.Some(JsonRpc.Id.Number(2)),
       Result.Error(JsonRpc.error(JsonRpc.Code.methodNotFound, "no")))
 
   Stdlib.Test.all(
-    [ roundTrip(request) |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(request)))
-      roundTrip(notification) |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(notification)))
-      roundTrip(response) |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(response)))
-      roundTrip(failed) |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(failed))) ])
+    [ roundTrip(request)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(request)))
+
+      roundTrip(notification)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(notification)))
+
+      roundTrip(response)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(response)))
+
+      roundTrip(failed)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(failed))) ])
 
 
 test badMessagesGetTheirReply =
@@ -36,17 +52,21 @@ test badMessagesGetTheirReply =
 
       JsonRpc.parse("{\"id\": 3, \"method\": \"x\"}")
       |> code
-      |> Stdlib.Test.equal(Option.Some((Option.Some(JsonRpc.Id.Number(3)), JsonRpc.Code.invalidRequest)))
+      |> Stdlib.Test.equal(
+        Option.Some(
+          (Option.Some(JsonRpc.Id.Number(3)), JsonRpc.Code.invalidRequest)))
 
       JsonRpc.parse("[]")
       |> code
-      |> Stdlib.Test.equal(Option.Some((Option.None, JsonRpc.Code.invalidRequest))) ])
+      |> Stdlib.Test.equal(
+        Option.Some((Option.None, JsonRpc.Code.invalidRequest))) ])
 
 
 test batchesAnswerInOneArray =
   let echo(m: JsonRpc.Message): Option<JsonRpc.Message> =
     match m with
-    | Request(id, _, params) -> Option.Some(JsonRpc.Message.Response(Option.Some(id), Result.Ok(params)))
+    | Request(id, _, params) ->
+      Option.Some(JsonRpc.Message.Response(Option.Some(id), Result.Ok(params)))
     | _ -> Option.None
 
   Stdlib.Test.all(
@@ -69,9 +89,15 @@ test framing =
   let wanted = JsonRpc.Framing.wants(reader)
   let (reader, body) = JsonRpc.Framing.step(reader, "{\"a\":1}")
   Stdlib.Test.all(
-    [ (none1, none2, none3) |> Stdlib.Test.equal((Option.None, Option.None, Option.None))
+    [ (none1, none2, none3)
+      |> Stdlib.Test.equal((Option.None, Option.None, Option.None))
+
       wanted |> Stdlib.Test.equal(Stdlib.Host.EventSpec.StdinBytes(7))
+
       body |> Stdlib.Test.equal(Option.Some("{\"a\":1}"))
+
       reader |> Stdlib.Test.equal(JsonRpc.Framing.start)
+
       // the length is in bytes, not characters
-      JsonRpc.Framing.frame("é") |> Stdlib.Test.equal("Content-Length: 2\r\n\r\né") ])
+      JsonRpc.Framing.frame("é")
+      |> Stdlib.Test.equal("Content-Length: 2\r\n\r\né") ])

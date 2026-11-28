@@ -68,7 +68,8 @@ let qualify(
 
   let r =
     { r with
-        end_ = Parser.Point { row = r.start.row, column = r.start.column + Lsp.Text.width(written) } }
+        end_ =
+          Parser.Point { row = r.start.row, column = r.start.column + Lsp.Text.width(written) } }
 
   let name =
     Stdlib.String.split(written, ".")
@@ -187,5 +188,8 @@ let codeActions(
     | Some("NonExhaustiveMatch"), Some(missing) -> addCase(doc, d, r, parserRange(cursor), missing)
     | Some("UnknownVariable"), _ -> qualify(session, doc, d, r)
     | _ ->
-      if Stdlib.String.endsWith(d.message, "not found") then qualify(session, doc, d, r) else [])
+      if Stdlib.String.endsWith(d.message, "not found") then
+        qualify(session, doc, d, r)
+      else
+        [])
   |> Stdlib.List.flatten

@@ -76,12 +76,14 @@ type Handlers<'s, 'a> =
     inlayHints: Option<(Session<'s, 'a>, Document<'a>, Range) -> List<InlayHint>>
     codeLenses: Option<(Session<'s, 'a>, Document<'a>) -> List<CodeLens>>
     /// The range, and the diagnostics the editor shows there.
-    codeActions: Option<(Session<'s, 'a>, Document<'a>, Range, List<Diagnostic>) -> List<CodeAction>>
+    codeActions: Option<
+      (Session<'s, 'a>, Document<'a>, Range, List<Diagnostic>) -> List<CodeAction>>
     formatting: Option<(Session<'s, 'a>, Document<'a>) -> List<TextEdit>>
     links: Option<(Session<'s, 'a>, Document<'a>) -> List<DocumentLink>>
     prepareRename: Option<(Session<'s, 'a>, Document<'a>, Position) -> Option<Range>>
     /// The new name; an Error is shown to the person.
-    rename: Option<(Session<'s, 'a>, Document<'a>, Position, String) -> Result<WorkspaceEdit, String>> }
+    rename: Option<
+      (Session<'s, 'a>, Document<'a>, Position, String) -> Result<WorkspaceEdit, String>> }
 
 
 /// A request by its method name, its params and result as JSON: what every handler becomes,
@@ -184,8 +186,10 @@ let askToRefresh(session: Session<'s, 'a>): Unit =
     ("codeLens", "workspace/codeLens/refresh")
     ("semanticTokens", "workspace/semanticTokens/refresh") ]
   |> Stdlib.List.iter(fun((what, method)) ->
-    if Read.bool(session.client, [ "workspace", what, "refreshSupport" ])
-       |> Stdlib.Option.withDefault(false) then
+    if
+      Read.bool(session.client, [ "workspace", what, "refreshSupport" ])
+      |> Stdlib.Option.withDefault(false)
+    then
       JsonRpc.Stdio.send(
         JsonRpc.Message.Request(
           JsonRpc.Id.Text(method + "-" + Stdlib.display(Stdlib.Uuid.generate())),

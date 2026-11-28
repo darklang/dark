@@ -31,9 +31,18 @@ gate_lsp() {
 
 # --- vscode-extension: the VS Code extension type-checks, bundles and packs ---------------------
 # Gate, not a test: it is a node build. It installs the locked dependencies, so a lockfile that
-# drifted from package.json fails here rather than on someone's machine.
+# drifted from package.json fails here rather than on someone's machine. It runs only when the
+# change touches the extension (or this gate) against main; without a main to compare with, it runs.
 gate_vscode_extension() {
   set -euo pipefail
+
+  # shellcheck source=scripts/formatting/_dark-format-scope
+  . scripts/formatting/_dark-format-scope
+  if changed=$(dark_format_changed_files) \
+    && ! grep -qE '^(vscode-extension/|scripts/testing/_gates-lsp$)' <<<"$changed"; then
+    echo "vscode-extension: nothing under vscode-extension/ changed against main"
+    exit "$SKIP"
+  fi
 
   command -v npm >/dev/null || { echo "vscode-extension: no npm" >&2; exit 2; }
   cd vscode-extension

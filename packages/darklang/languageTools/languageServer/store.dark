@@ -11,9 +11,10 @@ let read(branchId: Uuid, params: Json): Json =
   let text =
     match Lsp.Read.string(params, [ "uri" ])
           |> Stdlib.Option.map(fun uri -> Stdlib.String.split(uri, "?trace=")) with
-    | Some([ uri ]) -> Names.source(branchId, uri)
-    | Some([ uri, traceId ]) ->
-      Names.storeFn(uri) |> Stdlib.Option.andThen(fun loc -> Lens.traceDocument(branchId, loc, traceId))
+    | Some([uri]) -> Names.source(branchId, uri)
+    | Some([uri, traceId]) ->
+      Names.storeFn(uri)
+      |> Stdlib.Option.andThen(fun loc -> Lens.traceDocument(branchId, loc, traceId))
     | _ -> Option.None
 
   match text with
@@ -55,7 +56,7 @@ let methods(): List<Lsp.Method<State, Analysis.Analysis>> =
     Lsp.Method
       { name = name
         capability = Option.None
-        answer = fun(session, params) -> Result.Ok(answer(session.state.branchId, params))
+        answer = (fun(session, params) -> Result.Ok(answer(session.state.branchId, params)))
         writes = writes }
 
   [ method("dark/fs/read", false, read)

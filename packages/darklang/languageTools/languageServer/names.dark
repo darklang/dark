@@ -228,7 +228,8 @@ let storeFn(uri: String): Option<ProgramTypes.PackageLocation> =
 /// The package item named under <param at>.
 let itemAt(session: Session, doc: Document, p: Lsp.Position): Option<Item> =
   at(doc.text, p.line, p.character)
-  |> Stdlib.Option.andThen(fun name -> resolve(context(session.state.branchId, doc.uri), name.parts))
+  |> Stdlib.Option.andThen(fun name ->
+    resolve(context(session.state.branchId, doc.uri), name.parts))
 
 
 let openDocs(session: Session): List<(String * String)> =

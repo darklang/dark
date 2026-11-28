@@ -35,7 +35,10 @@ let typed(before: String): (List<String> * String) =
     |> Stdlib.Result.withDefault([])
     |> Stdlib.List.last
     |> Stdlib.Option.andThen(fun m ->
-      if m.range.end == Lsp.Text.width(before) then Option.Some(m.text) else Option.None)
+      if m.range.end == Lsp.Text.width(before) then
+        Option.Some(m.text)
+      else
+        Option.None)
 
   match atEnd
         |> Stdlib.Option.map(fun t -> Stdlib.String.split(t, "."))
@@ -80,7 +83,8 @@ let fnItem(
         snippet = Option.Some(loc.name + "(" + snippet + ")")
         command =
           Option.Some(
-            Lsp.Command { title = "", command = "editor.action.triggerParameterHints", arguments = [] }) }
+            Lsp.Command
+              { title = "", command = "editor.action.triggerParameterHints", arguments = [] }) }
 
 
 /// Everything directly in the module at <param path>, as completions: submodules, functions,
@@ -217,7 +221,8 @@ let complete(session: Session, doc: Document, at: Lsp.Position): List<Lsp.Comple
           around
           [ item("Stdlib", Lsp.CompletionKind.Module, "4", Json.Null) ]
           inModule(ctx.branchId, sets, [])
-          keywords |> Stdlib.List.map(fun k -> item(k, Lsp.CompletionKind.Keyword, "5", Json.Null)) ])
+          keywords
+          |> Stdlib.List.map(fun k -> item(k, Lsp.CompletionKind.Keyword, "5", Json.Null)) ])
     | [first, ...] ->
       if Stdlib.List.any(scope, fun((name, _)) -> name == first) then
         []
@@ -329,7 +334,10 @@ let signature(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.Sig
           (Stdlib.List.append(acc, (at, at + w)), at + w + 2))
 
       let docOf(description: String): Option<String> =
-        if description == "" then Option.None else Option.Some(Hover.markdownOfDoc(description))
+        if description == "" then
+          Option.None
+        else
+          Option.Some(Hover.markdownOfDoc(description))
 
       Option.Some(
         Lsp.Signature

@@ -2,10 +2,15 @@
 /// not one, a name's value on hover, and the names as completions.
 module Darklang.Lsp.Examples.Toy
 
-type Line = { name: String, value: String }
+type Line =
+  { name: String
+    value: String }
+
 
 /// The lines that say `name = value`, and the numbers of those that don't.
-type Parsed = { lines: List<Line>, bad: List<Int64> }
+type Parsed =
+  { lines: List<Line>
+    bad: List<Int64> }
 
 
 let parse(text: String): Parsed =
@@ -13,47 +18,51 @@ let parse(text: String): Parsed =
   |> Stdlib.List.indexedMap(fun(n, line) -> (n, Stdlib.String.split(line, " = ")))
   |> Stdlib.List.fold(Parsed { lines = [], bad = [] }, fun(p, (n, parts)) ->
     match parts with
-    | [ "" ] -> p
-    | [ name, value ] -> { p with lines = Stdlib.List.append(p.lines, Line { name = name, value = value }) }
+    | [""] -> p
+    | [name, value] ->
+      { p with lines = Stdlib.List.append(p.lines, Line { name = name, value = value }) }
     | _ -> { p with bad = Stdlib.List.append(p.bad, n) })
 
 
-let warning(line: Int64): Lsp.Diagnostic =
-  Lsp.Diagnostic
+let warning(line: Int64): Diagnostic =
+  Diagnostic
     { range = Lsp.line(line)
-      severity = Lsp.Severity.Warning
+      severity = Severity.Warning
       code = Option.None
       message = "expected `name = value`"
       data = Option.None }
 
 
-let hover(_: Lsp.Session<Unit, Parsed>, doc: Lsp.Document<Parsed>, at: Lsp.Position): Option<Lsp.Hover> =
-  match Lsp.analysis(doc), Lsp.Text.wordAt(doc.text, at) with
+let hover(_: Session<Unit, Parsed>, doc: Document<Parsed>, at: Position): Option<Hover> =
+  match analysis(doc), Text.wordAt(doc.text, at) with
   | Some(parsed), Some(word) ->
     parsed.lines
     |> Stdlib.List.findFirst(fun l -> l.name == word)
-    |> Stdlib.Option.map(fun l -> Lsp.Hover { markdown = $"`{l.name}` is {l.value}", range = Option.None })
+    |> Stdlib.Option.map(fun l ->
+      Hover { markdown = $"`{l.name}` is {l.value}", range = Option.None })
   | _ -> Option.None
 
 
-let names(_: Lsp.Session<Unit, Parsed>, doc: Lsp.Document<Parsed>, _: Lsp.Position): List<Lsp.CompletionItem> =
-  match Lsp.analysis(doc) with
-  | Some(parsed) -> Stdlib.List.map(parsed.lines, fun l -> Lsp.completion(l.name, Lsp.CompletionKind.Variable))
+let names(_: Session<Unit, Parsed>, doc: Document<Parsed>, _: Position): List<CompletionItem> =
+  match analysis(doc) with
+  | Some(parsed) ->
+    Stdlib.List.map(parsed.lines, fun l -> completion(l.name, CompletionKind.Variable))
   | None -> []
 
 
-let server(): Lsp.Server<Unit, Parsed> =
+let server(): Server<Unit, Parsed> =
   { Lsp.server("toy", ()) with
       analyser =
         Option.Some(
-          Lsp.Analyser
-            { analyse = fun(_, doc) -> parse(doc.text)
-              diagnostics = fun parsed -> Stdlib.List.map(parsed.bad, warning) })
+          Analyser
+            { analyse = (fun(_, doc) -> parse(doc.text))
+              diagnostics = (fun parsed -> Stdlib.List.map(parsed.bad, warning)) })
       handlers =
-        { Lsp.noHandlers() with
+        { noHandlers() with
             hover = Option.Some(hover)
-            completion = Option.Some(Lsp.Completion { triggers = [], items = names, resolve = Option.None }) } }
+            completion =
+              Option.Some(Completion { triggers = [], items = names, resolve = Option.None }) } }
 
 
 let main(_args: List<String>): Int64 =
-  Lsp.run(server())
+  run(server())

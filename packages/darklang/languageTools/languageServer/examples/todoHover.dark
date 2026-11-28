@@ -4,7 +4,8 @@ module Darklang.LanguageTools.LanguageServer.Examples.TodoHover
 
 let hover(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.Hover> =
   match Lsp.Text.wordAt(doc.text, at) with
-  | Some("TODO") -> Option.Some(Lsp.Hover { markdown = "Something to come back to.", range = Option.None })
+  | Some("TODO") ->
+    Option.Some(Lsp.Hover { markdown = "Something to come back to.", range = Option.None })
   | _ -> Hover.hover(session, doc, at)
 
 

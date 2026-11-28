@@ -54,7 +54,9 @@ let pieces(lines: List<String>, r: Parser.Range, t: Int64): List<Lsp.Token> =
     [ token(r.start.row, r.start.column, r.end_.column - r.start.column) ]
   else
     let widthOf(line: Int64): Int64 =
-      Stdlib.List.getAt(lines, line) |> Stdlib.Option.map(Lsp.Text.width) |> Stdlib.Option.withDefault(0)
+      Stdlib.List.getAt(lines, line)
+      |> Stdlib.Option.map(Lsp.Text.width)
+      |> Stdlib.Option.withDefault(0)
 
     let middle =
       Stdlib.List.checkedRange(r.start.row + 1, r.end_.row - 1)
@@ -74,7 +76,8 @@ let tokens(_session: Session, doc: Document, fromLine: Int64, toLine: Int64): Li
   | Some(file) ->
     let lines = Lsp.Text.lines(doc.text)
     SemanticTokens.ParsedFile.tokenize(file)
-    |> Stdlib.List.filter(fun tok -> tok.range.end_.row >= fromLine && tok.range.start.row <= toLine)
+    |> Stdlib.List.filter(fun tok ->
+      tok.range.end_.row >= fromLine && tok.range.start.row <= toLine)
     |> Stdlib.List.filterMap(fun tok ->
       index(tok.tokenType) |> Stdlib.Option.map(fun t -> pieces(lines, tok.range, t)))
     |> Stdlib.List.flatten
@@ -88,6 +91,10 @@ let firstAtEachStart(sorted: List<Lsp.Token>): List<Lsp.Token> =
   sorted
   |> Stdlib.List.fold([], fun(kept, t) ->
     match kept with
-    | [last, ...] -> if last.line == t.line && last.start == t.start then kept else Stdlib.List.prepend(kept, t)
+    | [last, ...] ->
+      if last.line == t.line && last.start == t.start then
+        kept
+      else
+        Stdlib.List.prepend(kept, t)
     | [] -> [ t ])
   |> Stdlib.List.reverse

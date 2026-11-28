@@ -26,7 +26,8 @@ let definition(session: Session, doc: Document, at: Lsp.Position): List<Lsp.Loca
   | Some((binding, _)) -> [ located(doc.uri, binding) ]
   | None ->
     Names.itemAt(session, doc, at)
-    |> Stdlib.Option.map(fun item -> [ itemLocation(Names.itemLocation(item), Names.itemKind(item)) ])
+    |> Stdlib.Option.map(fun item ->
+      [ itemLocation(Names.itemLocation(item), Names.itemKind(item)) ])
     |> Stdlib.Option.withDefault([])
 
 
@@ -98,7 +99,8 @@ let references(
           []
 
       let users =
-        dependents(branchId, item) |> Stdlib.List.map(fun((_, loc, kind)) -> itemLocation(loc, kind))
+        dependents(branchId, item)
+        |> Stdlib.List.map(fun((_, loc, kind)) -> itemLocation(loc, kind))
 
       Stdlib.List.flatten([ declaration, inDocs, users ]) |> Stdlib.List.unique
 
@@ -165,7 +167,10 @@ let incoming(branchId: Uuid, uri: String): Json =
   match itemOfUri(branchId, uri) with
   | None -> Json.Array([])
   | Some(item) ->
-    calls("from", dependents(branchId, item) |> Stdlib.List.map(fun((_, loc, kind)) -> hierarchyItem(loc, kind)))
+    calls(
+      "from",
+      dependents(branchId, item)
+      |> Stdlib.List.map(fun((_, loc, kind)) -> hierarchyItem(loc, kind)))
 
 
 /// The package functions the function calls.
@@ -201,17 +206,21 @@ let callHierarchy(): List<Lsp.Method<State, Analysis.Analysis>> =
   [ Lsp.Method
       { name = "textDocument/prepareCallHierarchy"
         capability = Option.Some(("callHierarchyProvider", Json.Bool(true)))
-        answer = fun(session, params) -> Result.Ok(prepareCallHierarchy(session, params))
+        answer = (fun(session, params) -> Result.Ok(prepareCallHierarchy(session, params)))
         writes = false }
+
     Lsp.Method
       { name = "callHierarchy/incomingCalls"
         capability = Option.None
-        answer = fun(session, params) -> Result.Ok(incoming(session.state.branchId, uriOf(params)))
+        answer =
+          (fun(session, params) -> Result.Ok(incoming(session.state.branchId, uriOf(params))))
         writes = false }
+
     Lsp.Method
       { name = "callHierarchy/outgoingCalls"
         capability = Option.None
-        answer = fun(session, params) -> Result.Ok(outgoing(session.state.branchId, uriOf(params)))
+        answer =
+          (fun(session, params) -> Result.Ok(outgoing(session.state.branchId, uriOf(params))))
         writes = false } ]
 
 

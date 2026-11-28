@@ -8,12 +8,12 @@ type Json = Stdlib.AltJson.Json
 let method(
   name: String,
   capability: Option<(String * Json)>,
-  answer: (Lsp.Session<'s, 'a>, Json) -> Json)
-  : Lsp.Method<'s, 'a> =
-  Lsp.Method
+  answer: (Session<'s, 'a>, Json) -> Json)
+  : Method<'s, 'a> =
+  Method
     { name = name
       capability = capability
-      answer = fun(session, params) -> Result.Ok(answer(session, params))
+      answer = (fun(session, params) -> Result.Ok(answer(session, params)))
       writes = false }
 
 
@@ -23,25 +23,25 @@ let provides(key: String): Option<(String * Json)> =
 
 /// The open document the params name, or <param otherwise> when it is not open.
 let onDocument(
-  session: Lsp.Session<'s, 'a>,
+  session: Session<'s, 'a>,
   params: Json,
   otherwise: Json,
-  f: Lsp.Document<'a> -> Json)
+  f: Document<'a> -> Json)
   : Json =
-  match Lsp.Read.string(params, [ "textDocument", "uri" ])
+  match Read.string(params, [ "textDocument", "uri" ])
         |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(session.documents, uri)) with
   | Some(doc) -> f(doc)
   | None -> otherwise
 
 
 let onPosition(
-  session: Lsp.Session<'s, 'a>,
+  session: Session<'s, 'a>,
   params: Json,
   otherwise: Json,
-  f: (Lsp.Document<'a>, Lsp.Position) -> Json)
+  f: (Document<'a>, Position) -> Json)
   : Json =
   onDocument(session, params, otherwise, fun doc ->
-    match Lsp.Read.at(params, [ "position" ]) |> Stdlib.Option.andThen(Lsp.Read.position) with
+    match Read.at(params, [ "position" ]) |> Stdlib.Option.andThen(Read.position) with
     | Some(p) -> f(doc, p)
     | None -> otherwise)
 
@@ -59,9 +59,9 @@ let orNull(x: Option<'x>, write: 'x -> Json): Json =
 let atPosition(
   name: String,
   key: String,
-  handler: Option<(Lsp.Session<'s, 'a>, Lsp.Document<'a>, Lsp.Position) -> List<'x>>,
+  handler: Option<(Session<'s, 'a>, Document<'a>, Position) -> List<'x>>,
   write: 'x -> Json)
-  : List<Lsp.Method<'s, 'a>> =
+  : List<Method<'s, 'a>> =
   match handler with
   | None -> []
   | Some(h) ->
@@ -72,9 +72,9 @@ let atPosition(
 let onWhole(
   name: String,
   capability: (String * Json),
-  handler: Option<(Lsp.Session<'s, 'a>, Lsp.Document<'a>) -> List<'x>>,
+  handler: Option<(Session<'s, 'a>, Document<'a>) -> List<'x>>,
   write: 'x -> Json)
-  : List<Lsp.Method<'s, 'a>> =
+  : List<Method<'s, 'a>> =
   match handler with
   | None -> []
   | Some(h) ->
@@ -82,50 +82,53 @@ let onWhole(
         onDocument(session, params, Json.Array([]), fun doc -> array(h(session, doc), write))) ]
 
 
-let completion(c: Option<Lsp.Completion<'s, 'a>>): List<Lsp.Method<'s, 'a>> =
+let completion(c: Option<Completion<'s, 'a>>): List<Method<'s, 'a>> =
   match c with
   | None -> []
   | Some(c) ->
     let capability =
       Json.Object(
-        [ ("triggerCharacters", Lsp.Write.strings(c.triggers))
+        [ ("triggerCharacters", Write.strings(c.triggers))
           ("resolveProvider", Json.Bool(Stdlib.Option.isSome(c.resolve))) ])
 
     let items =
-      method("textDocument/completion", Option.Some(("completionProvider", capability)), fun(session, params) ->
-        onPosition(session, params, Json.Null, fun(doc, p) ->
-          Json.Object(
-            [ ("isIncomplete", Json.Bool(false))
-              ("items", array(c.items(session, doc, p), Lsp.Write.completionItem)) ])))
+      method(
+        "textDocument/completion",
+        Option.Some(("completionProvider", capability)),
+        fun(session, params) ->
+          onPosition(session, params, Json.Null, fun(doc, p) ->
+            Json.Object(
+              [ ("isIncomplete", Json.Bool(false))
+                ("items", array(c.items(session, doc, p), Write.completionItem)) ])))
 
     let resolve =
       match c.resolve with
       | Some(r) ->
         [ method("completionItem/resolve", Option.None, fun(session, params) ->
-            Lsp.Write.completionItem(r(session, Lsp.Read.completionItem(params)))) ]
+            Write.completionItem(r(session, Read.completionItem(params)))) ]
       | None -> []
 
     Stdlib.List.prepend(resolve, items)
 
 
-let signatureHelp(s: Option<Lsp.SignatureHelp<'s, 'a>>): List<Lsp.Method<'s, 'a>> =
+let signatureHelp(s: Option<SignatureHelp<'s, 'a>>): List<Method<'s, 'a>> =
   match s with
   | None -> []
   | Some(s) ->
     let capability =
       Json.Object(
-        [ ("triggerCharacters", Lsp.Write.strings(s.triggers))
-          ("retriggerCharacters", Lsp.Write.strings([ " " ])) ])
+        [ ("triggerCharacters", Write.strings(s.triggers))
+          ("retriggerCharacters", Write.strings([ " " ])) ])
 
     [ method(
         "textDocument/signatureHelp",
         Option.Some(("signatureHelpProvider", capability)),
         fun(session, params) ->
           onPosition(session, params, Json.Null, fun(doc, p) ->
-            orNull(s.signature(session, doc, p), Lsp.Write.signature))) ]
+            orNull(s.signature(session, doc, p), Write.signature))) ]
 
 
-let semanticTokens(t: Option<Lsp.SemanticTokens<'s, 'a>>): List<Lsp.Method<'s, 'a>> =
+let semanticTokens(t: Option<SemanticTokens<'s, 'a>>): List<Method<'s, 'a>> =
   match t with
   | None -> []
   | Some(t) ->
@@ -134,35 +137,34 @@ let semanticTokens(t: Option<Lsp.SemanticTokens<'s, 'a>>): List<Lsp.Method<'s, '
         [ (
             "legend",
             Json.Object(
-              [ ("tokenTypes", Lsp.Write.strings(t.legend))
-                ("tokenModifiers", Json.Array([])) ]))
+              [ ("tokenTypes", Write.strings(t.legend)), ("tokenModifiers", Json.Array([])) ]))
+
           ("full", Json.Bool(true))
           ("range", Json.Bool(true)) ])
 
-    let answer(session: Lsp.Session<'s, 'a>, params: Json): Json =
-      let from = Lsp.Read.int(params, [ "range", "start", "line" ]) |> Stdlib.Option.withDefault(0)
-      let to =
-        Lsp.Read.int(params, [ "range", "end", "line" ]) |> Stdlib.Option.withDefault(1000000000)
-
+    let answer(session: Session<'s, 'a>, params: Json): Json =
+      let from = Read.int(params, [ "range", "start", "line" ]) |> Stdlib.Option.withDefault(0)
+      let to = Read.int(params, [ "range", "end", "line" ]) |> Stdlib.Option.withDefault(1000000000)
       onDocument(session, params, Json.Null, fun doc ->
-        Lsp.Write.tokens(t.tokens(session, doc, from, to)))
+        Write.tokens(t.tokens(session, doc, from, to)))
 
     [ method(
         "textDocument/semanticTokens/full",
         Option.Some(("semanticTokensProvider", capability)),
         answer)
+
       method("textDocument/semanticTokens/range", Option.None, answer) ]
 
 
 /// Every handler that is set, as its method.
-let ofHandlers(source: String, h: Lsp.Handlers<'s, 'a>): List<Lsp.Method<'s, 'a>> =
+let ofHandlers(source: String, h: Handlers<'s, 'a>): List<Method<'s, 'a>> =
   let hover =
     match h.hover with
     | None -> []
     | Some(f) ->
       [ method("textDocument/hover", provides("hoverProvider"), fun(session, params) ->
           onPosition(session, params, Json.Null, fun(doc, p) ->
-            orNull(f(session, doc, p), Lsp.Write.hover))) ]
+            orNull(f(session, doc, p), Write.hover))) ]
 
   let references =
     match h.references with
@@ -170,30 +172,33 @@ let ofHandlers(source: String, h: Lsp.Handlers<'s, 'a>): List<Lsp.Method<'s, 'a>
     | Some(f) ->
       [ method("textDocument/references", provides("referencesProvider"), fun(session, params) ->
           let withDeclaration =
-            Lsp.Read.bool(params, [ "context", "includeDeclaration" ])
+            Read.bool(params, [ "context", "includeDeclaration" ])
             |> Stdlib.Option.withDefault(true)
 
           onPosition(session, params, Json.Null, fun(doc, p) ->
-            array(f(session, doc, p, withDeclaration), Lsp.Write.location))) ]
+            array(f(session, doc, p, withDeclaration), Write.location))) ]
 
   let workspaceSymbols =
     match h.workspaceSymbols with
     | None -> []
     | Some(f) ->
       [ method("workspace/symbol", provides("workspaceSymbolProvider"), fun(session, params) ->
-          let query = Lsp.Read.string(params, [ "query" ]) |> Stdlib.Option.withDefault("")
-          array(f(session, query), Lsp.Write.symbolInformation)) ]
+          let query = Read.string(params, [ "query" ]) |> Stdlib.Option.withDefault("")
+          array(f(session, query), Write.symbolInformation)) ]
 
   let selection =
     match h.selection with
     | None -> []
     | Some(f) ->
-      [ method("textDocument/selectionRange", provides("selectionRangeProvider"), fun(session, params) ->
-          onDocument(session, params, Json.Array([]), fun doc ->
-            Lsp.Read.list(params, [ "positions" ])
-            |> Stdlib.List.filterMap(Lsp.Read.position)
-            |> Stdlib.List.map(fun p -> Lsp.Write.selectionRange(f(session, doc, p)))
-            |> Json.Array)) ]
+      [ method(
+          "textDocument/selectionRange",
+          provides("selectionRangeProvider"),
+          fun(session, params) ->
+            onDocument(session, params, Json.Array([]), fun doc ->
+              Read.list(params, [ "positions" ])
+              |> Stdlib.List.filterMap(Read.position)
+              |> Stdlib.List.map(fun p -> Write.selectionRange(f(session, doc, p)))
+              |> Json.Array)) ]
 
   let inlayHints =
     match h.inlayHints with
@@ -201,35 +206,36 @@ let ofHandlers(source: String, h: Lsp.Handlers<'s, 'a>): List<Lsp.Method<'s, 'a>
     | Some(f) ->
       [ method("textDocument/inlayHint", provides("inlayHintProvider"), fun(session, params) ->
           let everything =
-            Lsp.Range
-              { start = Lsp.Position { line = 0, character = 0 }
-                end = Lsp.Position { line = 1000000000, character = 0 } }
+            Range
+              { start = Position { line = 0, character = 0 }
+                end = Position { line = 1000000000, character = 0 } }
 
           let r =
-            Lsp.Read.at(params, [ "range" ])
-            |> Stdlib.Option.andThen(Lsp.Read.range)
+            Read.at(params, [ "range" ])
+            |> Stdlib.Option.andThen(Read.range)
             |> Stdlib.Option.withDefault(everything)
 
           onDocument(session, params, Json.Array([]), fun doc ->
-            array(f(session, doc, r), Lsp.Write.inlayHint))) ]
+            array(f(session, doc, r), Write.inlayHint))) ]
 
   let codeActions =
     match h.codeActions with
     | None -> []
     | Some(f) ->
-      let capability =
-        Json.Object([ ("codeActionKinds", Lsp.Write.strings([ "quickfix" ])) ])
+      let capability = Json.Object([ ("codeActionKinds", Write.strings([ "quickfix" ])) ])
+      [ method(
+          "textDocument/codeAction",
+          Option.Some(("codeActionProvider", capability)),
+          fun(session, params) ->
+            match Read.at(params, [ "range" ]) |> Stdlib.Option.andThen(Read.range) with
+            | None -> Json.Array([])
+            | Some(r) ->
+              let diagnostics =
+                Read.list(params, [ "context", "diagnostics" ])
+                |> Stdlib.List.filterMap(Read.diagnostic)
 
-      [ method("textDocument/codeAction", Option.Some(("codeActionProvider", capability)), fun(session, params) ->
-          match Lsp.Read.at(params, [ "range" ]) |> Stdlib.Option.andThen(Lsp.Read.range) with
-          | None -> Json.Array([])
-          | Some(r) ->
-            let diagnostics =
-              Lsp.Read.list(params, [ "context", "diagnostics" ])
-              |> Stdlib.List.filterMap(Lsp.Read.diagnostic)
-
-            onDocument(session, params, Json.Array([]), fun doc ->
-              array(f(session, doc, r, diagnostics), fun a -> Lsp.Write.codeAction(source, a)))) ]
+              onDocument(session, params, Json.Array([]), fun doc ->
+                array(f(session, doc, r, diagnostics), fun a -> Write.codeAction(source, a)))) ]
 
   let prepareRename =
     match h.prepareRename with
@@ -237,7 +243,7 @@ let ofHandlers(source: String, h: Lsp.Handlers<'s, 'a>): List<Lsp.Method<'s, 'a>
     | Some(f) ->
       [ method("textDocument/prepareRename", Option.None, fun(session, params) ->
           onPosition(session, params, Json.Null, fun(doc, p) ->
-            orNull(f(session, doc, p), Lsp.Write.range))) ]
+            orNull(f(session, doc, p), Write.range))) ]
 
   let rename =
     match h.rename with
@@ -246,51 +252,78 @@ let ofHandlers(source: String, h: Lsp.Handlers<'s, 'a>): List<Lsp.Method<'s, 'a>
       let capability =
         Json.Object([ ("prepareProvider", Json.Bool(Stdlib.Option.isSome(h.prepareRename))) ])
 
-      [ Lsp.Method
+      [ Method
           { name = "textDocument/rename"
             capability = Option.Some(("renameProvider", capability))
             writes = true
             answer =
-              fun(session, params) ->
-                let newName = Lsp.Read.string(params, [ "newName" ]) |> Stdlib.Option.withDefault("")
-                let edit =
-                  match Lsp.Read.string(params, [ "textDocument", "uri" ])
-                        |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(session.documents, uri)), Lsp.Read.at(
-                          params,
-                          [ "position" ])
-                        |> Stdlib.Option.andThen(Lsp.Read.position) with
-                  | Some(doc), Some(p) -> f(session, doc, p, newName)
-                  | _ -> Result.Error("the document is not open")
+              (fun(session, params) ->
+                 let newName = Read.string(params, [ "newName" ]) |> Stdlib.Option.withDefault("")
+                 let edit =
+                   match Read.string(params, [ "textDocument", "uri" ])
+                         |> Stdlib.Option.andThen(fun uri ->
+                           Stdlib.Dict.get(session.documents, uri)), Read.at(params, [ "position" ])
+                         |> Stdlib.Option.andThen(Read.position) with
+                   | Some(doc), Some(p) -> f(session, doc, p, newName)
+                   | _ -> Result.Error("the document is not open")
 
-                edit
-                |> Stdlib.Result.map(Lsp.Write.workspaceEdit)
-                |> Stdlib.Result.mapError(fun e -> JsonRpc.error(Lsp.Code.requestFailed, e)) } ]
+                 edit
+                 |> Stdlib.Result.map(Write.workspaceEdit)
+                 |> Stdlib.Result.mapError(fun e -> JsonRpc.error(Code.requestFailed, e))) } ]
 
   Stdlib.List.flatten(
     [ hover
-      atPosition("textDocument/definition", "definitionProvider", h.definition, Lsp.Write.location)
+      atPosition("textDocument/definition", "definitionProvider", h.definition, Write.location)
+
       atPosition(
         "textDocument/implementation",
         "implementationProvider",
         h.implementation,
-        Lsp.Write.location)
+        Write.location)
+
       references
       atPosition(
         "textDocument/documentHighlight",
         "documentHighlightProvider",
         h.highlights,
-        Lsp.Write.highlight)
+        Write.highlight)
+
       completion(h.completion)
       signatureHelp(h.signatureHelp)
-      onWhole("textDocument/documentSymbol", ("documentSymbolProvider", Json.Bool(true)), h.symbols, Lsp.Write.documentSymbol)
+      onWhole(
+        "textDocument/documentSymbol",
+        ("documentSymbolProvider", Json.Bool(true)),
+        h.symbols,
+        Write.documentSymbol)
+
       workspaceSymbols
-      onWhole("textDocument/foldingRange", ("foldingRangeProvider", Json.Bool(true)), h.folding, Lsp.Write.foldingRange)
+      onWhole(
+        "textDocument/foldingRange",
+        ("foldingRangeProvider", Json.Bool(true)),
+        h.folding,
+        Write.foldingRange)
+
       selection
       semanticTokens(h.semanticTokens)
       inlayHints
-      onWhole("textDocument/codeLens", ("codeLensProvider", Json.Object([])), h.codeLenses, Lsp.Write.codeLens)
+      onWhole(
+        "textDocument/codeLens",
+        ("codeLensProvider", Json.Object([])),
+        h.codeLenses,
+        Write.codeLens)
+
       codeActions
-      onWhole("textDocument/formatting", ("documentFormattingProvider", Json.Bool(true)), h.formatting, Lsp.Write.textEdit)
-      onWhole("textDocument/documentLink", ("documentLinkProvider", Json.Object([])), h.links, Lsp.Write.documentLink)
+      onWhole(
+        "textDocument/formatting",
+        ("documentFormattingProvider", Json.Bool(true)),
+        h.formatting,
+        Write.textEdit)
+
+      onWhole(
+        "textDocument/documentLink",
+        ("documentLinkProvider", Json.Object([])),
+        h.links,
+        Write.documentLink)
+
       prepareRename
       rename ])

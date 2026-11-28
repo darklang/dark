@@ -66,7 +66,11 @@ let toJson(message: Message): Json =
     Json.Object([ version, ("method", Json.String(method)), ("params", params) ])
   | Response(id, result) ->
     let idField =
-      ("id", id |> Stdlib.Option.map(idToJson) |> Stdlib.Option.withDefault(Json.Null))
+      (
+        "id",
+        id
+        |> Stdlib.Option.map(idToJson)
+        |> Stdlib.Option.withDefault(Json.Null))
 
     match result with
     | Ok(value) -> Json.Object([ version, idField, ("result", value) ])
@@ -114,7 +118,9 @@ let ofJson(json: Json): Result<Message, Message> =
           | Some(Integer(c)) -> c
           | _ -> Code.internalError
 
-        let message = Stdlib.AltJson.Helpers.getString("message", e) |> Stdlib.Option.withDefault("")
+        let message =
+          Stdlib.AltJson.Helpers.getString("message", e) |> Stdlib.Option.withDefault("")
+
         Result.Ok(
           Message.Response(
             id,
@@ -139,7 +145,9 @@ type Body =
 let parse(text: String): Body =
   match Stdlib.Json.parse<Json>(text) with
   | Error(_) ->
-    Body.One(Result.Error(Message.Response(Option.None, Result.Error(error(Code.parseError, "Parse error")))))
+    Body.One(
+      Result.Error(
+        Message.Response(Option.None, Result.Error(error(Code.parseError, "Parse error")))))
   | Ok(Array([])) ->
     Body.One(
       Result.Error(
@@ -161,8 +169,7 @@ let answer(text: String, handle: Message -> Option<Message>): Option<String> =
   | Batch(items) ->
     match Stdlib.List.filterMap(items, one) with
     | [] -> Option.None
-    | replies ->
-      Option.Some(Stdlib.AltJson.format(Json.Array(Stdlib.List.map(replies, toJson))))
+    | replies -> Option.Some(Stdlib.AltJson.format(Json.Array(Stdlib.List.map(replies, toJson))))
 
 
 /// Bodies over a byte stream, each after a `Content-Length` header in bytes and a blank line:

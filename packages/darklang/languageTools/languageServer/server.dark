@@ -16,6 +16,7 @@ type State =
     /// store changes and kept on the last one that type-checks.
     live: Option<Live.LastGood> }
 
+
 type Session = Lsp.Session<State, Analysis.Analysis>
 
 type Document = Lsp.Document<Analysis.Analysis>
@@ -31,14 +32,17 @@ let handlers(): Lsp.Handlers<State, Analysis.Analysis> =
       completion =
         Option.Some(
           Lsp.Completion
-            { triggers = [ "." ], items = Completion.complete, resolve = Option.Some(Completion.resolve) })
+            { triggers = [ "." ]
+              items = Completion.complete
+              resolve = Option.Some(Completion.resolve) })
       signatureHelp =
         Option.Some(Lsp.SignatureHelp { triggers = [ "(", "," ], signature = Completion.signature })
       symbols = Option.Some(Symbols.outline)
       workspaceSymbols = Option.Some(Symbols.workspace)
       folding = Option.Some(Syntax.folding)
       selection = Option.Some(Syntax.selection)
-      semanticTokens = Option.Some(Lsp.SemanticTokens { legend = Tokens.legend, tokens = Tokens.tokens })
+      semanticTokens =
+        Option.Some(Lsp.SemanticTokens { legend = Tokens.legend, tokens = Tokens.tokens })
       inlayHints = Option.Some(Lens.inlayHints)
       codeLenses = Option.Some(Lens.codeLenses)
       codeActions = Option.Some(Actions.codeActions)
@@ -66,7 +70,8 @@ let server(live: Bool): Lsp.Server<State, Analysis.Analysis> =
             else
               Option.None }) with
       analyser =
-        Option.Some(Lsp.Analyser { analyse = Analysis.analyse, diagnostics = fun a -> a.diagnostics })
+        Option.Some(
+          Lsp.Analyser { analyse = Analysis.analyse, diagnostics = (fun a -> a.diagnostics) })
       handlers = handlers()
       methods = methods()
       middleware = if live then [ answeredLive ] else []
@@ -104,7 +109,10 @@ let branchMoved(session: Session): Session =
     let wanted = Stdlib.Uuid.parse(stored) |> Stdlib.Result.withDefault(SCM.Branch.mainBranchId)
     let branchId = SCM.PackageOps.selectBranch(wanted)
     Lsp.log($"following the switch to {SCM.PackageOps.branchName(branchId)}")
-    Lsp.notify("dark/storeChanged", Stdlib.AltJson.Json.Object([ ("names", Stdlib.AltJson.Json.Array([])) ]))
+    Lsp.notify(
+      "dark/storeChanged",
+      Stdlib.AltJson.Json.Object([ ("names", Stdlib.AltJson.Json.Array([])) ]))
+
     Lsp.reanalyse(
       { session with state = { session.state with branchId = branchId, storedBranch = stored } },
       fun _ -> true)
@@ -115,7 +123,8 @@ let newRuns(session: Session): Session =
   let stale(doc: Document): Bool =
     match Names.storeFn(doc.uri), Lsp.analysis(doc) with
     | Some(loc), Some(a) ->
-      Lens.newestRunId(session.state.branchId, loc) != (a.live |> Stdlib.Option.map(fun l -> l.runId))
+      Lens.newestRunId(session.state.branchId, loc)
+      != (a.live |> Stdlib.Option.map(fun l -> l.runId))
     | _ -> false
 
   if Stdlib.List.any(Stdlib.Dict.values(session.documents), fun d -> stale(d)) then
@@ -127,7 +136,9 @@ let newRuns(session: Session): Session =
             | Ready(a) ->
               if stale(doc) then
                 { doc with
-                    analysis = Lsp.Analysed.Ready({ a with live = Analysis.live(session.state.branchId, doc) }) }
+                    analysis =
+                      Lsp.Analysed.Ready(
+                        { a with live = Analysis.live(session.state.branchId, doc) }) }
               else
                 doc
             | _ -> doc) }
@@ -160,8 +171,7 @@ let storeChanged(session: Session, event: Stdlib.Host.Event): Session =
   | StoreChanged(change) ->
     Lsp.notify(
       "dark/storeChanged",
-      Stdlib.AltJson.Json.Object(
-        [ ("names", Lsp.Write.strings(Live.touchedNames(change))) ]))
+      Stdlib.AltJson.Json.Object([ ("names", Lsp.Write.strings(Live.touchedNames(change))) ]))
 
     let branchId = SCM.PackageOps.currentBranch()
     let moved = branchId != session.state.branchId
@@ -187,7 +197,9 @@ val answerLiveLocation =
 
 /// What `--live` calls for each request, as the store has it now: the method of that name in the
 /// newest version of this server.
-let answerLive(args: (Session * String * Stdlib.AltJson.Json)): Result<Stdlib.AltJson.Json, JsonRpc.Error> =
+let answerLive(
+  args: (Session * String * Stdlib.AltJson.Json))
+  : Result<Stdlib.AltJson.Json, JsonRpc.Error> =
   let (session, name, params) = args
   let ours = Stdlib.List.concat(Lsp.Methods.ofHandlers("dark", handlers()), methods())
   match Stdlib.List.findFirst(ours, fun m -> m.name == name) with
@@ -200,12 +212,12 @@ let answerLive(args: (Session * String * Stdlib.AltJson.Json)): Result<Stdlib.Al
 let answeredLive(m: Lsp.Method<State, Analysis.Analysis>): Lsp.Method<State, Analysis.Analysis> =
   { m with
       answer =
-        fun(session, params) ->
-          match session.state.live with
-          | None -> m.answer(session, params)
-          | Some(lg) ->
-            match Live.call(lg, (session, m.name, params)) with
-            | Ok(answer) -> answer
-            | Error(e) ->
-              Lsp.log($"the store's {m.name} failed, so the built-in one answers: {e}")
-              m.answer(session, params) }
+        (fun(session, params) ->
+           match session.state.live with
+           | None -> m.answer(session, params)
+           | Some(lg) ->
+             match Live.call(lg, (session, m.name, params)) with
+             | Ok(answer) -> answer
+             | Error(e) ->
+               Lsp.log($"the store's {m.name} failed, so the built-in one answers: {e}")
+               m.answer(session, params)) }

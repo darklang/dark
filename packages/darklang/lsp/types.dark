@@ -8,16 +8,30 @@ type Json = Stdlib.AltJson.Json
 
 
 /// A column counts UTF-16 units, as the protocol's default encoding does.
-type Position = { line: Int64, character: Int64 }
+type Position =
+  { line: Int64
+    character: Int64 }
 
-type Range = { start: Position, end: Position }
 
-type Location = { uri: String, range: Range }
+type Range =
+  { start: Position
+    end: Position }
 
-type TextEdit = { range: Range, newText: String }
+
+type Location =
+  { uri: String
+    range: Range }
+
+
+type TextEdit =
+  { range: Range
+    newText: String }
+
 
 /// The edits to make, by document.
-type WorkspaceEdit = { changes: List<(String * List<TextEdit>)> }
+type WorkspaceEdit =
+  { changes: List<(String * List<TextEdit>)> }
+
 
 /// A command the editor runs: one of its own, or one an extension registered.
 type Command =
@@ -31,6 +45,7 @@ type Severity =
   | Warning
   | Information
   | Hint
+
 
 type Diagnostic =
   { range: Range
@@ -57,6 +72,7 @@ type CompletionKind =
   | Struct
   | Interface
 
+
 type CompletionItem =
   { label: String
     kind: CompletionKind
@@ -78,6 +94,7 @@ type ParameterInformation =
     label: (Int64 * Int64)
     documentation: Option<String> }
 
+
 type Signature =
   { label: String
     documentation: Option<String>
@@ -94,12 +111,14 @@ type SymbolKind =
   | Variable
   | Struct
 
+
 type DocumentSymbol =
   { name: String
     kind: SymbolKind
     range: Range
     selectionRange: Range
     children: List<DocumentSymbol> }
+
 
 type SymbolInformation =
   { name: String
@@ -113,13 +132,22 @@ type HighlightKind =
   | Read
   | Write
 
-type DocumentHighlight = { range: Range, kind: HighlightKind }
 
-type FoldingRange = { startLine: Int64, endLine: Int64, comment: Bool }
+type DocumentHighlight =
+  { range: Range
+    kind: HighlightKind }
+
+
+type FoldingRange =
+  { startLine: Int64
+    endLine: Int64
+    comment: Bool }
+
 
 type InlayHintKind =
   | Type
   | Parameter
+
 
 type InlayHint =
   { position: Position
@@ -127,7 +155,11 @@ type InlayHint =
     kind: Option<InlayHintKind>
     paddingLeft: Bool }
 
-type CodeLens = { range: Range, command: Command }
+
+type CodeLens =
+  { range: Range
+    command: Command }
+
 
 type CodeAction =
   { title: String
@@ -137,7 +169,11 @@ type CodeAction =
     preferred: Bool
     edit: WorkspaceEdit }
 
-type DocumentLink = { range: Range, target: String }
+
+type DocumentLink =
+  { range: Range
+    target: String }
+
 
 /// A semantic token: its type is an index into the legend the server declared.
 type Token =
@@ -325,6 +361,7 @@ module Write =
         [ [ ("range", range(d.range))
             ("severity", Json.Integer(severity(d.severity)))
             ("source", Json.String(source)) ]
+
           optional("code", d.code |> Stdlib.Option.map(fun c -> Json.String(c)))
           [ ("message", Json.String(d.message)) ]
           optional("data", d.data) ]))
@@ -355,7 +392,8 @@ module Write =
       optional(key, value |> Stdlib.Option.map(fun s -> Json.String(s)))
 
     let details =
-      match Stdlib.List.flatten([ string("detail", c.detail), string("description", c.description) ]) with
+      match Stdlib.List.flatten(
+              [ string("detail", c.detail), string("description", c.description) ]) with
       | [] -> []
       | fields -> [ ("labelDetails", Json.Object(fields)) ]
 
@@ -392,6 +430,7 @@ module Write =
                   [ [ ("label", Json.String(s.label)) ]
                     optional("documentation", s.documentation |> Stdlib.Option.map(markdown))
                     [ ("parameters", Json.Array(Stdlib.List.map(s.parameters, parameter))) ] ])) ]))
+
         ("activeSignature", Json.Integer(0))
         ("activeParameter", Json.Integer(s.activeParameter)) ])
 
@@ -507,5 +546,4 @@ module Write =
 /// The whole of line <param n>.
 let line(n: Int64): Range =
   Range
-    { start = Position { line = n, character = 0 }
-      end = Position { line = n + 1, character = 0 } }
+    { start = Position { line = n, character = 0 }, end = Position { line = n + 1, character = 0 } }

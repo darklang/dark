@@ -97,7 +97,8 @@ let textEdit(r: Parser.Range, newText: String): Lsp.TextEdit =
 
 /// The last segment of each place <param range> covers a dotted name: what a rename replaces.
 let lastSegment(r: Parser.Range, short: String): Parser.Range =
-  { r with start = Parser.Point { row = r.end_.row, column = r.end_.column - Lsp.Text.width(short) } }
+  { r with
+      start = Parser.Point { row = r.end_.row, column = r.end_.column - Lsp.Text.width(short) } }
 
 
 let isIdentifier(name: String): Bool =
@@ -152,13 +153,13 @@ let rename(
     if isIdentifier(newName) then
       Result.Ok(
         Lsp.WorkspaceEdit
-          { changes = [ (doc.uri, Stdlib.List.map(occurrences, fun o -> textEdit(o.range, newName))) ] })
+          { changes =
+              [ (doc.uri, Stdlib.List.map(occurrences, fun o -> textEdit(o.range, newName))) ] })
     else
       Result.Error($"{newName} is not a name")
   | None ->
     match Names.itemAt(session, doc, at) with
-    | Some(item) ->
-      renameItem(session.state.branchId, item, newName, Names.openDocs(session))
+    | Some(item) -> renameItem(session.state.branchId, item, newName, Names.openDocs(session))
     | None -> Result.Error("there is no name here to rename")
 
 
