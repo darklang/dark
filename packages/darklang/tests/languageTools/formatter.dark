@@ -96,6 +96,40 @@ test keepsSpreadsEscapesAndFloats =
   |> Stdlib.Test.equal(Ok(keptAsWritten))
 
 
+// A comment in a type's body stays where it is: above a case, a field or a case's field, after
+// one or after an alias's type, or set off with a blank line.
+val typeBodyComments =
+  """module Darklang.Tests.FormatSample
+
+type Shape =
+  // the empty one
+  | Dot  // a point
+  | Box(
+    // the width
+    Int64,
+    Int64)
+
+  // set off
+  | Ring
+
+
+type Point =
+  { // across
+    x: Int64  // right
+    // down
+    y: Int64 }
+
+
+type Id = Int64  // a row's
+"""
+
+
+test placesCommentsInTypeBodies =
+  LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, typeBodyComments)
+  |> Stdlib.Result.map(fun f -> (f.text, f.asWritten))
+  |> Stdlib.Test.equal(Ok((typeBodyComments, [])))
+
+
 // A `let` inside a list keeps its parentheses, or the items after it would be lines of its block.
 val letInList =
   """module Darklang.Tests.FormatSample

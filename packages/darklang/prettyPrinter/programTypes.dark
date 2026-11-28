@@ -2141,9 +2141,17 @@ let commentsAt(ctx: Context, id: Int64): Option<(String * List<LanguageTools.For
 
 /// Whether a comment the source set off with a blank line goes above node <param id>.
 let blankBeforeComments(ctx: Context, id: Int64): Bool =
-  match commentsAt(ctx, id) with
-  | Some((_, cs)) -> Stdlib.List.any(cs, fun c -> c.blankBefore && Stdlib.Bool.not(c.trailing))
-  | None -> false
+  blankBeforeCommentsAt(ctx, Stdlib.display(id))
+
+
+/// <fn blankBeforeComments>, by the key the comments are under.
+let blankBeforeCommentsAt(ctx: Context, key: String): Bool =
+  if Stdlib.Dict.isEmpty(ctx.comments) then
+    false
+  else
+    match Stdlib.Dict.get(ctx.comments, key) with
+    | Some(cs) -> Stdlib.List.any(cs, fun c -> c.blankBefore && Stdlib.Bool.not(c.trailing))
+    | None -> false
 
 
 /// <param build>'s Doc with its comments: those on lines of their own above the line node
@@ -2153,13 +2161,24 @@ let blankBeforeComments(ctx: Context, id: Int64): Bool =
 /// without them, so no comment prints twice. A comment no node takes is left out, and `dark format`,
 /// which checks for that, prints the declaration as written instead.
 let commented(ctx: Context, id: Int64, build: Context -> Stdlib.Pretty.Doc): Stdlib.Pretty.Doc =
+  commentedKey(ctx, Stdlib.display(id), build)
+
+
+/// <fn commented>, by the key the comments are under. A part of a type's body has no id, and
+/// `dark format` keys its comments by what it is: `field name`, `case Name`, `case Name 0` for a
+/// case's first field, or `alias` for the type an alias names.
+let commentedKey(
+  ctx: Context,
+  key: String,
+  build: Context -> Stdlib.Pretty.Doc)
+  : Stdlib.Pretty.Doc =
   if ctx.hasComments then
-    let key = Stdlib.display(id)
     if
       Stdlib.Dict.containsKey(ctx.comments, key)
       || Stdlib.Dict.containsKey(ctx.trailingComments, key)
     then
-      commentedAt(ctx, [ id ], build)
+      let (above, inner, after) = commentedPartsAt(ctx, [ key ], build)
+      Stdlib.Pretty.concatAll([ above, inner, after ])
     else
       build(ctx)
   else
@@ -2183,7 +2202,15 @@ let commentedParts(
   ids: List<Int64>,
   build: Context -> Stdlib.Pretty.Doc)
   : (Stdlib.Pretty.Doc * Stdlib.Pretty.Doc * Stdlib.Pretty.Doc) =
-  let keys = ids |> Stdlib.List.map(fun id -> Stdlib.display(id))
+  commentedPartsAt(ctx, ids |> Stdlib.List.map(fun id -> Stdlib.display(id)), build)
+
+
+/// <fn commentedParts>, by the keys the comments are under.
+let commentedPartsAt(
+  ctx: Context,
+  keys: List<String>,
+  build: Context -> Stdlib.Pretty.Doc)
+  : (Stdlib.Pretty.Doc * Stdlib.Pretty.Doc * Stdlib.Pretty.Doc) =
   let take(
     dict: Dict<String, List<LanguageTools.Formatter.Comment>>)
     : List<LanguageTools.Formatter.Comment> =
@@ -2957,7 +2984,12 @@ module TypeDeclaration =
     match c.fields with
     | [] -> withInlineDoc(c.description, Stdlib.Pretty.text("| " + c.name))
     | fields ->
-      let parts = fields |> Stdlib.List.map(fun field -> enumFieldDoc(ctx, field))
+      let parts =
+        fields
+        |> Stdlib.List.indexedMap(fun(i, field) ->
+          commentedKey(ctx, $"case {c.name} {Stdlib.display(i)}", fun ctx ->
+            enumFieldDoc(ctx, field)))
+
       withInlineDoc(
         c.description,
         Stdlib.Pretty.Doc.Concat(
@@ -2978,16 +3010,37 @@ let customTypeDoc(
   | Record(fields) ->
     let fieldsPart =
       fields
-      |> Stdlib.List.map(fun field -> TypeDeclaration.recordFieldDoc(ctx, field))
-      |> (fun docs -> Stdlib.Pretty.join(docs, Stdlib.Pretty.Doc.HardLine))
+      |> Stdlib.List.map(fun field ->
+        ($"field {field.name}", (fun ctx -> TypeDeclaration.recordFieldDoc(ctx, field))))
+      |> typeParts(ctx)
 
     Stdlib.Pretty.Doc.Concat(
       Stdlib.Pretty.text("{ "),
       Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Nest(2, fieldsPart), Stdlib.Pretty.text(" }")))
   | Enum(cases) ->
     cases
-    |> Stdlib.List.map(fun case -> TypeDeclaration.enumCaseDoc(ctx, case))
-    |> (fun docs -> Stdlib.Pretty.join(docs, Stdlib.Pretty.Doc.HardLine))
+    |> Stdlib.List.map(fun case ->
+      ($"case {case.name}", (fun ctx -> TypeDeclaration.enumCaseDoc(ctx, case))))
+    |> typeParts(ctx)
+
+
+/// A type's fields or cases, one per line, each with its comments, keyed as <fn commentedKey>
+/// says. A comment the source set off with a blank line keeps it.
+let typeParts(
+  parts: List<(String * (Context -> Stdlib.Pretty.Doc))>,
+  ctx: Context)
+  : Stdlib.Pretty.Doc =
+  parts
+  |> Stdlib.List.indexedMap(fun(i, part) ->
+    let (key, build) = part
+    let doc = commentedKey(ctx, key, build)
+    if i == 0 then
+      doc
+    else if blankBeforeCommentsAt(ctx, key) then
+      Stdlib.Pretty.concatAll([ Stdlib.Pretty.Doc.HardLine, Stdlib.Pretty.Doc.HardLine, doc ])
+    else
+      Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.HardLine, doc))
+  |> Stdlib.Pretty.concatAll
 
 
 let customType(
@@ -3049,7 +3102,10 @@ let packageTypeNamed(
     docComment
     + Stdlib.Pretty.render(
       ctx.width,
-      Stdlib.Pretty.hang(2, Stdlib.Pretty.text(head), [ typeReferenceDoc(ctx, typeRef) ]))
+      Stdlib.Pretty.hang(
+        2,
+        Stdlib.Pretty.text(head),
+        [ commentedKey(ctx, "alias", fun ctx -> typeReferenceDoc(ctx, typeRef)) ]))
   | _ ->
     let definitionWidth = Stdlib.max(1, ctx.width - 2)
     let defPart =
