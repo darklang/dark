@@ -249,3 +249,30 @@ test refusesWhatDoesNotParse =
     |> Stdlib.Option.map(fun e ->
       Stdlib.String.startsWith(e, "formatting would leave it not parsing")))
   |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Option.Some(true)))
+
+
+// `Some`, `None`, `Ok` and `Error` read back as Stdlib's Option and Result from any module, a test
+// module too, so they print bare. Another type's `Error` keeps its type.
+val bareCases =
+  """module Darklang.Tests.FormatSample
+
+val a = Stdlib.Option.Option.Some(1)
+
+val b = Stdlib.Result.Result.Error("no")
+
+val c = Option.None
+
+val d = Stdlib.Cli.UI.Node.Severity.Error
+"""
+
+
+test printsStdlibCasesBare =
+  match LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, bareCases) with
+  | Ok(f) ->
+    [ "val a = Some(1)"
+      "val b = Error(\"no\")"
+      "val c = None"
+      "val d = Stdlib.Cli.UI.Node.Severity.Error" ]
+    |> Stdlib.List.filter(fun line -> Stdlib.Bool.not(Stdlib.String.contains(f.text, line)))
+    |> Stdlib.Test.equal([])
+  | Error(e) -> Stdlib.Test.fail(e)

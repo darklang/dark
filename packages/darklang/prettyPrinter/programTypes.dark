@@ -898,6 +898,29 @@ module NameResolution =
     | Error(_) -> NameResolutionError.source(nr.originalName)
 
 
+  /// <fn typeName> before one of its cases, or "" where the case reads back bare: lowering gives
+  /// `Some`, `None`, `Ok` and `Error` to Stdlib's Option and Result
+  /// (<fn LanguageTools.WrittenTypesToProgramTypes.optionOrResultTypeName>).
+  let caseTypeName(
+    ctx: Context,
+    nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>,
+    caseName: String)
+    : String =
+    let bare =
+      match
+        LanguageTools.WrittenTypesToProgramTypes.optionOrResultTypeName(caseName), nr.resolved
+      with
+      | Some(written), Ok(r) ->
+        match r.location with
+        | Some(l) ->
+          Stdlib.List.prepend(Stdlib.List.append(l.modules, l.name), l.owner)
+          == Stdlib.List.prepend(written, "Darklang")
+        | None -> false
+      | _ -> false
+
+    if bare then "" else typeName(ctx, nr)
+
+
   let traitName(
     ctx: Context,
     nr:
@@ -2524,7 +2547,10 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
 
     Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text("Dict "), spacedParts(ctx, "{", "}", parts))
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
-    let typeNamePart = NameResolution.typeName(ctx, typeName)
+    let typeNamePart =
+      match typeArgs with
+      | [] -> NameResolution.caseTypeName(ctx, typeName, caseName)
+      | _ -> NameResolution.typeName(ctx, typeName)
 
     // A bare, unqualified case (no type name) prints as just the case name; the `.` only separates a
     // present type name from its case.
@@ -2801,7 +2827,10 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
 
     $"Dict {pairPart}"
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
-    let typeNamePart = NameResolution.typeName(ctx, typeName)
+    let typeNamePart =
+      match typeArgs with
+      | [] -> NameResolution.caseTypeName(ctx, typeName, caseName)
+      | _ -> NameResolution.typeName(ctx, typeName)
     let typeArgsPart =
       match typeArgs with
       | [] -> ""
