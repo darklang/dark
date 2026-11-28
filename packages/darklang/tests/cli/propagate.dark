@@ -41,7 +41,7 @@ test twinCallersSavedTogetherKeepTheirOwnCallee = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let (defined, out) =
-    Instance.runWithStdin(i, [ "module", "/Me.Twin", "-" ], source)
+    Instance.runWithStdin(i, [ "import", "-", "/Me.Twin" ], source)
 
   let d = Instance.said(i, [ "view", "Me.Twin.d", "--raw" ])
   let e = Instance.said(i, [ "view", "Me.Twin.e", "--raw" ])
