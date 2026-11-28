@@ -724,6 +724,7 @@ module Fn =
     module AtRestTypeChecker =
       let checkPackageOps = p [ "AtRestTypeChecker" ] "checkPackageOps"
       let checkPackageOpsOn = p [ "AtRestTypeChecker" ] "checkPackageOpsOn"
+      let checkScriptOpsOn = p [ "AtRestTypeChecker" ] "checkScriptOpsOn"
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
