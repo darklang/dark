@@ -709,10 +709,8 @@ module Expr =
     match e with
     // ()
     | EUnit(range) -> [ makeToken(range, TokenType.Symbol) ]
-
     // true
     | EBool(range, _b) -> [ makeToken(range, TokenType.Keyword) ]
-
     // 12s8
     | EInt8(_, (intPartRange, _), suffixPartRange)
     // 12u8
@@ -734,27 +732,16 @@ module Expr =
     // 12u128
     | EUInt128(_, (intPartRange, _), suffixPartRange) ->
       numberTokens(intPartRange, suffixPartRange)
-
     // 12z, its suffix part of the number
     | EBigInt(_, (intPartRange, _)) -> [ makeToken(intPartRange, TokenType.Number) ]
-
     // 12.0
-    | EFloat64(range, _sign, _whole, _fraction) ->
-      [ makeToken(range, TokenType.Number) ]
-
+    | EFloat64(range, _sign, _whole, _fraction) -> [ makeToken(range, TokenType.Number) ]
     // 12.0f32
-    | EFloat32(range, _sign, _whole, _fraction) ->
-      [ makeToken(range, TokenType.Number) ]
-
+    | EFloat32(range, _sign, _whole, _fraction) -> [ makeToken(range, TokenType.Number) ]
     // 19.99dec
     | EDecimal(range, _d) -> [ makeToken(range, TokenType.Number) ]
-
     // "hello"
-    | EString(_range,
-              symbolDollarSign,
-              contentsMaybe,
-              symbolOpenQuote,
-              symbolCloseQuote) ->
+    | EString(_range, symbolDollarSign, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
       let symbolDollarSign =
         match symbolDollarSign with
         | Some(range) -> [ makeToken(range, TokenType.Symbol) ]
@@ -782,7 +769,6 @@ module Expr =
         // "
         [ makeToken(symbolCloseQuote, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
-
     // 'a'
     | EChar(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
       let contents =
@@ -801,7 +787,6 @@ module Expr =
         // '
         [ makeToken(symbolCloseQuote, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
-
     | EList(range, contentsMaybe, symbolLeftBracket, symbolRightBracket) ->
       let contents =
         contentsMaybe
@@ -815,12 +800,7 @@ module Expr =
         // ]
         [ makeToken(symbolRightBracket, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
-
-    | EDict(_range,
-            contentsMaybe,
-            keywordDict,
-            symbolOpenBrace,
-            symbolCloseBrace) ->
+    | EDict(_range, contentsMaybe, keywordDict, symbolOpenBrace, symbolCloseBrace) ->
       let contents =
         contentsMaybe
         |> Stdlib.List.map(fun((_, key, colonRange, value)) ->
@@ -842,20 +822,12 @@ module Expr =
         // }
         [ makeToken(symbolCloseBrace, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
-
     // (1, 2, 3)
-    | ETuple(range,
-              first,
-              symbolComma,
-              second,
-              rest,
-              symbolOpenParen,
-              symbolCloseParen) ->
+    | ETuple(range, first, symbolComma, second, rest, symbolOpenParen, symbolCloseParen) ->
       let rest =
         rest
         |> Stdlib.List.map(fun((r, expr)) ->
-          [ [ makeToken(r, TokenType.Symbol) ], Expr.tokenize(expr) ]
-          |> Stdlib.List.flatten)
+          [ [ makeToken(r, TokenType.Symbol) ], Expr.tokenize(expr) ] |> Stdlib.List.flatten)
         |> Stdlib.List.flatten
 
       [ // (
@@ -871,7 +843,6 @@ module Expr =
         // )
         [ makeToken(symbolCloseParen, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
-
     // Person { name = "Alice" }
     | ERecord(range, typeName, fields, symbolOpenBrace, symbolCloseBrace) ->
       let typeName = QualifiedTypeIdentifier.tokenize(typeName)
@@ -896,21 +867,13 @@ module Expr =
         // }
         [ makeToken(symbolCloseBrace, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
-
     //{ RecordForUpdate { x = 4, y = 1 } with y = 2 }
-    | ERecordUpdate(range,
-                    record,
-                    updates,
-                    symbolOpenBrace,
-                    symbolCloseBrace,
-                    keywordWith) ->
+    | ERecordUpdate(range, record, updates, symbolOpenBrace, symbolCloseBrace, keywordWith) ->
       let record = Expr.tokenize(record)
-
       let updates =
         updates
         |> Stdlib.List.map(fun((name, symbolEquals, value)) ->
           let (range, _) = name
-
           [ // x
             [ makeToken(range, TokenType.Property) ]
             // =
@@ -927,15 +890,12 @@ module Expr =
         // y = 2
         updates ]
       |> Stdlib.List.flatten
-
-
     // Option.Option.Some 1
     | EEnum(range, typeName, caseName, fields, symbolDot) ->
       let typeName = QualifiedTypeIdentifier.tokenize(typeName)
-
       let caseName =
         match caseName with
-        | (range, _) -> [ makeToken(range, TokenType.EnumMember) ]
+        | range, _ -> [ makeToken(range, TokenType.EnumMember) ]
 
       let fields =
         fields
@@ -951,8 +911,6 @@ module Expr =
         // 1
         fields ]
       |> Stdlib.List.flatten
-
-
     // let x = 2
     // x + 1
     | ELet(_range, lp, expr, body, keywordLet, symbolEquals) ->
@@ -962,16 +920,11 @@ module Expr =
         Expr.tokenize(expr)
         Expr.tokenize(body) ]
       |> Stdlib.List.flatten
-
     // x
     | EVariable(range, _varName) -> [ makeToken(range, TokenType.VariableName) ]
-
     // person.name
     | EUnwrap(_, operand, question) ->
-      Stdlib.List.append(
-        Expr.tokenize(operand),
-        makeToken(question, TokenType.Symbol))
-
+      Stdlib.List.append(Expr.tokenize(operand), makeToken(question, TokenType.Symbol))
     | ERecordFieldAccess(_range, expr, (r, fieldName), symbolDot) ->
       [ // person
         Expr.tokenize(expr)
@@ -980,16 +933,12 @@ module Expr =
         // name
         [ makeToken(r, TokenType.Property) ] ]
       |> Stdlib.List.flatten
-
     // if true then 1 else 2
     | EIf(_range, cond, thenExpr, elseExpr, keywordIf, keywordThen, keywordElse) ->
       let elseKeyword =
-        Stdlib.Option.mapWithDefault(keywordElse, [], fun e ->
-          [ makeToken(e, TokenType.Keyword) ])
+        Stdlib.Option.mapWithDefault(keywordElse, [], fun e -> [ makeToken(e, TokenType.Keyword) ])
 
-      let elseExpr =
-        Stdlib.Option.mapWithDefault(elseExpr, [], fun e -> Expr.tokenize(e))
-
+      let elseExpr = Stdlib.Option.mapWithDefault(elseExpr, [], fun e -> Expr.tokenize(e))
       [ // if
         [ makeToken(keywordIf, TokenType.Keyword) ]
         // true
@@ -1003,7 +952,6 @@ module Expr =
         // 2
         elseExpr ]
       |> Stdlib.List.flatten
-
     // match x with
     // | x when x > 1 -> x
     // | 1 -> 1
@@ -1014,17 +962,13 @@ module Expr =
           let pipeSym = Stdlib.Tuple3.first(case.pat)
           let pattern = Stdlib.Tuple3.second(case.pat)
           let arrowSym = Stdlib.Tuple3.third(case.pat)
-
           let whenCondition =
-            Stdlib.Option.mapWithDefault(
-              case.whenCondition,
-              [],
-              fun((whenKeyword, expr)) ->
-                [ // when
-                  [ makeToken(whenKeyword, TokenType.Keyword) ]
-                  // x > 1
-                  (Expr.tokenize(expr)) ]
-                |> Stdlib.List.flatten)
+            Stdlib.Option.mapWithDefault(case.whenCondition, [], fun((whenKeyword, expr)) ->
+              [ // when
+                [ makeToken(whenKeyword, TokenType.Keyword) ]
+                // x > 1
+                Expr.tokenize(expr) ]
+              |> Stdlib.List.flatten)
 
           [ // |
             [ makeToken(pipeSym, TokenType.Symbol) ]
@@ -1037,7 +981,6 @@ module Expr =
             // x
             Expr.tokenize(case.rhs) ]
           |> Stdlib.List.flatten)
-
         |> Stdlib.List.flatten
 
       [ // match
@@ -1050,7 +993,6 @@ module Expr =
         // | 1 -> 1
         cases ]
       |> Stdlib.List.flatten
-
     // x |> fn |> fn
     | EPipe(_, expr, pipeExprs) ->
       let pipeExprs =
@@ -1059,17 +1001,14 @@ module Expr =
           [ // |>
             [ makeToken(pipeSym, TokenType.Operator) ]
             // fn
-            Expr.PipeExpr.tokenize(pipeExpr) ])
+            PipeExpr.tokenize(pipeExpr) ])
         |> Stdlib.List.flatten
 
       [ // x
         Expr.tokenize(expr)
         // |> fn
-        (pipeExprs) |> Stdlib.List.flatten ]
-
+        pipeExprs |> Stdlib.List.flatten ]
       |> Stdlib.List.flatten
-
-
     // x + 1
     | EInfix(_, (opRange, _op), left, right) ->
       [ // x
@@ -1079,43 +1018,38 @@ module Expr =
         // 1
         Expr.tokenize(right) ]
       |> Stdlib.List.flatten
-
     // fun a -> a + 1
     | ELambda(_range, pats, body, keywordFun, symbolArrow) ->
       [ // fun
         [ makeToken(keywordFun, TokenType.Keyword) ]
         // a
-        (pats
-          |> Stdlib.List.map(fun pat -> LetPattern.tokenize(pat))
-          |> Stdlib.List.flatten)
+        pats
+        |> Stdlib.List.map(fun pat -> LetPattern.tokenize(pat))
+        |> Stdlib.List.flatten
+
         // ->
         [ makeToken(symbolArrow, TokenType.Symbol) ]
         // a + 1
         Expr.tokenize(body) ]
       |> Stdlib.List.flatten
-
     // hacky temp. syntax -- see `grammar.js`
     // Stdlib.Int64.remainder (1) (2)
     | EFnName(_range, fnName) -> QualifiedFnIdentifier.tokenize(fnName)
-
     | EApply(_range, lhs, typeArgs, args) ->
       [ // the fn being applied
         Expr.tokenize(lhs)
         // <T> call-site type args, between the fn and its args (source order)
-        (typeArgs
-          |> Stdlib.List.map(fun typeArg -> TypeReference.tokenize(typeArg))
-          |> Stdlib.List.flatten)
+        typeArgs
+        |> Stdlib.List.map(fun typeArg -> TypeReference.tokenize(typeArg))
+        |> Stdlib.List.flatten
+
         // the args
-        (args
-          |> Stdlib.List.map(fun arg -> Expr.tokenize(arg))
-          |> Stdlib.List.flatten) ]
+        args
+        |> Stdlib.List.map(fun arg -> Expr.tokenize(arg))
+        |> Stdlib.List.flatten ]
       |> Stdlib.List.flatten
-
     | EStatement(_range, first, next) ->
-      [ Expr.tokenize(first)
-        Expr.tokenize(next) ]
-      |> Stdlib.List.flatten
-
+      [ Expr.tokenize(first), Expr.tokenize(next) ] |> Stdlib.List.flatten
     // a parse-error hole paints nothing; the code around it still highlights
     | EError(_) -> []
 
