@@ -2316,17 +2316,18 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
           // `| A | B ->` on one line when it fits; otherwise one alternative per line.
           let head =
             match case.pat with
+            // Each alternative with its comments, which go above its `|`.
             | MPOr(_, alternatives) ->
-              Stdlib.Pretty.group(
-                Stdlib.Pretty.Doc.Concat(
-                  Stdlib.Pretty.text("| "),
-                  alternatives
-                  |> Stdlib.List.map(fun alt ->
-                    match alt with
-                    | MPAs(_, _, _) -> Stdlib.Pretty.text("(" + matchPattern(alt) + ")")
-                    | _ -> Stdlib.Pretty.text(matchPattern(alt)))
-                  |> Stdlib.Pretty.join(
-                    Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, Stdlib.Pretty.text("| ")))))
+              alternatives
+              |> Stdlib.List.indexedMap(fun(i, alt) ->
+                let row = commented(ctx, patternId(alt), fun _ ->
+                  match alt with
+                  | MPAs(_, _, _) -> Stdlib.Pretty.text("| (" + matchPattern(alt) + ")")
+                  | _ -> Stdlib.Pretty.text("| " + matchPattern(alt)))
+
+                if i == 0 then row else Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, row))
+              |> Stdlib.Pretty.concatAll
+              |> Stdlib.Pretty.group
             | _ -> Stdlib.Pretty.text($"| {armPattern(case.pat)}")
 
           Stdlib.Pretty.hang(

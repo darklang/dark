@@ -96,6 +96,37 @@ test keepsSpreadsEscapesAndFloats =
   |> Stdlib.Test.equal(Ok(keptAsWritten))
 
 
+// A comment between an or-pattern's alternatives stays above the one it was written above.
+val commentBetweenAlternatives =
+  """module Darklang.Tests.FormatSample
+
+type Code =
+  | A
+  | B
+  | C
+  | D
+
+
+let isWarning(code: Code): Bool =
+  match code with
+  | A
+  | B
+  // the last warning
+  | C ->
+    true
+  | D -> false
+"""
+
+
+test placesACommentBetweenOrPatternAlternatives =
+  LanguageTools.Formatter.source(
+    SCM.Branch.mainBranchId,
+    100,
+    commentBetweenAlternatives)
+  |> Stdlib.Result.map(fun f -> (f.text, f.asWritten))
+  |> Stdlib.Test.equal(Ok((commentBetweenAlternatives, [])))
+
+
 // A `let` inside a list keeps its parentheses, or the items after it would be lines of its block.
 val letInList =
   """module Darklang.Tests.FormatSample
