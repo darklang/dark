@@ -122,32 +122,32 @@ let renderProcesses(
   let detailFocused =
     Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
 
-  paneSplit(region, 60, state.focus, paneTitle(
-    "Processes",
-    listTrailer(state, "process"),
-    listFocused), (fun r ->
-                     // The tree, with the selected row marked: the list pane IS the table, so the cursor has to
-                     // be drawn on it rather than on a separate list of names.
-                     let lines = Stdlib.Cli.UI.Node.toRows(processTree(state), r.cols, "")
-                     // Row 0 is the header, row 1 the rule; the processes start at row 2.
-                     let cursorRow = state.selected + 2
-                     let marked =
-                       lines
-                       |> Stdlib.List.indexedMap(fun(i, line) ->
-                         if i == cursorRow then
-                           Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.selection, line)
-                         else
-                           line)
+  paneSplit(
+    region,
+    60,
+    state.focus,
+    paneTitle("Processes", listTrailer(state, "process"), listFocused),
+    (fun r ->
+       // The tree, with the selected row marked: the list pane IS the table, so the cursor has to
+       // be drawn on it rather than on a separate list of names.
+       let lines = Stdlib.Cli.UI.Node.toRows(processTree(state), r.cols, "")
+       // Row 0 is the header, row 1 the rule; the processes start at row 2.
+       let cursorRow = state.selected + 2
+       let marked =
+         lines
+         |> Stdlib.List.indexedMap(fun(i, line) ->
+           if i == cursorRow then
+             Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.selection, line)
+           else
+             line)
 
-                     // Enough scroll to keep the cursor on screen. Without it, selecting past the pane's
-                     // height moves a cursor nobody can see.
-                     let visible = Stdlib.max(1, r.rows - 1)
-                     let scroll = Stdlib.max(0, cursorRow + 1 - visible)
-                     renderScrollableLines(r, 0, lines, marked, scroll)), paneTitle(
-    "Stack",
-    [],
-    detailFocused), fun r ->
-    renderPreview(state, r))
+       // Enough scroll to keep the cursor on screen. Without it, selecting past the pane's
+       // height moves a cursor nobody can see.
+       let visible = Stdlib.max(1, r.rows - 1)
+       let scroll = Stdlib.max(0, cursorRow + 1 - visible)
+       renderScrollableLines(r, 0, lines, marked, scroll)),
+    paneTitle("Stack", [], detailFocused),
+    fun r -> renderPreview(state, r))
 
 
 let processDetailLines(state: State): List<String> =
