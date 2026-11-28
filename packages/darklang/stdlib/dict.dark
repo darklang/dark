@@ -172,7 +172,9 @@ let fromEntriesUnique(entries: List<('k * 'v)>): Result<Dict<'k, 'v>, DuplicateK
 /// Returns {{true}} if the <param dict> contains an entry with <param key>,
 /// and {{false}} otherwise
 let containsKey(dict: Dict<'k, 'v>, key: 'k): Bool =
-  Builtin.dictContainsKey(dict, key)
+  match get(dict, key) with
+  | Some(_) -> true
+  | None -> false
 
 
 /// Returns a new dictionary that contains the same keys as the original <param

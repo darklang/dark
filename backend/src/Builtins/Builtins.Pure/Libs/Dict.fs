@@ -242,25 +242,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dictContainsKey" 0
-      typeParams = []
-      parameters =
-        [ Param.moved "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
-      returnType = TBool
-      description =
-        "Returns {{true}} if the <param dict> contains an entry with <param "
-        + "key>, and {{false}} otherwise"
-      fn =
-        (function
-        | _, _, _, [| DDict(_, _, o); key |] ->
-          LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
-          (DBool(DictMap.containsKey key o))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "dictMerge" 0
       typeParams = []
       parameters =
