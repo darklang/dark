@@ -599,6 +599,20 @@ test exprsQualifiedValue =
       roundTrip("tuple element access", "pair.2", "pair.2") ])
 
 
+// A tuple or a lambda prints in parentheses of its own, so it needs no second pair.
+test exprsNoDoubledParens =
+  Stdlib.Test.all(
+    [ roundTrip(
+        "element of a tuple literal",
+        "(1, \"two\").1",
+        "(1, \"two\").1")
+
+      roundTrip(
+        "lambdas compared",
+        "(fun x -> y) == (fun x -> y)",
+        "(fun x -> y) == (fun x -> y)") ])
+
+
 // A fn named with type args and not called keeps them, and stays uncalled.
 test exprsTypedFnValue =
   Stdlib.Test.all(
