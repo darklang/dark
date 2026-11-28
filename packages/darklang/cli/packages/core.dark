@@ -488,7 +488,10 @@ let authorInline(
       LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration) ->
     Option<AppState>)
   : AppState =
-  match Location.parseRelativeTo(state.packageData.currentLocation, locationStr) with
+  match Location.parseFrom(
+          state.currentBranchId,
+          state.packageData.currentLocation,
+          locationStr) with
   | Error(msg) ->
     printErr($"Invalid location: {msg}")
     failed(state)

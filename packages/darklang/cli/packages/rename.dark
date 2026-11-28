@@ -47,7 +47,11 @@ let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [oldName, newName] ->
     let here = state.packageData.currentLocation
-    match Location.parseRelativeTo(here, oldName), Location.parseRelativeTo(here, newName) with
+    let branchId = state.currentBranchId
+    match Location.parseFrom(branchId, here, oldName), Location.parseFrom(
+            branchId,
+            here,
+            newName) with
     | Error(e), _ ->
       printErr($"the name to rename: {e}")
       { state with exitCode = 1 }

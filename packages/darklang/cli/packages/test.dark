@@ -358,7 +358,10 @@ let addTest(
   definition: String,
   description: Option<String>)
   : AppState =
-  match Location.parseRelativeTo(state.packageData.currentLocation, locationStr) with
+  match Location.parseFrom(
+          state.currentBranchId,
+          state.packageData.currentLocation,
+          locationStr) with
   | Error(msg) -> addFailed(state, $"Invalid location: {msg}")
   | Ok(location) ->
     let trimmed = Stdlib.String.trim(definition)

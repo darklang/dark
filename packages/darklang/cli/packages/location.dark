@@ -49,3 +49,37 @@ let parseRelativeTo(
       Result.Ok(
         LanguageTools.ProgramTypes.PackageLocation
           { owner = owner, modules = modules, name = name })
+
+
+/// <fn parseRelativeTo> for a name a command creates: one that starts with an owner is a full
+/// name wherever you stand, as it is for lookups (`Traversal.applyPathFrom`), unless something
+/// here already has that first name.
+let parseFrom(
+  branchId: Uuid,
+  currentLocation: PackageLocation,
+  location: String)
+  : Result<LanguageTools.ProgramTypes.PackageLocation, String> =
+  let here = Traversal.getCurrentModulePath(currentLocation)
+  let first =
+    Stdlib.String.split(location, ".")
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault("")
+
+  let isHere =
+    Traversal.applyPath(
+      branchId,
+      PackageLocation.Module(here),
+      [ Traversal.PathSegment.Into(first) ])
+    |> Stdlib.Result.isOk
+
+  if
+    Stdlib.List.isEmpty(here)
+    || Stdlib.String.startsWith(location, "/")
+    || isHere
+    || Stdlib.Bool.not(Traversal.isOwner(branchId, first))
+  then
+    parseRelativeTo(currentLocation, location)
+  else if first == "Stdlib" then
+    parseRelativeTo(currentLocation, "/Darklang." + location)
+  else
+    parseRelativeTo(currentLocation, "/" + location)
