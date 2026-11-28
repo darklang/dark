@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# Whether a branch or PR changes the browser build. Runs in CircleCI's setup workflow, on the
+# host, after the commit has been fetched; .circleci/continue.yml runs the `wasm` workflow
+# only when this prints `true`.
+#
+#   backend/src/Wasm/deploy/ci-changed    prints `true` if so, or nothing
+#
+# Compared with where the branch left main, as scripts/deployment/ci-docs-only does. Main and
+# tags print nothing: release tags get the workflow by their own filter.
+
+set -euo pipefail
+shopt -s inherit_errexit
+
+[[ "${CIRCLE_BRANCH:-}" != main && -z "${CIRCLE_TAG:-}" && -n "${CIRCLE_SHA1:-}" ]] || exit 0
+
+fetch() { git fetch -q --depth=200 --filter=blob:none origin "$@" 2> /dev/null; }
+fetch "+refs/heads/main:refs/remotes/origin/main" || exit 0
+fetch "$CIRCLE_SHA1" || fetch "refs/pull/${CIRCLE_PULL_REQUEST##*/}/head" || exit 0
+base=$(git merge-base refs/remotes/origin/main "$CIRCLE_SHA1" 2> /dev/null) || exit 0
+
+changed=$(git diff --name-only "$base" "$CIRCLE_SHA1") || exit 0
+if grep -q '^backend/src/Wasm/' <<< "$changed"; then echo true; fi

@@ -17,9 +17,7 @@ Dark code runs in a Web Worker, so the page stays live while it runs.
 backend/src/Wasm/build.sh                     # setup.sh, the publish and the store; ~6 min (AOT)
 backend/src/Wasm/build.sh --store-only        # just the store, when only packages changed
 
-./scripts/run-cli permissions allow http-server 0.0.0.0 9090
-./scripts/run-cli permissions allow file read /home/dark/app/rundir/wasm-repl/wwwroot
-./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090 --bind 0.0.0.0   # host port: scripts/dev/host-port 9090
+python3 -m http.server 9090 -d rundir/wasm-repl/wwwroot   # host port: scripts/dev/host-port 9090
 
 backend/src/Wasm/deploy/deploy.sh             # nginx image of the publish -> fly app dark-wasm
 ```
@@ -70,8 +68,10 @@ no brotli decoder of its own, so the store is never decoded in .NET.
 
 ## A preview per PR
 
-CI publishes this site and puts it on the preview host (`build-wasm`, `deploy-preview` in
-`.circleci/continue.yml`; `deploy/preview/ci-deploy.sh` has the rules):
+CI publishes this site and puts it on the preview host (the `wasm` workflow in
+`.circleci/continue.yml`; `deploy/preview/ci-deploy.sh` has the rules). The workflow runs only
+for a branch that changes `backend/src/Wasm/` (`deploy/ci-changed`) and for a release tag, so
+no other PR waits on it or pays for it:
 
     https://wasm.darklang.com/            directory of what is deployed
     https://wasm.darklang.com/latest/     the newest release tag

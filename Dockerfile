@@ -200,14 +200,13 @@ RUN /home/dark/install-dotnet \
   --amd64-sha256=1bec9cca2ec689b1e80245b84f2b53c9441d1aa6daccf2ceb27490768bffa95954fa585bd275def31069d874d543d9ba9e6591fe9ade2dbd9f34ec5c0fd0050c \
   # Parts of the SDK nothing here runs: its bundled tools (`dotnet format`, `dotnet watch`,
   # the ASP.NET ones), the .NET Framework test host, which is Windows-only, `dotnet new`'s
-  # templates, and the SDK's messages in other languages (not `codestyle/cs`, which is C#,
-  # not Czech: a C# project needs it to build). Removed in the same layer, or they
+  # templates, and the SDK's messages in other languages. Removed in the same layer, or they
   # would still be pulled.
   && sudo rm -rf \
     /usr/share/dotnet/sdk/*/DotnetTools \
     /usr/share/dotnet/sdk/*/TestHostNetFramework \
     /usr/share/dotnet/templates \
-  && sudo find /usr/share/dotnet/sdk -type d -not -path "*/codestyle/*" \
+  && sudo find /usr/share/dotnet/sdk -type d \
     -regex '.*/\(cs\|de\|es\|fr\|it\|ja\|ko\|pl\|pt-BR\|ru\|tr\|zh-Hans\|zh-Hant\)' -prune \
     -exec rm -rf {} +
 

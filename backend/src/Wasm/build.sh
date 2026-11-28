@@ -77,5 +77,5 @@ awk -v fw="$fwBr" -v js="$fwJs" -v db="$dbBr" 'BEGIN {
 }'
 
 echo
-echo "serve it:   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090"
+echo "serve it:   python3 -m http.server 9090 -d $OUT/wwwroot"
 echo "deploy it:  backend/src/Wasm/deploy/deploy.sh"

@@ -66,6 +66,13 @@ jobs:
             fi
             [[ -z "$docs_only" ]] || echo "Only prose changed since this branch left main, so this pipeline skips the build"
             jq --argjson docs "${docs_only:-false}" '. + {"docs-only": $docs}' /tmp/proven.json > /tmp/parameters.json
+      # Only a branch that changes the browser build runs its workflow.
+      - run:
+          name: Check whether this change touches the browser build
+          command: |
+            wasm=$(backend/src/Wasm/deploy/ci-changed)
+            jq --argjson wasm "${wasm:-false}" '. + {"wasm-changed": $wasm}' /tmp/parameters.json > /tmp/wasm.json
+            mv /tmp/wasm.json /tmp/parameters.json
       - run:
           name: Continue in those images
           command: |
