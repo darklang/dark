@@ -61,11 +61,17 @@ ws.onmessage = (ev) => {
   if (msg.id && pending.has(msg.id)) {
     const { res, rej } = pending.get(msg.id); pending.delete(msg.id);
     msg.error ? rej(new Error(JSON.stringify(msg.error))) : res(msg.result);
+  } else if (msg.method === "Target.attachedToTarget") {
+    // A worker (the runtime runs in one): enable its console too.
+    ws.send(JSON.stringify({ id: nextId++, method: "Runtime.enable", sessionId: msg.params.sessionId }));
+    ws.send(JSON.stringify({ id: nextId++, method: "Runtime.runIfWaitingForDebugger", sessionId: msg.params.sessionId }));
+    ws.send(JSON.stringify({ id: nextId++, method: "Target.setAutoAttach", sessionId: msg.params.sessionId,
+      params: { autoAttach: true, waitForDebuggerOnStart: false, flatten: true } }));
   } else if (msg.method === "Runtime.consoleAPICalled") {
     const text = msg.params.args.map((a) => a.value ?? a.description ?? "").join(" ");
     // Wall-clock offset from navigation, so boot phases can be timed from the log.
     const t = ((msg.params.timestamp - t0) / 1000).toFixed(1);
-    console.error(`[console.${msg.params.type} +${t}s] ${text}`);
+    console.error(`[${msg.sessionId ? "worker " : ""}console.${msg.params.type} +${t}s] ${text}`);
   } else if (msg.method === "Runtime.exceptionThrown") {
     console.error(`[pageerror] ${msg.params.exceptionDetails.text} ${msg.params.exceptionDetails.exception?.description ?? ""}`);
   }
@@ -77,6 +83,7 @@ const send = (method, params = {}) => new Promise((res, rej) => {
 
 await send("Runtime.enable");
 await send("Page.enable");
+await send("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
 const t0 = Date.now();
 await send("Page.navigate", { url });
 const deadline = Date.now() + timeoutMs;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the whole browser site: publish, store, REPL snapshot. From the repo root, inside
+# Build the whole browser site: publish, then the store. From the repo root, inside
 # the container. `deploy/deploy.sh` ships what this leaves in `rundir/wasm-repl/wwwroot`.
 #
 #   backend/src/Wasm/build.sh              everything
@@ -26,23 +26,17 @@ storeOnly=false
 OUT="rundir/wasm-repl"
 LOG="rundir/logs/wasm-publish.log"
 
-# Up front, because the cheap checks belong before the six-minute step rather than after it.
-python3 -c "import brotli" 2>/dev/null || {
-  echo "python3 cannot import brotli, which the store step needs." >&2
-  echo "  Rebuild this clone's container (scripts/dev/start --recreate), or: pip install brotli" >&2
-  exit 1
-}
-
 if [[ "$storeOnly" == false ]]; then
   command -v dotnet >/dev/null || { echo "no dotnet on PATH; are you inside the container?" >&2; exit 1; }
+  backend/src/Wasm/setup.sh
 
   echo "publishing to $OUT (Release, AOT; 4 to 8 minutes). Follow along: tail -F $LOG"
   rm -rf "$OUT"
   mkdir -p "$(dirname "$LOG")"
 
   # Node reuse off, output to a file. See the note above: piping this is what hangs.
-  if ! MSBUILDDISABLENODEREUSE=1 dotnet publish backend/src/Wasm/Wasm.fsproj \
-       -c Release -o "$OUT" -nodeReuse:false > "$LOG" 2>&1; then
+  if ! MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0 dotnet publish \
+       backend/src/Wasm/Wasm.csproj -c Release -o "$OUT" -nodeReuse:false > "$LOG" 2>&1; then
     echo "the publish failed. Last lines of $LOG:" >&2
     tail -25 "$LOG" >&2
     exit 1
@@ -58,24 +52,22 @@ if [[ "$storeOnly" == false ]]; then
 fi
 
 backend/src/Wasm/make-store.sh
-python3 backend/src/Wasm/generate-snapshot.py
 
 echo
 echo "the site is in $OUT/wwwroot:"
-for f in cli.html index.html eval.html repl.html data.db data.db.br store.json; do
+for f in cli.html index.html eval.html worker.js data.db data.db.br store.json; do
   if [[ -e "$OUT/wwwroot/$f" ]]; then
     printf '  %-14s %s\n' "$f" "$(du -h "$OUT/wwwroot/$f" | cut -f1)"
   else
     printf '  %-14s MISSING\n' "$f"
   fi
 done
-# What a cold visit costs, which nothing printed before and which is therefore the number
-# that drifted. nginx serves the framework's own `.br` beside each file to a browser
-# (`brotli_static`), so this counts what that server would actually send: the brotli
-# framework, the page's own brotli store, the page assets. An upper bound, since the runtime
-# fetches the assemblies its boot set names rather than all of them.
+# What a cold visit costs. nginx serves the framework's own `.br` beside each file to a
+# browser (`brotli_static`), so this counts what that server would actually send: the brotli
+# framework and the brotli store. An upper bound, since the runtime fetches the
+# assemblies its boot set names rather than all of them.
 fwBr=$(find "$OUT/wwwroot/_framework" -type f -name '*.br' -printf '%s\n' 2>/dev/null | awk '{s+=$1} END {print s+0}')
-fwJs=$(find "$OUT/wwwroot/_framework" -maxdepth 1 -type f -name '*.js' -printf '%s\n' 2>/dev/null | awk '{s+=$1} END {print s+0}')
+fwJs=0
 dbBr=$(stat -c %s "$OUT/wwwroot/data.db.br" 2>/dev/null || echo 0)
 echo
 awk -v fw="$fwBr" -v js="$fwJs" -v db="$dbBr" 'BEGIN {
@@ -85,5 +77,5 @@ awk -v fw="$fwBr" -v js="$fwJs" -v db="$dbBr" 'BEGIN {
 }'
 
 echo
-echo "serve it:   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090"
+echo "serve it:   python3 -m http.server 9090 -d $OUT/wwwroot"
 echo "deploy it:  backend/src/Wasm/deploy/deploy.sh"

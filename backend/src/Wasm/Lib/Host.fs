@@ -9,18 +9,17 @@ namespace Darklang.Wasm
 /// `stdinReadKey` awaits the next one. Size: JS tells us the terminal's columns and rows
 /// whenever they change.
 ///
-/// Everything here is single-threaded by construction (Blazor WebAssembly has one
-/// thread), so the queue and the waiter need no locking.
+/// Everything here is single-threaded by construction (the runtime has one thread
+/// in its worker), so the queue and the waiter need no locking.
 module Browser =
   open System
   open System.Collections.Generic
   open System.Threading.Tasks
-  open Microsoft.JSInterop
 
-  let mutable private js : IJSInProcessRuntime option = None
+  let mutable private logTo : Action<string> option = None
 
-  /// Called once from Program.Main with the host's runtime.
-  let init (runtime : IJSInProcessRuntime) : unit = js <- Some runtime
+  /// Called once from `Startup.Start` with the page's `console.log`.
+  let setLog (log : Action<string>) : unit = logTo <- Some log
 
   /// Output is buffered here and drained by the page (`DrainOutput`) on a short timer,
   /// never pushed through a synchronous JS call. A synchronous .NET -> JS call made from
@@ -54,7 +53,6 @@ module Browser =
     }
 
   /// JS -> .NET: everything written since the last drain.
-  [<JSInvokable>]
   let DrainOutput () : string =
     if pending.Length = 0 then
       ""
@@ -66,8 +64,8 @@ module Browser =
   /// Boot diagnostics to the browser console; reaches DevTools even while the main thread
   /// is busy. Only for use outside the interpreter (boot, exception reports): see above.
   let log (text : string) : unit =
-    match js with
-    | Some j -> j.InvokeVoid("console.log", "[dark] " + text)
+    match logTo with
+    | Some l -> l.Invoke("[dark] " + text)
     | None -> ()
 
   /// A TextWriter that feeds the output buffer. Installed as Console.Out and
@@ -177,13 +175,11 @@ module Browser =
       make '\u0000' ConsoleKey.NoName
 
   /// JS -> .NET: one keydown.
-  [<JSInvokable>]
   let PushKey (domKey : string, ctrl : bool, alt : bool, shift : bool) : unit =
     deliver { key = toConsoleKeyInfo domKey ctrl alt shift; paste = None }
 
   /// JS -> .NET: pasted text. Reported the way the real host reports a paste: the
   /// key is the first printable character, the text is the whole paste.
-  [<JSInvokable>]
   let PushPaste (text : string) : unit =
     if not (String.IsNullOrEmpty text) then
       let first =
@@ -196,7 +192,6 @@ module Browser =
 
   /// JS -> .NET: the terminal was (re)sized. Also wakes the read loop with a key nobody
   /// handles, which is how SIGWINCH gets a repaint on the real host.
-  [<JSInvokable>]
   let SetTerminalSize (cols : int, rws : int) : unit =
     let changed = int64 cols <> columns || int64 rws <> rows
     columns <- int64 (max 1 cols)
@@ -227,46 +222,12 @@ module BrowserBuiltins =
   module Builtin = LibExecution.Builtin
   module PackageRefs = LibExecution.PackageRefs
   module NR = LibExecution.RuntimeTypes.NameResolution
+  module Pending = LibExecution.Pending
+  module Dval = LibExecution.Dval
+  module Stdin = Builtins.Cli.Libs.Stdin
 
-  /// The `Stdlib.Cli.Stdin.KeyRead` record, the shape `Builtins.Cli`'s `stdinReadKey` builds. The
-  /// Dark `Key` enum's cases are the `ConsoleKey` names, so the enum's own name is the case.
   let private keyRead (ev : Browser.KeyEvent) : Dval =
-    let k = ev.key
-    let has (m : ConsoleModifiers) = (k.Modifiers &&& m) <> ConsoleModifiers.None
-    let typ (hash : unit -> string) = FQTypeName.fqPackage (hash ())
-    let modifiers =
-      DRecord(
-        typ PackageRefs.Type.Stdlib.Cli.Stdin.modifiers,
-        typ PackageRefs.Type.Stdlib.Cli.Stdin.modifiers,
-        [],
-        Map
-          [ "alt", DBool(has ConsoleModifiers.Alt)
-            "shift", DBool(has ConsoleModifiers.Shift)
-            "ctrl", DBool(has ConsoleModifiers.Control) ]
-      )
-    let key =
-      DEnum(
-        typ PackageRefs.Type.Stdlib.Cli.Stdin.key,
-        typ PackageRefs.Type.Stdlib.Cli.Stdin.key,
-        [],
-        string k.Key,
-        []
-      )
-    let keyChar =
-      match ev.paste with
-      | Some text -> DString text
-      | None ->
-        if Char.IsControl k.KeyChar then DString "" else DString(string k.KeyChar)
-    DRecord(
-      typ PackageRefs.Type.Stdlib.Cli.Stdin.keyRead,
-      typ PackageRefs.Type.Stdlib.Cli.Stdin.keyRead,
-      [],
-      Map
-        [ "key", key
-          "modifiers", modifiers
-          "keyChar", keyChar
-          "repeat", Dval.int 1I ]
-    )
+    Stdin.keyReadToDval ev.key ev.paste 1
 
   /// Read a whole line off the key queue. Echoes nothing; the prompt that asked is
   /// expected to be a TUI region (which is how the CLI's own line reads work).
@@ -293,6 +254,9 @@ module BrowserBuiltins =
       return sb.ToString()
     }
 
+  let private someLine (line : string) : Dval =
+    Dval.option KTString (Some(DString(String.normalizeOutside line)))
+
   let private fns : List<BuiltInFn> =
     [ { name = fn "stdinReadKey" 0
         typeParams = []
@@ -304,13 +268,8 @@ module BrowserBuiltins =
         description = "Waits for the next key the page pushes in."
         fn =
           (function
-          | _, _, _, [| DUnit |] ->
-            uply {
-              let! ev = Browser.nextKey ()
-              return keyRead ev
-            }
+          | _, _, _, [| DUnit |] -> Browser.nextKey () |> Pending.map keyRead
           | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
         previewable = Impure
         callEffects = set [ Effect.Stdin ]
         deprecated = NotDeprecated }
@@ -318,31 +277,30 @@ module BrowserBuiltins =
       { name = fn "stdinReadLine" 0
         typeParams = []
         parameters = [ Param.make "unit" TUnit "" ]
-        returnType = TString
+        returnType = TypeReference.option TString
         description = "Reads a line from the keys the page pushes in."
         fn =
           (function
-          | _, _, _, [| DUnit |] ->
-            uply {
-              let! line = readLine ()
-              return DString line
-            }
+          | _, _, _, [| DUnit |] -> readLine () |> Pending.map someLine
           | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
         previewable = Impure
-        callEffects = set [ Effect.Stdin ]
+        callEffects = set [ Effect.Stdin; Effect.Raise ]
         deprecated = NotDeprecated }
 
-      { name = fn "stdinIsInteractive" 0
+      { name = fn "stdinCheckedReadLine" 0
         typeParams = []
         parameters = [ Param.make "unit" TUnit "" ]
-        returnType = TBool
-        description = "True: the page's terminal is always a person."
+        returnType = TypeReference.result (TypeReference.option TString) TUnit
+        description =
+          "Reads a line from the keys the page pushes in. Never Error: keys are text."
         fn =
           (function
-          | _, _, _, [| DUnit |] -> Ply(DBool true)
+          | _, _, _, [| DUnit |] ->
+            let okType =
+              KTCustomType(Dval.optionType (), [ LibExecution.ValueType.string ])
+            readLine ()
+            |> Pending.map (fun line -> someLine line |> Dval.resultOk okType KTUnit)
           | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
         previewable = Impure
         callEffects = set [ Effect.Stdin ]
         deprecated = NotDeprecated }
@@ -350,13 +308,12 @@ module BrowserBuiltins =
       { name = fn "stdinReadAll" 0
         typeParams = []
         parameters = [ Param.make "unit" TUnit "" ]
-        returnType = TString
+        returnType = TypeReference.result TString TBytes
         description = "Nothing is ever piped into a tab."
         fn =
           (function
-          | _, _, _, [| DUnit |] -> Ply(DString "")
+          | _, _, _, [| DUnit |] -> Dval.resultOk KTString KTBytes (DString "")
           | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
         previewable = Impure
         callEffects = set [ Effect.Stdin ]
         deprecated = NotDeprecated }
@@ -364,56 +321,37 @@ module BrowserBuiltins =
       { name = fn "cliTerminalSize" 0
         typeParams = []
         parameters = [ Param.make "unit" TUnit "" ]
-        returnType = TTuple(TInt, TInt, [])
+        returnType = TTuple(TInt64, TInt64, [])
         description =
           "The xterm.js terminal's (columns, rows), as last reported by the page."
         fn =
           (function
           | _, _, _, [| DUnit |] ->
             let (width, height) = Browser.terminalSize ()
-            DTuple(Dval.int (bigint width), Dval.int (bigint height), []) |> Ply
+            DTuple(Dval.dint64 width, Dval.dint64 height, [])
           | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
         previewable = Impure
         callEffects = Set.empty
         deprecated = NotDeprecated }
 
-      { name = fn "cliTerminalSessionInfo" 0
+      { name = fn "cliTerminalIsatty" 0
         typeParams = []
-        parameters = [ Param.make "unit" TUnit "A unit" ]
-        returnType = TTuple(TBool, TBool, [ TString ])
-        description =
-          "(input is terminal, output is terminal, TERM): always a terminal here."
+        parameters =
+          [ Param.make "fd" TInt64 "0 for stdin, 1 for stdout, 2 for stderr" ]
+        returnType = TBool
+        description = "The page's terminal is always a terminal."
         fn =
           (function
-          | _, _, _, [| DUnit |] ->
-            DTuple(DBool true, DBool true, [ DString "xterm-256color" ]) |> Ply
+          | _, _, _, [| DInt64 fd |] -> DBool(fd >= 0L && fd <= 2L)
           | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
         previewable = Impure
         callEffects = Set.empty
-        deprecated = NotDeprecated }
-
-      { name = fn "stdoutClear" 0
-        typeParams = []
-        parameters = [ Param.make "unit" TUnit "A unit" ]
-        returnType = TUnit
-        description = "Clears the terminal."
-        fn =
-          (function
-          | _, _, _, [| DUnit |] ->
-            Browser.writeToTerminal "\u001b[2J\u001b[H"
-            Ply DUnit
-          | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
-        previewable = Impure
-        callEffects = set [ Effect.Stdout ]
         deprecated = NotDeprecated }
 
       // The prompt and every TUI park here. Without a tab-side answer the native builtin falls
       // through to `awaitBlocking`, which polls `Console.KeyAvailable` and sleeps between polls:
-      // a tab has no console and may not sleep its only thread, so the first key wait kills the
-      // page. This answers the specs a tab CAN answer and refuses the rest by name.
+      // a tab may not sleep its only thread, so the first key wait would kill it. This answers
+      // the specs a tab CAN answer and refuses the rest by name.
       { name = fn "hostAwait" 0
         typeParams = []
         parameters =
@@ -437,7 +375,7 @@ module BrowserBuiltins =
           "Parks until the first of the given events happens, as a tab can."
         fn =
           (function
-          | _, vm, _, [| DList(_, specs) |] ->
+          | _, _, _, [| DList(_, Items specs) |] ->
             let rawEvent =
               FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())
             let case name fields = DEnum(rawEvent, rawEvent, [], name, fields)
@@ -460,17 +398,15 @@ module BrowserBuiltins =
             // (`Host.await [Key, StoreChanged]`). A tab's only writer is itself, so a store
             // change cannot arrive while this process is the one parked.
             if wantsKey then
-              uply {
-                let! ev = Browser.nextKey ()
-                return case "Key" [ keyRead ev ]
-              }
+              Browser.nextKey () |> Pending.map (fun ev -> case "Key" [ keyRead ev ])
             else
               match timerMs with
               | Some ms ->
-                uply {
+                task {
                   do! Task.Delay(int ms)
                   return case "Timer" []
                 }
+                |> Pending.ofTask
               | None ->
                 RuntimeError.UncaughtException(
                   "This waits on something a browser tab cannot produce. "
@@ -478,14 +414,14 @@ module BrowserBuiltins =
                   [ "waiting on",
                     DString(specs |> List.map string |> String.concat ", ") ]
                 )
-                |> raiseRTE vm.threadID
+                |> raiseRTE
           | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
         previewable = Impure
-        callEffects = set [ Effect.Stdin; Effect.PackageRead ]
+        callEffects = set [ Effect.Stdin; Effect.PackageRead; Effect.Raise ]
         deprecated = NotDeprecated } ]
 
   let builtins () : Builtins = Builtin.make [] fns
+
 
 
 /// The Dark CLI, hosted in a browser tab.
@@ -494,7 +430,7 @@ module BrowserBuiltins =
 /// one: a copy of the shipped `data.db` is fetched at boot and written into
 /// emscripten's in-memory filesystem, where SQLite (statically linked) opens it like
 /// any other file. Everything above that runs unchanged; only the tty and the
-/// process are stood in for (`Browser.fs`, `BrowserBuiltins.fs`).
+/// process are stood in for (`Browser`, `BrowserBuiltins`).
 ///
 /// Boot order matters and mirrors the CLI's: the rundir env var before anything
 /// touches `LibConfig`, the policy directory before anything checks a permission,
@@ -502,7 +438,6 @@ module BrowserBuiltins =
 module Cli =
   open System
   open System.Threading.Tasks
-  open Microsoft.JSInterop
 
   open Prelude
 
@@ -512,42 +447,14 @@ module Cli =
   module Exe = LibExecution.Execution
   module PackageRefs = LibExecution.PackageRefs
 
-  /// Brotli, one shot, straight from the runtime's own native library. `BrotliStream` refuses
-  /// to construct on the browser (marked unsupported), but the decoder it would have called
-  /// is linked into dotnet.native.wasm regardless, and brotli is less than half of gzip on the
-  /// store. The caller passes the inflated size (the page reads it from `store.json`).
-  // F# lowers an `extern` through `failwith`, which Prelude bans; HostPosix shadows it too.
-  let private failwith (s : string) : 'a = raise (System.Exception(s))
+  /// Where the store lives in the tab's virtual filesystem: `$HOME/.darklang`, as for the CLI,
+  /// with HOME set to `/` in `configureEnvironment`.
+  let runDir = "/.darklang"
 
-  [<Runtime.InteropServices.DllImport("libSystem.IO.Compression.Native",
-                                      EntryPoint = "BrotliDecoderDecompress")>]
-  extern int private brotliDecompress(
-    unativeint encodedSize,
-    byte[] encoded,
-    unativeint& decodedSize,
-    byte[] decoded
-  )
-
-  let private inflateBrotli (encoded : byte[]) (rawSize : int) : byte[] =
-    let decoded = Array.zeroCreate<byte> rawSize
-    let mutable decodedSize = unativeint rawSize
-    let ok =
-      brotliDecompress (unativeint encoded.Length, encoded, &decodedSize, decoded)
-    if ok <> 1 || int decodedSize <> rawSize then
-      Exception.raiseInternal
-        "brotli: decode failed"
-        [ "ok", ok; "decoded", decodedSize; "expected", rawSize ]
-    decoded
-
-  /// Where the store lives in the tab's virtual filesystem. `DARK_CONFIG_RUNDIR` must be
-  /// absolute, and this is set before `LibConfig` computes its paths (Program.Main).
-  let runDir = "/dark"
-
-  /// Set the environment the CLI expects to find. Called first thing in Program.Main, so
+  /// Set the environment the CLI expects to find. Called first thing in `Startup.Start`, so
   /// it precedes every module initializer that reads `LibConfig`.
   let configureEnvironment () : unit =
-    Environment.SetEnvironmentVariable("DARK_CONFIG_RUNDIR", runDir)
-    Environment.SetEnvironmentVariable("HOME", runDir)
+    Environment.SetEnvironmentVariable("HOME", "/")
     Environment.SetEnvironmentVariable("TERM", "xterm-256color")
     Environment.SetEnvironmentVariable("DARK_AUDIT", "off")
     IO.Directory.CreateDirectory(IO.Path.Combine(runDir, "logs"))
@@ -556,15 +463,13 @@ module Cli =
   let private builtinsLazy : Lazy<RT.Builtins> =
     lazy
       (LibExecution.Builtin.combine
+        // `builtinsToUse` is the CLI's whole table already.
         [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
-          Builtins.CliHost.Builtin.builtins ()
-          Builtins.Cli.Builtin.builtins ()
           // Last, so the browser's stdin/terminal answers win over Builtins.Cli's.
           BrowserBuiltins.builtins () ]
         [])
 
   /// `?env=NAME=value` on the page, for switches like `DARK_CLASSIC=1`.
-  [<JSInvokable>]
   let SetEnv (name : string, value : string) : unit =
     Environment.SetEnvironmentVariable(name, value)
 
@@ -586,7 +491,6 @@ module Cli =
 
   /// What Boot did, for the page (`site.js`, `keepSaving`): "", "kept", "upgraded",
   /// "newer: <why>" or "refused: <why>".
-  [<JSInvokable>]
   let RestoreOutcome () : string =
     match restored with
     | None -> ""
@@ -595,30 +499,12 @@ module Cli =
     | Some(SavedByNewer why) -> "newer: " + why
     | Some(Refused why) -> "refused: " + why
 
-  /// Fetch the shipped store and inflate it.
-  let private fetchStore (storeUrl : string) (rawSize : int) : Task<byte[]> =
+  /// Fetch the shipped store. The host sends it brotli- or gzip-encoded and the browser's fetch
+  /// inflates it: .NET 11's browser runtime has no brotli decoder of its own.
+  let private fetchStore (storeUrl : string) : Task<byte[]> =
     task {
       use http = new Net.Http.HttpClient()
-      let! bytes = http.GetByteArrayAsync storeUrl
-      // Shipped gzip'd under its own name, and inflated here: an edge proxy in front of the
-      // static host was seen handing the store back uncompressed however it was asked.
-      let inflate (mk : IO.Stream -> IO.Stream) =
-        use src = new IO.MemoryStream(bytes)
-        use s = mk src
-        use dst = new IO.MemoryStream()
-        s.CopyTo dst
-        dst.ToArray()
-      return
-        if storeUrl.EndsWith ".br" then
-          inflateBrotli bytes rawSize
-        elif storeUrl.EndsWith ".gz" then
-          inflate (fun src ->
-            new IO.Compression.GZipStream(
-              src,
-              IO.Compression.CompressionMode.Decompress
-            ))
-        else
-          bytes
+      return! http.GetByteArrayAsync storeUrl
     }
 
   /// The store files Boot may have to throw away, all of them, so a refused store leaves nothing behind
@@ -705,7 +591,6 @@ module Cli =
   let private reconcileRestored
     (dbPath : string)
     (storeUrl : string)
-    (rawSize : int)
     : Task<Restored> =
     task {
       let build = LibConfig.Config.buildHash
@@ -713,7 +598,7 @@ module Cli =
         return Kept
       else
         try
-          let! shipped = fetchStore storeUrl rawSize
+          let! shipped = fetchStore storeUrl
           return upgradeRestored dbPath shipped
         with e ->
           // The first line: a database error carries its whole stack trace in its message.
@@ -732,20 +617,19 @@ module Cli =
   /// When the page has put back a store from the browser's own storage (`site.js`, `restore`), that
   /// store is used instead of the shipped one: as it is, when this build reconciled it, or brought
   /// up to this build first when an older one saved it.
-  [<JSInvokable>]
-  let Boot (storeUrl : string, rawSize : int) : Task =
+  let Boot (storeUrl : string) : Task =
     task {
       if not booted then
         let dbPath = LibConfig.Config.dbPath
         // Nothing else writes the store before Boot, so a store already here is one the page put back.
         if IO.File.Exists dbPath then
-          let! r = reconcileRestored dbPath storeUrl rawSize
+          let! r = reconcileRestored dbPath storeUrl
           restored <- Some r
         // The shipped store is this build's own, so a copy the page keeps of it needs nothing on the
         // next visit to this build.
         let startFromShipped () =
           task {
-            let! bytes = fetchStore storeUrl rawSize
+            let! bytes = fetchStore storeUrl
             IO.File.WriteAllBytes(dbPath, bytes)
             stampWithThisBuild dbPath
             CatchUpStore.markAllAsShipped dbPath
@@ -790,25 +674,19 @@ module Cli =
 
         LibDB.Sqlite.Sql.warm ()
         let pm = LibDB.PackageManager.rt
-        let! _grew =
-          LibDB.Seed.growIfNeeded
-            LibDB.Seed.EvaluationAuthority.underInstancePolicy
-            (fun () -> builtinsLazy.Force())
-            pm
-            (fun msg -> Browser.writeToTerminal (msg + "\r\n"))
+        LibDB.Seed.growIfNeeded (fun () -> builtinsLazy.Force()) pm (fun msg ->
+          Browser.writeToTerminal (msg + "\r\n"))
+        |> ignore<bool>
         // After the fold, never before: an edit the shipped store also carries has just lost its name
         // to the newer stamp, and this puts it back, as the desktop CLI does after an upgrade.
         match restored with
         | Some(Upgraded held) when not (List.isEmpty held) ->
-          let! kept = LibDB.UpgradeKeep.restore held
+          let kept = LibDB.UpgradeKeep.restore held
           if not (List.isEmpty kept) then
             Browser.writeToTerminal (
               $"Kept {List.length kept} of your edits that this version also ships.\r\n"
             )
         | _ -> ()
-        do! pm.init |> Ply.toTask
-        // `isHarmful` is synchronous and its miss path blocks; on one thread that never returns.
-        do! LibDB.PackageManager.preloadHarmful ()
         LibDB.PackageManager.selectBranch PT.BranchId.Main
         Browser.log "boot: done"
         booted <- true
@@ -816,30 +694,25 @@ module Cli =
     :> Task
 
   let private state () : RT.ExecutionState =
-    let program : RT.Program = { dbs = Map.empty }
-    let notify _ _ _ _ = uply { return () }
+    let notify _ _ (_ : string) (_ : Metadata) = ()
     let sendException _ _ (metadata : Metadata) (exn : exn) =
-      uply {
-        match exn with
-        | :? Exception.StoreConditionException -> ()
-        | _ ->
-          // The terminal may be in the alternate screen, so the console gets it too.
-          Browser.log
-            $"exception: {exn.GetType().Name}: {exn.Message}\n{exn.StackTrace}"
-          printException "Internal error" metadata exn
-      }
+      match exn with
+      | :? Exception.StoreConditionException -> ()
+      | _ ->
+        // The terminal may be in the alternate screen, so the console gets it too.
+        Browser.log
+          $"exception: {exn.GetType().Name}: {exn.Message}\n{exn.StackTrace}"
+        printException "Internal error" metadata exn
     Exe.createState
       (builtinsLazy.Force())
       LibDB.PackageManager.rt
       Exe.noTracing
       sendException
       notify
-      program
 
   /// Run the CLI entry point with these arguments, the way `dark <args>` would, and
   /// return its exit code. With no arguments this opens the workbench and does not return
   /// until the person quits.
-  [<JSInvokable>]
   let RunCli (args : string[]) : Task<int> =
     task {
       // Everything in a tab's store is bundled, which is why this is `true` rather than the
@@ -856,7 +729,6 @@ module Cli =
         { Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll (state ()) with
             branchId = LibDB.PackageManager.currentBranchId ()
             canManagePolicies = true
-            canUsePrivateNetworkHttp = true
             isBundledPackageFn = fun _ -> true }
       let fnName = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
       let args =
@@ -867,7 +739,6 @@ module Cli =
         |> NEList.singleton
       match! Exe.executeFunction state fnName [] args with
       | Ok(RT.DInt64 code) -> return int code
-      | Ok(RT.DInt code) -> return int (RT.DarkInt.toBigInt code)
       | Ok other ->
         Browser.writeToTerminal $"\r\nCLI returned {other}\r\n"
         return 0
@@ -884,7 +755,6 @@ module Cli =
   /// Run one command beside whatever is already running (the workbench, waiting on a key),
   /// with its output captured rather than painted over the terminal. Same store, its own VM.
   /// Returns the output followed by a line with the exit code.
-  [<JSInvokable>]
   let RunCommand (args : string[]) : Task<string> =
     task {
       let! (code, output) = Browser.captured (fun () -> RunCli args)

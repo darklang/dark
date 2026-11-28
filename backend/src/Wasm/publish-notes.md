@@ -1,15 +1,4 @@
-<!--
-RESTORE: AGENTS.md
-WAS: the section on the wasm publish and how it fails
-ANCHOR: a section of AGENTS.md, removed with backend/src/Wasm
-ALSO: later/backend/src/Wasm/
-WHEN: the first round of the molt, 2026-10-12
--->
-
 # The wasm publish, and how it fails
-
-Moved out of AGENTS.md by the molt, along with `backend/src/Wasm`. Kept because the failure
-mode took a long time to diagnose and will take just as long the second time.
 
 **A wasm publish piped to `tail` looks like a 40-minute hang.** `dotnet publish` spawns MSBuild
 worker nodes with `/nodeReuse:true`. They inherit stdout and outlive the parent, so the pipe never

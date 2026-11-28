@@ -49,6 +49,11 @@ parameters:
   docs-only:
     type: boolean
     default: false
+  # Set by .circleci/config.yml on a branch or PR that changes backend/src/Wasm/. See
+  # backend/src/Wasm/deploy/ci-changed.
+  wasm-changed:
+    type: boolean
+    default: false
 
   # The release matrix (NativeAOT, every OS) runs only on a pushed tag. Set this
   # to true to run it on every push to a branch as well, which is how it was
@@ -751,6 +756,59 @@ jobs:
   #     - darkcheckout
   #     - run: ./scripts/deployment/tag-release
 
+  # The browser CLI from this commit, for the preview host (backend/src/Wasm/README.md). The
+  # AOT publish is the cost, so the job halts first unless the build would be deployed: a
+  # release tag, or a branch with an open PR, in a project that holds the deploy token.
+  build-wasm:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      - run:
+          name: Would this build be deployed?
+          command: |
+            backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || circleci-agent step halt
+      - setup-app
+      - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
+      - run:
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
+      - run:
+          name: Publish the wasm site and its store (a fresh migration, so it never held a secret)
+          no_output_timeout: 30m
+          command: backend/src/Wasm/build.sh
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - rundir/wasm-repl/wwwroot
+
+  # Puts the site on the preview host; ci-deploy.sh has the rules. Project env vars:
+  # PREVIEW_FLY_API_TOKEN (`fly tokens create deploy -a dark-preview`) and, for the PR
+  # comment, PREVIEW_GITHUB_TOKEN (pull request write).
+  deploy-preview:
+    executor: simple-executor
+    steps:
+      - checkout
+      - run:
+          name: Was this build published?
+          command: |
+            backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || circleci-agent step halt
+      - attach_workspace: { at: "." }
+      - run:
+          name: Install flyctl
+          command: |
+            curl -L https://fly.io/install.sh | sh
+            echo 'export PATH="$HOME/.fly/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: Deploy the preview
+          command: backend/src/Wasm/deploy/preview/ci-deploy.sh rundir/wasm-repl/wwwroot
+
 workflows:
   build-and-deploy:
     unless:
@@ -773,6 +831,15 @@ workflows:
       #       branches:
       #         only: main
       #     requires: [ok-to-deploy]
+
+  # The browser CLI for an open PR that changes backend/src/Wasm/, on the preview host. Its own
+  # workflow and not a gate: a broken wasm publish is a red job, not a blocked PR.
+  wasm:
+    when: << pipeline.parameters.wasm-changed >>
+    jobs:
+      - build-wasm
+      - deploy-preview:
+          requires: [build-wasm]
 
 
   superseded:
@@ -838,6 +905,13 @@ workflows:
       # release, and without a tag it has no version to give it. Main gets
       # its releases by scripts/deployment/release pushing one, not through
       # this filter.
+      # latest/ on the preview host: the newest release, from its tag.
+      - build-wasm:
+          filters: *release-filters
+      - deploy-preview:
+          filters: *release-filters
+          requires: [build-wasm]
+
       - publish-release-clis:
           context: github-release
           filters:

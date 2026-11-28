@@ -1,0 +1,51 @@
+<!-- The browser build: the CLI's runtime, store and builtins compiled to WebAssembly, with the
+     pages in wwwroot/. Not in fsdark.sln: it needs the wasm-tools workload (setup.sh) and is
+     published on its own (build.sh, README.md). -->
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- The pages import worker.js -> _framework/dotnet.js and ask for this assembly's exports. -->
+    <AssemblyName>Darklang.Wasm</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <PublishTrimmed>true</PublishTrimmed>
+    <!-- AOT only: one way to build the site, the one that ships. -->
+    <RunAOTCompilation>true</RunAOTCompilation>
+    <!-- No ICU: the CLI's string work is ordinal/invariant, and the ICU data is ~1 MB gz plus
+         load time on every cold start. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Native relink: statically links e_sqlite3 (SQLitePCLRaw's bundle ships a browser-wasm .a
+         and adds it through its buildTransitive targets) so the real store runs in the tab. -->
+    <WasmBuildNative>true</WasmBuildNative>
+  </PropertyGroup>
+
+  <!-- Partial AOT. Only leaves nothing F#-generic calls into stay interpreted: mixed AOT/interpreter
+       mode asserts ("should not be reached") when compiled generic code crosses into an interpreted
+       assembly. Naming an assembly here also roots it, so the trimmer keeps it; check that it
+       belongs in the graph before adding one to silence an AOT error. -->
+  <ItemGroup>
+    <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml.dll;System.Private.Xml.Linq.dll;System.Xml.Linq.dll;System.Xml.ReaderWriter.dll;System.Xml.XDocument.dll" />
+    <_AOT_InternalForceInterpretAssemblies Include="System.Linq.Expressions.dll;System.Linq.Queryable.dll;System.ComponentModel.TypeConverter.dll;System.Net.HttpListener.dll;System.Diagnostics.Process.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Referenced here, not only through LibDB, so NuGet imports the bundle's buildTransitive
+         targets: that is what links e_sqlite3.a. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+    <ProjectReference Include="Lib/Wasm.Lib.fsproj" />
+  </ItemGroup>
+
+  <!-- `PackageRefs` reads the hashes from the entry assembly, as it does from the CLI's. -->
+  <ItemGroup>
+    <EmbeddedResource Include="../LibExecution/package-ref-hashes.txt">
+      <LogicalName>package-ref-hashes.txt</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Target Name="DarkRequireAot" BeforeTargets="Publish" Condition="'$(RunAOTCompilation)' != 'true'">
+    <Error Text="The browser build is AOT only; leave RunAOTCompilation on." />
+  </Target>
+
+</Project>
