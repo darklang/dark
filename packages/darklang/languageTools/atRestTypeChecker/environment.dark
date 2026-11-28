@@ -199,25 +199,20 @@ let resolveCallable(
 /// Use the trait signature when the implementation is not fixed.
 let traitCallable(
   env: Model.Environment,
-  method: LanguageTools.ProgramTypes.FQFnName.TraitMethod)
+  method: ProgramTypes.FQFnName.TraitMethod)
   : (Model.Callable * Model.Environment) =
   match traitFor(env, method.trait_) with
   | None -> (Model.Callable.Unavailable, env)
   | Some(trait_) ->
-    match
-      trait_.methods
-      |> Stdlib.List.findFirst(fun m -> m.name == method.method_)
-    with
+    match trait_.methods |> Stdlib.List.findFirst(fun m -> m.name == method.method_) with
     | None -> (Model.Callable.Unavailable, env)
     | Some(declared) ->
       signatureTemplate(
         env,
-        (Model.Signature
+        Model.Signature
           { // The trait's params first, self among them, then the method's own.
-            typeParams =
-              Stdlib.List.concat(trait_.typeParams, declared.typeParams)
-            parameters =
-              declared.parameters |> Stdlib.List.map(fun p -> p.typ)
+            typeParams = Stdlib.List.concat(trait_.typeParams, declared.typeParams)
+            parameters = declared.parameters |> Stdlib.List.map(fun p -> p.typ)
             returnType = declared.returnType
             // The self type comes from the argument, not from a type argument the
             // caller has to write.
@@ -225,7 +220,7 @@ let traitCallable(
             // The trait's own bound on the self type is not a caller's obligation: which
             // implementation this call means is settled by `TraitCall` from the self type
             // directly. A method's OWN bounds would belong here and none are written yet.
-            bounds = [] }))
+            bounds = [] })
 
 
 /// Fetch one builtin value's declared type and convert it to a package-style type

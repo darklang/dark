@@ -32,7 +32,7 @@ module Topics =
           description = "AI agent guide - start here"
           aliases = [ "ai", "agent" ]
           context = "cli"
-          content = Docs.ForAI.content
+          content = ForAI.content
           subtopics = forAISubtopics() }
 
       DocTopic
@@ -40,7 +40,7 @@ module Topics =
           description = "Run .dark files"
           aliases = [ "script", "run-script", "run" ]
           context = "cli"
-          content = Docs.Scripts.content
+          content = Scripts.content
           subtopics = [] }
 
       DocTopic
@@ -48,7 +48,7 @@ module Topics =
           description = "Language syntax reference"
           aliases = [ "lang" ]
           context = "general"
-          content = Docs.Syntax.content
+          content = Syntax.content
           subtopics = [] }
 
       DocTopic
@@ -56,7 +56,7 @@ module Topics =
           description = "Type system overview"
           aliases = []
           context = "general"
-          content = Docs.Types.content
+          content = Types.content
           subtopics = [] }
 
       DocTopic
@@ -64,7 +64,7 @@ module Topics =
           description = "Record types deep dive"
           aliases = []
           context = "general"
-          content = Docs.Records.content
+          content = Records.content
           subtopics = [] }
 
       DocTopic
@@ -72,7 +72,7 @@ module Topics =
           description = "Enums/unions deep dive"
           aliases = [ "unions" ]
           context = "general"
-          content = Docs.Enums.content
+          content = Enums.content
           subtopics = [] }
 
       DocTopic
@@ -80,7 +80,7 @@ module Topics =
           description = "Match expressions"
           aliases = [ "match", "patterns" ]
           context = "general"
-          content = Docs.PatternMatching.content
+          content = PatternMatching.content
           subtopics = [] }
 
       DocTopic
@@ -88,7 +88,7 @@ module Topics =
           description = "Functions and lambdas"
           aliases = [ "fn", "fns" ]
           context = "general"
-          content = Docs.Functions.content
+          content = Functions.content
           subtopics = [] }
 
       DocTopic
@@ -96,7 +96,7 @@ module Topics =
           description = "Traits: declare, implement, call, bound; the operators are traits"
           aliases = [ "trait", "impl", "impls" ]
           context = "general"
-          content = Docs.Traits.content
+          content = Traits.content
           subtopics = [] }
 
       DocTopic
@@ -104,7 +104,7 @@ module Topics =
           description = "Operators reference"
           aliases = [ "ops" ]
           context = "general"
-          content = Docs.Operators.content
+          content = Operators.content
           subtopics = [] }
 
       DocTopic
@@ -112,7 +112,7 @@ module Topics =
           description = "String escapes: what a backslash means in a string or char"
           aliases = [ "escape", "string-escapes" ]
           context = "general"
-          content = Docs.Escapes.content
+          content = Escapes.content
           subtopics = [] }
 
       DocTopic
@@ -120,7 +120,7 @@ module Topics =
           description = "Live: Stdlib module overview (counts + drill-in hints)"
           aliases = [ "lib" ]
           context = "cli"
-          content = Docs.Stdlib.content
+          content = Stdlib.content
           subtopics = [] }
 
       DocTopic
@@ -128,17 +128,17 @@ module Topics =
           description = "CLI commands reference"
           aliases = [ "commands" ]
           context = "cli"
-          content = Docs.CLI.content
+          content = CLI.content
           subtopics = [] }
 
       DocTopic
-        // Not internal: `Stdlib.Cli.Tui` is shipped, and anyone building a full-screen app in
-        // Dark reads this to find out how a view, a frame and a session fit together.
-        { name = "terminal-ui"
+        { // Not internal: `Stdlib.Cli.Tui` is shipped, and anyone building a full-screen app in
+          // Dark reads this to find out how a view, a frame and a session fit together.
+          name = "terminal-ui"
           description = "How the CLI draws: the Tui layer, and why it doesn't flicker"
           aliases = [ "tui" ]
           context = "cli"
-          content = Docs.TerminalUI.content
+          content = TerminalUI.content
           subtopics = [] }
 
       DocTopic
@@ -146,7 +146,7 @@ module Topics =
           description = "Common errors and fixes"
           aliases = []
           context = "general"
-          content = Docs.Errors.content
+          content = Errors.content
           subtopics = [] }
 
       DocTopic
@@ -154,7 +154,7 @@ module Topics =
           description = "HTTP client guide: requests, responses, middleware"
           aliases = [ "client", "middleware" ]
           context = "general"
-          content = Docs.HttpClient.content
+          content = HttpClient.content
           subtopics = [] }
 
       DocTopic
@@ -162,7 +162,7 @@ module Topics =
           description = "HTTP server guide"
           aliases = [ "http", "server" ]
           context = "general"
-          content = Docs.HttpServer.content
+          content = HttpServer.content
           subtopics = [] }
 
       DocTopic
@@ -170,16 +170,9 @@ module Topics =
           description =
             "Things run at once, and what they did: await, Exec, ps, and reading a run back through your code"
           aliases =
-            [ "ps"
-              "traces"
-              "await"
-              "async"
-              "concurrency"
-              "spawn"
-              "resume"
-              "scheduler" ]
+            [ "ps", "traces", "await", "async", "concurrency", "spawn", "resume", "scheduler" ]
           context = "general"
-          content = Docs.Processes.content
+          content = Processes.content
           subtopics = [] }
 
       DocTopic
@@ -187,7 +180,7 @@ module Topics =
           description = "Running things follow your edits: live views, a live serve, live values"
           aliases = [ "views", "live-values" ]
           context = "general"
-          content = Docs.Live.content
+          content = Live.content
           subtopics = [] }
 
       DocTopic
@@ -195,9 +188,8 @@ module Topics =
           description = "Package system"
           aliases = []
           context = "general"
-          content = Docs.Packages.content
+          content = Packages.content
           subtopics = [] }
-
 
       DocTopic
         { name = "scm"
@@ -222,7 +214,7 @@ module Topics =
               // order, so adding it here would be a silent no-op rather than an ambiguity anyone notices.
               "undo" ]
           context = "cli"
-          content = Docs.SCM.content
+          content = SCM.content
           subtopics = [] }
 
       DocTopic
@@ -230,7 +222,7 @@ module Topics =
           description = "Mark package items as deprecated"
           aliases = [ "deprecate", "delete" ]
           context = "cli"
-          content = Docs.Deprecation.content
+          content = Deprecation.content
           subtopics = [] }
 
       // `signatures` is a *live* topic: rendered by querying the package DB
@@ -242,7 +234,7 @@ module Topics =
           description = "Live: stdlib fns + signatures (drill-in for `docs stdlib`)"
           aliases = [ "sigs", "api" ]
           context = "cli"
-          content = fun () -> "Run `docs signatures` to render. See `docs signatures --help`."
+          content = (fun () -> "Run `docs signatures` to render. See `docs signatures --help`.")
           subtopics = [] } ]
 
 

@@ -880,18 +880,18 @@ let forceScmRefresh(state: State): State =
 let refreshLiveValues(next: State): State =
   let selectedFn =
     if next.activeView != vMatter then
-      Option.None
+      None
     else
       match Stdlib.List.getAt(next.items, next.selected) with
       | Some(item) when Stdlib.Bool.not(item.isModule) && item.kind == "fn" ->
-        Option.Some(
+        Some(
           LanguageTools.ProgramTypes.PackageLocation
             { owner =
                 Stdlib.List.head(Packages.modulePathOf(next.location))
                 |> Stdlib.Option.withDefault("")
               modules = Stdlib.List.drop(Packages.modulePathOf(next.location), 1)
               name = item.name })
-      | _ -> Option.None
+      | _ -> None
 
   match selectedFn with
   | None -> { next with liveValues = Stdlib.Dict.empty, liveFor = "", liveNote = "" }

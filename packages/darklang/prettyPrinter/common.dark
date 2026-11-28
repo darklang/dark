@@ -345,13 +345,8 @@ module DisplayOptions =
         // other field here is a literal, which is why this was the only one affected.
         palette =
           Palette
-            { string_ = ""
-              number = ""
-              typeName = ""
-              caseName = ""
-              keyword = ""
-              reset = "" }
-        maxDepth = Stdlib.Option.Option.None }
+            { string_ = "", number = "", typeName = "", caseName = "", keyword = "", reset = "" }
+        maxDepth = None }
 
 
   /// The defaults, printed from inside `path`.
