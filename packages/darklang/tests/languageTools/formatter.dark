@@ -96,6 +96,34 @@ test keepsSpreadsEscapesAndFloats =
   |> Stdlib.Test.equal(Ok(keptAsWritten))
 
 
+// A comment above a field whose value starts on the line below goes with that field.
+val commentAboveFieldValueBelow =
+  """module Darklang.Tests.FormatSample
+
+type R =
+  { a: Int64
+    b: Int64 }
+
+
+let r(x: Int64): R =
+  R
+    { a = 1
+      // the long one
+      b =
+        let y = x + 1
+        y * 2 }
+"""
+
+
+test placesACommentAboveAFieldWhoseValueIsBelow =
+  LanguageTools.Formatter.source(
+    SCM.Branch.mainBranchId,
+    100,
+    commentAboveFieldValueBelow)
+  |> Stdlib.Result.map(fun f -> (f.text, f.asWritten))
+  |> Stdlib.Test.equal(Ok((commentAboveFieldValueBelow, [])))
+
+
 // A `let` inside a list keeps its parentheses, or the items after it would be lines of its block.
 val letInList =
   """module Darklang.Tests.FormatSample

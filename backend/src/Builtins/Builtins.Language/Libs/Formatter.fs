@@ -81,10 +81,29 @@ let private nodesStartingAt (ranges : Ranges) (p : Tok.Pos) : List<id> =
   |> Seq.map (fun kv -> kv.Key)
   |> List.ofSeq
 
+/// Where the code after the comments before token <param k> starts: that token and the rest of
+/// its line, up to three more. A line that is `name =`, its value on the lines below, also
+/// gives where the value starts: that is the node the comment goes with.
+let private startsAfter (tokens : Lex.SpannedToken[]) (k : int) : List<Tok.Pos> =
+  let row = tokens[k].range.start.row
+  let onLine =
+    [ k .. min (k + 3) (tokens.Length - 1) ]
+    |> List.filter (fun j -> tokens[j].range.start.row = row)
+  let last = List.max onLine
+  let valueBelow =
+    if
+      tokens[last].text = "="
+      && last + 1 < tokens.Length
+      && tokens[last + 1].range.start.row > row
+    then
+      [ last + 1 ]
+    else
+      []
+  onLine @ valueBelow |> List.map (fun j -> tokens[j].range.start)
+
 /// Every `//` comment and what is around it: the token before it (its text, and the line it ends
-/// on), the line the last thing before it ended on, and where the code after it starts -- the
-/// next token and the rest of that token's line, up to three more. `Formatter.placeComments`
-/// decides from these which code each one goes with.
+/// on), the line the last thing before it ended on, and where the code after it starts
+/// (`startsAfter`). `Formatter.placeComments` decides from these which code each one goes with.
 let private rawComments (tokens : Lex.SpannedToken[]) : List<Dval> =
   let isComment (c : Lex.Trivia) =
     c.kind = Lex.LineComment || c.kind = Lex.BlockComment
@@ -97,10 +116,7 @@ let private rawComments (tokens : Lex.SpannedToken[]) : List<Dval> =
           else
             "", -1L
         let nextStarts =
-          [ for j in k .. min (k + 3) (tokens.Length - 1) do
-              if tokens[j].range.start.row = token.range.start.row then
-                yield DInt64(packed tokens[j].range.start) ]
-          |> Dval.list KTInt64
+          startsAfter tokens k |> List.map (packed >> DInt64) |> Dval.list KTInt64
         let (_, found) =
           token.leadingTrivia
           |> List.fold
@@ -138,9 +154,8 @@ let private commentSpots
   for k in 0 .. tokens.Length - 1 do
     let token = tokens[k]
     if List.exists isComment token.leadingTrivia then
-      for j in k .. min (k + 3) (tokens.Length - 1) do
-        if tokens[j].range.start.row = token.range.start.row then
-          starts.Add(packed tokens[j].range.start) |> ignore<bool>
+      for p in startsAfter tokens k do
+        starts.Add(packed p) |> ignore<bool>
       for c in token.leadingTrivia do
         if isComment c then rows.Add(int64 c.range.start.row) |> ignore<bool>
   (starts, rows)

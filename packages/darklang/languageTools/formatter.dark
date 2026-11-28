@@ -36,7 +36,8 @@ type RawComment =
     previousToken: String
     previousEnd: Int64
     /// The line the code after it starts on, and where that token and the rest of that line's
-    /// first few start, packed (`row * 1000000 + column`).
+    /// first few start, packed (`row * 1000000 + column`); for a line `name =`, where the value
+    /// below it starts too.
     nextLine: Int64
     nextStarts: List<Int64> }
 
