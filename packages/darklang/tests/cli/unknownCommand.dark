@@ -72,7 +72,7 @@ test unknownCommandSuggestsAndHelpIsRefused = Instance.withInstance(fun i ->
   match typo, asked, unknownHelp with
   | Ok(typo), Ok(asked), Ok(unknownHelp) ->
     Stdlib.Test.all(
-      [ Instance.exitedWith(typo.exitCode, 1, "an unknown command fails")
+      [ Instance.exitedWith(typo.exitCode, 2, "an unknown command fails")
         Instance.says(
           typo.stderr,
           "Did you mean `status`?",
@@ -85,7 +85,7 @@ test unknownCommandSuggestsAndHelpIsRefused = Instance.withInstance(fun i ->
 
         Instance.exitedWith(
           unknownHelp.exitCode,
-          1,
+          2,
           "`--help` on an unknown command fails")
 
         unknownHelp.stdout |> Stdlib.Test.equal("")

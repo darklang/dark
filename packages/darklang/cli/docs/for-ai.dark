@@ -106,6 +106,7 @@ Easy to miss:
   before reading the clock again.
 
 Output read by a program (shell, pipe) is plain: one record per line, tab-separated fields.
+An unknown command, or arguments a command does not take, exit 2; a failure exits 1.
 
 Logs in ~/.darklang/logs/: cli.log (errors that ended a command), host-audit.jsonl
 (every file, network, env and process access), telemetry.jsonl (DARK_TELEMETRY=1).

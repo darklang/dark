@@ -1019,7 +1019,7 @@ module Registry =
                  View.formatError($"Unknown command: {name}.{Accepts.nearHint(near)}"))
 
                Stdlib.printErrorLine("Use 'help' to see available commands.")
-               { state with exitCode = 1 })
+               { state with exitCode = 2 })
           help = (fun _state -> $"No help available for command: {name}")
           complete = (fun(_state, _args) -> []) }
 
@@ -1066,14 +1066,14 @@ module Registry =
 
       // What the command takes is declared beside it (`accepts`), and checked here, once, before it
       // runs: a flag it does not have, a word past the last it takes, or nothing where it needs
-      // something. A refusal exits 1 and the command never sees the arguments. The usage is not
-      // repeated here; `--help` has it.
+      // something. A refusal exits 2, not the 1 of a failure, and the command never sees the
+      // arguments. The usage is not repeated here; `--help` has it.
       let accepts = handler.accepts
       match Accepts.check(name, accepts(), args) with
       | Some(why) ->
         printErr(why)
         printHint($"  `dark {name} --help` shows what it takes.")
-        { state with exitCode = 1 }
+        { state with exitCode = 2 }
       | None ->
         // A `--` with no flag-like word after it changes nothing, so it goes, and commands that
         // match their words by position never see it. One before a word like `-foo` stays, for

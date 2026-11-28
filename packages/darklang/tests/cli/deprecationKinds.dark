@@ -47,7 +47,7 @@ test oldKindFlagIsRejected = Instance.withInstance(fun i ->
     Instance.ran(i, [ "deprecate", "Tests.Dep.f", "--kind", "deprecated" ])
 
   Stdlib.Test.all(
-    [ Instance.exitedWith(code, 1, "old kind flag refused")
+    [ Instance.exitedWith(code, 2, "old kind flag refused")
       Instance.says(
         out,
         "does not take `--kind`",

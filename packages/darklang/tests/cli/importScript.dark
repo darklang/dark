@@ -83,7 +83,7 @@ test aFileOfOnlyDeclarationsImports = Instance.withInstance(fun i ->
 test moduleIsUnknownAndSuggestsImport = Instance.withInstance(fun i ->
   let (code, out) = Instance.ran(i, [ "module", "/Me.Lib", "lib.dark" ])
   Stdlib.Test.all(
-    [ Instance.exitedWith(code, 1, "an unknown command")
+    [ Instance.exitedWith(code, 2, "an unknown command")
       Instance.says(
         out,
         "Unknown command: module. Did you mean `import`?",
