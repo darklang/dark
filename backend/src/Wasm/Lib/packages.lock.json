@@ -122,8 +122,7 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "Prelude": "[1.0.0, )",
-          "System.IO.Hashing": "[11.0.0, )"
+          "Prelude": "[1.0.0, )"
         }
       },
       "libparser": {
@@ -147,7 +146,7 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "NodaTime": "[3.3.7, )",
-          "Wcwidth": "[4.0.1, )"
+          "Wcwidth": "[5.0.2, )"
         }
       },
       "Fumble": {
@@ -226,17 +225,11 @@
           "SQLitePCLRaw.core": "3.0.5"
         }
       },
-      "System.IO.Hashing": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
-      },
       "Wcwidth": {
         "type": "CentralTransitive",
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "PMU8u3pGf9nUkee39KMrB8qqId7u7kyGWaZpOh9E4Mal3xChq+relS/hHQOicGAswyzi7F5DjXjac0mTnRBX8Q=="
+        "requested": "[5.0.2, )",
+        "resolved": "5.0.2",
+        "contentHash": "QdEuJpQoHlhHWaYjwlAaFerFcd4cmejvL41EV2ogQB7vIQxLrIKK9m37qN+24HlgyHw2ou+r/Y9rHoWxAsVBRQ=="
       }
     }
   }

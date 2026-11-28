@@ -447,15 +447,14 @@ module Cli =
   module Exe = LibExecution.Execution
   module PackageRefs = LibExecution.PackageRefs
 
-  /// Where the store lives in the tab's virtual filesystem. Handed to `LibConfig` before it
-  /// computes its paths (`Startup.Start`).
-  let runDir = "/dark"
+  /// Where the store lives in the tab's virtual filesystem: `$HOME/.darklang`, as for the CLI,
+  /// with HOME set to `/` in `configureEnvironment`.
+  let runDir = "/.darklang"
 
   /// Set the environment the CLI expects to find. Called first thing in `Startup.Start`, so
   /// it precedes every module initializer that reads `LibConfig`.
   let configureEnvironment () : unit =
-    LibConfig.StoreLocation.set runDir
-    Environment.SetEnvironmentVariable("HOME", runDir)
+    Environment.SetEnvironmentVariable("HOME", "/")
     Environment.SetEnvironmentVariable("TERM", "xterm-256color")
     Environment.SetEnvironmentVariable("DARK_AUDIT", "off")
     IO.Directory.CreateDirectory(IO.Path.Combine(runDir, "logs"))

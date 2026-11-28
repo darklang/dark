@@ -10,7 +10,7 @@ const post = (m) => self.postMessage(m);
 
 // ---- Keeping a tab's work ----
 //
-// The store lives in emscripten's in-memory filesystem, under /dark, and is gone on reload. So the
+// The store lives in emscripten's in-memory filesystem, under /.darklang, and is gone on reload. So the
 // page keeps a copy in the browser's IndexedDB, puts it back before Boot, and Boot decides what to
 // do with it (`Cli.Boot`, `RestoreOutcome`): use it, bring it up to this build first, or refuse it
 // and start fresh. No Dark code is involved and nothing new is granted; it is the host keeping its
@@ -53,7 +53,7 @@ const CHUNK = 49152;
 const chunkKey = (name, path, i) => name + "|" + path + "|" + i;
 const chunksOf = (name) => IDBKeyRange.bound(name + "|", name + "|\uffff");
 
-// Every kept file under /dark, as its live bytes. A view, not a copy, where emscripten's in-memory
+// Every kept file under /.darklang, as its live bytes. A view, not a copy, where emscripten's in-memory
 // filesystem allows it: the store is 73 MB and this runs on every save.
 function liveFiles(dir, out) {
   for (const name of fs().readdir(dir)) {
@@ -122,7 +122,7 @@ function save() {
     try {
       // One synchronous pass over every file, so the snapshot is one moment: the store and its WAL
       // as they stood together, with nothing from the runtime landing in between.
-      const now = liveFiles("/dark", {});
+      const now = liveFiles("/.darklang", {});
       const old = (savedMeta && savedMeta.files) || {};
       const files = {}; const puts = []; const deletes = [];
       for (const [path, bytes] of Object.entries(now)) {
@@ -200,7 +200,7 @@ async function restore() {
       try { await copySnapshot(SAVED, SAVED + "-unreadable-" + new Date().toISOString()); await deleteSnapshot(SAVED); } catch (e2) {}
       post({ event: "dark-save-failed", detail: "your earlier work could not be read back (" + e.message + "); it is set aside, and this tab starts fresh" });
     }
-    for (const name of fs().readdir("/dark")) if (name !== "." && name !== ".." && isKept(name)) { try { fs().unlink("/dark/" + name); } catch (e3) {} }
+    for (const name of fs().readdir("/.darklang")) if (name !== "." && name !== ".." && isKept(name)) { try { fs().unlink("/.darklang/" + name); } catch (e3) {} }
     return false;
   }
 }

@@ -49,7 +49,7 @@ F# generics call into it. `InvariantGlobalization` drops ICU.
 
 ## Keeping a tab's work
 
-The store lives under `/dark` in emscripten's in-memory filesystem. The worker keeps a copy in
+The store lives under `/.darklang` in emscripten's in-memory filesystem. The worker keeps a copy in
 IndexedDB, one database per site path (`darklang-tab:/pulls/12/`), puts it back before Boot,
 and Boot uses it, brings it up to this build, or sets it aside and starts fresh. `?fresh` sets
 the saved work aside; `?restore=<name>` puts a set-aside copy back.
