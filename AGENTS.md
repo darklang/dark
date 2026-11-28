@@ -281,10 +281,11 @@ can't work that way. `multiUseAllowlist` is empty and `unusedAllowlist` is short
 before adding to either, check whether a wrapper already exists that the new caller has
 simply not been pointed at, which is what a second `Builtin.x` reference usually means.
 
-The shared kernel StdLib is an intentional exception: private `syscallX` and
-`runtimeX` primitives are called directly from existing modules' `__` helpers.
-Do not add forwarding-only syscall/runtime packages to satisfy the reference-count
-rule. Every primitive still needs a real Dark caller; unused primitives are removed.
+Kernel calls are `extern … from "kernel"` declarations in `Stdlib.Cli.Posix`, not
+builtins. Only `Stdlib.Cli.Posix` and the modules inside it can call them; other modules
+call the Posix fns that wrap them. Private `runtimeX` primitives are called directly from
+existing modules' `__` helpers. Every primitive still needs a real Dark caller; unused
+primitives are removed.
 
 ## Adding a CLI command (Darklang)
 

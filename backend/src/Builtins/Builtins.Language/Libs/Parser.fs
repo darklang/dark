@@ -930,6 +930,8 @@ module WrittenTypesToDarkTypes =
       )
     | WT.EStatement(r, first, next) ->
       DEnum(t, t, [], "EStatement", [ rangeToDT r; exprToDT first; exprToDT next ])
+    | WT.EExtern(r, library, symbol) ->
+      DEnum(t, t, [], "EExtern", [ rangeToDT r; DString library; DString symbol ])
     | WT.EFnName(r, q) ->
       DEnum(t, t, [], "EFnName", [ rangeToDT r; qualifiedFnIdentifierToDT q ])
     | WT.EApply(r, lhs, typeArgs, args) ->

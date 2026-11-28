@@ -49,12 +49,12 @@ let private closureOf (fns : List<PT.PackageFn.PackageFn>) =
     fn.hash, (fn, LibExecution.CallGraph.analyzeFn Set.empty fn))
   |> Map.ofList
 
-/// Builtin effects for the review tests: `syscallGettimeofday` is clock-only and
+/// Builtin effects for the review tests: the kernel's `gettimeofday` is clock-only and
 /// `fileRead` reads files; anything else is unknown (incomplete).
 let private testEffects : PackagePermissions.CallEffectsFor =
   fun (name, _version) ->
     match name with
-    | "syscallGettimeofday" -> Some(Set.singleton Effect.Effect.Clock)
+    | "kernel.gettimeofday" -> Some(Set.singleton Effect.Effect.Clock)
     | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
     // `listMap` is classified and has no host effects. `None` would mean that
     // the builtin is unclassified and make the test incomplete for the wrong
@@ -69,11 +69,11 @@ let callBuiltin (name : string) : PT.Expr =
 /// `v2` an identical-contract re-release, `wider` adds a file read, and
 /// `dynamic` applies a callback the static walk cannot follow.
 let private reviewUniverse =
-  [ unitFn "v1" (callBuiltin "syscallGettimeofday")
-    unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "syscallGettimeofday"))
+  [ unitFn "v1" (callBuiltin "kernel.gettimeofday")
+    unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "kernel.gettimeofday"))
     unitFn
       "wider"
-      (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
+      (eStatement (callBuiltin "fileRead") (callBuiltin "kernel.gettimeofday"))
     unitFn "dynamic" (eApply (eVar "callback") [] [ eUnit () ])
     // A root with a dependency: reads a file itself and calls `v1` for the clock.
     unitFn
@@ -89,7 +89,7 @@ let private reviewUniverse =
         (ePackageFn "map-like")
         []
         [ eArg 0
-          eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ]) ]
+          eLambda (gid ()) [ lpVar "x" ] (callBuiltin "kernel.gettimeofday") ]) ]
   |> List.map (fun fn -> fn.hash, fn)
   |> Map.ofList
 
@@ -139,7 +139,7 @@ let deferredCodeRequirementsAreIncluded =
     let fn =
       { unitFn
           "returns-clock-callback"
-          (eLambda (gid ()) [ lpVar "unit" ] (callBuiltin "syscallGettimeofday")) with
+          (eLambda (gid ()) [ lpVar "unit" ] (callBuiltin "kernel.gettimeofday")) with
           returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
     let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
     Expect.isTrue result.complete "the closed call graph is complete"
@@ -298,7 +298,7 @@ let unusedNonCallbackParamsStayComplete =
     let fn =
       unitFn
         "ordinary-args"
-        (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eArg 0 ])
+        (eApply (eBuiltinFn "kernel.gettimeofday" 0) [] [ eArg 0 ])
     let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
     Expect.isTrue result.complete "a non-function parameter is knowable"
     Expect.equal
@@ -322,7 +322,7 @@ let dependencyCallbacksDoNotMakeCallersIncomplete =
           (ePackageFn "escaping-helper")
           []
           [ eArg 0
-            eLambda (gid ()) [ lpVar "x" ] (callBuiltin "syscallGettimeofday") ])
+            eLambda (gid ()) [ lpVar "x" ] (callBuiltin "kernel.gettimeofday") ])
     let result =
       Requirements.forFunction
         testEffects
@@ -441,13 +441,13 @@ let dictionaryKeysAreAnalyzed =
       unitFn
         "dict-key-effect"
         (eDictOf
-          [ (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ], eInt64 1L) ])
+          [ (eApply (eBuiltinFn "kernel.gettimeofday" 0) [] [ eUnit () ], eInt64 1L) ])
     let names = (LibExecution.CallGraph.analyzeFn Set.empty fn).names
     Expect.isTrue
       (names
        |> List.exists (fun name ->
          match name with
-         | PT.FQFnName.Builtin b -> b.name = "syscallGettimeofday"
+         | PT.FQFnName.Builtin b -> b.name = "kernel.gettimeofday"
          | _ -> false))
       "the clock call in the key is reachable"
   }
@@ -624,7 +624,7 @@ let batchedCacheSafetyMatchesOneBodyAtATime =
   testTask "bodies analyzed together get the answers each gets alone" {
     let random = System.Random 6494
     let fnCount = 40
-    let builtins = [| "syscallGettimeofday"; "fileRead"; "listMap"; "toRepr" |]
+    let builtins = [| "kernel.gettimeofday"; "fileRead"; "listMap"; "toRepr" |]
     // A few statements, each a builtin, a package fn (five hashes that do not exist) or a
     // callback. The fns call each other, cycles included.
     let randomBody () =
@@ -713,10 +713,12 @@ let preflightCollectsOnlyCertainRequests =
     Expect.equal (List.length stopped) 1 "a possible early return stops preflight"
 
     let openPath flags =
-      eApply
-        (eBuiltinFn "syscallOpen" 0)
-        []
+      PT.EExtern(
+        gid (),
+        "kernel",
+        "open",
         [ eStr [ strText "/tmp/report" ]; eInt64 flags; eInt64 0L ]
+      )
     for flag in
       [ LibExecution.HostPosix.O_CREAT
         LibExecution.HostPosix.O_TRUNC
@@ -794,13 +796,15 @@ module OpenEffects =
     set [ Effect.Effect.FileRead; Effect.Effect.FileWrite; Effect.Effect.Raise ]
 
   let private classify (name, _version) =
-    if name = "syscallOpen" then Some effects else testEffects (name, _version)
+    if name = "kernel.open" then Some effects else testEffects (name, _version)
 
   let private openWith flags =
-    eApply
-      (eBuiltinFn "syscallOpen" 0)
-      []
+    PT.EExtern(
+      gid (),
+      "kernel",
+      "open",
       [ eStr [ strText "/tmp/report" ]; flags; eInt64 0L ]
+    )
 
   let private wrapper =
     { unitFn "open-wrapper" (openWith (eArg 0)) with
@@ -972,7 +976,14 @@ module OpenEffects =
         check
           []
           (eApply
-            (eBuiltinFn "syscallOpen" 1)
+            (PT.EFnName(
+              gid (),
+              PT.NameResolution.ok (
+                PT.FQFnName.Builtin { name = "kernel.open"; version = 1 }
+              ),
+              [],
+              []
+            ))
             []
             [ eStr [ strText "/tmp/report" ]; eInt64 0L; eInt64 0L ])
           effects) ]
@@ -991,10 +1002,7 @@ let effectReasonsFollowDependencies =
     match clockPath with
     | Some(_, path) ->
       Expect.equal (List.length path) 2 "dependency plus builtin"
-      Expect.equal
-        (List.last path)
-        (Some "Builtin.syscallGettimeofday")
-        "ends at effect"
+      Expect.equal (List.last path) (Some "kernel.gettimeofday") "ends at effect"
     | None -> failtest "missing clock explanation"
     let (dynamic : Requirements.Result), _ =
       PackagePermissions.explain loadFromUniverse testEffects "dynamic"

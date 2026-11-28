@@ -340,7 +340,7 @@ let private scriptValueExecution =
       }
       testTask "initializers are pure, whatever the script may do" {
         // The test state allows every effect, so only the value's own ceiling can refuse.
-        let code = "val now = Builtin.syscallGettimeofday()\nnow"
+        let code = "val now = Stdlib.Cli.Posix.gettimeofday()\nnow"
         let state = executionStateFor pmPT false
         let script = parse code
         let! result = Cli.execute state script (scriptInput code [])

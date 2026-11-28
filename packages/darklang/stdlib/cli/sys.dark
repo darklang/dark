@@ -8,7 +8,7 @@ let currentUser(): Option<String> =
   | None ->
     match Env.get("USER") with
     | Some(u) -> Some(u)
-    | None -> Posix.__accountLookup(Posix.__decimal(Builtin.syscallGetuid()), 0)
+    | None -> Posix.__accountLookup(Posix.__decimal(Posix.__uid()), 0)
 
 
 /// Get the system hostname.
@@ -38,7 +38,7 @@ let cpuCount(): Int64 =
 
 /// Get the current process ID.
 let currentPid(): Int64 =
-  Builtin.syscallGetpid()
+  Posix.__pid()
 
 
 /// isatty for 0 (stdin), 1 (stdout) or 2 (stderr).
@@ -48,7 +48,7 @@ let isTerminal(fd: Int64): Bool =
 
 /// Check if the current user is root (uid 0).
 let isRoot(): Bool =
-  Builtin.syscallGetuid() == 0
+  Posix.__uid() == 0
 
 
 /// Host record selection, buffer growth and decoding shared by both engines.
@@ -63,7 +63,7 @@ let __text(buffer: Bytes, offset: Int64, length: Int64): String =
 
 
 let __sysctlWith(mib: List<Int64>, count: Int64): Result<Bytes, Posix.Error> =
-  match Builtin.syscallSysctl(mib, count) |> Result.mapError(Posix.__fromErrno) with
+  match Posix.__sysctl(mib, count) with
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __sysctlWith(mib, count)
@@ -85,7 +85,7 @@ let __countBits(value: Int64): Int64 =
 
 
 let __affinityWith(count: Int64): Result<Bytes, Posix.Error> =
-  match Builtin.syscallSchedGetaffinity(0, count) |> Result.mapError(Posix.__fromErrno) with
+  match Posix.__schedGetaffinity(0, count) with
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __affinityWith(count)

@@ -256,6 +256,8 @@ let private analyzeWith
       named nr bounds values
     | PT.EApply(_, PT.ESelf _, _, arguments) ->
       arguments |> NEList.toList |> List.map visit |> self
+    | PT.EExtern(id, library, symbol, args) ->
+      visit (PT.Expr.externCall id library symbol args)
     | PT.EApply(_, fnExpr, _, arguments) ->
       match fnExpr with
       | PT.ELambda _ -> ()
@@ -417,7 +419,7 @@ module Requirements =
         callEffectsFor (builtin.name, builtin.version)
         |> Option.defaultValue Set.empty
       match builtin.name, builtin.version, List.tryItem 1 values with
-      | "syscallOpen", 0, Some(Some flags) when
+      | "kernel.open", 0, Some(Some flags) when
         flags
         |> Set.forall (fun f ->
           f >= int64 System.Int32.MinValue && f <= int64 System.Int32.MaxValue)

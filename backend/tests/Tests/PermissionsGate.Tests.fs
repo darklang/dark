@@ -14,12 +14,12 @@ module RTE = RT.RuntimeError
 
 // The gate enforces the active permission policies.
 let clockCall () =
-  eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ]
+  eApply (eBuiltinFn "kernel.gettimeofday" 0) [] [ eUnit () ]
   |> PT2RT.Expr.toRT Map.empty 0 None
 
 // Host derives Native from the raw OS number and denies before the kernel call.
 let nativeCall () =
-  eApply (eBuiltinFn "syscallClose" 0) [] [ PT.EBigInt(gid (), -1I) ]
+  PT.EExtern(gid (), "kernel", "close", [ PT.EBigInt(gid (), -1I) ])
   |> PT2RT.Expr.toRT Map.empty 0 None
 
 let private denyAllAccess =
@@ -96,7 +96,7 @@ module P = LibExecution.Permissions
 let private clockBody =
   eLet
     (PT.LPWildcard(gid ()))
-    (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ])
+    (eApply (eBuiltinFn "kernel.gettimeofday" 0) [] [ eUnit () ])
     (PT.EBigInt(gid (), 1I))
 
 let private fn hash body : PT.PackageFn.PackageFn =
@@ -515,7 +515,7 @@ let evaluatedNamedFnInContainerCannotWidenReentry =
   testTask "a named fn captures access before being nested in a container" {
     let exeState = executionStateFor TestValues.pm false
     let expr =
-      eList [ eBuiltinFn "syscallGettimeofday" 0 ]
+      eList [ eBuiltinFn "kernel.gettimeofday" 0 ]
       |> PT2RT.Expr.toRT Map.empty 0 None
     let! produced = LibExecution.Execution.executeExpr (denyAll exeState) expr
     match produced with
@@ -757,7 +757,7 @@ let packageValueFnsKeepTheReadersAccess =
     let clock =
       RT.DApplicable(
         RT.AppNamedFn
-          { name = RT.FQFnName.fqBuiltin "syscallGettimeofday" 0
+          { name = RT.FQFnName.Builtin { name = "kernel.gettimeofday"; version = 0 }
             typeSymbolTable = RT.TST.empty
             typeArgs = []
             approvalName = None

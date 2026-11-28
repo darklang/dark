@@ -468,7 +468,7 @@ let explain
       path
       |> List.map (function
         | PT.FQFnName.Package hash -> name hash
-        | PT.FQFnName.Builtin b -> "Builtin." + b.name
+        | PT.FQFnName.Builtin b -> PT.Expr.builtinPathName b
         | PT.FQFnName.TraitMethod _ -> "unresolved trait method"))
   let names = Raises.fnNames (Map.keys closure)
   let nameOf hash =

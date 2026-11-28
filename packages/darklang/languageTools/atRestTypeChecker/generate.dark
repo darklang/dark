@@ -298,6 +298,7 @@ let isNonExpansive(expr: ProgramTypes.Expr): Bool =
   | ERecordUpdate(_, _, _) -> false
   | EStatement(_, _, _) -> false
   | EUnwrap(_, _) -> false
+  | EExtern(_, _, _, _) -> false
 
 
 // --------------------
@@ -620,6 +621,8 @@ let infer(scope: Scope, expr: ProgramTypes.Expr): (Model.Ty * Model.Constraint) 
   | EInt128(_, _) -> (Model.Ty.TInt128, nothing())
   | EUInt128(_, _) -> (Model.Ty.TUInt128, nothing())
   | EUnwrap(id, operand) -> inferUnwrap(scope, id, operand)
+  // takes the declared return type
+  | EExtern(id, _, _, _) -> (resultOf(id), nothing())
 
 
 /// Look up a local variable. Shared bindings reuse their type; generic bindings

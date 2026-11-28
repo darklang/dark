@@ -154,9 +154,6 @@ let schedGetaffinity_raw (pid : int, bytes : byte[]) =
 
 let getentropy_raw (bytes : byte[]) =
   withBytes bytes (fun ptr -> int (call 34 ptr (int64 bytes.Length) 0L 0L 0L 0L))
-let openat2_raw (fd : int, path : string, how : byte[], size : unativeint) =
-  withText path (fun a ->
-    withBytes how (fun b -> call 22 (int64 fd) a b (int64 size) 0L 0L))
 let fchmodat2_raw (fd : int, path : string, mode : int, flags : int) =
   withText path (fun p ->
     int (call 23 (int64 fd) p (int64 mode) (int64 flags) 0L 0L))

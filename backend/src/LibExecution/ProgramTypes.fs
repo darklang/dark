@@ -556,6 +556,10 @@ type Expr =
 
   | ESelf of id
 
+  /// The body of an `extern`: a call to `symbol` in the native `library`, passed the
+  /// declaration's parameters in order. Only the parser writes one.
+  | EExtern of id * library : string * symbol : string * args : List<Expr>
+
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and StringSegment =
@@ -686,6 +690,30 @@ module Expr =
     | EMatch(id, _, _)
     | EStatement(id, _, _) -> id
     | ESelf id -> id
+    | EExtern(id, _, _, _) -> id
+
+  /// The provider an `EExtern` names, as the builtin the runtime calls.
+  let externProvider (library : string) (symbol : string) : FQFnName.Builtin =
+    { name = $"{library}.{symbol}"; version = 0 }
+
+  /// A builtin as a path of calls names it: `Builtin.add`, or a provider as `kernel.open`.
+  let builtinPathName (b : FQFnName.Builtin) : string =
+    if b.name.Contains '.' then b.name else $"Builtin.{b.name}"
+
+  /// An `EExtern` as the call it makes, for passes that treat it like any builtin call.
+  let externCall
+    (id : id)
+    (library : string)
+    (symbol : string)
+    (args : List<Expr>)
+    : Expr =
+    let provider = FQFnName.Builtin(externProvider library symbol)
+    EApply(
+      id,
+      EFnName(id, NameResolution.ok provider, [], []),
+      [],
+      NEList.ofListUnsafe "an extern has at least one parameter" [] args
+    )
 
 
 

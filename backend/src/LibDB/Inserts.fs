@@ -413,6 +413,15 @@ let authorOn
 
 let reservedOwnerViolation = OpValidation.reservedOwnerViolation
 
+let private storedExtern (Hash hash : Hash) : bool =
+  Sql.query "SELECT pt_def FROM package_functions WHERE hash = @hash"
+  |> Sql.parameters [ "hash", Sql.string hash ]
+  |> Sql.executeRowOption (fun read -> read.bytes "pt_def")
+  |> Option.exists (fun bytes ->
+    match (BS.PT.PackageFn.deserialize (Hash hash) bytes).body with
+    | PT.EExtern _ -> true
+    | _ -> false)
+
 /// Detect a parser placeholder instead of a real content hash. Placeholders
 /// are empty or contain the package location; real hashes contain only hex
 /// digits and are produced during stabilization.
@@ -480,7 +489,14 @@ let private insertCheckedOps
   // Reserved names on every branch: bundled code changes only by propagation, which does not come
   // through here, and by `insertBundledOps`. Placeholder hashes are main's question; a branch
   // repairs them before a merge.
-  let reserved = if reservedOwnersAllowed then None else reservedOwnerViolation ops
+  let reserved =
+    if reservedOwnersAllowed then
+      None
+    else
+      reservedOwnerViolation ops
+      |> Option.orElse (OpValidation.externDeclarationViolation ops)
+  let reserved =
+    reserved |> Option.orElse (OpValidation.externCallViolation storedExtern ops)
   let violation =
     (if branch.IsMain then
        Option.orElse (placeholderHashViolation ops) reserved

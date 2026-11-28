@@ -441,6 +441,8 @@ and private reResolveExpr
     let first = reResolveExpr contextModules pm first
     let next = reResolveExpr contextModules pm next
     PT.EStatement(id, first, next)
+  | PT.EExtern(id, library, symbol, args) ->
+    PT.EExtern(id, library, symbol, List.map (reResolveExpr contextModules pm) args)
 
 
 // -- TypeDeclaration walker --

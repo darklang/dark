@@ -628,6 +628,11 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
   | PT.EBigInt(_id, value) ->
     w.Write 35uy
     Common.String.write w (string value)
+  | PT.EExtern(_id, library, symbol, args) ->
+    w.Write 39uy
+    Common.String.write w library
+    Common.String.write w symbol
+    Common.List.write w (writeExpr mode) args
 
 
 // =====================

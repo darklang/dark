@@ -1408,7 +1408,7 @@ test clockSyscalls =
       (0, Stdlib.Bytes.empty)
 
   Stdlib.Test.all(
-    [ match Builtin.syscallClockGettime(-1) with
+    [ match Stdlib.Cli.Posix.clockGettime(-1) with
       | Error(e) ->
         e |> Stdlib.Test.equal(if Stdlib.Cli.Posix.__abiMac() then 78 else 22)
       | Ok(_) -> Stdlib.Test.fail("clock_gettime(-1) should fail")

@@ -549,7 +549,7 @@ let materializedValuesCaptureCallablesRecursively =
   test "materialized values capture nested callables" {
     let denyAll = Permission.Access.start Permission.Policy.denyAll
     let named : RT.ApplicableNamedFn =
-      { name = RT.FQFnName.fqBuiltin "syscallGettimeofday" 0
+      { name = RT.FQFnName.Builtin { name = "kernel.gettimeofday"; version = 0 }
         typeSymbolTable = RT.TST.empty
         typeArgs = []
         approvalName = None
@@ -1375,6 +1375,66 @@ let private approvalsRequireExplicitRules =
         ()
       })
 
+/// The kernel reads behind a file and a child's output are checked against what opened the
+/// descriptor, so an approval for the file or the program is all they need.
+let private approvedReadsThroughDescriptors =
+  CliInstance.instanceTest
+    "an approved fn reads a file and a child's output under narrow grants"
+    (fun i ->
+      task {
+        let run args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.equal code 0L output
+            return output
+          }
+        let path =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-read-{gid ()}.txt"
+          )
+        System.IO.File.WriteAllText(path, "hello")
+        try
+          let reader = "Tests.DescriptorReads.file"
+          let! _ =
+            run
+              [ "fn"
+                reader
+                $"(): String = Stdlib.Cli.File.readText(\"{path}\") |> Stdlib.Result.withDefault(\"denied\")" ]
+          let! _ =
+            run
+              [ "permissions"
+                "approve"
+                "--for"
+                reader
+                $"file read {path}"
+                "--yes" ]
+          let! read = run [ "eval"; reader + "()" ]
+          Expect.equal (read.Trim()) "hello" "the approved fn reads the file"
+
+          let child = "Tests.DescriptorReads.child"
+          let! _ =
+            run
+              [ "fn"
+                child
+                "(): String = match Stdlib.Cli.Process.run(\"/bin/echo\", [ \"hi\" ]) with | Ok(r) -> r.stdout | Error(_) -> \"denied\"" ]
+          let! _ =
+            run
+              [ "permissions"
+                "approve"
+                "--for"
+                child
+                "process /bin/echo"
+                "--yes" ]
+          let! output = run [ "eval"; child + "()" ]
+          Expect.stringContains
+            output
+            "hi"
+            "the approved fn reads the child's output"
+        finally
+          System.IO.File.Delete path
+      })
+
 /// Approvals accumulate rules. Removing a rule keeps the approval; --all removes it.
 let private approvalsAddAndRemoveSavedRules =
   CliInstance.instanceTest
@@ -1824,6 +1884,7 @@ let tests =
       approvalsDoNotPinCode
       editedCodeNeedsFreshApproval
       approvalsAddAndRemoveSavedRules
+      approvedReadsThroughDescriptors
       approvalsRequireExplicitRules
       approvalChangesReviewNewCode
       callerChosenImplsKeepCallerAccess

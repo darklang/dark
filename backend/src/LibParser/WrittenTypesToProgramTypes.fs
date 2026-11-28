@@ -834,6 +834,13 @@ module Expr =
       let first = toPT context first
       let next = toPT context next
       PT.EStatement(gid (), first, next)
+    | WT.EExtern(_, library, symbol) ->
+      let args =
+        context.argMap.Values
+        |> Seq.sort
+        |> Seq.map (fun i -> PT.EArg(gid (), i))
+        |> List.ofSeq
+      PT.EExtern(gid (), library, symbol, args)
     | WT.EError _ ->
       Exception.raiseInternal
         "parse-error hole (EError) reached lowering"

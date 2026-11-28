@@ -94,8 +94,14 @@ let eBuiltinValue (name : string) (version : int) : Expr =
 let ePackageValue hash : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqPackage hash))
 
+/// A builtin by name, or the provider an extern names, such as `kernel.gettimeofday`.
 let eBuiltinFn (name : string) (version : int) : Expr =
-  EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version), [], [])
+  let fnName =
+    if name.Contains '.' then
+      FQFnName.Builtin { name = name; version = version }
+    else
+      FQFnName.fqBuiltIn name version
+  EFnName(gid (), NameResolution.ok fnName, [], [])
 
 let ePackageFn hash : Expr =
   EFnName(gid (), NameResolution.ok (FQFnName.fqPackage hash), [], [])

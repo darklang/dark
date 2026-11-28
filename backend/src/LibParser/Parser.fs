@@ -3983,6 +3983,50 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
         description = docOf state i },
      afterBody)
 
+// `extern name(p: T, …): R from "library"`: a fn whose body is the native call it names.
+// The symbol is the fn's name unless a second string gives it: `from "library" "symbol"`.
+and parseExternDecl (state : ParserState) (i : int) : WT.Declaration * int =
+  let keyword = rng state i
+  let nameId : WT.Identifier =
+    match tok state (i + 1) with
+    | TIdent nm -> { range = rng state (i + 1); name = nm }
+    | _ ->
+      errExpectedName state (i + 1) "a declaration name"
+      { range = rng state (i + 1); name = "_" }
+  let (ps, kk) = parseParams state (i + 2)
+  let (colon, afterColon) =
+    if tok state kk = TColon then
+      (rng state kk, kk + 1)
+    else
+      errExpected state kk "':' before the return type"
+      (zeroWidthAtEnd (rng state kk), kk)
+  let (returnType, afterRet) = parseTypeRef state afterColon
+  let (library, symbol, next) =
+    match tok state afterRet, tok state (afterRet + 1), tok state (afterRet + 2) with
+    | TIdent "from", TStringLit library, TStringLit symbol when
+      (rng state (afterRet + 2)).start.row = (rng state (afterRet + 1)).end_.row
+      ->
+      (library, symbol, afterRet + 3)
+    | TIdent "from", TStringLit library, _ -> (library, nameId.name, afterRet + 2)
+    | _ ->
+      errExpected state afterRet "'from \"library\"'"
+      ("", nameId.name, afterRet)
+  let lastRange = rng state (max afterRet (next - 1))
+  (WT.DFunction
+    { range = span keyword lastRange
+      name = nameId
+      typeParams = []
+      bounds = []
+      parameters = ps
+      effects = None
+      returnType = returnType
+      body = WT.EExtern(span (rng state afterRet) lastRange, library, symbol)
+      keywordLet = keyword
+      symbolColon = colon
+      symbolEquals = zeroWidthAtEnd (rng state (afterRet - 1))
+      description = docOf state i },
+   next)
+
 // A named package test: `test name = body`, optionally followed by an
 // expected outcome: `=> raises "message"`. The word remains an identifier
 // outside the outcome separator.
@@ -4605,6 +4649,7 @@ and private startsPackageItem (state : ParserState) (index : int) : bool =
   | TTrait, TIdent _
   | TImpl, _
   | TIdent "module", _
+  | TIdent "extern", TIdent _
   | TIdent "test", TIdent _ -> true
   | _ -> false
 
@@ -4712,6 +4757,9 @@ and private parseItemsFrom
         (d :: declsRev, exprsRev, k2, false)
       | TImpl, _ ->
         let (d, k2) = parseImplDecl state k
+        (d :: declsRev, exprsRev, k2, false)
+      | TIdent "extern", TIdent _ when tok state (k + 2) = TLParen ->
+        let (d, k2) = parseExternDecl state k
         (d :: declsRev, exprsRev, k2, false)
       | TIdent "test", TIdent _ when
         tok state (k + 2) = TEquals

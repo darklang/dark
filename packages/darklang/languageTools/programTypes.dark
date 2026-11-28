@@ -372,6 +372,10 @@ type Expr =
 
   | ESelf(ID)
 
+  /// The body of an `extern`: a call to `symbol` in the native `library`, passed the
+  /// declaration's parameters in order.
+  | EExtern(ID, library: String, symbol: String, args: List<Expr>)
+
 
 module Expr =
   let toID(expr: Expr): ID =
@@ -414,7 +418,8 @@ module Expr =
     | EMatch(id, _, _)
     | ERecordUpdate(id, _, _)
     | EStatement(id, _, _)
-    | ESelf(id) ->
+    | ESelf(id)
+    | EExtern(id, _, _, _) ->
       id
 
 

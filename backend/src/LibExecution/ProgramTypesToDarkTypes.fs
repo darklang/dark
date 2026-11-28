@@ -1132,6 +1132,13 @@ module Expr =
 
       | PT.ESelf id -> "ESelf", [ DInt64(int64 id) ]
 
+      | PT.EExtern(id, library, symbol, args) ->
+        "EExtern",
+        [ DInt64(int64 id)
+          DString library
+          DString symbol
+          DList(VT.known (knownType ()), Items(List.map toDT args)) ]
+
     DEnum(typeName (), typeName (), [], caseName, fields)
 
 
@@ -1353,6 +1360,13 @@ module Expr =
       PT.EValue(uint64 id, NameResolution.fromDT FQValueName.fromDT name)
 
     | DEnum(_, _, [], "ESelf", [ DInt64 id ]) -> PT.ESelf(uint64 id)
+
+    | DEnum(_,
+            _,
+            [],
+            "EExtern",
+            [ DInt64 id; DString library; DString symbol; DList(_, Items args) ]) ->
+      PT.EExtern(uint64 id, library, symbol, List.map fromDT args)
 
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 

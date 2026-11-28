@@ -4,7 +4,6 @@ module LibExecution.HostPosix
 
 open System
 open System.Runtime.InteropServices
-open Microsoft.Win32.SafeHandles
 open Prelude
 open LibExecution.HostKernel
 
@@ -997,116 +996,6 @@ let listDir (path : string) : Result<List<string>, int * string> =
         reads []
       finally
         Marshal.FreeHGlobal position)
-
-// -- Atomic, symlink-safe opens (Linux) ------------------------------
-// The lexical `pathContainsLink` pre-walk in `Host` is advisory: an attacker
-// can swap a path component for a symlink between the check and the open.
-// `openat2(RESOLVE_NO_SYMLINKS)` makes symlink rejection part of the open
-// itself — the same rejection semantics as the pre-walk (any symlink in the
-// path fails), but with no window. On older Linux kernels and other POSIX
-// systems, callers fall back to the descriptor-based O_NOFOLLOW walk.
-
-[<Literal>]
-let private AT_FDCWD = -100
-
-// Resolve every component without following any symlink.
-[<Literal>]
-let private RESOLVE_NO_SYMLINKS = 0x04UL
-
-[<Literal>]
-let private ENOSYS = 38
-
-// A per-process kernel probe: cleared once by the first ENOSYS so later opens skip straight to
-// the fallback. A racing reader that still sees `true` only makes one more failing call.
-let mutable private openat2Available = true
-
-/// Open an absolute path rejecting any symlink component, atomically. None
-/// signals "openat2 unavailable on this kernel" (caller falls back); an OS
-/// error (including a symlink hit, ELOOP) raises like the ordinary API would.
-let private openNoSymlinks
-  (path : string)
-  (flags : int)
-  (mode : uint64)
-  : Option<SafeFileHandle> =
-  if not (openat2Available && RuntimeInformation.IsOSPlatform OSPlatform.Linux) then
-    None
-  else
-    // struct open_how: flags, mode, resolve.
-    let how =
-      [ uint64 flags; mode; RESOLVE_NO_SYMLINKS ]
-      |> List.map (fun (field : uint64) -> System.BitConverter.GetBytes field)
-      |> Array.concat
-    let fd = openat2_raw (AT_FDCWD, path, how, unativeint 24)
-    if fd >= 0L then
-      Some(new SafeFileHandle(nativeint fd, ownsHandle = true))
-    else
-      let errno = Marshal.GetLastPInvokeError()
-      if errno = ENOSYS then
-        // No openat2 on this kernel; remember and fall back everywhere.
-        openat2Available <- false
-        None
-      else
-        // A real error — a symlink component (ELOOP), missing file, denied,
-        // etc. Surface it as the matching .NET exception so callers classify
-        // it exactly as they would an ordinary open failure.
-        raise (System.ComponentModel.Win32Exception errno)
-
-/// Open without following any link: openat2 where the kernel has it, the
-/// descriptor walk elsewhere on POSIX, and `None` only on Windows (which
-/// keeps the .NET call behind the lexical pre-check).
-let private openSafely
-  (path : string)
-  (flags : int)
-  (mode : int)
-  : Option<SafeFileHandle> =
-  match openNoSymlinks path flags (uint64 mode) with
-  | Some handle -> Some handle
-  | None ->
-    if not isPosix then
-      None
-    else
-      match openFile path flags mode with
-      | Ok fd -> Some(new SafeFileHandle(nativeint fd, ownsHandle = true))
-      | Error(errno, _) -> raise (System.ComponentModel.Win32Exception errno)
-
-/// Read the whole file, rejecting symlinked paths atomically.
-let readAllBytes (path : string) : byte[] =
-  match openSafely path O_RDONLY 0 with
-  | Some handle ->
-    use handle = handle
-    use stream = new System.IO.FileStream(handle, System.IO.FileAccess.Read)
-    use memory = new System.IO.MemoryStream()
-    stream.CopyTo memory
-    memory.ToArray()
-  | None -> System.IO.File.ReadAllBytes path
-
-/// Create or truncate the file and write it, rejecting symlinked paths.
-let writeAllBytes (path : string) (bytes : byte[]) : unit =
-  match openSafely path (O_WRONLY ||| O_CREAT ||| O_TRUNC) 0o644 with
-  | Some handle ->
-    use handle = handle
-    use stream = new System.IO.FileStream(handle, System.IO.FileAccess.Write)
-    stream.Write(bytes, 0, bytes.Length)
-  | None -> System.IO.File.WriteAllBytes(path, bytes)
-
-/// Append text (creating the file if needed), rejecting symlinked paths.
-let appendAllText (path : string) (content : string) : unit =
-  match openSafely path (O_WRONLY ||| O_CREAT ||| O_APPEND) 0o644 with
-  | Some handle ->
-    use handle = handle
-    use stream = new System.IO.FileStream(handle, System.IO.FileAccess.Write)
-    let bytes = System.Text.Encoding.UTF8.GetBytes content
-    stream.Write(bytes, 0, bytes.Length)
-  | None -> System.IO.File.AppendAllText(path, content)
-
-/// Entry metadata for the boundary's `FileStat`: (exists, isDirectory).
-/// A missing entry is not an error; anything else is.
-let statEntry (path : string) : Result<bool * bool, int * string> =
-  match stat path with
-  | Ok(mode, _, _) -> Ok(true, (mode &&& 0xF000) = 0x4000)
-  | Error(2, _)
-  | Error(20, _) -> Ok(false, false) // ENOENT, ENOTDIR
-  | Error e -> Error e
 
 /// Trusted policy persistence, using the same no-follow descriptor walk.
 let syncDirectory (directory : string) : unit =

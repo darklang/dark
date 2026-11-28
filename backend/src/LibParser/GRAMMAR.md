@@ -405,6 +405,10 @@ Declaration forms:
   call.
 - `let x = e` is a local/script binding. At declaration scope it is rejected;
   use `val` for a value declaration.
+- `extern f(p: T): R from "library"` declares a fn whose body is a native call
+  to the symbol `f` in `library`; `from "library" "symbol"` names a different
+  symbol. Only bundled packages declare externs, and only fns in the declaring
+  module and the modules inside it may call one.
 - `module A.B` is a file header and wraps the rest of the file.
 - `module X =` starts an indented module body.
 

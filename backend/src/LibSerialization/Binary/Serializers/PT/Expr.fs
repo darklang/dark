@@ -690,6 +690,12 @@ module Expr =
       w.Write 34uy
       w.Write id
       w.Write index
+    | EExtern(id, library, symbol, args) ->
+      w.Write 39uy
+      w.Write id
+      String.write w library
+      String.write w symbol
+      List.write w write args
 
   let rec read (r : BinaryReader) : Expr =
     match r.ReadByte() with
@@ -896,4 +902,10 @@ module Expr =
     | 36uy ->
       let id = r.ReadUInt64()
       EUnwrap(id, read r)
+    | 39uy ->
+      let id = r.ReadUInt64()
+      let library = String.read r
+      let symbol = String.read r
+      let args = List.read r read
+      EExtern(id, library, symbol, args)
     | b -> raiseFormatError $"Invalid Expr tag: {b}"

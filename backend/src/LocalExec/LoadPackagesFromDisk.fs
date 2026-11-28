@@ -218,6 +218,9 @@ let load
     Exception.raiseInternal
       $"Package code calls names that do not exist: {listed}"
       [ "count", List.length missing ]
+  match LibDB.OpValidation.externCallViolation (fun _ -> false) currentOps with
+  | Some reason -> Exception.raiseInternal reason []
+  | None -> ()
   let passes = iteration + 1
   let secs = parseTimer.Elapsed.TotalSeconds
   print

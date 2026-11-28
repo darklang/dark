@@ -336,7 +336,7 @@ let __childRead(fd: Posix.Fd, eof: Bool): Result<(Bytes * Bool), Posix.Error> =
   if eof then
     Ok((Bytes.empty, true))
   else
-    match Builtin.syscallRead(fd.__fd, 65536) |> Result.mapError(Posix.__fromErrno) with
+    match Posix.fdRead(fd, 65536) with
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __childRead(fd, false)
@@ -354,7 +354,7 @@ let __childWrite(fd: Posix.Fd, pending: Bytes): Result<Bytes, Posix.Error> =
   else
     let count = if length < 65536 then length else 65536
     let chunk = if count == length then pending else Bytes.take(pending, count)
-    match Builtin.syscallWrite(fd.__fd, chunk) |> Result.mapError(Posix.__fromErrno) with
+    match Posix.__writeOnce(fd, chunk) with
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __childWrite(fd, pending)
@@ -374,15 +374,11 @@ let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit
       let (fd, events) = pair
       (fd.__fd, events))
 
-  let result =
-    if Posix.__abiMac() then
-      Builtin.syscallPollDarwin(raw, milliseconds)
-    else
-      Builtin.syscallPpoll(raw, milliseconds)
-
-  match result with
-  | Error(4) -> __childPoll(fds, milliseconds)
-  | Error(e) -> Error(Posix.__fromErrno(e))
+  match Posix.__poll(raw, milliseconds) with
+  | Error(e) ->
+    match Posix.Error.kind(e) with
+    | Interrupted -> __childPoll(fds, milliseconds)
+    | _ -> Error(e)
   | Ok(_) -> Ok()
 
 

@@ -48,7 +48,7 @@ val knownGroups =
     ("cli", "CLI")
     ("stdin", "Stdin")
     ("stdout", "Stdout")
-    ("syscall", "Syscall")
+    ("kernel", "Kernel")
     ("host", "Host")
     ("exec", "Exec")
     ("local", "Local DB")
@@ -73,7 +73,7 @@ let extractGroup(name: String): String =
     let rest = Stdlib.String.dropFirst(name, Stdlib.String.length(prefix))
     let atCapital =
       match Stdlib.String.head(rest) with
-      | Some(c) -> Stdlib.Char.isUppercase(c)
+      | Some(c) -> Stdlib.Char.isUppercase(c) || c == '.'
       | None -> true
 
     Stdlib.String.startsWith(name, prefix) && atCapital

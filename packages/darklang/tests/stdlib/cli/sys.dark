@@ -29,7 +29,7 @@ test countBitsAndHostFacts =
       |> Stdlib.Result.map(fun name -> Stdlib.String.length(name) > 0)
       |> Stdlib.Test.equal(Ok(true))
 
-      Builtin.syscallSchedGetaffinity(0, 0) |> Stdlib.Test.equal(Error(22)) ])
+      Stdlib.Cli.Posix.schedGetaffinity(0, 0) |> Stdlib.Test.equal(Error(22)) ])
 
 
 // isatty answers only for 0, 1 and 2; any other descriptor is not a terminal.

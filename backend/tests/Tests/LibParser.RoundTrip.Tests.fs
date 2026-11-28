@@ -659,6 +659,33 @@ let moduleDeclarations =
       []
       []
       []
+      false
+
+    t
+      "extern"
+      "module MyModule =\n  extern open(path: String, flags: Int64): Int64 from \"kernel\""
+      "module MyModule =\n  extern open(path: String, flags: Int64): Int64 from \"kernel\""
+      []
+      []
+      []
+      false
+
+    t
+      "a long extern puts its library on the next line"
+      "module MyModule =\n  extern open(path: String, flags: Int64, mode: Int64): Result<BigInt, Int64> from \"kernel\""
+      "module MyModule =\n  extern open(path: String, flags: Int64, mode: Int64): Result<BigInt, Int64>\n    from \"kernel\""
+      []
+      []
+      []
+      false
+
+    t
+      "extern with its own symbol"
+      "module MyModule =\n  extern openFile(path: String): Int64 from \"kernel\" \"open\""
+      "module MyModule =\n  extern openFile(path: String): Int64 from \"kernel\" \"open\""
+      []
+      []
+      []
       false ]
   |> testList "module declarations"
 

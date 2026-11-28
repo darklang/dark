@@ -3256,19 +3256,44 @@ let packageFnNamed(
   //       a: T,
   //       b: U)
   //       : R =
+  //
+  // An extern is all header, its `from "library"` on a line of its own when the header is long.
+  let (keyword, ending) =
+    match p.body with
+    | EExtern(_, library, symbol, _) ->
+      let name =
+        namePart
+        |> Stdlib.String.split(".")
+        |> Stdlib.List.last
+
+      let symbolPart = if name == Some(symbol) then "" else $" \"{symbol}\""
+      ("extern", $"from \"{library}\"{symbolPart}")
+    | _ -> ("let", " =")
+
   let headerDoc =
     let txt = Stdlib.Pretty.text
     let colon = ": "
     Stdlib.Pretty.group(
       Stdlib.Pretty.concatAll(
-        [ txt($"let {namePart}{typeParamPart}")
+        [ txt($"{keyword} {namePart}{typeParamPart}")
           PackageFn.parametersDoc(ctx, p.parameters)
           Stdlib.Pretty.Doc.IfFlat(
             txt(colon),
             Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, txt(colon))))
 
           typeReferenceDoc(ctx, p.returnType)
-          txt(" =") ]))
+          if keyword == "extern" then Stdlib.Pretty.empty else txt(ending) ]))
+
+  let headerDoc =
+    if keyword == "extern" then
+      Stdlib.Pretty.Doc.Concat(
+        headerDoc,
+        Stdlib.Pretty.group(
+          Stdlib.Pretty.Doc.Nest(
+            2,
+            Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, Stdlib.Pretty.text(ending)))))
+    else
+      headerDoc
 
   let argMap =
     p.parameters
@@ -3286,14 +3311,17 @@ let packageFnNamed(
 
   // The body has a line of its own, however short. `compactFnBody` lets a short one share the
   // header's: `let isEmpty(s: String): Bool = s == ""`, in a run of fns like it.
-  let body = lineDoc(contextWithFn, p.body)
   let doc =
-    if ctx.compactFnBody then
+    if keyword == "extern" then
+      headerDoc
+    else if ctx.compactFnBody then
+      let body = lineDoc(contextWithFn, p.body)
       Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.Concat(
           headerDoc,
           Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, body))))
     else
+      let body = lineDoc(contextWithFn, p.body)
       Stdlib.Pretty.Doc.Concat(
         headerDoc,
         Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.HardLine, body)))

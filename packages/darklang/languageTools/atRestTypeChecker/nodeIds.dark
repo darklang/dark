@@ -39,7 +39,7 @@ let children(node: Node): (Option<Int64> * List<Node>) =
   | Expression(e) ->
     let id = Some(ProgramTypes.Expr.toID(e))
     match e with
-    | EVariable(_, _) | EFnName(_, _, _, _) | EValue(_, _) -> (id, [])
+    | EVariable(_, _) | EFnName(_, _, _, _) | EValue(_, _) | EExtern(_, _, _, _) -> (id, [])
     | ELambda(_, parameters, body) ->
       (id, Stdlib.List.append(letNodes(parameters), Node.Expression(body)))
     | EApply(_, callee, _, args) -> (id, exprNodes(Stdlib.List.prepend(args, callee)))
@@ -276,7 +276,7 @@ let visit(node: Node, ids: List<Int64>, next: List<Node>): (List<Int64> * List<N
   match node with
   | Expression(e) ->
     match e with
-    | EVariable(_, _) | EFnName(_, _, _, _) | EValue(_, _) ->
+    | EVariable(_, _) | EFnName(_, _, _, _) | EValue(_, _) | EExtern(_, _, _, _) ->
       (Stdlib.List.prepend(ids, ProgramTypes.Expr.toID(e)), next)
     | ELambda(_, parameters, body) ->
       (

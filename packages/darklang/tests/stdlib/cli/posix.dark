@@ -20,23 +20,27 @@ let darwin(code: Int64): Stdlib.Cli.Posix.Errno =
 // Raw syscalls refuse bad descriptors and arguments with their errno
 test syscallErrnos =
   Stdlib.Test.all(
-    [ Builtin.syscallRead(-1z, 1) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallRead(-1z, -1) |> Stdlib.Test.equal(Error(22))
-      Builtin.syscallClose(-1z) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallLseek(-1z, 0, 0) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallFlock(-1z, 2) |> Stdlib.Test.equal(Error(9))
-      Stdlib.Test.expect(Builtin.syscallGetpid() > 0, "getpid is positive")
-      Stdlib.Test.expect(Builtin.syscallGetuid() >= 0, "getuid is not negative")
-      Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 0)
+    [ Stdlib.Cli.Posix.read(-1z, 1) |> Stdlib.Test.equal(Error(9))
+      Stdlib.Cli.Posix.read(-1z, -1) |> Stdlib.Test.equal(Error(22))
+      Stdlib.Cli.Posix.close(-1z) |> Stdlib.Test.equal(Error(9))
+      Stdlib.Cli.Posix.lseek(-1z, 0, 0) |> Stdlib.Test.equal(Error(9))
+      Stdlib.Cli.Posix.kernelFlock(-1z, 2) |> Stdlib.Test.equal(Error(9))
+      Stdlib.Test.expect(Stdlib.Cli.Posix.getpid() > 0, "getpid is positive")
+
+      Stdlib.Test.expect(
+        Stdlib.Cli.Posix.getuid() >= 0,
+        "getuid is not negative")
+
+      Stdlib.Cli.Posix.unlinkAt("/dark-syscall-missing-entry", 0)
       |> Stdlib.Test.equal(Error(2))
 
-      Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 64)
+      Stdlib.Cli.Posix.unlinkAt("/dark-syscall-missing-entry", 64)
       |> Stdlib.Test.equal(Error(22))
 
-      Builtin.syscallReadlinkAt("/definitely/missing/dark-link", 2)
+      Stdlib.Cli.Posix.readlinkAt("/definitely/missing/dark-link", 2)
       |> Stdlib.Test.equal(Error(2))
 
-      match Builtin.syscallGetcwd(1) with
+      match Stdlib.Cli.Posix.getcwd(1) with
       | Error(e) -> e |> Stdlib.Test.equal(errnoOr(34))
       | Ok(_) -> Stdlib.Test.fail("getcwd into one byte should fail") ])
 
@@ -49,7 +53,7 @@ test unlinkAtRemovesDirectory =
       Stdlib.Cli.Posix.mkdir(path, Stdlib.Cli.Posix.Modes.ownerOnlyDir)
 
     let removed =
-      Builtin.syscallUnlinkAt(path, Stdlib.Cli.Posix.__abiRemoveDirectory())
+      Stdlib.Cli.Posix.unlinkAt(path, Stdlib.Cli.Posix.__abiRemoveDirectory())
 
     (created, removed, Stdlib.Cli.File.exists(path)))
   |> Stdlib.Test.equal(Ok((Ok(), Ok(), false)))
@@ -80,7 +84,7 @@ test readlinkAtTruncates =
   Stdlib.Cli.Dir.withTemp(fun dir ->
     let link = Stdlib.Cli.Path.join([ dir, "link" ])
     let _ = Stdlib.Cli.Posix.symlink("abcdef", link)
-    Builtin.syscallReadlinkAt(link, 2)
+    Stdlib.Cli.Posix.readlinkAt(link, 2)
     |> Stdlib.Result.map(Stdlib.Bytes.toList))
   |> Stdlib.Test.equal(Ok(Ok([ 97u8, 98u8 ])))
 
@@ -324,9 +328,9 @@ test setFileTimes =
   let missing = "/definitely/missing/dark-time"
   let setTimes = fun(path, atime, mtime) ->
     if Stdlib.Cli.Posix.__abiMac() then
-      Builtin.syscallSetattrlistTimes(path, atime, 0, mtime, 0)
+      Stdlib.Cli.Posix.setattrlistTimes(path, atime, 0, mtime, 0)
     else
-      Builtin.syscallUtimensAt(path, atime, 0, mtime, 0)
+      Stdlib.Cli.Posix.utimensAt(path, atime, 0, mtime, 0)
 
   let stamped = Stdlib.Cli.Dir.withTemp(fun dir ->
     let path = Stdlib.Cli.Path.join([ dir, "stamp" ])

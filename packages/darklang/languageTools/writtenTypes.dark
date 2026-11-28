@@ -409,6 +409,9 @@ type Expr =
 
   | EStatement(Range, first: Expr, next: Expr)
 
+  /// The body of `extern name(…): T from "library"`: the call the declaration binds.
+  | EExtern(Range, library: String, symbol: String)
+
   // A recovery hole where an expression was expected but couldn't be parsed
   // (the parse carries a diagnostic at this range). Tooling renders around it;
   // it never reaches execution.
@@ -477,6 +480,7 @@ module Expr =
     | EApply(range, _, _, _) -> range
     | EFnName(range, _) -> range
     | EStatement(range, _, _) -> range
+    | EExtern(range, _, _) -> range
     | EError(range) -> range
 
 

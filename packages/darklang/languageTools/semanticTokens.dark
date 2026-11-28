@@ -1116,6 +1116,8 @@ module Expr =
         Expr.tokenize(next) ]
       |> Stdlib.List.flatten
 
+    | EExtern(_, _, _) -> []
+
     // a parse-error hole paints nothing; the code around it still highlights
     | EError(_) -> []
 

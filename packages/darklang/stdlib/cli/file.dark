@@ -396,7 +396,7 @@ let __copyUnsupported(error: Posix.Error): Bool =
 /// Finish a positional write, including short writes and EINTR, without losing
 /// the offset. A successful zero write is an I/O error, not an infinite loop.
 let __copyWriteAt(
-  write: (Bytes, Int64) -> Result<Int64, Int64>,
+  write: (Bytes, Int64) -> Result<Int64, Posix.Error>,
   bytes: Bytes,
   offset: Int64)
   : Result<Unit, Posix.Error> =
@@ -405,8 +405,10 @@ let __copyWriteAt(
     Ok()
   else
     match write(bytes, offset) with
-    | Error(4) -> __copyWriteAt(write, bytes, offset)
-    | Error(e) -> Error(Posix.__fromErrno(e))
+    | Error(e) ->
+      match Posix.Error.kind(e) with
+      | Interrupted -> __copyWriteAt(write, bytes, offset)
+      | _ -> Error(e)
     | Ok(count) ->
       if count <= 0 || count > length then
         Error(Posix.Error.BadKernelReply)
@@ -418,13 +420,15 @@ let __copyWriteAt(
 /// Bounded-memory fallback, also used after partial kernel-copy progress.
 /// Read until actual EOF: virtual files can have a stat size of zero.
 let __copyBuffered(
-  read: (Int64, Int64) -> Result<Bytes, Int64>,
-  write: (Bytes, Int64) -> Result<Int64, Int64>,
+  read: (Int64, Int64) -> Result<Bytes, Posix.Error>,
+  write: (Bytes, Int64) -> Result<Int64, Posix.Error>,
   offset: Int64)
   : Result<Unit, Posix.Error> =
   match read(65536, offset) with
-  | Error(4) -> __copyBuffered(read, write, offset)
-  | Error(e) -> Error(Posix.__fromErrno(e))
+  | Error(e) ->
+    match Posix.Error.kind(e) with
+    | Interrupted -> __copyBuffered(read, write, offset)
+    | _ -> Error(e)
   | Ok(bytes) ->
     let length = Bytes.length(bytes)
     if length == 0 then
@@ -440,8 +444,8 @@ let __copyBufferedBetween(
   offset: Int64)
   : Result<Unit, Posix.Error> =
   __copyBuffered(
-    (fun(length, at) -> Builtin.syscallPread(source, length, at)),
-    (fun(bytes, at) -> Builtin.syscallPwrite(destination, bytes, at)),
+    (fun(length, at) -> Posix.__pread(source, length, at)),
+    (fun(bytes, at) -> Posix.__pwrite(destination, bytes, at)),
     offset)
 
 
@@ -450,8 +454,7 @@ let __copyKernelCopy(
   destination: BigInt,
   offset: Int64)
   : Result<Unit, Posix.Error> =
-  match Builtin.syscallCopyFileRange(source, destination, 1048576)
-        |> Result.mapError(Posix.__fromErrno) with
+  match Posix.__copyFileRange(source, destination, 1048576) with
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __copyKernelCopy(source, destination, offset)
@@ -470,7 +473,7 @@ let __copyKernelCopy(
 
 
 let __copyTransfer(source: BigInt, destination: BigInt): Result<Unit, Posix.Error> =
-  match Builtin.syscallCloneFile(source, destination) |> Result.mapError(Posix.__fromErrno) with
+  match Posix.__cloneFile(source, destination) with
   | Ok(()) -> Ok()
   | Error(e) ->
     match Posix.Error.kind(e) with
@@ -496,22 +499,18 @@ let __copyDescriptors(
   destination: Posix.Fd,
   sourceInfo: Posix.__KernelMetadata)
   : Result<Unit, Posix.Error> =
-  Builtin.syscallFstat(destination.__fd)
-  |> Result.mapError(Posix.__fromErrno)
-  |> Result.andThen(Posix.__kernelMetadata)
+  Posix.__fdMetadata(destination)
   |> Result.andThen(fun destinationInfo ->
     // Never truncate the source, even when a different path names a hard link.
     if sourceInfo.device == destinationInfo.device && sourceInfo.inode == destinationInfo.inode then
       Error(Posix.__fromErrno(22))
     else
-      Builtin.syscallFtruncate(destination.__fd, 0)
-      |> Result.mapError(Posix.__fromErrno)
+      Posix.__ftruncate(destination, 0)
       |> Result.andThen(fun _ -> __copyTransfer(source.__fd, destination.__fd))
       |> Result.andThen(fun _ ->
-        Builtin.syscallFchmod(
-          destination.__fd,
-          Posix.FileMode.toInt64(Posix.FileMode.permissions(sourceInfo.mode)))
-        |> Result.mapError(Posix.__fromErrno)))
+        Posix.__fchmod(
+          destination,
+          Posix.FileMode.toInt64(Posix.FileMode.permissions(sourceInfo.mode)))))
 
 
 let __copyOpenDestination(
@@ -534,8 +533,7 @@ let __copyCloneDestination(
   destination: String,
   sourceInfo: Posix.__KernelMetadata)
   : Result<Unit, Posix.Error> =
-  match Builtin.syscallFclonefileAt(sourceFd.__fd, destination, 3)
-        |> Result.mapError(Posix.__fromErrno) with
+  match Posix.__fclonefileAt(sourceFd, destination, 3) with
   | Ok(()) -> Posix.chmod(destination, Posix.FileMode.permissions(sourceInfo.mode))
   | Error(e) ->
     // fclonefileat creates a new entry. An existing destination (EEXIST)
@@ -557,9 +555,7 @@ let __copyCopy(source: String, destination: String): Result<Unit, Posix.Error> =
   | Error(e) -> Error(e)
   | Ok(sourceFd) ->
     let result =
-      Builtin.syscallFstat(sourceFd.__fd)
-      |> Result.mapError(Posix.__fromErrno)
-      |> Result.andThen(Posix.__kernelMetadata)
+      Posix.__fdMetadata(sourceFd)
       |> Result.andThen(fun sourceInfo ->
         let fileType = Posix.FileMode.fileType(sourceInfo.mode)
         if
@@ -621,7 +617,7 @@ let __watchEvents(
 
 
 let __watchDrain(fd: Posix.Fd): Result<(Bool * Bool), Posix.Error> =
-  match Builtin.syscallRead(fd.__fd, 65536) |> Result.mapError(Posix.__fromErrno) with
+  match Posix.fdRead(fd, 65536) with
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __watchDrain(fd)
@@ -639,9 +635,11 @@ let __watchLoop(
   if shouldStop() then
     Ok(false)
   else
-    match Builtin.syscallPpoll([ (fd.__fd, 1) ], intervalMs) with
-    | Error(4) -> __watchLoop(fd, intervalMs, shouldStop, fn)
-    | Error(e) -> Error(Posix.__fromErrno(e))
+    match Posix.__poll([ (fd.__fd, 1) ], intervalMs) with
+    | Error(e) ->
+      match Posix.Error.kind(e) with
+      | Interrupted -> __watchLoop(fd, intervalMs, shouldStop, fn)
+      | _ -> Error(e)
     | Ok(record) ->
       Posix.__kernelField(record, 6, 2)
       |> Result.andThen(fun returned ->
@@ -669,16 +667,15 @@ let __watchLinux(
   if shouldStop() then
     Ok()
   else
-    match Builtin.syscallInotifyInit1(526336) with
-    | Error(e) -> Error(Posix.__fromErrno(e))
+    match Posix.__inotifyInit1(526336) with
+    | Error(e) -> Error(e)
     | Ok(raw) ->
       let fd = Posix.Fd { __fd = raw }
       let result =
-        Builtin.syscallInotifyAddWatch(raw, path, 3086)
-        |> Result.mapError(Posix.__fromErrno)
+        Posix.__inotifyAddWatch(raw, path, 3086)
         |> Result.andThen(fun _ -> __watchLoop(fd, intervalMs, shouldStop, fn))
 
-      let closed = Builtin.syscallClose(raw) |> Result.mapError(Posix.__fromErrno)
+      let closed = Posix.fdClose(fd)
       match result with
       | Error(e) -> Error(e)
       | Ok(rearm) ->
@@ -728,9 +725,11 @@ let __watchVnodeLoop(
   if shouldStop() then
     Ok(false)
   else
-    match Builtin.syscallKeventVnode(queue, [], 16, intervalMs) with
-    | Error(4) -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn)
-    | Error(e) -> Error(Posix.__fromErrno(e))
+    match Posix.__keventVnode(queue, [], 16, intervalMs) with
+    | Error(e) ->
+      match Posix.Error.kind(e) with
+      | Interrupted -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn)
+      | _ -> Error(e)
     | Ok(buffer) ->
       __watchVnodeEvents(buffer, 0, false, false)
       |> Result.andThen(fun pair ->
@@ -740,11 +739,11 @@ let __watchVnodeLoop(
 
 
 let __watchCloseBoth(queue: BigInt, source: BigInt): Result<Unit, Posix.Error> =
-  let first = Builtin.syscallClose(queue)
-  let second = Builtin.syscallClose(source)
+  let first = Posix.fdClose(Posix.Fd { __fd = queue })
+  let second = Posix.fdClose(Posix.Fd { __fd = source })
   match first with
-  | Error(e) -> Error(Posix.__fromErrno(e))
-  | Ok(()) -> second |> Result.mapError(Posix.__fromErrno)
+  | Error(e) -> Error(e)
+  | Ok(()) -> second
 
 
 let __watchDarwin(
@@ -758,18 +757,18 @@ let __watchDarwin(
   else
     // O_EVTONLY holds the vnode without needing data-access permission. The
     // trusted open boundary supplies no-follow and scoped read authorization.
-    match Builtin.syscallOpen(path, 32768, 0) with
-    | Error(e) -> Error(Posix.__fromErrno(e))
-    | Ok(source) ->
-      match Builtin.syscallKqueue() with
+    match Posix.openFile(path, 32768, Posix.FileMode { __mode = 0 }) with
+    | Error(e) -> Error(e)
+    | Ok(sourceFd) ->
+      let source = sourceFd.__fd
+      match Posix.__kqueue() with
       | Error(e) ->
-        let _ = Builtin.syscallClose(source)
-        Error(Posix.__fromErrno(e))
+        let _ = Posix.fdClose(sourceFd)
+        Error(e)
       | Ok(queue) ->
         let result =
           // EV_ADD | EV_ENABLE | EV_CLEAR; seven vnode-change notes.
-          Builtin.syscallKeventVnode(queue, [ (source, 37, 127) ], 0, 0)
-          |> Result.mapError(Posix.__fromErrno)
+          Posix.__keventVnode(queue, [ (source, 37, 127) ], 0, 0)
           |> Result.andThen(fun _ -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn))
 
         let closed = __watchCloseBoth(queue, source)
