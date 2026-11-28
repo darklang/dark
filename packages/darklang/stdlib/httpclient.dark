@@ -301,6 +301,24 @@ let sendRaw(req: Request): Result<Response<Bytes>, RequestError> =
     req.decompress)
 
 
+/// Send a request and read the full response.
+/// Start with an empty cookie jar and send matching cookies on later redirects
+/// within the same origin. Discard the jar when the request chain ends.
+let sendWithRedirectCookies(req: Request): Result<Response<Bytes>, RequestError> =
+  let req = Request.__final(req)
+  let (retries, delayMs) = __retryArgs(req)
+  Builtin.httpClientRequestWithRedirectCookies(
+    req.method,
+    req.url,
+    req.headers,
+    req.body,
+    req.timeoutMs,
+    Option.withDefault(req.redirects, 0),
+    retries,
+    delayMs,
+    req.decompress)
+
+
 /// <fn sendRaw>, with the body as a lazy stream: in program order, and the timeout covers the
 /// headers, not the body, so a long-lived stream is not cut off. A stream holds its connection
 /// until it is drained or closed, and counts against the host's 50 until then.
