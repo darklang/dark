@@ -471,7 +471,7 @@ module AliasChecks =
         { typeParams = parameters; definition = RT.TypeDeclaration.Alias target } }
 
   let private typesFor target : RT.Types =
-    { package = fun _ -> (Some(declaration aliasName [] target)) }
+    RT.Types.ofPackage (fun _ -> Some(declaration aliasName [] target))
 
   let private check types expected actual =
     TC.checkFnParam
@@ -538,15 +538,14 @@ module AliasChecks =
               ),
               RT.DEnum(targetName, targetName, [], "Case", []) ]
           for definition, actual in cases do
-            let types : RT.Types =
-              { package =
-                  fun hash ->
-                    if RT.FQTypeName.Package hash = aliasName then
-                      (Some(declaration aliasName [] target))
-                    else
-                      (Some
-                        { hash = hash
-                          declaration = { typeParams = []; definition = definition } }) }
+            let types =
+              RT.Types.ofPackage (fun hash ->
+                if RT.FQTypeName.Package hash = aliasName then
+                  (Some(declaration aliasName [] target))
+                else
+                  (Some
+                    { hash = hash
+                      declaration = { typeParams = []; definition = definition } }))
             let accepted = check types alias actual
             Expect.equal
               accepted
@@ -574,18 +573,17 @@ module AliasChecks =
         }
         testTask "generic alias chains do not cache call-specific bindings" {
           let expected = reference aliasName [ RT.TVariable "call" ]
-          let types : RT.Types =
-            { package =
-                fun hash ->
-                  let decl =
-                    if RT.FQTypeName.Package hash = aliasName then
-                      declaration
-                        aliasName
-                        [ "a" ]
-                        (reference targetName [ RT.TVariable "a" ])
-                    else
-                      declaration targetName [ "b" ] (RT.TList(RT.TVariable "b"))
-                  (Some decl) }
+          let types =
+            RT.Types.ofPackage (fun hash ->
+              let decl =
+                if RT.FQTypeName.Package hash = aliasName then
+                  declaration
+                    aliasName
+                    [ "a" ]
+                    (reference targetName [ RT.TVariable "a" ])
+                else
+                  declaration targetName [ "b" ] (RT.TList(RT.TVariable "b"))
+              (Some decl))
           for actual in
             [ RT.DList(VT.known RT.KTInt64, RT.Items([ RT.DInt64 1L ]))
               RT.DList(VT.known RT.KTString, RT.Items([ RT.DString "text" ])) ] do
@@ -600,15 +598,14 @@ module AliasChecks =
         }
         testTask "a missing alias-chain endpoint is retried" {
           let mutable available = false
-          let types : RT.Types =
-            { package =
-                fun hash ->
-                  if RT.FQTypeName.Package hash = aliasName then
-                    (Some(declaration aliasName [] (reference targetName [])))
-                  elif available then
-                    (Some(declaration targetName [] RT.TInt64))
-                  else
-                    None }
+          let types =
+            RT.Types.ofPackage (fun hash ->
+              if RT.FQTypeName.Package hash = aliasName then
+                (Some(declaration aliasName [] (reference targetName [])))
+              elif available then
+                (Some(declaration targetName [] RT.TInt64))
+              else
+                None)
           let _ = RT.TypeReference.unwrapAlias types alias
           Expect.equal
             (RT.TypeReference.tryResolvedAlias types alias)

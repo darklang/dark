@@ -82,7 +82,7 @@ let createState
     random = HostRandom.Real
 
     builtins = builtins
-    types = { package = pm.getType }
+    types = RT.Types.ofPackage pm.getType
     traits = { trait_ = pm.getTrait }
     values = { builtIn = builtins.values; package = pm.getValue }
     blobs = { get = pm.getBytes; persist = pm.persistBytes }

@@ -451,36 +451,12 @@ let unify
     | Error path -> path |> Error
     | Ok updatedTst -> Ok updatedTst
 
-/// Resolved declarations for types with no type arguments, which is nearly all of them.
-///
-/// Type-checking a record or enum argument resolves its declaration, which otherwise goes to the
-/// package manager on every call. Anything that passes records around pays it constantly.
-///
-/// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe -- an
-/// `FQTypeName` is a content hash, so the same name should mean the same declaration -- but it is
-/// not: tests mint their own package managers and reuse names across different declarations.
-/// Scoping per `Types` costs nothing in practice, since a server has one for the life of the
-/// process.
+/// A type with no type arguments, which is nearly all of them, is resolved once per `Types`
+/// (`Types.resolved`): type-checking a record or enum argument resolves its declaration, and
+/// anything that passes records around pays it constantly.
 ///
 /// An alias is cached only when it has no type params of its own: one that has them resolves
 /// through the caller's type symbol table, so its answer isn't a function of the name.
-let private resolvedTypeCache =
-  System.Runtime.CompilerServices.ConditionalWeakTable<Types, System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
-  List<string * ValueType> *
-  TypeDeclaration.Definition>>()
-
-let private cacheFor (types : Types) =
-  let mutable d = Unchecked.defaultof<_>
-  if resolvedTypeCache.TryGetValue(types, &d) then
-    d
-  else
-    let fresh =
-      System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
-      List<string * ValueType> *
-      TypeDeclaration.Definition>()
-    resolvedTypeCache.AddOrUpdate(types, fresh)
-    fresh
-
 // CLEANUP I wonder if this can/should happen in PT2RT instead of during interpretation
 let rec resolveType
   (types : Types)
@@ -491,7 +467,7 @@ let rec resolveType
   // : (typeName * typeArgs * def)
   : FQTypeName.FQTypeName * List<string * ValueType> * TypeDeclaration.Definition =
   let mutable cached = Unchecked.defaultof<_>
-  if List.isEmpty typeArgs && (cacheFor types).TryGetValue(typeName, &cached) then
+  if List.isEmpty typeArgs && types.resolved.TryGetValue(typeName, &cached) then
     // Once warm this is where nearly every call lands.
     cached
   else
@@ -533,7 +509,7 @@ let rec resolveType
               |> (fun (resolvedName, _, def) ->
                 (resolvedName, mappedInnerArgsVT, def))
             if List.isEmpty typeArgs && List.isEmpty decl.typeParams then
-              (cacheFor types)[typeName] <- result
+              types.resolved[typeName] <- result
             result
 
         | _ -> RTE.TypeNotFound typeName |> raiseRTE
@@ -546,7 +522,7 @@ let rec resolveType
             List.zip decl.typeParams typeArgs
 
         let result = (typeName, typeArgsVT, definition)
-        if List.isEmpty typeArgs then (cacheFor types)[typeName] <- result
+        if List.isEmpty typeArgs then types.resolved[typeName] <- result
         result
 
 
