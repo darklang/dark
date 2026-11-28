@@ -252,10 +252,14 @@ let executeShow(
 /// answer.
 let showFromTrace(
   state: AppState,
+
   arg: String,
+
   /// Passed through to `showCode`, so `show <trace> --iteration map:2` works from this end too.
   iteration: Option<String>,
+
   wantsJson: Bool,
+
   wantsFull: Bool)
   : AppState =
   match Tracing.Store.resolveID(arg) with
