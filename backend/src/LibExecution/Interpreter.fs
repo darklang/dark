@@ -1418,12 +1418,12 @@ let spreadRefuses (fn : BuiltInFn) : bool =
 /// A builtin for which every check `invokeBuiltin` makes before the body is known to pass: no
 /// effects (nothing to permit), not `Impure` (nothing to stop in a test runner), nothing a spread
 /// child refuses, and so nothing logged (no effect ordinal, nothing a view or a replay answers).
-/// Also no type variables and no callback, so a call needs no type bindings and no callback check.
-/// Most of the standard library, `String.length` and the like. Worked out once per forwarder
+/// Also no explicit type params and no callback, so a call needs no callback check, and any type
+/// variable it has is its own, bound from its arguments (`List.getAt`'s `'a`). Most of the standard
+/// library, `String.length` and the like. Worked out once per forwarder
 /// (`PackageFnCallData.plainPure`).
 let private isPlainPure (fn : BuiltInFn) : bool =
   List.isEmpty fn.typeParams
-  && not (FreeTVars.builtinHasAny fn)
   && not (hasFnParam fn.parameters)
   && not (Effects.performsAny fn.callEffects)
   && fn.previewable <> Impure
@@ -4574,8 +4574,9 @@ let private applyBuiltin
 /// A forwarder's call to a plain pure builtin (`isPlainPure`), with exactly its arguments, none of
 /// them a read in flight and nothing applied before: the arguments, read into the frame's buffer,
 /// and the symbol table after checking them against the builtin's parameters. That is all
-/// `callBuiltinResolvedSlow` would do before `invokeBuiltin` for such a builtin: there are no type
-/// variables to shadow or bind and no callback to check.
+/// `callBuiltinResolvedSlow` would do before `invokeBuiltin` for such a builtin: its type variables
+/// are bound from these arguments alone, as that path binds them once it has shadowed the
+/// caller's, and there is no callback to check.
 ///
 /// `ValueNone` when a check needs the type store; the call then takes the ordinary path, which
 /// reads and checks the arguments again from the start.
@@ -4588,6 +4589,11 @@ let private plainPureCallArgs
   (fn : BuiltInFn)
   : struct (Dval[] * TypeSymbolTable) voption =
   let args = ArgSeq.toArrayFor currentFrame (ArgSeq.ofNE registers newArgRegs)
+  let tst =
+    if FreeTVars.builtinHasAny fn then
+      inferBiParams TST.empty fn.parameters args 0
+    else
+      tst
   let struct (_, unchecked, _, checkedTst) =
     checkBiParams types 0 fn.parameters args 0 tst
   if List.isEmpty unchecked then
