@@ -226,6 +226,58 @@ let private withoutHeaders
 let private originOf (uri : System.Uri) =
   (uri.Scheme.ToLowerInvariant(), uri.IdnHost.ToLowerInvariant(), uri.Port)
 
+/// Start each redirect chain with no cookies and keep cookies separate by origin.
+type RedirectCookies() =
+  let jars =
+    System.Collections.Generic.Dictionary<string * string * int, System.Net.CookieContainer>()
+
+  member _.Remember(url : string, headers : List<string * string>) : unit =
+    let cookies =
+      headers
+      |> List.choose (fun (name, value) ->
+        if String.equalsCaseInsensitive name "Set-Cookie" then Some value else None)
+
+    match cookies, System.Uri.TryCreate(url, System.UriKind.Absolute) with
+    | [], _
+    | _, (false, _) -> ()
+    | _, (true, uri) ->
+      let origin = originOf uri
+      let jar =
+        match jars.TryGetValue origin with
+        | true, jar -> jar
+        | false, _ ->
+          let jar = System.Net.CookieContainer()
+          jars.Add(origin, jar)
+          jar
+
+      for cookie in cookies do
+        try
+          jar.SetCookies(uri, cookie)
+        with :? System.Net.CookieException ->
+          ()
+
+  member _.ForSend(hop : Hop) : Hop =
+    match
+      headerValue "Cookie" hop.headers,
+      System.Uri.TryCreate(hop.uri, System.UriKind.Absolute)
+    with
+    | None, (true, uri) ->
+      match jars.TryGetValue(originOf uri) with
+      | true, jar ->
+        let cookies = jar.GetCookieHeader uri
+        if cookies = "" then
+          hop
+        else
+          { hop with headers = ("Cookie", cookies) :: hop.headers }
+      | false, _ -> hop
+    | _ -> hop
+
+
+type private CookiePolicy =
+  | IgnoreCookies
+  | UseRedirectCookies
+
+
 /// The next send after `status`, when it is a redirect with a `Location`: there, resolved against
 /// where this one went. As fetch and curl -L do, a POST after a 301 or 302, and anything but a
 /// GET or HEAD after a 303, becomes a GET with no body; otherwise the method and body are kept.
@@ -336,6 +388,7 @@ let private exchange
   (state : ExecutionState)
   (vm : VMState)
   (policy : Policy)
+  (cookiePolicy : CookiePolicy)
   (operation : Hop -> int -> Host.Operation)
   (expect : Host.Response -> Result<'r, HostTypes.HttpRequestError>)
   (head : 'r -> int * List<string * string>)
@@ -344,6 +397,10 @@ let private exchange
   (first : Hop)
   : Dval =
   let access = vm.activeAccess
+  let cookies =
+    match cookiePolicy with
+    | IgnoreCookies -> None
+    | UseRedirectCookies -> Some(RedirectCookies())
   let remaining () =
     policy.deadline |> Option.map (fun at -> at - System.Environment.TickCount64)
   let fits (waitMs : int64) =
@@ -365,11 +422,13 @@ let private exchange
     | Some left when left <= 0L ->
       Task.FromResult(Error HostTypes.HttpRequestError.Timeout)
     | _ ->
+      let request =
+        cookies |> Option.map (fun jar -> jar.ForSend hop) |> Option.defaultValue hop
       PermissionCheck.performHostWithAccess
         state
         vm
         access
-        (operation hop (timeoutMs ()))
+        (operation request (timeoutMs ()))
       |> Task.map answerOf
   let rec settle
     (hop : Hop)
@@ -392,6 +451,7 @@ let private exchange
       | Error err -> return Error(RequestError.toDT err)
       | Ok r ->
         let (status, headers) = head r
+        cookies |> Option.iter (fun jar -> jar.Remember(hop.uri, headers))
         let next =
           if policy.redirects > 0L then redirectOf hop status headers else None
         match next with
@@ -425,6 +485,7 @@ let private run
   (state : ExecutionState)
   (vm : VMState)
   (args : Dval[])
+  (cookiePolicy : CookiePolicy)
   (operation : Hop -> int -> bool -> Host.Operation)
   (expect : Host.Response -> Result<'r, HostTypes.HttpRequestError>)
   (head : 'r -> int * List<string * string>)
@@ -463,53 +524,61 @@ let private run
     let operation hop timeoutMs = operation hop timeoutMs decompress
     Bytes.withBytes state bodyRef (fun body ->
       { method = method; uri = uri; headers = headers; body = body }
-      |> exchange state vm policy operation expect head drop finish)
+      |> exchange state vm policy cookiePolicy operation expect head drop finish)
   | _ -> incorrectArgs ()
 
 
-let fns () : List<BuiltInFn> =
-  [ { name = fn "httpClientRequest" 0
-      typeParams = []
-      parameters = parameters
-      returnType = resultTypeOf TBytes
-      description =
-        "Make an HTTP call to <param uri> and read the whole response. A GET or HEAD is a "
-        + "read: it runs concurrently with what follows and is waited for where the response "
-        + "is first looked at. Any other method runs in program order. Returns the response in "
-        + "{{ Ok }}, or why there is none in {{ Error }}."
-      fn =
-        let (resultOk, resultError) = resultOf VT.bytes
-        (fun (struct (state, vm, _, args)) ->
-          run
-            state
-            vm
-            args
-            (fun hop timeoutMs decompress ->
-              Host.Operation.HttpRequest(
-                HostTypes.HttpProfile.Guest,
-                hop.method,
-                hop.uri,
-                hop.headers,
-                hop.body,
-                Some timeoutMs,
-                decompress
-              ))
-            Host.expectHttp
-            (fun (r : HostTypes.HttpResponse) -> (r.statusCode, r.headers))
-            ignore<HostTypes.HttpResponse>
-            (fun url r ->
-              responseOf
-                VT.bytes
-                url
-                r.statusCode
-                r.headers
-                (Bytes.newEphemeral r.body)
-              |> resultOk)
-            resultError)
-      previewable = Impure
-      callEffects = set [ Effect.Http ]
-      deprecated = NotDeprecated }
+let private bufferedRequest name cookiePolicy : BuiltInFn =
+  { name = fn name 0
+    typeParams = []
+    parameters = parameters
+    returnType = resultTypeOf TBytes
+    description =
+      "Send an HTTP request to <param uri> and read the full response. "
+      + "A GET or HEAD without a body runs in the background until its response is needed. "
+      + "Other requests run in program order. Returns {{ Ok }} with the response "
+      + "or {{ Error }} with the reason the request failed."
+    fn =
+      let (resultOk, resultError) = resultOf VT.bytes
+      (fun (struct (state, vm, _, args)) ->
+        run
+          state
+          vm
+          args
+          cookiePolicy
+          (fun hop timeoutMs decompress ->
+            Host.Operation.HttpRequest(
+              HostTypes.HttpProfile.Guest,
+              hop.method,
+              hop.uri,
+              hop.headers,
+              hop.body,
+              Some timeoutMs,
+              decompress
+            ))
+          Host.expectHttp
+          (fun (r : HostTypes.HttpResponse) -> (r.statusCode, r.headers))
+          ignore<HostTypes.HttpResponse>
+          (fun url r ->
+            responseOf
+              VT.bytes
+              url
+              r.statusCode
+              r.headers
+              (Bytes.newEphemeral r.body)
+            |> resultOk)
+          resultError)
+    previewable = Impure
+    callEffects = set [ Effect.Http ]
+    deprecated = NotDeprecated }
 
+
+let fns () : List<BuiltInFn> =
+  [ bufferedRequest "httpClientRequest" IgnoreCookies
+    { bufferedRequest "httpClientRequestWithRedirectCookies" UseRedirectCookies with
+        description =
+          "Send an HTTP request and read the full response. "
+          + "Keep a temporary cookie jar for each origin during the redirect chain." }
 
     // ——————————————————————————————————————————————————————————
     // Streaming HTTP.
@@ -544,6 +613,7 @@ let fns () : List<BuiltInFn> =
             state
             vm
             args
+            IgnoreCookies
             (fun hop timeoutMs decompress ->
               Host.Operation.HttpStreamOpen(
                 HostTypes.HttpProfile.Guest,

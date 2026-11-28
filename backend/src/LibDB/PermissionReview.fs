@@ -41,7 +41,7 @@ let preflight
     | "runtimeEnvironmentGet", [ Known.Text name ] ->
       add entry (P.Request.env P.AccessKind.Read name)
     | "runtimeEnvironmentGetAll", _ -> add entry (Ok P.Request.envList)
-    | ("httpClientRequest" | "httpClientStream"),
+    | ("httpClientRequest" | "httpClientRequestWithRedirectCookies" | "httpClientStream"),
       Known.Text method :: Known.Text url :: _ ->
       add entry (P.Request.http method url)
     | "runtimeAuthorizeReadPath", Known.Text path :: _
