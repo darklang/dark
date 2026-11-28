@@ -45,9 +45,9 @@ type Completion<'s, 'a> =
     resolve: Option<(Session<'s, 'a>, CompletionItem) -> CompletionItem> }
 
 
-type SignatureHelper<'s, 'a> =
+type SignatureHelp<'s, 'a> =
   { triggers: List<String>
-    help: (Session<'s, 'a>, Document<'a>, Position) -> Option<SignatureHelp> }
+    signature: (Session<'s, 'a>, Document<'a>, Position) -> Option<Signature> }
 
 
 type SemanticTokens<'s, 'a> =
@@ -66,7 +66,7 @@ type Handlers<'s, 'a> =
     references: Option<(Session<'s, 'a>, Document<'a>, Position, Bool) -> List<Location>>
     highlights: Option<(Session<'s, 'a>, Document<'a>, Position) -> List<DocumentHighlight>>
     completion: Option<Completion<'s, 'a>>
-    signatureHelp: Option<SignatureHelper<'s, 'a>>
+    signatureHelp: Option<SignatureHelp<'s, 'a>>
     symbols: Option<(Session<'s, 'a>, Document<'a>) -> List<DocumentSymbol>>
     workspaceSymbols: Option<(Session<'s, 'a>, String) -> List<SymbolInformation>>
     folding: Option<(Session<'s, 'a>, Document<'a>) -> List<FoldingRange>>

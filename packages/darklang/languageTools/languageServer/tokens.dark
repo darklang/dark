@@ -80,4 +80,14 @@ let tokens(_session: Session, doc: Document, fromLine: Int64, toLine: Int64): Li
     |> Stdlib.List.flatten
     |> Stdlib.List.filter(fun t -> t.length > 0 && t.line >= fromLine && t.line <= toLine)
     |> Stdlib.List.sortBy(fun t -> (t.line, t.start))
-    |> Stdlib.List.uniqueBy(fun t -> (t.line, t.start))
+    |> firstAtEachStart
+
+
+/// Sorted tokens, keeping the first of those that start at the same place.
+let firstAtEachStart(sorted: List<Lsp.Token>): List<Lsp.Token> =
+  sorted
+  |> Stdlib.List.fold([], fun(kept, t) ->
+    match kept with
+    | [last, ...] -> if last.line == t.line && last.start == t.start then kept else Stdlib.List.prepend(kept, t)
+    | [] -> [ t ])
+  |> Stdlib.List.reverse

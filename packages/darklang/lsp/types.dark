@@ -78,7 +78,7 @@ type ParameterInformation =
     label: (Int64 * Int64)
     documentation: Option<String> }
 
-type SignatureHelp =
+type Signature =
   { label: String
     documentation: Option<String>
     parameters: List<ParameterInformation>
@@ -375,7 +375,7 @@ module Write =
           [ ("data", c.data) ] ]))
 
 
-  let signatureHelp(s: SignatureHelp): Json =
+  let signature(s: Signature): Json =
     let parameter(p: ParameterInformation): Json =
       let (from, to) = p.label
       Json.Object(

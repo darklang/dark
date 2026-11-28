@@ -302,7 +302,7 @@ let inString(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * I
       inString(rest, depth, commas)
 
 
-let signatureHelp(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.SignatureHelp> =
+let signature(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.Signature> =
   let ctx = Names.context(session.state.branchId, doc.uri)
   match callAt(Lsp.Text.before(doc.text, at, 30)) with
   | None -> Option.None
@@ -332,7 +332,7 @@ let signatureHelp(session: Session, doc: Document, at: Lsp.Position): Option<Lsp
         if description == "" then Option.None else Option.Some(Hover.markdownOfDoc(description))
 
       Option.Some(
-        Lsp.SignatureHelp
+        Lsp.Signature
           { label =
               prefix
               + Stdlib.String.join(shown, ", ")

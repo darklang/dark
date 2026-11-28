@@ -2,7 +2,7 @@
 /// not one, a name's value on hover, and the names as completions.
 module Darklang.Lsp.Examples.Toy
 
-type Line = { number: Int64, name: String, value: String }
+type Line = { name: String, value: String }
 
 /// The lines that say `name = value`, and the numbers of those that don't.
 type Parsed = { lines: List<Line>, bad: List<Int64> }
@@ -14,7 +14,7 @@ let parse(text: String): Parsed =
   |> Stdlib.List.fold(Parsed { lines = [], bad = [] }, fun(p, (n, parts)) ->
     match parts with
     | [ "" ] -> p
-    | [ name, value ] -> { p with lines = Stdlib.List.append(p.lines, Line { number = n, name = name, value = value }) }
+    | [ name, value ] -> { p with lines = Stdlib.List.append(p.lines, Line { name = name, value = value }) }
     | _ -> { p with bad = Stdlib.List.append(p.bad, n) })
 
 

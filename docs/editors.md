@@ -4,7 +4,9 @@
 stdout; it stops when the editor closes stdin. It logs to stderr, which an editor shows as the
 server's output, and it writes no files of its own.
 
-The server is written in Dark (`Darklang.LanguageTools.Lsp`).
+The server is written in Dark, in three layers: `Darklang.JsonRpc` (messages and framing),
+`Darklang.Lsp` (the protocol's types, and a server built from a record of handlers), and
+`Darklang.LanguageTools.LanguageServer` (Dark's own server, one such record).
 
 ## VS Code
 
@@ -86,14 +88,37 @@ recorded run or a `dark switch` in a terminal reaches it the same way, within tw
 Read-only requests are answered beside the loop that reads stdin, so a slow one holds up neither
 typing nor the others. `$/cancelRequest` stops one; its reply says it was cancelled.
 
-`dark lsp --live` answers each read-only request with the request handler the store has now,
+`dark lsp --live` answers each request with the server's code as the store has it now,
 staying on the last version that type-checks. Working on the server in a dev build, an edit
 shows in the editor after `scripts/dev/build`, without a restart. The store's version runs under
 the instance policy, like any stored code; what the policy refuses, the built-in version answers.
 
+## Writing a language server
+
+A server for any language is an `Lsp.Server` record: a name, its own state, an analyser that says
+what a document means once typing pauses, and a plain function for each request it answers.
+`Lsp.run` does the rest: the lifecycle, document sync, capabilities (one for each handler that is
+set), cancellation, and answering requests beside the loop.
+
+```fsharp
+let server(): Lsp.Server<Unit, Parsed> =
+  { Lsp.server("toy", ()) with
+      analyser = Option.Some(Lsp.Analyser { analyse = fun(_, doc) -> parse(doc.text), diagnostics = warnings })
+      handlers = { Lsp.noHandlers() with hover = Option.Some(hover) } }
+
+let main(_args: List<String>): Int64 = Lsp.run(server())
+```
+
+`Darklang.Lsp.Examples.Toy` is a whole one; `dark run Darklang.Lsp.Examples.Toy.main` serves it.
+To change Dark's own server, make a record from it:
+`{ ours with handlers = { ours.handlers with hover = Option.Some(mine) } }`, as
+`LanguageServer.Examples.TodoHover` does. A request the handler record has no field for is a
+`Lsp.Method` in `methods`; one with the same name as a handler's takes its place. `middleware`
+wraps every method (`Lsp.Middleware.timed` logs how long each took).
+
 ## Tests
 
 `scripts/testing/gates lsp` drives the server over stdio the way an editor does
-(`scripts/testing/_lsp-gate.py`). The pure parts have package tests in
-`packages/darklang/tests/languageTools/lsp.dark`. `scripts/testing/gates vscode-extension` builds
+(`scripts/testing/_lsp-gate.py`), and the toy server too. Each layer has package tests:
+`packages/darklang/tests/jsonRpc.dark`, `tests/lsp.dark` and `tests/languageTools/languageServer.dark`. `scripts/testing/gates vscode-extension` builds
 and packs the extension.

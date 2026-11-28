@@ -33,7 +33,7 @@ let handlers(): Lsp.Handlers<State, Analysis.Analysis> =
           Lsp.Completion
             { triggers = [ "." ], items = Completion.complete, resolve = Option.Some(Completion.resolve) })
       signatureHelp =
-        Option.Some(Lsp.SignatureHelper { triggers = [ "(", "," ], help = Completion.signatureHelp })
+        Option.Some(Lsp.SignatureHelp { triggers = [ "(", "," ], signature = Completion.signature })
       symbols = Option.Some(Symbols.outline)
       workspaceSymbols = Option.Some(Symbols.workspace)
       folding = Option.Some(Syntax.folding)
@@ -189,7 +189,8 @@ val answerLiveLocation =
 /// newest version of this server.
 let answerLive(args: (Session * String * Stdlib.AltJson.Json)): Result<Stdlib.AltJson.Json, JsonRpc.Error> =
   let (session, name, params) = args
-  match Stdlib.List.findFirst(Lsp.Loop.methods(server(false)), fun m -> m.name == name) with
+  let ours = Stdlib.List.concat(Lsp.Methods.ofHandlers("dark", handlers()), methods())
+  match Stdlib.List.findFirst(ours, fun m -> m.name == name) with
   | Some(m) -> m.answer(session, params)
   | None -> Result.Error(JsonRpc.error(JsonRpc.Code.methodNotFound, $"{name} is not supported"))
 

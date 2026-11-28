@@ -108,7 +108,7 @@ let completion(c: Option<Lsp.Completion<'s, 'a>>): List<Lsp.Method<'s, 'a>> =
     Stdlib.List.prepend(resolve, items)
 
 
-let signatureHelp(s: Option<Lsp.SignatureHelper<'s, 'a>>): List<Lsp.Method<'s, 'a>> =
+let signatureHelp(s: Option<Lsp.SignatureHelp<'s, 'a>>): List<Lsp.Method<'s, 'a>> =
   match s with
   | None -> []
   | Some(s) ->
@@ -122,7 +122,7 @@ let signatureHelp(s: Option<Lsp.SignatureHelper<'s, 'a>>): List<Lsp.Method<'s, '
         Option.Some(("signatureHelpProvider", capability)),
         fun(session, params) ->
           onPosition(session, params, Json.Null, fun(doc, p) ->
-            orNull(s.help(session, doc, p), Lsp.Write.signatureHelp))) ]
+            orNull(s.signature(session, doc, p), Lsp.Write.signature))) ]
 
 
 let semanticTokens(t: Option<Lsp.SemanticTokens<'s, 'a>>): List<Lsp.Method<'s, 'a>> =
