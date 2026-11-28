@@ -190,7 +190,10 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
       // Resolve a synthetic item path below the requested module so the
       // module path follows the same rules as `fn`, `type`, and `val`.
       let locationInput = modulePath + ".__module__"
-      match Location.parseRelativeTo(state.packageData.currentLocation, locationInput) with
+      match Location.parseFrom(
+              state.currentBranchId,
+              state.packageData.currentLocation,
+              locationInput) with
       | Error(message) ->
         printErr($"Invalid module location: {message}")
         failed(state)

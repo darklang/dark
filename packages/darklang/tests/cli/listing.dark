@@ -116,3 +116,28 @@ test fullNamesAfterNav =
       walk(inList, "Stdlib.String.nope")
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error("Not found: Stdlib.String.nope")) ])
+
+
+/// A name a command creates means the same wherever you stand, as a name it looks up does.
+test createdFullNamesAfterNav =
+  let branch = SCM.Branch.mainBranchId
+  let root = Cli.Packages.PackageLocation.Module([])
+  let inList =
+    Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
+
+  let darklang = Cli.Packages.PackageLocation.Module([ "Darklang" ])
+  let at = fun(start, name) ->
+    Cli.Packages.Location.parseFrom(branch, start, name)
+
+  Stdlib.Test.all(
+    [ at(inList, "Darklang.Stdlib.String.made")
+      |> Stdlib.Test.equal(at(root, "Darklang.Stdlib.String.made"))
+
+      at(inList, "Stdlib.String.made")
+      |> Stdlib.Test.equal(at(root, "Darklang.Stdlib.String.made"))
+
+      at(inList, "made")
+      |> Stdlib.Test.equal(at(root, "Darklang.Stdlib.List.made"))
+
+      at(darklang, "Stdlib.List.made")
+      |> Stdlib.Test.equal(at(root, "Darklang.Stdlib.List.made")) ])
