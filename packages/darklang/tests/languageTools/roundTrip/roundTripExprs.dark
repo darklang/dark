@@ -929,6 +929,11 @@ test exprsMatchIntTuple =
         "match x with\n| y when y > 1 -> true\n| z when z < 1 -> false\n| w -> w")
 
       roundTrip(
+        "match, when too long for its line",
+        "match x with\n| y when Stdlib.String.length(y) > 10 || Stdlib.String.startsWith(y, \"prefix\") || y == z -> true\n| _ -> false",
+        "match x with\n| y\n  when Stdlib.String.length(y) > 10\n       || Stdlib.String.startsWith(y, \"prefix\")\n       || y == z ->\n  true\n| _ -> false")
+
+      roundTrip(
         "match, ignored 1",
         "match true with\n| _ -> true",
         "match true with\n| _ -> true")
