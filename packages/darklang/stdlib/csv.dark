@@ -63,9 +63,9 @@ let __parse(
   match chars with
   | [] ->
     match mode with
-    | Quoted -> Result.Error(ParseError.ParseError.UnclosedQuote(recordLine))
-    | FieldStart when List.isEmpty(row) -> Result.Ok(List.reverse(rows))
-    | _ -> Result.Ok(List.reverse(__endRecord(rows, __endField(row, field))))
+    | Quoted -> Error(ParseError.ParseError.UnclosedQuote(recordLine))
+    | FieldStart when List.isEmpty(row) -> Ok(List.reverse(rows))
+    | _ -> Ok(List.reverse(__endRecord(rows, __endField(row, field))))
   | [c, ...rest] ->
     match mode with
     | Quoted ->
@@ -97,10 +97,10 @@ let __parse(
         | FieldStart -> __parse(rest, Mode.Quoted, [], row, rows, line, recordLine)
         | AfterQuote ->
           __parse(rest, Mode.Quoted, List.prepend(field, '"'), row, rows, line, recordLine)
-        | _ -> Result.Error(ParseError.ParseError.QuoteInUnquotedField(line))
+        | _ -> Error(ParseError.ParseError.QuoteInUnquotedField(line))
       else
         match mode with
-        | AfterQuote -> Result.Error(ParseError.ParseError.TextAfterClosingQuote(line))
+        | AfterQuote -> Error(ParseError.ParseError.TextAfterClosingQuote(line))
         | _ -> __parse(rest, Mode.Unquoted, List.prepend(field, c), row, rows, line, recordLine)
 
 

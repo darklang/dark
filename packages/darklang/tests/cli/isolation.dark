@@ -11,8 +11,8 @@ let writeConfig(key: String): String =
 
 
 let cleanConfig(key: String): Bool =
-  LanguageTools.LocalStore.configGet(key) == Stdlib.Option.Option.None
-  && Stdlib.Env.get("DARK_MATTER_WRITE_SECRET") == Stdlib.Option.Option.None
+  LanguageTools.LocalStore.configGet(key) == None
+  && Stdlib.Env.get("DARK_MATTER_WRITE_SECRET") == None
 
 
 let readConfig(key: String): Stdlib.Option.Option<String> =
@@ -41,11 +41,7 @@ test nestedWorkerSeesCallingTestWrites =
   | Ok(output) ->
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.equal(0)
-
-        output.result
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(
-            Stdlib.Option.Option.Some("written by this test"))) ])
+        output.result |> Stdlib.Test.equal(Ok(Some("written by this test"))) ])
 
 
 test stateAndEnvironmentAreIsolated =
@@ -64,16 +60,11 @@ test stateAndEnvironmentAreIsolated =
         [ output.exitCode |> Stdlib.Test.equal(0)
           childDb |> Stdlib.Test.notEqual(parentDb)
           Stdlib.Cli.FileSystem.pathExists(childDb) |> Stdlib.Test.equal(false)
-
-          LanguageTools.LocalStore.configGet(key)
-          |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
+          LanguageTools.LocalStore.configGet(key) |> Stdlib.Test.equal(None)
           SCM.PackageOps.currentBranch() |> Stdlib.Test.equal(parentBranch)
           match clean with
           | Error(message) -> Stdlib.Test.fail(message)
-          | Ok(checked) ->
-            checked.result
-            |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true)) ])
+          | Ok(checked) -> checked.result |> Stdlib.Test.equal(Ok(true)) ])
 
 
 /// Ignore the write error to check that the runner still detects it and retries
@@ -81,7 +72,7 @@ test stateAndEnvironmentAreIsolated =
 test writingTestGetsItsOwnCopy =
   let _ = LanguageTools.LocalStore.configSet("test.isolation-probe", "written")
   LanguageTools.LocalStore.configGet("test.isolation-probe")
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("written"))
+  |> Stdlib.Test.equal(Some("written"))
 
 
 let runtimeFailure(): Int64 =
@@ -99,8 +90,7 @@ test runtimeFailureStillRemovesSnapshot =
     let childDb = Stdlib.String.trim(output.stdout)
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.notEqual(0)
-        output.result
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Cannot divide by 0"))
+        output.result |> Stdlib.Test.equal(Error("Cannot divide by 0"))
 
         Stdlib.String.contains(output.stderr, "Cannot divide by 0")
         |> Stdlib.Test.equal(true)
@@ -127,8 +117,7 @@ test assertionFailureIsPreserved =
     Stdlib.Test.all(
       [ output.result
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Ok(
-            Stdlib.Test.Result.Fail([ "intentional isolation failure" ])))
+          Ok(Stdlib.Test.Result.Fail([ "intentional isolation failure" ])))
 
         output.exitCode |> Stdlib.Test.equal(0) ])
 
@@ -152,9 +141,7 @@ test branchChangesStayIsolated =
   | Ok(output) ->
     Stdlib.Test.all(
       [ output.exitCode |> Stdlib.Test.equal(0)
-        output.result
-        |> Stdlib.Test.notEqual(Stdlib.Result.Result.Ok(parentBranch))
-
+        output.result |> Stdlib.Test.notEqual(Ok(parentBranch))
         SCM.PackageOps.currentBranch() |> Stdlib.Test.equal(parentBranch) ])
 
 
@@ -169,8 +156,7 @@ test runsOnTheCallersBranch =
           currentBranch,
           ()) with
   | Error(message) -> Stdlib.Test.fail(message)
-  | Ok(output) ->
-    output.result |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(here))
+  | Ok(output) -> output.result |> Stdlib.Test.equal(Ok(here))
 
 
 let checkInheritedBranch(expected: Uuid): Stdlib.Test.Result =
@@ -179,8 +165,7 @@ let checkInheritedBranch(expected: Uuid): Stdlib.Test.Result =
           currentBranch,
           ()) with
   | Error(message) -> Stdlib.Test.fail(message)
-  | Ok(output) ->
-    output.result |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected))
+  | Ok(output) -> output.result |> Stdlib.Test.equal(Ok(expected))
 
 
 // Uses an actual non-main branch, then a nested worker with default options.
@@ -191,7 +176,7 @@ test explicitBranchBecomesTheNestedWorkersDefault =
   | Some(created) ->
     let branch = created.id
     let defaults = Stdlib.Test.Process.defaults()
-    let options = { defaults with branch = Stdlib.Option.Option.Some(branch) }
+    let options = { defaults with branch = Some(branch) }
     match Stdlib.Test.Process.run(options, checkInheritedBranch, branch) with
     | Error(message) -> Stdlib.Test.fail(message)
     | Ok(output) ->
@@ -213,9 +198,7 @@ test resultIsSeparateFromOutput =
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
     Stdlib.Test.all(
-      [ output.result
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("typed value"))
-
+      [ output.result |> Stdlib.Test.equal(Ok("typed value"))
         output.stdout |> Stdlib.Test.equal("ordinary output\n") ])
 
 
@@ -247,5 +230,5 @@ test workerInheritsTestPermissions =
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
     Stdlib.Test.all(
-      [ output.result |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected))
+      [ output.result |> Stdlib.Test.equal(Ok(expected))
         output.cleanupErrors |> Stdlib.Test.equal([]) ])

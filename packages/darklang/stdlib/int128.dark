@@ -106,9 +106,9 @@ let parse(s: String): Result<Int128, ParseError> =
   match BigInt.parse(s) with
   | Ok(n) ->
     match BigInt.toInt128(n) with
-    | Some(i) -> Result.Ok(i)
-    | None -> Result.Error(ParseError.OutOfRange)
-  | Error(_) -> Result.Error(ParseError.BadFormat)
+    | Some(i) -> Ok(i)
+    | None -> Error(ParseError.OutOfRange)
+  | Error(_) -> Error(ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int128>.
@@ -270,60 +270,60 @@ impl One for Int128 =
 let checkedAdd(a: Int128, b: Int128): Result<Int128, Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0s128 then sum > a else sum < a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(a: Int128, b: Int128): Result<Int128, Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0s128 then difference < a else difference > a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(a: Int128, b: Int128): Result<Int128, Math.Overflow> =
   let product = BigInt.fromInt128(a) * BigInt.fromInt128(b)
   match BigInt.toInt128(product) with
-  | Some(fits) -> Result.Ok(fits)
-  | None -> Result.Error(Math.Overflow.Overflow)
+  | Some(fits) -> Ok(fits)
+  | None -> Error(Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int128): Result<Int128, Math.Overflow> =
   if a == -170141183460469231731687303715884105728s128 then
-    Result.Error(Math.Overflow.Overflow)
+    Error(Math.Overflow.Overflow)
   else
-    Result.Ok(-a)
+    Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int128): Result<Int128, Math.Overflow> =
   if a == -170141183460469231731687303715884105728s128 then
-    Result.Error(Math.Overflow.Overflow)
+    Error(Math.Overflow.Overflow)
   else if a < 0s128 then
-    Result.Ok(-a)
+    Ok(-a)
   else
-    Result.Ok(a)
+    Ok(a)
 
 
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(base: Int128, exponent: Int128): Result<Int128, Math.PowerError> =
   if exponent < 0s128 then
-    Result.Error(Math.PowerError.NegativeExponent)
+    Error(Math.PowerError.NegativeExponent)
   else if base == 0s128 || base == 1s128 || base == -1s128 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Result.Ok(base ** exponent)
+    Ok(base ** exponent)
   else if exponent >= 128s128 then
     // any other base is at least 2 from zero, and 2 ** 128 is past the Int128 range
-    Result.Error(Math.PowerError.Overflow)
+    Error(Math.PowerError.Overflow)
   else
     let result = BigInt.fromInt128(base) ** BigInt.fromInt128(exponent)
     match BigInt.toInt128(result) with
-    | Some(fits) -> Result.Ok(fits)
-    | None -> Result.Error(Math.PowerError.Overflow)
+    | Some(fits) -> Ok(fits)
+    | None -> Error(Math.PowerError.Overflow)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -334,11 +334,11 @@ let checkedPower(base: Int128, exponent: Int128): Result<Int128, Math.PowerError
 /// minimum value divided by -1, where `/` wraps back to the minimum.
 let checkedDivide(a: Int128, b: Int128): Result<Int128, Math.DivisionError> =
   if b == 0s128 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else if b == -1s128 && a == -170141183460469231731687303715884105728s128 then
-    Result.Error(Math.DivisionError.Overflow)
+    Error(Math.DivisionError.Overflow)
   else
-    Result.Ok(a / b)
+    Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
@@ -347,17 +347,17 @@ let checkedDivide(a: Int128, b: Int128): Result<Int128, Math.DivisionError> =
 /// Use <fn Int128.checkedMod> to wrap around into {{0 <= res < b}} instead.
 let checkedRemainder(value: Int128, divisor: Int128): Result<Int128, Math.DivisionError> =
   if divisor == 0s128 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else
-    Result.Ok(value - value / divisor * divisor)
+    Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: Int128, b: Int128): Result<Int128, Math.ModulusError> =
   if b == 0s128 then
-    Result.Error(Math.ModulusError.ZeroModulus)
+    Error(Math.ModulusError.ZeroModulus)
   else if b < 0s128 then
-    Result.Error(Math.ModulusError.NegativeModulus)
+    Error(Math.ModulusError.NegativeModulus)
   else
-    Result.Ok(a % b)
+    Ok(a % b)

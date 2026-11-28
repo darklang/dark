@@ -67,7 +67,7 @@ module TextField =
              Stdlib.Cli.UI.Widget.press(
                Stdlib.Cli.Stdin.Key.Key.Tab,
                noMods(),
-               Stdlib.Option.Option.Some("\t"))) with
+               Some("\t"))) with
      | Ignored -> "ignored"
      | Handled(_) -> "typed a tab"
      | Emitted(_, _) -> "emitted")
@@ -81,7 +81,7 @@ module TextField =
              Stdlib.Cli.UI.Widget.press(
                Stdlib.Cli.Stdin.Key.Key.Enter,
                noMods(),
-               Stdlib.Option.Option.None)) with
+               None)) with
      | Emitted(_state, Submitted(text)) -> text
      | _ -> "")
     |> Stdlib.Test.equal("done")
@@ -184,7 +184,7 @@ module Confirm =
       Stdlib.Cli.Stdin.Key.Key.None,
       Stdlib.Cli.Stdin.Modifiers.Modifiers
         { ctrl = false, shift = false, alt = false },
-      Stdlib.Option.Option.Some(c))
+      Some(c))
 
 
   test confirmKeys =
@@ -216,7 +216,7 @@ module Confirm =
                Stdlib.Cli.Stdin.Key.Key.Enter,
                Stdlib.Cli.Stdin.Modifiers.Modifiers
                  { ctrl = false, shift = false, alt = false },
-               Stdlib.Option.Option.None)) with
+               None)) with
      | Emitted(_s, Declined) -> "declined"
      | _ -> "other")
     |> Stdlib.Test.equal("declined")

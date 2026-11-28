@@ -652,10 +652,10 @@ test restPatterns =
        | _ -> (0, [], []))
       |> Stdlib.Test.equal((4, [ 2 ], []))
 
-      (match [ Stdlib.Option.Option.Some(1), Stdlib.Option.Option.None ] with
+      (match [ Some(1), None ] with
        | [Some(x), ...rest] -> (x, rest)
        | _ -> (0, []))
-      |> Stdlib.Test.equal((1, [ Stdlib.Option.Option.None ])) ])
+      |> Stdlib.Test.equal((1, [ None ])) ])
 
 
 test tuplePatterns =
@@ -737,44 +737,44 @@ test nestedTuplePatterns =
 
 test resultPatterns =
   Stdlib.Test.all(
-    [ (match Stdlib.Result.Result.Ok(5) with
+    [ (match Ok(5) with
        | Ok(6) -> "fail"
        | Error(_) -> "fail"
        | Ok(5) -> "pass"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Result.Result.Ok(5) with
+      (match Ok(5) with
        | Ok(5) -> "pass"
        | Error(_) -> "fail"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Result.Result.Error("failure") with
+      (match Error("failure") with
        | Ok(_) -> "fail"
        | Error("success") -> "fail"
        | Error("failure") -> "pass")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Result.Result.Error("failure") with
+      (match Error("failure") with
        | Ok(var) -> $"unexpected: {var}"
        | Error(msg) -> $"pass: {msg}")
       |> Stdlib.Test.equal("pass: failure")
 
-      (match Stdlib.Result.Result.Ok([ 1, 2, 3 ]) with
+      (match Ok([ 1, 2, 3 ]) with
        | Ok([1, 2, 3, 4]) -> "fail"
        | Error(_) -> "fail"
        | Ok([1, 2, 3]) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Result.Result.Ok((1, 'a')) with
+      (match Ok((1, 'a')) with
        | Ok((2, 'b')) -> "fail"
        | Ok((1, 'a')) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Result.Result.Ok(5.0) with
+      (match Ok(5.0) with
        | Ok(6.0) -> "fail"
        | Error(_) -> "fail"
        | Ok(5.0) -> "pass"
@@ -784,44 +784,44 @@ test resultPatterns =
 
 test optionPatterns =
   Stdlib.Test.all(
-    [ (match Stdlib.Option.Option.Some(5) with
+    [ (match Some(5) with
        | Some(6) -> "fail"
        | None -> "fail"
        | Some(5) -> "pass"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Option.Option.Some(5) with
+      (match Some(5) with
        | Some(5) -> "pass"
        | None -> "fail"
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Option.Option.None with
+      (match None with
        | Some(_) -> "fail"
        | None -> "pass")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Option.Option.Some("hello") with
+      (match Some("hello") with
        | Some("world") -> "fail"
        | None -> "fail"
        | Some(msg) -> $"pass: {msg}")
       |> Stdlib.Test.equal("pass: hello")
 
-      (match Stdlib.Option.Option.Some([ 1, 2, 3 ]) with
+      (match Some([ 1, 2, 3 ]) with
        | Some([1, 2, 3, 4]) -> "fail"
        | None -> "fail"
        | Some([1, 2, 3]) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Option.Option.Some((1, 'a')) with
+      (match Some((1, 'a')) with
        | Some((2, 'b')) -> "fail"
        | Some((1, 'a')) -> "pass"
        | _ -> "fail")
       |> Stdlib.Test.equal("pass")
 
-      (match Stdlib.Option.Option.Some(5.0) with
+      (match Some(5.0) with
        | Some(6.0) -> "fail"
        | None -> "fail"
        | Some(5.0) -> "pass"
@@ -997,7 +997,7 @@ module GuardClause =
          | _ -> false)
         |> Stdlib.Test.equal(false)
 
-        (match Stdlib.Result.Result.Error(5) with
+        (match Error(5) with
          | Ok(x) when x > 2 -> false
          | Error(_) -> true)
         |> Stdlib.Test.equal(true) ])
@@ -1033,12 +1033,12 @@ module PatternGrouping =
          | _ -> "fail")
         |> Stdlib.Test.equal("pass")
 
-        (match Stdlib.Option.Option.Some(1) with
+        (match Some(1) with
          | Some(1) | None -> "pass"
          | _ -> "fail")
         |> Stdlib.Test.equal("pass")
 
-        (match [ 1 ], Stdlib.Option.Option.Some(2) with
+        (match [ 1 ], Some(2) with
          | ([1], Some(_)) | ([_], Some(2)) -> "pass"
          | _ -> "fail")
         |> Stdlib.Test.equal("pass")
@@ -1085,14 +1085,12 @@ module PatternGrouping =
          | _ -> "fail")
         |> Stdlib.Test.equal(1)
 
-        (match Stdlib.Result.Result.Ok(1), Stdlib.Result.Result.Error(
-                 "error") with
+        (match Ok(1), Error("error") with
          | Ok(_), Ok(_) -> "pass"
          | (Error(err), Ok(_)) | (Ok(_), Error(err)) -> err)
         |> Stdlib.Test.equal("error")
 
-        (match Stdlib.Result.Result.Error("error"), Stdlib.Result.Result.Ok(
-                 1) with
+        (match Error("error"), Ok(1) with
          | Ok(_), Ok(_) -> "pass"
          | (Error(err), Ok(_)) | (Ok(_), Error(err)) -> err)
         |> Stdlib.Test.equal("error") ])
@@ -1123,10 +1121,10 @@ module PatternGrouping =
 // `p as name` matches what `p` matches and also binds the whole value to `name`.
 test asPatterns =
   Stdlib.Test.all(
-    [ (match Stdlib.Option.Option.Some(1) with
+    [ (match Some(1) with
        | Some(_) as o -> o
-       | None -> Stdlib.Option.Option.None)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+       | None -> None)
+      |> Stdlib.Test.equal(Some(1))
 
       (match [ 1, 2, 3 ] with
        | [first, ...] as all -> (first, Stdlib.List.length(all))
@@ -1139,12 +1137,12 @@ test asPatterns =
        | _ -> 0)
       |> Stdlib.Test.equal(2)
 
-      (match Stdlib.Option.Option.Some(5), 6 with
+      (match Some(5), 6 with
        | (Some(x) as o), n -> (o, x + n)
-       | _ -> (Stdlib.Option.Option.None, 0))
-      |> Stdlib.Test.equal((Stdlib.Option.Option.Some(5), 11))
+       | _ -> (None, 0))
+      |> Stdlib.Test.equal((Some(5), 11))
 
-      (match Stdlib.Option.Option.Some((1, 2)) with
+      (match Some((1, 2)) with
        | Some((a, _) as pair) -> (a, pair)
        | None -> (0, (0, 0)))
       |> Stdlib.Test.equal((1, (1, 2)))
@@ -1154,9 +1152,9 @@ test asPatterns =
        | _ -> 0)
       |> Stdlib.Test.equal(22)
 
-      (match Stdlib.Result.Result.Error(4) with
+      (match Error(4) with
        | (Ok(x) as r) | (Error(x) as r) -> (x, r))
-      |> Stdlib.Test.equal((4, Stdlib.Result.Result.Error(4)))
+      |> Stdlib.Test.equal((4, Error(4)))
 
       (match 3 with
        | n as m as k when n + m == 6 -> k
@@ -1184,7 +1182,7 @@ test nestedOrPatterns =
        | _ -> 0)
       |> Stdlib.Test.equal(5)
 
-      (match 9, Stdlib.Option.Option.Some(1) with
+      (match 9, Some(1) with
        | x, Some(1 | 2) -> x
        | _ -> 0)
       |> Stdlib.Test.equal(9)
@@ -1298,7 +1296,7 @@ module RecordPatterns =
         |> Stdlib.Test.equal("Jo")
 
         // inside other patterns
-        (match Stdlib.Option.Option.Some(jo()) with
+        (match Some(jo()) with
          | Some({ age }) -> age
          | None -> 0)
         |> Stdlib.Test.equal(30)

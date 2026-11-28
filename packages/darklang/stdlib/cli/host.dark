@@ -8,11 +8,10 @@ module OS =
 
   let getOS(): Result<OS, String> =
     match Builtin.runtimeTargetOS() with
-    | "linux" -> Result.Ok(OS.Linux)
-    | "darwin" -> Result.Ok(OS.MacOS)
-    | "windows" ->
-      Result.Error("Dark does not support Windows. Linux and macOS only, including WSL.")
-    | _ -> Result.Error("Unsupported operating system")
+    | "linux" -> Ok(OS.Linux)
+    | "darwin" -> Ok(OS.MacOS)
+    | "windows" -> Error("Dark does not support Windows. Linux and macOS only, including WSL.")
+    | _ -> Error("Unsupported operating system")
 
 
 module Architecture =
@@ -25,14 +24,14 @@ module Architecture =
 
   let getArchitecture(): Result<Architecture, String> =
     match Builtin.runtimeTargetArchitecture() with
-    | "x64" -> Result.Ok(Architecture.X86_64)
+    | "x64" -> Ok(Architecture.X86_64)
     | "arm64" ->
       if Builtin.runtimeTargetOS() == "darwin" then
-        Result.Ok(Architecture.Arm64)
+        Ok(Architecture.Arm64)
       else
-        Result.Ok(Architecture.Aarch64)
-    | "arm" -> Result.Ok(Architecture.Arm)
-    | _ -> Result.Error("Unsupported architecture")
+        Ok(Architecture.Aarch64)
+    | "arm" -> Ok(Architecture.Arm)
+    | _ -> Error("Unsupported architecture")
 
 
 module Shell =
@@ -47,22 +46,22 @@ module Shell =
   let getDefaultShell(): Result<Shell, String> =
     match OS.getOS() with
     | Ok(Linux) ->
-      Result.Ok(Option.withDefault(Env.get("SHELL"), "/bin/bash"))
+      Ok(Option.withDefault(Env.get("SHELL"), "/bin/bash"))
       |> Result.andThen(fun shell ->
         match String.trim(shell) with
-        | "/bin/bash" -> Result.Ok(Shell.Bash)
-        | "/bin/zsh" -> Result.Ok(Shell.Zsh)
-        | shell when shell |> String.contains("/fish") -> Result.Ok(Shell.Fish)
-        | _ -> Result.Error("Unsupported shell, if you are on Linux please use Bash, Zsh, or Fish"))
+        | "/bin/bash" -> Ok(Shell.Bash)
+        | "/bin/zsh" -> Ok(Shell.Zsh)
+        | shell when shell |> String.contains("/fish") -> Ok(Shell.Fish)
+        | _ -> Error("Unsupported shell, if you are on Linux please use Bash, Zsh, or Fish"))
     | Ok(MacOS) ->
-      Result.Ok(Option.withDefault(Env.get("SHELL"), "/bin/bash"))
+      Ok(Option.withDefault(Env.get("SHELL"), "/bin/bash"))
       |> Result.andThen(fun shell ->
         match String.trim(shell) with
-        | "/bin/zsh" -> Result.Ok(Shell.Zsh)
-        | shell when shell |> String.contains("/bin/bash") -> Result.Ok(Shell.Bash)
-        | shell when shell |> String.contains("/fish") -> Result.Ok(Shell.Fish)
-        | _ -> Result.Error("Unsupported shell, if you are on MacOS please use Bash, Zsh, or Fish"))
-    | Error(_) -> Result.Error("Unsupported OS, couldn't determine default shell")
+        | "/bin/zsh" -> Ok(Shell.Zsh)
+        | shell when shell |> String.contains("/bin/bash") -> Ok(Shell.Bash)
+        | shell when shell |> String.contains("/fish") -> Ok(Shell.Fish)
+        | _ -> Error("Unsupported shell, if you are on MacOS please use Bash, Zsh, or Fish"))
+    | Error(_) -> Error("Unsupported OS, couldn't determine default shell")
 
 
 module Host =
@@ -80,8 +79,7 @@ module Host =
     let defaultShell = Shell.getDefaultShell()
     match os, arch, defaultShell with
     | Ok(os), Ok(arch), Ok(defaultShell) ->
-      Result.Ok(Host { os = os, arch = arch, defaultShell = defaultShell })
-    | Error(os), _, _ -> Result.Error($"Couldn't determine host OS: ${os}")
-    | _, Error(arch), _ -> Result.Error($"Couldn't determine host architecture: ${arch}")
-    | _, _, Error(defaultShell) ->
-      Result.Error($"Couldn't determine host default shell ${defaultShell}")
+      Ok(Host { os = os, arch = arch, defaultShell = defaultShell })
+    | Error(os), _, _ -> Error($"Couldn't determine host OS: ${os}")
+    | _, Error(arch), _ -> Error($"Couldn't determine host architecture: ${arch}")
+    | _, _, Error(defaultShell) -> Error($"Couldn't determine host default shell ${defaultShell}")

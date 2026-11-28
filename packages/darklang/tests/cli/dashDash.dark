@@ -6,20 +6,19 @@ test acceptsTakesWordsAfterDashDash =
   let one = Cli.Accepts.between(1, 1, [])
   Stdlib.Test.all(
     [ Cli.Accepts.check("search", search, [ "--", "-foo" ])
-      |> Stdlib.Test.equal(Option.None)
+      |> Stdlib.Test.equal(None)
 
       Cli.Accepts.check("search", search, [ "--json", "--", "--bogus" ])
-      |> Stdlib.Test.equal(Option.None)
+      |> Stdlib.Test.equal(None)
 
       Cli.Accepts.check("search", search, [ "--bogus" ])
-      |> Stdlib.Test.equal(
-        Option.Some("`dark search` does not take `--bogus`."))
+      |> Stdlib.Test.equal(Some("`dark search` does not take `--bogus`."))
 
       Cli.Accepts.check("view", one, [ "--", "-x", "y" ])
-      |> Stdlib.Test.equal(Option.Some("`dark view` does not take `y`."))
+      |> Stdlib.Test.equal(Some("`dark view` does not take `y`."))
 
       Cli.Accepts.check("view", one, [ "--" ])
-      |> Stdlib.Test.equal(Option.Some("`dark view` needs an argument.")) ])
+      |> Stdlib.Test.equal(Some("`dark view` needs an argument.")) ])
 
 
 test flagParserStopsAtDashDash =

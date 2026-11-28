@@ -45,7 +45,7 @@ let parseDecls(
   : Result<WTCliScriptModule, ParseError> =
   // A parse error blocks declaration extraction — the recovered tree would be broken.
   match diagnostics with
-  | [first, ...] -> Result.Error(ParseError.Message(Parse.ParseError.diagnosticToString(first)))
+  | [first, ...] -> Error(ParseError.Message(Parse.ParseError.diagnosticToString(first)))
   | [] ->
     // `ParsedFile` is a single-case DU (`SourceFile of ...`). No `| _` fallback.
     match source with
@@ -54,46 +54,46 @@ let parseDecls(
         source.declarations
         |> Stdlib.List.filterMap(fun decl ->
           match decl with
-          | Type(t) -> Option.Some(t)
-          | _ -> Option.None)
+          | Type(t) -> Some(t)
+          | _ -> None)
 
       let values =
         source.declarations
         |> Stdlib.List.filterMap(fun decl ->
           match decl with
-          | Value(v) -> Option.Some(v)
-          | _ -> Option.None)
+          | Value(v) -> Some(v)
+          | _ -> None)
 
       let fns =
         source.declarations
         |> Stdlib.List.filterMap(fun decl ->
           match decl with
-          | Function(f) -> Option.Some(f)
-          | _ -> Option.None)
+          | Function(f) -> Some(f)
+          | _ -> None)
 
       let traits =
         source.declarations
         |> Stdlib.List.filterMap(fun decl ->
           match decl with
-          | Trait(t) -> Option.Some(t)
-          | _ -> Option.None)
+          | Trait(t) -> Some(t)
+          | _ -> None)
 
       let impls =
         source.declarations
         |> Stdlib.List.filterMap(fun decl ->
           match decl with
-          | Impl(i) -> Option.Some(i)
-          | _ -> Option.None)
+          | Impl(i) -> Some(i)
+          | _ -> None)
 
       let submodules =
         source.declarations
         |> Stdlib.List.filterMap(fun decl ->
           match decl with
-          | Module(m) -> Option.Some(m)
-          | _ -> Option.None)
+          | Module(m) -> Some(m)
+          | _ -> None)
 
       let exprs = source.exprsToEval
-      Result.Ok(
+      Ok(
         WTCliScriptModule
           { owner = owner
             name = scriptName
@@ -141,7 +141,7 @@ let toPT(
         ProgramTypes.PackageOp.SetName(
           location,
           ProgramTypes.Reference.PackageType(pt.hash),
-          Option.None) ]
+          None) ]
 
     (pt, ops, unresolvedNames))
 
@@ -161,7 +161,7 @@ let toPT(
         ProgramTypes.PackageOp.SetName(
           location,
           ProgramTypes.Reference.PackageValue(pv.hash),
-          Option.None) ]
+          None) ]
 
     (pv, ops, unresolvedNames))
 
@@ -178,10 +178,7 @@ let toPT(
 
     let ops =
       [ ProgramTypes.PackageOp.AddFn(pf)
-        ProgramTypes.PackageOp.SetName(
-          location,
-          ProgramTypes.Reference.PackageFn(pf.hash),
-          Option.None) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn(pf.hash), None) ]
 
     (pf, ops, unresolvedNames))
 
@@ -262,31 +259,31 @@ let stabilizedHash(
     let references =
       match provisional, stabilized with
       | AddType(before), AddType(after) ->
-        Option.Some(
+        Some(
           (
             ProgramTypes.Reference.PackageType(before.hash),
             ProgramTypes.Reference.PackageType(after.hash)))
       | AddValue(before), AddValue(after) ->
-        Option.Some(
+        Some(
           (
             ProgramTypes.Reference.PackageValue(before.hash),
             ProgramTypes.Reference.PackageValue(after.hash)))
       | AddFn(before), AddFn(after) ->
-        Option.Some(
+        Some(
           (
             ProgramTypes.Reference.PackageFn(before.hash),
             ProgramTypes.Reference.PackageFn(after.hash)))
       | AddTrait(before), AddTrait(after) ->
-        Option.Some(
+        Some(
           (
             ProgramTypes.Reference.PackageTrait(before.hash),
             ProgramTypes.Reference.PackageTrait(after.hash)))
       | AddTraitImpl(before), AddTraitImpl(after) ->
-        Option.Some(
+        Some(
           (
             ProgramTypes.Reference.PackageTraitImpl(before.hash),
             ProgramTypes.Reference.PackageTraitImpl(after.hash)))
-      | _ -> Option.None
+      | _ -> None
 
     match references with
     | Some((before, after)) ->
@@ -325,7 +322,7 @@ let parseFromWT(
   parsedFile: WrittenTypes.ParsedFile)
   : Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), ParseError> =
   match parseDecls(ctx.owner, scriptName, diagnostics, parsedFile) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(moduleWT) ->
     // First pass: parse and generate ops (allowing unresolved names)
     let (initialParse, provisionalFirstPassOps, _) =
@@ -441,7 +438,7 @@ let parseFromWT(
           submodules = adjustedSubmodules
           exprs = result.exprs }
 
-    Result.Ok((adjusted, unresolvedNames))
+    Ok((adjusted, unresolvedNames))
 
 
 /// Parse from source, then name-resolve + lower. Used by the parse-error test
@@ -456,8 +453,8 @@ let parse(
   // The first diagnostic only, as `parseDecls` reports it: the rest are often the parser's
   // recovery tripping over the same mistake.
   | Error(Syntax([first, ...])) ->
-    Result.Error(ParseError.Message(Parse.ParseError.diagnosticToString(first)))
-  | Error(e) -> Result.Error(ParseError.Message(Parse.ParseError.toString(e)))
+    Error(ParseError.Message(Parse.ParseError.diagnosticToString(first)))
+  | Error(e) -> Error(ParseError.Message(Parse.ParseError.toString(e)))
   | Ok(parsedFile) -> parseFromWT(ctx, scriptName, [], parsedFile)
 
 
@@ -490,12 +487,11 @@ let pmWithExtras(
   : Result<ProgramTypes.PackageManager.PackageManager, ParseError> =
   // The range-complete parser, matching the rest of the LSP.
   match Parse.parse(FileKind.Script, source) with
-  | None, [] -> Result.Error(ParseError.Message(Parse.ParseError.toString(Parse.ParseError.NoTree)))
-  | None, [first, ...] ->
-    Result.Error(ParseError.Message(Parse.ParseError.diagnosticToString(first)))
+  | None, [] -> Error(ParseError.Message(Parse.ParseError.toString(Parse.ParseError.NoTree)))
+  | None, [first, ...] -> Error(ParseError.Message(Parse.ParseError.diagnosticToString(first)))
   | Some(parsedFile), diagnostics ->
     match parseDecls(ctx.owner, scriptName, diagnostics, parsedFile) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(moduleWT) ->
       let (_, ops, _) = toPT(ctx, moduleWT)
       ProgramTypes.PackageManager.withExtraOps(ctx.pm, ops) |> Result.Ok

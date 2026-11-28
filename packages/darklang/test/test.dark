@@ -35,7 +35,7 @@ module Values =
 
   val unitValue = ()
 
-  val enumValue = Option.Some(5)
+  val enumValue = Some(5)
 
   val listValue = [ 1, 2, 3 ]
 

@@ -9,7 +9,7 @@ let performInputAction(state: State, inp: InputState): Step =
     | Ok(_) ->
       Step.Continue(
         { state with
-            input = Option.None
+            input = None
             items = reloadItems(state)
             selected = 0
             messageKind = MessageKind.Succeeded
@@ -19,7 +19,7 @@ let performInputAction(state: State, inp: InputState): Step =
       Step.Continue(
         { state with
             input =
-              Option.Some(
+              Some(
                 { inp with
                     prompt = "commit failed: " + e + " - esc"
                     field = Stdlib.Cli.UI.TextField.empty }) })
@@ -29,24 +29,24 @@ let performInputAction(state: State, inp: InputState): Step =
       let _ = SCM.PackageOps.discardDraftFor(state.branchId)
       Step.Continue(
         { state with
-            input = Option.None
+            input = None
             items = reloadItems(state)
             selected = 0
             messageKind = MessageKind.Succeeded
             message = "discarded all changes" })
     else
-      Step.Continue({ state with input = Option.None })
+      Step.Continue({ state with input = None })
   else if inp.action == "rename" then
     // A real rename: the old name ends and the same content binds at the new one. A lone SetName
     // ADDS a second name and leaves the first, which is not a rename. `Packages.Rename.ops` is the
     // one description of what a rename authors; `dark rename` uses it too.
     match Stdlib.List.getAt(state.items, state.selected) with
-    | None -> Step.Continue({ state with input = Option.None })
+    | None -> Step.Continue({ state with input = None })
     | Some(item) ->
       if item.isModule then
         Step.Continue(
           { state with
-              input = Option.None
+              input = None
               messageKind = MessageKind.Refused
               message = "rename failed: can't rename a module" })
       else
@@ -55,39 +55,34 @@ let performInputAction(state: State, inp: InputState): Step =
         let refOpt =
           if item.kind == "type" then
             match results.types with
-            | [i, ...] ->
-              Option.Some(LanguageTools.ProgramTypes.Reference.PackageType(i.entity.hash))
-            | [] -> Option.None
+            | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageType(i.entity.hash))
+            | [] -> None
           else if item.kind == "val" then
             match results.values with
-            | [i, ...] ->
-              Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue(i.entity.hash))
-            | [] -> Option.None
+            | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageValue(i.entity.hash))
+            | [] -> None
           else if item.kind == "trait" then
             match results.traits with
-            | [i, ...] ->
-              Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait(i.entity.hash))
-            | [] -> Option.None
+            | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageTrait(i.entity.hash))
+            | [] -> None
           else if item.kind == "impl" then
             match results.impls with
-            | [i, ...] ->
-              Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.entity.hash))
-            | [] -> Option.None
+            | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.entity.hash))
+            | [] -> None
           else if item.kind == "test" then
             match results.tests with
-            | [i, ...] ->
-              Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest(i.entity.hash))
-            | [] -> Option.None
+            | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageTest(i.entity.hash))
+            | [] -> None
           else
             match results.fns with
-            | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn(i.entity.hash))
-            | [] -> Option.None
+            | [i, ...] -> Some(LanguageTools.ProgramTypes.Reference.PackageFn(i.entity.hash))
+            | [] -> None
 
         match refOpt with
         | None ->
           Step.Continue(
             { state with
-                input = Option.None
+                input = None
                 messageKind = MessageKind.Refused
                 message = "rename failed: item not found" })
         | Some(reference) ->
@@ -95,7 +90,7 @@ let performInputAction(state: State, inp: InputState): Step =
           | Error(e) ->
             Step.Continue(
               { state with
-                  input = Option.None
+                  input = None
                   messageKind = MessageKind.Failed
                   message = "rename failed: " + e })
           | Ok(newLoc) ->
@@ -117,7 +112,7 @@ let performInputAction(state: State, inp: InputState): Step =
             | Ok(_) ->
               Step.Continue(
                 { state with
-                    input = Option.None
+                    input = None
                     items = reloadItems(state)
                     selected = 0
                     detailScroll = 0
@@ -126,12 +121,12 @@ let performInputAction(state: State, inp: InputState): Step =
             | Error(m) ->
               Step.Continue(
                 { state with
-                    input = Option.None
+                    input = None
                     messageKind = MessageKind.Failed
                     message = "rename failed: " + m })
   else if inp.action == "merge" then
     if inp.field.text != "y" then
-      Step.Continue({ state with input = Option.None })
+      Step.Continue({ state with input = None })
     else
       // The branch under the cursor, or the current one - the same choice the
       // prompt named.
@@ -159,7 +154,7 @@ let performInputAction(state: State, inp: InputState): Step =
         let moved = onBranch(state, parentId)
         Step.Continue(
           { moved with
-              input = Option.None
+              input = None
               items = itemsForView(state.activeView, parentId, state.location, state.matter.lens)
               selected = 0
               filter = ""
@@ -168,12 +163,12 @@ let performInputAction(state: State, inp: InputState): Step =
       | Error(e) ->
         Step.Continue(
           { state with
-              input = Option.None
+              input = None
               messageKind = MessageKind.Failed
               message = "merge failed: " + SCM.PackageOps.mergeErrorMessage(e) })
   else if inp.action == "rebase" then
     if inp.field.text != "y" then
-      Step.Continue({ state with input = Option.None })
+      Step.Continue({ state with input = None })
     else
       let target =
         match branchForAction(state) with
@@ -184,7 +179,7 @@ let performInputAction(state: State, inp: InputState): Step =
       | Ok(_) ->
         Step.Continue(
           { state with
-              input = Option.None
+              input = None
               items = reloadItems(state)
               selected = 0
               messageKind = MessageKind.Succeeded
@@ -192,7 +187,7 @@ let performInputAction(state: State, inp: InputState): Step =
       | Error(e) ->
         Step.Continue(
           { state with
-              input = Option.None
+              input = None
               messageKind = MessageKind.Failed
               message = "rebase failed: " + e })
   else if Stdlib.String.startsWith(inp.action, "author-") then
@@ -204,31 +199,27 @@ let performInputAction(state: State, inp: InputState): Step =
 
     if Stdlib.List.isEmpty(modParts) then
       Step.Continue(
-        { state with
-            input = Option.None
-            messageKind = MessageKind.Refused
-            message = "need an owner" })
+        { state with input = None, messageKind = MessageKind.Refused, message = "need an owner" })
     else
-      openNewEditor({ state with input = Option.None }, kind, modParts)
+      openNewEditor({ state with input = None }, kind, modParts)
   else if inp.action == "search" then
     // Global `/` search - open the matches in the jumpable search-results mode (empty -> a toast, no mode).
     let hits = runSearch(state.branchId, inp.field.text)
     if Stdlib.List.isEmpty(hits) then
       Step.Continue(
         { state with
-            input = Option.None
+            input = None
             messageKind = MessageKind.Refused
             message = "no matches for \"" + inp.field.text + "\"" })
     else
-      Step.Continue(
-        { state with input = Option.None, search = SearchState { hits = hits, selected = 0 } })
+      Step.Continue({ state with input = None, search = SearchState { hits = hits, selected = 0 } })
   else if inp.action == "command" then
     // The `:` command bar - run any old-school CLI command inside the workbench and show its output in the
     // reader (captured via stdoutCapture, so it never touches the frame). If the first word isn't a known
     // command, fall back to evaluating the whole line as a Dark expression, so `: 1 + 2` still works.
     let text = Stdlib.String.trim(inp.field.text)
     if text == "" then
-      Step.Continue({ state with input = Option.None })
+      Step.Continue({ state with input = None })
     else
       let words = Stdlib.String.split(text, " ") |> Stdlib.List.filter(fun w -> w != "")
       // A throwaway AppState to run the command against, pinned to the workbench's branch + account.
@@ -248,9 +239,9 @@ let performInputAction(state: State, inp: InputState): Step =
       // (their questions would be invisible). Hand the whole line off; the loop splits it, runs it
       // on the real terminal, and returns here on exit.
       if Registry.takesScreen(appState.allCommandsCache, cmd, args) then
-        Step.Launch({ state with input = Option.None }, text)
+        Step.Launch({ state with input = None }, text)
       else if Registry.needsTerminal(appState.allCommandsCache, cmd, args) then
-        Step.Launch({ state with input = Option.None }, text)
+        Step.Launch({ state with input = None }, text)
       else
         let isKnown = Stdlib.List.contains(allNames, cmd)
         let output = captureOutput(fun () ->
@@ -276,11 +267,11 @@ let performInputAction(state: State, inp: InputState): Step =
 
         Step.Continue(
           { state with
-              input = Option.None
+              input = None
               // Whatever ran may have changed what the item page shows, an approval for one.
               previews = []
               liveRuns = []
-              reading = Option.Some(Stdlib.Cli.UI.Colors.dimText("$ " + text) + "\n\n" + shown)
+              reading = Some(Stdlib.Cli.UI.Colors.dimText("$ " + text) + "\n\n" + shown)
               readingIsCode = false
               detailScroll = 0 })
   else if inp.action == "scratch" then
@@ -309,13 +300,12 @@ let performInputAction(state: State, inp: InputState): Step =
       Step.Continue(
         { state with
             repl = { state.repl with pending = soFar }
-            input =
-              Option.Some({ inp with prompt = "...   ", field = Stdlib.Cli.UI.TextField.empty }) })
+            input = Some({ inp with prompt = "...   ", field = Stdlib.Cli.UI.TextField.empty }) })
     else
       let text = Stdlib.String.trim(soFar)
       if text == "" then
         // An empty line with nothing pending closes the bar - the other way out, alongside esc.
-        Step.Continue({ state with repl = { state.repl with pending = "" }, input = Option.None })
+        Step.Continue({ state with repl = { state.repl with pending = "" }, input = None })
       else
         let ran =
           Repl.splitStatements(text)
@@ -326,19 +316,13 @@ let performInputAction(state: State, inp: InputState): Step =
         Step.Continue(
           { ran with
               repl = { ran.repl with pending = "" }
-              input =
-                Option.Some(
-                  { inp with prompt = "repl> ", field = Stdlib.Cli.UI.TextField.empty }) })
+              input = Some({ inp with prompt = "repl> ", field = Stdlib.Cli.UI.TextField.empty }) })
   else if inp.action == "filter" then
     // Record the filter, then reload through the ordinary path - `reloadItems` applies it, so this is the
     // same code every other reload runs and can't drift from it.
     let filtered = { state with filter = Stdlib.String.trim(inp.field.text) }
     Step.Continue(
-      { filtered with
-          input = Option.None
-          items = reloadItems(filtered)
-          selected = 0
-          detailScroll = 0 })
+      { filtered with input = None, items = reloadItems(filtered), selected = 0, detailScroll = 0 })
   else if inp.action == "branch-create" then
     // `create` hands back an Option: it looks the branch up after registering it, so a name that could
     // not be registered has nothing to return. Reading `.id` off the Option is a runtime error.
@@ -346,7 +330,7 @@ let performInputAction(state: State, inp: InputState): Step =
     | None ->
       Step.Continue(
         { state with
-            input = Option.None
+            input = None
             messageKind = MessageKind.Failed
             message = "couldn't start a branch called \"" + inp.field.text + "\"" })
     | Some(b) ->
@@ -363,15 +347,11 @@ let performInputAction(state: State, inp: InputState): Step =
         | Error(m) -> ("rename failed: " + m, MessageKind.Failed)
 
       Step.Continue(
-        { state with
-            input = Option.None
-            items = reloadItems(state)
-            messageKind = kind
-            message = msg })
-    | None -> Step.Continue({ state with input = Option.None })
+        { state with input = None, items = reloadItems(state), messageKind = kind, message = msg })
+    | None -> Step.Continue({ state with input = None })
   else if inp.action == "branch-delete" then
     if inp.field.text != "y" then
-      Step.Continue({ state with input = Option.None })
+      Step.Continue({ state with input = None })
     else
       match selectedBranch(state) with
       | Some(b) ->
@@ -379,7 +359,7 @@ let performInputAction(state: State, inp: InputState): Step =
         | Error(m) ->
           Step.Continue(
             { state with
-                input = Option.None
+                input = None
                 messageKind = MessageKind.Failed
                 message = "delete failed: " + m })
         | Ok(_) ->
@@ -397,26 +377,25 @@ let performInputAction(state: State, inp: InputState): Step =
           let moved = onBranch(state, landedOn)
           Step.Continue(
             { moved with
-                input = Option.None
+                input = None
                 items = reloadItems(moved)
                 selected = 0
                 messageKind = MessageKind.Succeeded
                 message = msg })
-      | None -> Step.Continue({ state with input = Option.None })
+      | None -> Step.Continue({ state with input = None })
   else if inp.action == "trace-delete" then
     if inp.field.text != "y" then
-      Step.Continue({ state with input = Option.None })
+      Step.Continue({ state with input = None })
     else
       match Stdlib.List.getAt(state.items, state.selected) with
       | Some(item) ->
         match TraceVerbs.find(item.name) with
         | Error(m) ->
-          Step.Continue(
-            { state with input = Option.None, messageKind = MessageKind.Refused, message = m })
+          Step.Continue({ state with input = None, messageKind = MessageKind.Refused, message = m })
         | Ok(run) ->
           let deleted = Tracing.Store.delete(run.id)
           let cleared =
-            { state with input = Option.None, messageKind = MessageKind.Succeeded, message = "" }
+            { state with input = None, messageKind = MessageKind.Succeeded, message = "" }
 
           let reloaded = { cleared with items = reloadItems(cleared) }
           // The list shortens, so the cursor can be past its end.
@@ -430,17 +409,17 @@ let performInputAction(state: State, inp: InputState): Step =
                     $"deleted {Text.shortIdText(run.id)}"
                   else
                     "that run was already gone" })
-      | None -> Step.Continue({ state with input = Option.None })
+      | None -> Step.Continue({ state with input = None })
   else if inp.action == "branch-switch" then
     // `main` by name: it has no branch record for `getByName` to find.
     let wanted = Stdlib.String.trim(inp.field.text)
     let target =
       if wanted == SCM.Branch.mainBranchName then
-        Option.Some(SCM.Branch.mainBranchId)
+        Some(SCM.Branch.mainBranchId)
       else
         match SCM.Branch.getByName(wanted) with
-        | Some(b) -> Option.Some(b.id)
-        | None -> Option.None
+        | Some(b) -> Some(b.id)
+        | None -> None
 
     match target with
     | Some(id) -> Step.Continue(switchWorkbenchBranch(state, id, wanted))
@@ -448,9 +427,9 @@ let performInputAction(state: State, inp: InputState): Step =
       Step.Continue(
         { state with
             input =
-              Option.Some(
+              Some(
                 { inp with
                     prompt = "no branch '" + inp.field.text + "' - esc"
                     field = Stdlib.Cli.UI.TextField.empty }) })
   else
-    Step.Continue({ state with input = Option.None })
+    Step.Continue({ state with input = None })

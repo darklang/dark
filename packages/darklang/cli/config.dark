@@ -6,38 +6,8 @@ let knownKeys(): List<String> =
   LanguageTools.LocalStore.configKeys()
 
 
-let smaller(a: Int64, b: Int64): Int64 =
-  if a < b then a else b
-
-
-/// Edits (insert, delete, substitute) between two strings, for "did you mean".
-let editDistance(a: String, b: String): Int64 =
-  let bs = Stdlib.String.toList(b)
-  let firstRow =
-    Stdlib.List.checkedRange(0, Stdlib.List.length(bs)) |> Stdlib.Result.withDefault([])
-
-  let lastRow =
-    Stdlib.String.toList(a)
-    |> Stdlib.List.indexedMap(fun(i, ca) -> (i, ca))
-    |> Stdlib.List.fold(firstRow, fun(prev, pair) ->
-      let (i, ca) = pair
-      bs
-      |> Stdlib.List.indexedMap(fun(j, cb) -> (j, cb))
-      |> Stdlib.List.fold([ i + 1 ], fun(row, pair) ->
-        let (j, cb) = pair
-        // `row` is built back to front, so its head is the cell to the left.
-        let left = Stdlib.Option.withDefault(Stdlib.List.head(row), 0)
-        let up = Stdlib.Option.withDefault(Stdlib.List.getAt(prev, j + 1), 0)
-        let diag = Stdlib.Option.withDefault(Stdlib.List.getAt(prev, j), 0)
-        let cost = if ca == cb then 0 else 1
-        Stdlib.List.prepend(row, smaller(smaller(left + 1, up + 1), diag + cost)))
-      |> Stdlib.List.reverse)
-
-  Stdlib.Option.withDefault(Stdlib.List.last(lastRow), 0)
-
-
-/// The key a typo most likely meant, when one is obvious: the same name in another case, the
-/// part after the dot alone (`record` for `trace.record`), or two edits away at most.
+/// The key a typo most likely meant, when one is obvious: the part after the dot alone
+/// (`record` for `trace.record`), or else the one nearest key. A tie is not obvious.
 let nearestKey(key: String): Option<String> =
   let lower = Stdlib.String.toLowercase(key)
   let keys = knownKeys()
@@ -47,22 +17,11 @@ let nearestKey(key: String): Option<String> =
       Stdlib.String.endsWith(Stdlib.String.toLowercase(k), "." + lower))
 
   match bySuffix with
-  | [only] -> Option.Some(only)
+  | [only] -> Some(only)
   | _ ->
-    let scored =
-      keys
-      |> Stdlib.List.map(fun k -> (editDistance(lower, Stdlib.String.toLowercase(k)), k))
-      |> Stdlib.List.sortBy(fun pair ->
-        let (d, _) = pair
-        d)
-
-    match scored with
-    | [(d, k), ...rest] when d <= 2 ->
-      match rest with
-      // A tie is not obvious.
-      | [(d2, _), ...] when d2 == d -> Option.None
-      | _ -> Option.Some(k)
-    | _ -> Option.None
+    match LanguageTools.Suggest.near(key, keys, []) with
+    | [only] -> Some(only)
+    | _ -> None
 
 
 /// A key `config list` describes: what it does, and what applies while it is not set.
@@ -143,9 +102,9 @@ let settings(): List<Setting> =
 /// The `DARK_CONFIG_*` name the runtime falls back to for <param key> while it is not set.
 let shellSettingOf(key: String): Option<String> =
   match key with
-  | "http.loopback" -> Option.Some("DARK_CONFIG_HTTP_LOOPBACK")
-  | "http.private" -> Option.Some("DARK_CONFIG_HTTP_PRIVATE")
-  | _ -> Option.None
+  | "http.loopback" -> Some("DARK_CONFIG_HTTP_LOOPBACK")
+  | "http.private" -> Some("DARK_CONFIG_HTTP_PRIVATE")
+  | _ -> None
 
 
 /// One row of `config list`: the value in effect, and where it came from.
@@ -168,7 +127,7 @@ let current(s: Setting): Current =
     let fromEnv =
       match shellSettingOf(s.key) with
       | Some(name) -> Stdlib.Cli.Env.get(name)
-      | None -> Option.None
+      | None -> None
 
     match fromEnv with
     | Some(v) when Stdlib.String.trim(v) != "" ->

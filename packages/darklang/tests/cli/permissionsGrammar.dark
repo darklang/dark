@@ -16,7 +16,7 @@ module PermissionsGrammar =
       [ "; file read '/tmp/one;two'; file read /tmp/three\\;four; "
         + "deny file write \"/tmp/five;six\"; " ])
     |> Stdlib.Test.equal(
-      Result.Ok(
+      Ok(
         LanguageTools.Permissions.Policy
           { allow =
               [ LanguageTools.Permissions.Rule.FileRead(
@@ -45,7 +45,7 @@ module PermissionsGrammar =
   let roundTrips(rule: LanguageTools.Permissions.Rule): Bool =
     LanguageTools.Permissions.parseRuleText(
       LanguageTools.Permissions.renderRule(rule))
-    == Stdlib.Option.Option.Some([ rule ])
+    == Some([ rule ])
 
 
   let exactHttp(): LanguageTools.Permissions.Rule =
@@ -86,17 +86,15 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRule([ "file", "read", "/tmp/x" ])
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            [ LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ]))
+          Some([ LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ]))
 
         LanguageTools.Permissions.parseRule([ "file", "write", "/tmp/x" ])
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            [ LanguageTools.Permissions.Rule.FileWrite(only("/tmp/x")) ]))
+          Some([ LanguageTools.Permissions.Rule.FileWrite(only("/tmp/x")) ]))
 
         LanguageTools.Permissions.parseRule([ "file", "read+write", "/tmp/x" ])
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.FileRead(only("/tmp/x"))
               LanguageTools.Permissions.Rule.FileWrite(only("/tmp/x")) ])) ])
 
@@ -106,19 +104,17 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRule([ "file", "read" ])
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.FileRead(
                 LanguageTools.Permissions.Scope.All) ]))
 
         LanguageTools.Permissions.parseRule([ "env", "read", "HOME" ])
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            [ LanguageTools.Permissions.Rule.EnvRead(only("HOME")) ]))
+          Some([ LanguageTools.Permissions.Rule.EnvRead(only("HOME")) ]))
 
         LanguageTools.Permissions.parseRule([ "env", "write", "PATH" ])
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            [ LanguageTools.Permissions.Rule.EnvWrite(only("PATH")) ])) ])
+          Some([ LanguageTools.Permissions.Rule.EnvWrite(only("PATH")) ])) ])
 
 
   // The store effects are not resource-scoped: bare effect names only.
@@ -126,40 +122,40 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRule([ "package-read" ])
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.Effect(
                 LanguageTools.Permissions.Effect.PackageRead) ]))
 
         LanguageTools.Permissions.parseRule([ "package", "read", "p" ])
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRule([ "trace", "read", "t" ])
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
   // Unknown access, unknown kind, unknown effect: never a wildcard.
   test unknownNeverWildcard =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRule([ "file", "execute", "/x" ])
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRule([ "disk", "read", "/x" ])
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRule([ "teleport" ])
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRule([ "http", "GET", "ftp://h/p" ])
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRuleText("http GET https://h:65536/p")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
   // Representative forms emitted by the F# denial hint (`Request.suggestRule`).
   test denialHintForms =
     LanguageTools.Permissions.parseRuleText("http GET https://h:443/p?q")
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ exactHttp() ]))
+    |> Stdlib.Test.equal(Some([ exactHttp() ]))
 
 
   // A query with no path: the host must not swallow the query.
@@ -167,7 +163,7 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRuleText("http GET https://h?x=1")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.Http(
                 LanguageTools.Permissions.HttpRule
                   { method = only("GET")
@@ -178,8 +174,7 @@ module PermissionsGrammar =
                     query = only("?x=1") }) ]))
 
         LanguageTools.Permissions.parseRuleText("process /bin/x")
-        |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some([ process("/bin/x", []) ])) ])
+        |> Stdlib.Test.equal(Some([ process("/bin/x", []) ])) ])
 
 
   let githubPrefix(path: String): LanguageTools.Permissions.Rule =
@@ -219,14 +214,14 @@ module PermissionsGrammar =
   test serverAddressIsRequired =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRuleText("http-server 9090")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRuleText("http-server example.com 9090")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRuleText("http-server localhost 9090")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.HttpServer(
                 only("127.0.0.1"),
                 LanguageTools.Permissions.Scope.Only(9090)) ])) ])
@@ -239,20 +234,19 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRuleText(
           "http GET 'https://api.github.com:443/*'")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ githubPrefix("/") ]))
+        |> Stdlib.Test.equal(Some([ githubPrefix("/") ]))
 
         LanguageTools.Permissions.parseRuleText(
           "http GET https://api.github.com/repos/*")
-        |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some([ githubPrefix("/repos") ]))
+        |> Stdlib.Test.equal(Some([ githubPrefix("/repos") ]))
 
         LanguageTools.Permissions.parseRuleText(
           "http GET https://api.github.com/repos/*/pulls")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRuleText(
           "http GET https://api.github.com/repos*")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
   // A relative executable would name a different program per working
@@ -260,25 +254,24 @@ module PermissionsGrammar =
   test relativeExecutableRejected =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRuleText("process ./tool")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRuleText("process tool --x")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRuleText("env read")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.EnvRead(
                 LanguageTools.Permissions.Scope.All) ]))
 
         LanguageTools.Permissions.parseRuleText("file read /tmp/x")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            [ LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ]))
+          Some([ LanguageTools.Permissions.Rule.FileRead(only("/tmp/x")) ]))
 
         LanguageTools.Permissions.parseRuleText("http-server 127.0.0.1 8080")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.HttpServer(
                 only("127.0.0.1"),
                 LanguageTools.Permissions.Scope.Only(8080)) ]))
@@ -324,7 +317,7 @@ module PermissionsGrammar =
     Stdlib.Test.all(
       [ LanguageTools.Permissions.parseRuleText("process *")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.Process(
                 LanguageTools.Permissions.ProcessRule
                   { executable = LanguageTools.Permissions.Scope.All
@@ -332,13 +325,13 @@ module PermissionsGrammar =
 
         LanguageTools.Permissions.parseRuleText("http-server * *")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             [ LanguageTools.Permissions.Rule.HttpServer(
                 LanguageTools.Permissions.Scope.All,
                 LanguageTools.Permissions.Scope.All) ]))
 
         LanguageTools.Permissions.parseRuleText("effect clock")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
   // Render/parse round trips.
@@ -477,7 +470,7 @@ module PermissionsGrammar =
             deny =
               [ LanguageTools.Permissions.Rule.FileWrite(only("/etc")) ] }))
     |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Ok(
+      Ok(
         LanguageTools.Permissions.Policy
           { allow =
               [ LanguageTools.Permissions.Rule.Effect(
@@ -503,10 +496,10 @@ module PermissionsGrammar =
             "http GET https://h/b?q=%C3%A9"))
 
         LanguageTools.Permissions.parseRuleText("http GET https://h/p#part")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         LanguageTools.Permissions.parseRuleText("http GET https://u@h/p")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
 /// The wider rules a denial suggests: a web path with any query, and a file's whole folder.
@@ -515,18 +508,18 @@ module DenialSuggestions =
     LanguageTools.Permissions.pathWideHttpRule(
       "http GET 'https://api.github.com:443/search/issues?q=repo:a/b+type:pr'")
     |> Stdlib.Test.equal(
-      Option.Some("http GET 'https://api.github.com:443/search/issues'"))
+      Some("http GET 'https://api.github.com:443/search/issues'"))
 
 
   test pathWideNeedsAQuery =
     LanguageTools.Permissions.pathWideHttpRule(
       "http GET 'https://api.github.com:443/repos'")
-    |> Stdlib.Test.equal(Option.None)
+    |> Stdlib.Test.equal(None)
 
 
   test folderOfOneFile =
     LanguageTools.Permissions.folderFileRules("file read '/tmp/work/a.txt'", [])
-    |> Stdlib.Test.equal(Option.Some([ "file read '/tmp/work'" ]))
+    |> Stdlib.Test.equal(Some([ "file read '/tmp/work'" ]))
 
 
   // A program that also writes gets both rules in one paste.
@@ -536,16 +529,16 @@ module DenialSuggestions =
       [ LanguageTools.Permissions.Effect.Stdout
         LanguageTools.Permissions.Effect.FileWrite ])
     |> Stdlib.Test.equal(
-      Option.Some([ "file read '/tmp/work'", "file write '/tmp/work'" ]))
+      Some([ "file read '/tmp/work'", "file write '/tmp/work'" ]))
 
 
   test noFolderForAFileAtTheRoot =
     LanguageTools.Permissions.folderFileRules("file write '/a.txt'", [])
-    |> Stdlib.Test.equal(Option.None)
+    |> Stdlib.Test.equal(None)
 
 
   test noFolderForOtherRules =
     LanguageTools.Permissions.folderFileRules(
       "http GET 'https://x.com:443/a'",
       [])
-    |> Stdlib.Test.equal(Option.None)
+    |> Stdlib.Test.equal(None)

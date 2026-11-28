@@ -164,7 +164,7 @@ type RoundError =
 /// outside 0 to 28, and {{Error OutOfRange}} when the padded value needs more than 96 bits.
 let roundWith(d: Decimal, places: Int64, mode: RoundingMode): Result<Decimal, RoundError> =
   if places < 0 || places > 28 then
-    Result.Error(RoundError.PlacesOutOfRange)
+    Error(RoundError.PlacesOutOfRange)
   else
     let (unscaled, s) = toParts(d)
     let rescaled =
@@ -190,8 +190,8 @@ let roundWith(d: Decimal, places: Int64, mode: RoundingMode): Result<Decimal, Ro
         if negative then 0z - kept else kept
 
     match fromParts(rescaled, places) with
-    | Some(r) -> Result.Ok(r)
-    | None -> Result.Error(RoundError.OutOfRange)
+    | Some(r) -> Ok(r)
+    | None -> Error(RoundError.OutOfRange)
 
 
 /// <param d> rounded to exactly <param places> places, half away from zero, the way
@@ -287,32 +287,32 @@ let checkedDivide(a: Decimal, b: Decimal): Result<Decimal, Math.DivisionError> =
 let checkedPower(base: Decimal, exponent: Int64): Result<Decimal, Math.DivisionError> =
   let n = BigInt.fromInt64(exponent)
   match __checkedPowerOf(base, abs(n)) with
-  | Error(_) -> Result.Error(Math.DivisionError.Overflow)
-  | Ok(d) -> if n < 0z then checkedDivide(1dec, d) else Result.Ok(d)
+  | Error(_) -> Error(Math.DivisionError.Overflow)
+  | Ok(d) -> if n < 0z then checkedDivide(1dec, d) else Ok(d)
 
 
 let __checkedPowerOf(b: Decimal, n: BigInt): Result<Decimal, Math.Overflow> =
   if n == 0z then
-    Result.Ok(1dec)
+    Ok(1dec)
   else
     let half = BigInt.checkedDivide(n, 2z) |> Result.withDefault(0z)
     match __checkedPowerOf(b, half) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(h) ->
       match checkedMultiply(h, h) with
-      | Error(e) -> Result.Error(e)
-      | Ok(square) -> if half * 2z == n then Result.Ok(square) else checkedMultiply(square, b)
+      | Error(e) -> Error(e)
+      | Ok(square) -> if half * 2z == n then Ok(square) else checkedMultiply(square, b)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: Decimal, b: Decimal): Result<Decimal, Math.ModulusError> =
   if b == 0dec then
-    Result.Error(Math.ModulusError.ZeroModulus)
+    Error(Math.ModulusError.ZeroModulus)
   else if b < 0dec then
-    Result.Error(Math.ModulusError.NegativeModulus)
+    Error(Math.ModulusError.NegativeModulus)
   else
-    Result.Ok(a % b)
+    Ok(a % b)
 
 
 /// What is left after taking whole multiples of <param divisor> out of <param value>,
@@ -321,10 +321,10 @@ let checkedMod(a: Decimal, b: Decimal): Result<Decimal, Math.ModulusError> =
 /// does not matter. {{Error DivisionByZero}} when <param divisor> is zero.
 let checkedRemainder(value: Decimal, divisor: Decimal): Result<Decimal, Math.DivisionError> =
   if divisor == 0dec then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else
     let r = Builtin.modulo(abs(value), abs(divisor))
-    Result.Ok(if value < 0dec then -r else r)
+    Ok(if value < 0dec then -r else r)
 
 
 /// The integer part of <param d>, rounding towards zero:
@@ -367,8 +367,8 @@ let toFloat64(d: Decimal): Float64 =
 /// for NaN, the infinities, and anything out of range.
 let fromFloat64(f: Float64): Option<Decimal> =
   match parse(display(f)) with
-  | Ok(d) -> Option.Some(d)
-  | Error(_) -> Option.None
+  | Ok(d) -> Some(d)
+  | Error(_) -> None
 
 
 /// The <type Float32> nearest <param d>, rounded once from the decimal
@@ -384,8 +384,8 @@ let toFloat32(d: Decimal): Float32 =
 /// anything out of range.
 let fromFloat32(f: Float32): Option<Decimal> =
   match parse(display(f)) with
-  | Ok(d) -> Option.Some(d)
-  | Error(_) -> Option.None
+  | Ok(d) -> Some(d)
+  | Error(_) -> None
 
 
 /// Parse <param s> as a decimal, keeping the places written:
@@ -409,13 +409,13 @@ let parse(s: String): Result<Decimal, ParseError> =
       else
         e
 
-    if isDigits(unsigned) then Result.toOption(BigInt.parse(e)) else Option.None
+    if isDigits(unsigned) then Result.toOption(BigInt.parse(e)) else None
 
   let (mantissa, exponent) =
     match String.split(body, "e") with
-    | [m] -> (m, Option.Some(0z))
+    | [m] -> (m, Some(0z))
     | [m, e] -> (m, exponentOf(e))
-    | _ -> ("", Option.None)
+    | _ -> ("", None)
 
   // `1.` has an empty fraction, which is malformed, not zero places
   let (whole, fraction) =
@@ -434,7 +434,7 @@ let parse(s: String): Result<Decimal, ParseError> =
   match exponent with
   | Some(exponent) ->
     if Bool.not(isDigits(whole) && isDigits(fraction)) then
-      Result.Error(ParseError.BadFormat)
+      Error(ParseError.BadFormat)
     else
       let digits = if places == 0z then whole else whole + fraction
       let places = places - exponent
@@ -442,7 +442,7 @@ let parse(s: String): Result<Decimal, ParseError> =
       // 29 digits is the most 96 bits can hold, so a larger shift is out of range
       // anyway; checking first keeps `1e999999999` from building a billion-digit BigInt
       if places < -29z || places > 28z + BigInt.fromInt64(String.length(digits)) then
-        Result.Error(ParseError.OutOfRange)
+        Error(ParseError.OutOfRange)
       else
         let magnitude = Result.withDefault(BigInt.parse(digits), 0z)
         let unscaled = if negative then 0z - magnitude else magnitude
@@ -454,6 +454,6 @@ let parse(s: String): Result<Decimal, ParseError> =
             fromParts(unscaled, Builtin.unwrap(BigInt.toInt64(places)))
 
         match parts with
-        | Some(d) -> Result.Ok(d)
-        | None -> Result.Error(ParseError.OutOfRange)
-  | None -> Result.Error(ParseError.BadFormat)
+        | Some(d) -> Ok(d)
+        | None -> Error(ParseError.OutOfRange)
+  | None -> Error(ParseError.BadFormat)

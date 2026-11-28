@@ -34,13 +34,13 @@ let __configWrite(key: String, value: Option<String>): Result<Unit, String> =
 
 /// Write a setting. See `__configWrite` for what is refused.
 let configSet(key: String, value: String): Result<Unit, String> =
-  __configWrite(key, Option.Some(value))
+  __configWrite(key, Some(value))
 
 
 /// Unset a setting, so its reader falls back to the default. Unsetting a key that is not set is
 /// fine; the keys only the runtime writes are refused.
 let configUnset(key: String): Result<Unit, String> =
-  __configWrite(key, Option.None)
+  __configWrite(key, None)
 
 
 /// The keys `config get` reads: every setting a person sets, and `instance.id`.

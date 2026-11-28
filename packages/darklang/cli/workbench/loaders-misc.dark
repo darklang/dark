@@ -107,11 +107,11 @@ let cursorOnMainRow(state: State): Bool =
 /// Main comes from its constants, everything else through `selectedBranch`.
 let branchRowTarget(state: State): Option<(Uuid * String)> =
   if cursorOnMainRow(state) then
-    Option.Some((SCM.Branch.mainBranchId, SCM.Branch.mainBranchName))
+    Some((SCM.Branch.mainBranchId, SCM.Branch.mainBranchName))
   else
     match selectedBranch(state) with
-    | Some(b) -> Option.Some((b.id, b.name))
-    | None -> Option.None
+    | Some(b) -> Some((b.id, b.name))
+    | None -> None
 
 
 /// The branch the cursor is on, resolved by name rather than by position.
@@ -122,7 +122,7 @@ let branchRowTarget(state: State): Option<(Uuid * String)> =
 /// through here.
 let selectedBranch(state: State): Option<SCM.Branch.Branch> =
   match Stdlib.List.getAt(state.items, state.selected) with
-  | None -> Option.None
+  | None -> None
   | Some(item) ->
     // Rows read "<marker> <name>[   (merged)]" - see `loadBranchItems`.
     let name =
@@ -153,7 +153,7 @@ let branchForAction(state: State): Option<SCM.Branch.Branch> =
 /// The conflict the cursor is on, by location. Same filtered-cursor reasoning as `selectedBranch`.
 let selectedConflict(state: State): Option<SCM.Conflicts.Conflict> =
   match Stdlib.List.getAt(state.items, state.selected) with
-  | None -> Option.None
+  | None -> None
   | Some(item) ->
     let location =
       Stdlib.String.split(item.name, "  ·  ")

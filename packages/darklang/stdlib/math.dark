@@ -168,16 +168,16 @@ let asinh(x: Float64): Float64 =
 /// This function is the inverse of <fn Math.cosh>.
 let acosh(x: Float64): Option<Float64> =
   if x < 1.0 || Float64.isNaN(x) then
-    Option.None
+    None
   else if x == 1.0 then
-    Option.Some(0.0)
+    Some(0.0)
   else if x >= __huge then
-    Option.Some(Float64.log(x) + __ln2)
+    Some(Float64.log(x) + __ln2)
   else if x > 2.0 then
-    Option.Some(Float64.log(2.0 * x - 1.0 / (x + Float64.sqrt(x * x - 1.0))))
+    Some(Float64.log(2.0 * x - 1.0 / (x + Float64.sqrt(x * x - 1.0))))
   else
     let t = x - 1.0
-    Option.Some(__logOnePlus(t + Float64.sqrt(2.0 * t + t * t)))
+    Some(__logOnePlus(t + Float64.sqrt(2.0 * t + t * t)))
 
 
 // Algorithm from FreeBSD's math library (msun, e_atanh.c)
@@ -187,11 +187,11 @@ let acosh(x: Float64): Option<Float64> =
 let atanh(x: Float64): Option<Float64> =
   let a = __abs(x)
   if a > 1.0 || Float64.isNaN(x) then
-    Option.None
+    None
   else if a == 1.0 then
-    Option.Some(if x < 0.0 then Float64.negativeInfinity else Float64.infinity)
+    Some(if x < 0.0 then Float64.negativeInfinity else Float64.infinity)
   else if a < __tiny then
-    Option.Some(x)
+    Some(x)
   else
     // atanh(a) = log((1 + a) / (1 - a)) / 2, written with logOnePlus for accuracy
     let r =
@@ -200,7 +200,7 @@ let atanh(x: Float64): Option<Float64> =
       else
         0.5 * __logOnePlus(2.0 * a / (1.0 - a))
 
-    Option.Some(if x < 0.0 then -r else r)
+    Some(if x < 0.0 then -r else r)
 
 
 /// Returns the natural logarithm of <param x>, its logarithm to base <fn Math.e>.
@@ -220,10 +220,10 @@ let log2(x: Float64): Option<Float64> =
     // cancel its digits away (which happens for x just above 1 otherwise)
     let m = Float64.scaleByPowerOfTwo(x, -e)
     if m == 1.0 then
-      Option.Some(Int64.toFloat64(e))
+      Some(Int64.toFloat64(e))
     else
       let (m, e) = if m > __sqrt2 then (m * 0.5, e + 1) else (m, e)
-      Option.Some(fusedMultiplyAdd(Float64.log(m), __log2OfE, Int64.toFloat64(e)))
+      Some(fusedMultiplyAdd(Float64.log(m), __log2OfE, Int64.toFloat64(e)))
   | _ ->
     // 0 gives -infinity, infinity gives infinity, negatives and NaN give None
     __nanIsNone(Float64.log(x))
@@ -242,17 +242,14 @@ let log10(x: Float64): Option<Float64> =
 /// {{1.0 + x}} would round it away. {{None}} where <param x> is below {{-1.0}}.
 let logOnePlus(x: Float64): Option<Float64> =
   if Float64.isNaN(x) || x < -1.0 then
-    Option.None
+    None
   else if x == Float64.infinity then
-    Option.Some(x)
+    Some(x)
   else
     // Kahan's trick: multiplying by x / (u - 1) compensates for rounding 1 + x.
     // Compute the ratio first so the multiplication stays finite for finite x > -1.
     let u = 1.0 + x
-    if u == 1.0 then
-      Option.Some(x)
-    else
-      Option.Some(Float64.log(u) * (x / (u - 1.0)))
+    if u == 1.0 then Some(x) else Some(Float64.log(u) * (x / (u - 1.0)))
 
 
 /// Returns <fn Math.e> raised to the power <param x>.
@@ -453,7 +450,7 @@ let __abs(x: Float64): Float64 =
 
 /// {{None}} for NaN, {{Some}} for everything else
 let __nanIsNone(r: Float64): Option<Float64> =
-  if Float64.isNaN(r) then Option.None else Option.Some(r)
+  if Float64.isNaN(r) then None else Some(r)
 
 
 /// What a fixed-width `checked` function returns where the operator would wrap:
@@ -533,6 +530,6 @@ let __inRange(
   make: Int64 -> 'a)
   : Result<'a, OutOfRange> =
   if value < min || value > max then
-    Result.Error(OutOfRange { what = what, value = value, min = min, max = max })
+    Error(OutOfRange { what = what, value = value, min = min, max = max })
   else
-    Result.Ok(make(value))
+    Ok(make(value))

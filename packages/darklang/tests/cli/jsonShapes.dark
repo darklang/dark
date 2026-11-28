@@ -892,6 +892,6 @@ test searchJsonRanksAndLimitsLikeText = Instance.withInstance(fun i ->
            [ results
              |> Stdlib.List.head
              |> Stdlib.Option.map(fun r -> string(r, "name"))
-             |> Stdlib.Test.equal(Option.Some("Darklang.Stdlib.List.map"))
+             |> Stdlib.Test.equal(Some("Darklang.Stdlib.List.map"))
 
              Stdlib.List.length(fns) |> Stdlib.Test.equal(2) ])) ]))

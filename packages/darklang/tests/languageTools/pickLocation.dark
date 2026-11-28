@@ -13,8 +13,7 @@ let loc(
 
 let ctx(currentModule: List<String>): LanguageTools.PackageManager.PickContext =
   LanguageTools.PackageManager.PickContext
-    { currentModule = currentModule
-      preferredLocation = Stdlib.Option.Option.None }
+    { currentModule = currentModule, preferredLocation = None }
 
 
 let preferCtx(
@@ -23,7 +22,7 @@ let preferCtx(
   : LanguageTools.PackageManager.PickContext =
   LanguageTools.PackageManager.PickContext
     { currentModule = currentModule
-      preferredLocation = Stdlib.Option.Option.Some(preferredLocation) }
+      preferredLocation = Some(preferredLocation) }
 
 
 let pick(
@@ -83,15 +82,13 @@ test countMatchingPrefix =
 
 
 // pickLocation: empty list → None
-test emptyListPicksNothing =
-  pick(emptyCtx(), []) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+test emptyListPicksNothing = pick(emptyCtx(), []) |> Stdlib.Test.equal(None)
 
 
 // pickLocation: single location → always returns it
 test singleLocationIsPicked =
   pick(emptyCtx(), [ loc("Darklang", [ "Stdlib", "List" ], "map") ])
-  |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
+  |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
 
 
 // pickLocation: no context → prefer shorter path
@@ -104,16 +101,14 @@ test shorterPathWinsWithoutContext =
         emptyCtx(),
         [ loc("Darklang", [], "Person")
           loc("Darklang", [ "UserDefinedAliases" ], "Person2") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [], "Person")))
+      |> Stdlib.Test.equal(Some(loc("Darklang", [], "Person")))
 
       // Reversed input order — shorter still wins
       pick(
         emptyCtx(),
         [ loc("Darklang", [ "UserDefinedAliases" ], "Person2")
           loc("Darklang", [], "Person") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [], "Person"))) ])
+      |> Stdlib.Test.equal(Some(loc("Darklang", [], "Person"))) ])
 
 
 // pickLocation: context matches one location → prefer it
@@ -125,8 +120,7 @@ test contextMatchWins =
         ctx([ "Darklang", "Stdlib", "List" ]),
         [ loc("Darklang", [ "Stdlib", "List" ], "map")
           loc("Darklang", [ "SomeOther" ], "map") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
 
       // Reversed — context match still wins
       pick(
@@ -134,8 +128,7 @@ test contextMatchWins =
         [ loc("Darklang", [ "SomeOther" ], "map")
           loc("Darklang", [ "Stdlib", "List" ], "map") ])
       |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(
-          loc("Darklang", [ "Stdlib", "List" ], "map"))) ])
+        Some(loc("Darklang", [ "Stdlib", "List" ], "map"))) ])
 
 
 // pickLocation: partial prefix match beats no match
@@ -147,8 +140,7 @@ test partialPrefixBeatsNoMatch =
     ctx([ "Darklang", "Stdlib", "Json" ]),
     [ loc("Darklang", [ "SomeOther" ], "map")
       loc("Darklang", [ "Stdlib", "List" ], "map") ])
-  |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
+  |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
 
 
 // pickLocation: equal prefix match → shorter path wins
@@ -159,8 +151,7 @@ test equalPrefixShorterPathWins =
     ctx([ "Darklang", "Stdlib" ]),
     [ loc("Darklang", [ "Stdlib", "List", "Internal" ], "helper")
       loc("Darklang", [ "Stdlib", "List" ], "helper") ])
-  |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib", "List" ], "helper")))
+  |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib", "List" ], "helper")))
 
 
 // pickLocation: equal prefix and equal length → first one wins (stable
@@ -171,15 +162,13 @@ test fullTieKeepsFirst =
         emptyCtx(),
         [ loc("Darklang", [ "Stdlib" ], "foo")
           loc("Darklang", [ "AltLib" ], "foo") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib" ], "foo")))
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib" ], "foo")))
 
       pick(
         emptyCtx(),
         [ loc("Darklang", [ "AltLib" ], "foo")
           loc("Darklang", [ "Stdlib" ], "foo") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "AltLib" ], "foo"))) ])
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "AltLib" ], "foo"))) ])
 
 
 // pickLocation: context wins over shorter path
@@ -192,8 +181,7 @@ test contextBeatsShorterPath =
     [ loc("Darklang", [], "Person")
       loc("Darklang", [ "UserDefinedAliases" ], "Person2") ])
   |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(
-      loc("Darklang", [ "UserDefinedAliases" ], "Person2")))
+    Some(loc("Darklang", [ "UserDefinedAliases" ], "Person2")))
 
 
 // pickLocation: deeper context match beats shallow match
@@ -205,8 +193,7 @@ test deeperContextMatchWins =
     ctx([ "Darklang", "Stdlib", "List" ]),
     [ loc("Darklang", [ "Stdlib" ], "map")
       loc("Darklang", [ "Stdlib", "List" ], "map") ])
-  |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
+  |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
 
 
 // pickLocation: different owners
@@ -218,16 +205,14 @@ test differentOwners =
         ctx([ "Stachu", "MyLib" ]),
         [ loc("Darklang", [ "Stdlib" ], "helper")
           loc("Stachu", [ "MyLib" ], "helper") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Stachu", [ "MyLib" ], "helper")))
+      |> Stdlib.Test.equal(Some(loc("Stachu", [ "MyLib" ], "helper")))
 
       // No context, both paths length 2 — first one wins (stable)
       pick(
         emptyCtx(),
         [ loc("Darklang", [ "Stdlib" ], "helper")
           loc("Stachu", [ "MyLib" ], "helper") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib" ], "helper"))) ])
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib" ], "helper"))) ])
 
 
 // pickLocation: three candidates with context
@@ -240,8 +225,7 @@ test threeCandidates =
           loc("Darklang", [ "Stdlib" ], "flatten")
           loc("Darklang", [ "Stdlib", "List" ], "flatten") ])
       |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(
-          loc("Darklang", [ "Stdlib", "List" ], "flatten")))
+        Some(loc("Darklang", [ "Stdlib", "List" ], "flatten")))
 
       // Same three, empty context — shortest path wins
       pick(
@@ -249,8 +233,7 @@ test threeCandidates =
         [ loc("Darklang", [], "flatten")
           loc("Darklang", [ "Stdlib" ], "flatten")
           loc("Darklang", [ "Stdlib", "List" ], "flatten") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [], "flatten"))) ])
+      |> Stdlib.Test.equal(Some(loc("Darklang", [], "flatten"))) ])
 
 
 // pickLocation: an asked-for name beats scoring
@@ -265,8 +248,7 @@ test askedForNameBeatsScoring =
           loc("Darklang", [ "SomeOther" ], "map")),
         [ loc("Darklang", [ "Stdlib", "List" ], "map")
           loc("Darklang", [ "SomeOther" ], "map") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "SomeOther" ], "map")))
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "SomeOther" ], "map")))
 
       // The order it comes back in does not matter either.
       pick(
@@ -275,8 +257,7 @@ test askedForNameBeatsScoring =
           loc("Darklang", [ "SomeOther" ], "map")),
         [ loc("Darklang", [ "SomeOther" ], "map")
           loc("Darklang", [ "Stdlib", "List" ], "map") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "SomeOther" ], "map")))
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "SomeOther" ], "map")))
 
       // A preference for a name this hash is NOT bound to is ignored rather than
       // honoured: scoring is right for every case except the one the caller named.
@@ -286,13 +267,11 @@ test askedForNameBeatsScoring =
           loc("Darklang", [ "Absent" ], "map")),
         [ loc("Darklang", [ "Stdlib", "List" ], "map")
           loc("Darklang", [ "SomeOther" ], "map") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib", "List" ], "map")))
 
       // A preference that differs only by name is a different location, so it
       // does not match.
       pick(
         preferCtx([], loc("Darklang", [ "Stdlib" ], "second")),
         [ loc("Darklang", [ "Stdlib" ], "first") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(loc("Darklang", [ "Stdlib" ], "first"))) ])
+      |> Stdlib.Test.equal(Some(loc("Darklang", [ "Stdlib" ], "first"))) ])

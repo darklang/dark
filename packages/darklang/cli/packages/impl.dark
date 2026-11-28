@@ -15,11 +15,11 @@ let traitTakesTheName(
   : Option<String> =
   match LanguageTools.PackageManager.Trait.find(branchId, location) with
   | Some(_) ->
-    Option.Some(
+    Some(
       Stdlib.String.join(
         Stdlib.List.append(Stdlib.List.prepend(location.modules, location.owner), location.name),
         "."))
-  | None -> Option.None
+  | None -> None
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -85,8 +85,8 @@ let createImplInline(state: AppState, modulePath: String, definition: String): A
     hint,
     fun(baseLocation, declaration) ->
       match declaration with
-      | Impl(implDecl) -> Option.Some(saveImpl(state, baseLocation, implDecl))
-      | _ -> Option.None)
+      | Impl(implDecl) -> Some(saveImpl(state, baseLocation, implDecl))
+      | _ -> None)
 
 
 let saveImpl(
@@ -163,9 +163,9 @@ let saveImpl(
             Stdlib.Cli.UI.Colors.hint(
               "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them."))
 
-          Option.None
+          None
         else
-          Option.Some((ops, packageImpl.hash, unresolvedNames)))
+          Some((ops, packageImpl.hash, unresolvedNames)))
 
 
 let help(_state: AppState): String =

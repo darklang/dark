@@ -80,40 +80,40 @@ let definitionFromArgs(args: List<String>): Result<String, String> =
   // name may fail closed (the link check treats what it cannot inspect as a link).
   | [path] when if Stdlib.String.contains(path, " ") then false else Stdlib.Cli.File.exists(path) ->
     match Stdlib.Cli.File.readText(path) with
-    | Ok(source) -> Result.Ok(source)
-    | Error(_) -> Result.Ok(path)
+    | Ok(source) -> Ok(source)
+    | Error(_) -> Ok(path)
   | parts ->
     let joined = Stdlib.String.join(parts, " ") |> Stdlib.String.trim
     if Stdlib.String.startsWith(joined, "=") then
-      Result.Ok(Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim)
+      Ok(Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim)
     else
-      Result.Ok(joined)
+      Ok(joined)
 
 
 /// <fn definitionFromArgs>, and the text of a `--description <text>` among <param args>: the doc
 /// `fn`, `type`, `val`, `trait` and `test add` give what they save.
 let definitionAndDescription(args: List<String>): Result<(String * Option<String>), String> =
   match takeDescription(args) with
-  | Error(message) -> Result.Error(message)
+  | Error(message) -> Error(message)
   | Ok((description, rest)) ->
     match definitionFromArgs(rest) with
-    | Error(message) -> Result.Error(message)
-    | Ok(definition) -> Result.Ok((definition, description))
+    | Error(message) -> Error(message)
+    | Ok(definition) -> Ok((definition, description))
 
 
 /// The last `--description <text>` in <param args>, and the arguments without it.
 let takeDescription(args: List<String>): Result<(Option<String> * List<String>), String> =
   match args with
-  | [] -> Result.Ok((Option.None, []))
-  | ["--description"] -> Result.Error("`--description` needs a value.")
+  | [] -> Ok((None, []))
+  | ["--description"] -> Error("`--description` needs a value.")
   | ["--description", text, ...rest] ->
     match takeDescription(rest) with
-    | Ok((None, others)) -> Result.Ok((Option.Some(Stdlib.String.trim(text)), others))
+    | Ok((None, others)) -> Ok((Some(Stdlib.String.trim(text)), others))
     | other -> other
   | [arg, ...rest] ->
     match takeDescription(rest) with
-    | Ok((description, others)) -> Result.Ok((description, Stdlib.List.prepend(others, arg)))
-    | Error(message) -> Result.Error(message)
+    | Ok((description, others)) -> Ok((description, Stdlib.List.prepend(others, arg)))
+    | Error(message) -> Error(message)
 
 
 /// Where the code of <param definition> starts: past blank lines and `//` comment lines, so a
@@ -171,21 +171,19 @@ let authoredDocs(
   ops
   |> Stdlib.List.filterMap(fun op ->
     match op with
-    | AddFn(fn) -> Option.Some(docsOfFn(fn))
-    | AddType(t) -> Option.Some(docsOfType(t))
-    | AddValue(v) -> Option.Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
+    | AddFn(fn) -> Some(docsOfFn(fn))
+    | AddType(t) -> Some(docsOfType(t))
+    | AddValue(v) -> Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
     | AddTrait(t) ->
-      Option.Some(
+      Some(
         Stdlib.List.prepend(
           t.methods
           |> Stdlib.List.map(fun m ->
             (LanguageTools.ProgramTypes.DocPart.RecordField(m.name), m.description)),
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)))
-    | AddTraitImpl(i) ->
-      Option.Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
-    | AddTest(test) ->
-      Option.Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ])
-    | _ -> Option.None)
+    | AddTraitImpl(i) -> Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
+    | AddTest(test) -> Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ])
+    | _ -> None)
   |> Stdlib.List.flatten
 
 
@@ -272,28 +270,23 @@ let updateDocsThatChanged(
       let (part, text) = pair
       match docAt(current, part) with
       // A part the declaration does not have is not an edit to anything.
-      | None -> Option.None
+      | None -> None
       | Some(currentText) ->
         if currentText == text then
-          Option.None
+          None
         // Silence is not a statement that the existing words are wrong. Clearing a doc is sayable
         // (the op takes an empty text), just not by omitting one.
         else if text == "" then
-          Option.None
+          None
         else
           let previous =
             if currentText == "" then
-              Option.None
+              None
             else
-              Option.Some(LanguageTools.ProgramTypes.hashOfText(currentText))
+              Some(LanguageTools.ProgramTypes.hashOfText(currentText))
 
-          Option.Some(
-            LanguageTools.ProgramTypes.PackageOp.UpdateDoc(
-              location,
-              part,
-              text,
-              previous,
-              Option.None)))
+          Some(
+            LanguageTools.ProgramTypes.PackageOp.UpdateDoc(location, part, text, previous, None)))
 
   if Stdlib.List.isEmpty(updates) then
     false
@@ -367,7 +360,7 @@ let commitAuthored(
     let docOnly = isUpdate && Stdlib.Bool.not(movedVersion) && docsChanged
     let sameAs =
       if isUpdate && Stdlib.Bool.not(movedVersion) then
-        Option.None
+        None
       else
         LanguageTools.PackageManager.itemLocations(branchId, kind, boundHash)
         |> Stdlib.List.filter(fun other -> other != location)
@@ -379,7 +372,7 @@ let commitAuthored(
     let reverted =
       isUpdate
       && Stdlib.Bool.not(movedVersion)
-      && Stdlib.List.head(previousHashes) != Option.Some(boundHash)
+      && Stdlib.List.head(previousHashes) != Some(boundHash)
 
     // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
     // it already had and carries no new text saved NOTHING, and re-running the same authoring
@@ -417,7 +410,7 @@ let commitAuthored(
         // left behind, and only the first issue is shown
         let issues = Stdlib.List.concat(report.diagnostics, report.warnings)
         match issues with
-        | [] -> Option.Some("it failed the type check")
+        | [] -> Some("it failed the type check")
         | [issue, ...rest] ->
           // The CODE as well as the message. `dark docs traits` names these codes, they are
           // what somebody searches for, and `dark import` prints them through
@@ -438,8 +431,8 @@ let commitAuthored(
                 [],
                 issue))
 
-          Option.Some(first)
-      | _ -> Option.None
+          Some(first)
+      | _ -> None
 
     let ownIssueNode =
       match report.verdict with
@@ -447,7 +440,7 @@ let commitAuthored(
         Stdlib.List.concat(report.diagnostics, report.warnings)
         |> Stdlib.List.head
         |> Stdlib.Option.andThen(fun issue -> issue.nodeId)
-      | _ -> Option.None
+      | _ -> None
 
     let otherIssues =
       match report.verdict with
@@ -456,7 +449,7 @@ let commitAuthored(
         if all > 1 then all - 1 else 0
       | _ -> 0
 
-    Result.Ok(
+    Ok(
       Committed
         { isUpdate = isUpdate
           landed = landed
@@ -469,7 +462,7 @@ let commitAuthored(
           sameAs = sameAs
           report = report
           unresolvedTraitCalls = authored.unresolvedTraitCalls })
-  | Error(msg) -> Result.Error(msg)
+  | Error(msg) -> Error(msg)
 
 
 /// What `fn`, `type`, `val` and `trait` share before saving: resolve <param locationStr>, parse the
@@ -503,12 +496,12 @@ let authorInline(
       match tree with
       | Some(SourceFile(sourceFile)) ->
         if Errors.reportParseErrors(diagnostics) || Errors.reportTrailing(sourceFile) then
-          Option.Some(failed(state))
+          Some(failed(state))
         else
           match sourceFile.declarations with
           | [declaration] -> save(location, declaration)
-          | _ -> Option.None
-      | None -> Option.None
+          | _ -> None
+      | None -> None
 
     match saved with
     | Some(result) -> result
@@ -524,7 +517,7 @@ let deprecatedHashBeforeSave(
   kind: LanguageTools.ProgramTypes.ItemKind)
   : Option<LanguageTools.ProgramTypes.Hash> =
   match SCM.Propagation.hashOn(branchId, location, kind) with
-  | None -> Option.None
+  | None -> None
   | Some(hash) ->
     LanguageTools.PackageManager.currentDeprecation(branchId, location, hash, kind)
     |> Stdlib.Option.map(fun _ -> hash)
@@ -539,16 +532,16 @@ let deprecationSaveNote(
   : Option<(Bool * String)> =
   let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
   match SCM.Propagation.hashOn(branchId, location, kind) with
-  | None -> Option.None
+  | None -> None
   | Some(current) ->
     let unchanged = current == previous
     match LanguageTools.PackageManager.currentDeprecation(branchId, location, current, kind) with
     | Some(_) ->
       let status = if unchanged then "unchanged and still deprecated" else "still deprecated"
-      Option.Some((unchanged, $"{name} is {status}. Use `dark restore {name}` to reactivate it."))
+      Some((unchanged, $"{name} is {status}. Use `dark restore {name}` to reactivate it."))
     | None when Stdlib.Bool.not(unchanged) ->
-      Option.Some((false, $"The new definition of {name} is active."))
-    | _ -> Option.None
+      Some((false, $"The new definition of {name} is active."))
+    | _ -> None
 
 
 /// Shared tail of the authoring flow: build the name-resolution context, convert the written
@@ -627,7 +620,7 @@ let saveAuthored(
             | None -> ""
 
           Stdlib.printLine($"{glyph} {action} {kindWord} {fullPath}{alsoNamed}")
-        else if deprecationNote == Option.None then
+        else if deprecationNote == None then
           Stdlib.printLine(
             Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
 

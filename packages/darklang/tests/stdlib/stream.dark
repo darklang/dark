@@ -17,7 +17,7 @@ test emptyStreamDrainsToEmptyList =
 // next on an empty stream returns None
 test nextOnEmptyStreamIsNone =
   let s = Stdlib.Stream.fromList<Int64>([])
-  Stdlib.Stream.next(s) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  Stdlib.Stream.next(s) |> Stdlib.Test.equal(None)
 
 
 // next answers the head and the rest
@@ -57,9 +57,7 @@ test transformLeavesSource =
 // an unfold read twice gives the same elements
 test unfoldReadTwice =
   let s =
-    Stdlib.Stream.take(
-      Stdlib.Stream.unfold(0, fun n -> Stdlib.Option.Option.Some((n, n + 1))),
-      3)
+    Stdlib.Stream.take(Stdlib.Stream.unfold(0, fun n -> Some((n, n + 1))), 3)
 
   (Stdlib.Stream.toList(s), Stdlib.Stream.toList(s))
   |> Stdlib.Test.equal(([ 0, 1, 2 ], [ 0, 1, 2 ]))
@@ -71,7 +69,7 @@ test toBytesJoinsChunks =
     Stdlib.Stream.fromList([ Stdlib.Utf8.encode("h"), Stdlib.Utf8.encode("i") ])
 
   let b = Stdlib.Stream.toBytes(s)
-  Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hi"))
+  Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Ok("hi"))
 
 
 // close on a stream with no IO source changes nothing
@@ -239,7 +237,7 @@ test blobsRoundTripThroughStream =
 test takeOverUnboundedSourcePullsOnlyN =
   let counter =
     Stdlib.Stream.unfold(0, fun n ->
-      Stdlib.Option.Option.Some((Stdlib.Test.incrementCounter(n + 1), n + 1)))
+      Some((Stdlib.Test.incrementCounter(n + 1), n + 1)))
 
   let taken = Stdlib.Stream.toList(Stdlib.Stream.take(counter, 3))
   Stdlib.Test.all(
@@ -249,9 +247,7 @@ test takeOverUnboundedSourcePullsOnlyN =
 
 // filter, map and take over an unbounded unfold terminate: the pipeline is pull-driven
 test composedTransformsOverUnboundedSourceAreLazy =
-  let naturals =
-    Stdlib.Stream.unfold(0, fun n -> Stdlib.Option.Option.Some((n + 1, n + 1)))
-
+  let naturals = Stdlib.Stream.unfold(0, fun n -> Some((n + 1, n + 1)))
   let evens = Stdlib.Stream.filter(naturals, fun n -> n % 2 == 0)
   let doubled = Stdlib.Stream.map(evens, fun n -> n * 2)
   Stdlib.Stream.toList(Stdlib.Stream.take(doubled, 3))

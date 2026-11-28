@@ -103,13 +103,9 @@ let __checkPart(
           || part == "host" && !Char.isASCII(c) && !Char.isWhitespace(c)))
 
     match bad with
-    | Some(c) -> Result.Error(ParseError.InvalidCharacter(part, String.fromChar(c)))
-    | None ->
-      if __escapesOk(s) then
-        Result.Ok()
-      else
-        Result.Error(ParseError.InvalidPercentEncoding(part))
-  | _ -> Result.Ok()
+    | Some(c) -> Error(ParseError.InvalidCharacter(part, String.fromChar(c)))
+    | None -> if __escapesOk(s) then Ok() else Error(ParseError.InvalidPercentEncoding(part))
+  | _ -> Ok()
 
 
 let isDigits(s: String): Bool =
@@ -175,19 +171,19 @@ let parseIPLiteral(inner: String): Option<String> =
        && List.all(String.toList(zone), fun c -> c == '%' || isUnreserved(c))
 
   if isIPv6(address) && zoneOk then
-    Option.Some(String.toLowercase(address) + zone)
+    Some(String.toLowercase(address) + zone)
   else
-    Option.None
+    None
 
 
 /// An empty port ({{http://x:/}}) is allowed by RFC 3986 and means no port.
 let parsePort(s: String): Result<Option<Int64>, ParseError> =
   if s == "" then
-    Result.Ok(Option.None)
+    Ok(None)
   else
     match Int64.parse(s) with
-    | Ok(n) when isDigits(s) && String.length(s) <= 5 && n <= 65535 -> Result.Ok(Option.Some(n))
-    | _ -> Result.Error(ParseError.InvalidPort(s))
+    | Ok(n) when isDigits(s) && String.length(s) <= 5 && n <= 65535 -> Ok(Some(n))
+    | _ -> Error(ParseError.InvalidPort(s))
 
 
 /// Splits an authority ({{user@host:port}}) into its three parts.
@@ -199,8 +195,8 @@ let parseAuthority(
   // there instead of turning up in the host.
   let (userinfo, hostPort) =
     match String.splitLast(authority, "@") with
-    | Some((u, hp)) -> (Option.Some(u), hp)
-    | None -> (Option.None, authority)
+    | Some((u, hp)) -> (Some(u), hp)
+    | None -> (None, authority)
 
   let _ = (__checkPart(strict, "userinfo", ":", userinfo))?
   let (host, portText) =
@@ -208,9 +204,9 @@ let parseAuthority(
        match String.splitFirst(hostPort, "]") with
        | Some((bracketed, after)) when after == "" || String.startsWith(after, ":") ->
          match parseIPLiteral(String.dropFirst(bracketed, 1)) with
-         | Some(host) -> Result.Ok((host, String.dropFirst(after, 1)))
-         | None -> Result.Error(ParseError.InvalidHost(hostPort))
-       | _ -> Result.Error(ParseError.InvalidHost(hostPort))
+         | Some(host) -> Ok((host, String.dropFirst(after, 1)))
+         | None -> Error(ParseError.InvalidHost(hostPort))
+       | _ -> Error(ParseError.InvalidHost(hostPort))
      else
        let (name, portText) =
          match String.splitLast(hostPort, ":") with
@@ -224,21 +220,21 @@ let parseAuthority(
          List.length(String.split(name, ".")) == 4
          && List.all(String.split(name, "."), fun o -> isDigits(o))
 
-       match __checkPart(strict, "host", "", Option.Some(name)) with
-       | Error(e) -> Result.Error(e)
+       match __checkPart(strict, "host", "", Some(name)) with
+       | Error(e) -> Error(e)
        | Ok(_) ->
          // A lenient parse skips the character check, but a `:` left in the
          // name would print back as an IPv6 literal, so it is refused here too.
          if looksLikeIPv4 && !isIPv4(name) || String.contains(name, ":") then
-           Result.Error(ParseError.InvalidHost(name))
+           Error(ParseError.InvalidHost(name))
          else
-           Result.Ok((String.toLowercase(name), portText)))?
+           Ok((String.toLowercase(name), portText)))?
 
   let port = (parsePort(portText))?
-  if host == "" && (userinfo != Option.None || port != Option.None) then
-    Result.Error(ParseError.InvalidHost(hostPort))
+  if host == "" && (userinfo != None || port != None) then
+    Error(ParseError.InvalidHost(hostPort))
   else
-    Result.Ok((userinfo, Option.Some(host), port))
+    Ok((userinfo, Some(host), port))
 
 
 /// The scheme at the front of <param s>, if it has one, and the rest. Text before
@@ -260,48 +256,48 @@ let splitScheme(s: String): Result<(Option<String> * String), ParseError> =
               || String.contains("+-.", String.fromChar(c))))
 
     if validScheme then
-      Result.Ok((Option.Some(String.toLowercase(scheme)), rest))
+      Ok((Some(String.toLowercase(scheme)), rest))
     else if scheme == "" then
-      Result.Error(ParseError.MissingScheme)
+      Error(ParseError.MissingScheme)
     else
-      Result.Error(ParseError.InvalidScheme(scheme))
-  | _ -> Result.Ok((Option.None, s))
+      Error(ParseError.InvalidScheme(scheme))
+  | _ -> Ok((None, s))
 
 
 let __parseWith(strict: Bool, absolute: Bool, s: String): Result<Url, ParseError> =
   let (scheme, afterScheme) =
     (match splitScheme(s) with
-     | Error(_) when !strict -> Result.Ok((Option.None, s))
-     | Ok((None, _)) when absolute -> Result.Error(ParseError.MissingScheme)
+     | Error(_) when !strict -> Ok((None, s))
+     | Ok((None, _)) when absolute -> Error(ParseError.MissingScheme)
      | result -> result)?
 
   let (beforeFragment, fragment) =
     match String.splitFirst(afterScheme, "#") with
-    | Some((a, f)) -> (a, Option.Some(f))
-    | None -> (afterScheme, Option.None)
+    | Some((a, f)) -> (a, Some(f))
+    | None -> (afterScheme, None)
 
   let (hierPart, query) =
     match String.splitFirst(beforeFragment, "?") with
-    | Some((h, q)) -> (h, Option.Some(q))
-    | None -> (beforeFragment, Option.None)
+    | Some((h, q)) -> (h, Some(q))
+    | None -> (beforeFragment, None)
 
   let (authority, path) =
     match String.stripPrefix(hierPart, "//") with
     | Some(rest) ->
       match String.splitFirst(rest, "/") with
-      | Some((a, p)) -> (Option.Some(a), "/" + p)
-      | None -> (Option.Some(rest), "")
-    | None -> (Option.None, hierPart)
+      | Some((a, p)) -> (Some(a), "/" + p)
+      | None -> (Some(rest), "")
+    | None -> (None, hierPart)
 
   let (userinfo, host, port) =
     (match authority with
      | Some(a) -> parseAuthority(strict, a)
-     | None -> Result.Ok((Option.None, Option.None, Option.None)))?
+     | None -> Ok((None, None, None)))?
 
-  let _ = (__checkPart(strict, "path", ":@/", Option.Some(path)))?
+  let _ = (__checkPart(strict, "path", ":@/", Some(path)))?
   let _ = (__checkPart(strict, "query", ":@/?", query))?
   let _ = (__checkPart(strict, "fragment", ":@/?", fragment))?
-  Result.Ok(
+  Ok(
     Url
       { scheme = scheme
         userinfo = userinfo
@@ -426,11 +422,11 @@ let __guardPath(url: Url): Url =
     | Some((first, _)) -> first
     | None -> url.path
 
-  if url.host != Option.None then
+  if url.host != None then
     url
   else if String.startsWith(url.path, "//") then
     { url with path = "/." + url.path }
-  else if url.scheme == Option.None && String.contains(firstSegment, ":") then
+  else if url.scheme == None && String.contains(firstSegment, ":") then
     { url with path = "./" + url.path }
   else
     url
@@ -447,19 +443,19 @@ let resolve(base: Url, ref: Url): Url =
 
 /// RFC 3986 section 5.2.2, before <fn __guardPath>.
 let __resolveRaw(base: Url, ref: Url): Url =
-  if ref.scheme != Option.None then
+  if ref.scheme != None then
     { ref with path = removeDotSegments(ref.path) }
-  else if ref.host != Option.None then
+  else if ref.host != None then
     { ref with scheme = base.scheme, path = removeDotSegments(ref.path) }
   else if ref.path == "" then
     { base with
-        query = if ref.query == Option.None then base.query else ref.query
+        query = if ref.query == None then base.query else ref.query
         fragment = ref.fragment }
   else
     let path =
       if String.startsWith(ref.path, "/") then
         ref.path
-      else if base.host != Option.None && base.path == "" then
+      else if base.host != None && base.path == "" then
         "/" + ref.path
       else
         match String.splitLast(base.path, "/") with
@@ -481,11 +477,11 @@ let queryParams(url: Url): List<(String * String)> =
     |> String.split("&")
     |> List.filterMap(fun field ->
       if field == "" then
-        Option.None
+        None
       else
         match String.splitFirst(field, "=") with
-        | Some((k, v)) -> Option.Some((formDecode(k), formDecode(v)))
-        | None -> Option.Some((formDecode(field), "")))
+        | Some((k, v)) -> Some((formDecode(k), formDecode(v)))
+        | None -> Some((formDecode(field), "")))
 
 
 /// The path's segments, decoded: {{/blog/caf%C3%A9/}} is {{["blog", "café"]}}.
@@ -543,9 +539,9 @@ let withPathSegments(url: Url, segments: List<String>): Url =
     |> String.join("/")
 
   let path =
-    if url.host != Option.None || String.startsWith(url.path, "/") then
+    if url.host != None || String.startsWith(url.path, "/") then
       "/" + joined
-    else if List.head(segments) == Option.Some("") then
+    else if List.head(segments) == Some("") then
       "./" + joined
     else
       joined
@@ -558,7 +554,7 @@ let withPathSegments(url: Url, segments: List<String>): Url =
 /// {{queryParams(withQueryParams(u, ps)) == ps}}. No params is no query at all,
 /// rather than a bare {{?}}.
 let withQueryParams(url: Url, params: List<(String * String)>): Url =
-  { url with query = if params == [] then Option.None else Option.Some(encodeQuery(params)) }
+  { url with query = if params == [] then None else Some(encodeQuery(params)) }
 
 
 /// Decodes {{%XX}} escapes, byte by byte, and reads the result as UTF-8:
@@ -577,10 +573,7 @@ let percentDecode(s: String): String =
 
       // The length check is not redundant: `Base16.decode ""` succeeds, so a `%`
       // at the very end of the string decodes to no bytes at all and vanishes.
-      match if String.length(hex) == 2 then
-              Base16.decode(hex)
-            else
-              Result.Error("not an escape") with
+      match if String.length(hex) == 2 then Base16.decode(hex) else Error("not an escape") with
       | Ok(b) -> List.prepend(List.prepend(reversed, b), Utf8.encode(String.dropFirst(piece, 2)))
       | Error(_) -> List.prepend(reversed, Utf8.encode("%" + piece)))
     |> List.reverse

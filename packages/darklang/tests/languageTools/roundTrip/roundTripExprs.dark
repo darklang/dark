@@ -5,25 +5,19 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 
 test exprsUnwrapOfVariable =
   Stdlib.Test.all(
-    [ roundTrip(
-        "unwrap of variable",
-        "fun x -> Ok(x?)",
-        "(fun x -> Result.Ok(x?))")
+    [ roundTrip("unwrap of variable", "fun x -> Ok(x?)", "(fun x -> Ok(x?))")
 
       roundTrip(
         "unwrap of application",
         "fun x -> Ok((f(x))?)",
-        "(fun x -> Result.Ok((f(x))?))")
+        "(fun x -> Ok((f(x))?))")
 
       roundTrip(
         "unwrap chain",
         "fun x -> Some(x?.field?)",
-        "(fun x -> Option.Some(x?.field?))")
+        "(fun x -> Some(x?.field?))")
 
-      roundTrip(
-        "nested unwrap",
-        "fun x -> Ok(x??)",
-        "(fun x -> Result.Ok(x??))")
+      roundTrip("nested unwrap", "fun x -> Ok(x??)", "(fun x -> Ok(x??))")
 
       // units
       roundTrip("unit literal", "()", "()")
@@ -549,21 +543,18 @@ test exprsRecordWithType =
         "$\"{{x}} = {x}\"",
         "$\"{{x}} = {x}\"")
 
-      roundTrip(
-        "option none, short",
-        "Stdlib.Option.Option.None",
-        "Option.None")
+      roundTrip("option none, short", "Stdlib.Option.Option.None", "None")
 
-      roundTrip("option none, long", "Stdlib.Option.Option.None", "Option.None")
+      roundTrip("option none, long", "Stdlib.Option.Option.None", "None")
 
-      roundTrip("option some", "Stdlib.Option.Option.Some(1)", "Option.Some(1)")
+      roundTrip("option some", "Stdlib.Option.Option.Some(1)", "Some(1)")
 
       roundTrip("custom enum fn params", "MyEnum.D(1, 2)", "MyEnum.D(1, 2)")
 
       roundTrip(
         "enum with indented field",
         "Stdlib.Result.Result.Error(\n  Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)",
-        "Result.Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)") ])
+        "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)") ])
 
 
 test exprsQualifiedValue =
@@ -910,12 +901,12 @@ test exprsMatchIntTuple =
       roundTrip(
         "match, enum",
         "match Stdlib.Result.Result.Ok(5) with\n| Ok(5) -> true\n| Error(e) -> false",
-        "match Result.Ok(5) with\n| Ok(5) -> true\n| Error(e) -> false")
+        "match Ok(5) with\n| Ok(5) -> true\n| Error(e) -> false")
 
       roundTrip(
         "match, qualified enum patterns",
         "match Stdlib.Result.Result.Ok(5) with\n| Result.Ok(5) -> true\n| Stdlib.Result.Result.Error(e) -> false",
-        "match Result.Ok(5) with\n| Ok(5) -> true\n| Error(e) -> false")
+        "match Ok(5) with\n| Ok(5) -> true\n| Error(e) -> false")
 
       roundTrip(
         "match, enum with 2 args",
@@ -925,7 +916,7 @@ test exprsMatchIntTuple =
       roundTrip(
         "match, enum with 1 tuple arg",
         "match Stdlib.Result.Result.Ok((5, 3)) with\n| Ok((5, 3)) -> true\n| Error(e)  -> false",
-        "match Result.Ok((5, 3)) with\n| Ok((5, 3)) -> true\n| Error(e) -> false")
+        "match Ok((5, 3)) with\n| Ok((5, 3)) -> true\n| Error(e) -> false")
 
       roundTrip(
         "match, string 3",

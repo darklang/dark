@@ -67,11 +67,11 @@ let fromRuntimeType(typ: RuntimeTypes.TypeReference): ProgramTypes.TypeReference
     let resolved =
       match name.resolved with
       | Ok(Package(hash)) ->
-        Result.Ok(
+        Ok(
           ProgramTypes.ResolvedName
-            { name = ProgramTypes.FQTypeName.FQTypeName.Package(hash), location = Option.None })
-      | Error(NotFound) -> Result.Error(ProgramTypes.NameResolutionError.NotFound)
-      | Error(InvalidName) -> Result.Error(ProgramTypes.NameResolutionError.InvalidName)
+            { name = ProgramTypes.FQTypeName.FQTypeName.Package(hash), location = None })
+      | Error(NotFound) -> Error(ProgramTypes.NameResolutionError.NotFound)
+      | Error(InvalidName) -> Error(ProgramTypes.NameResolutionError.InvalidName)
 
     ProgramTypes.TypeReference.TCustomType(
       ProgramTypes.NameResolution { originalName = name.originalName, resolved = resolved },
@@ -104,7 +104,7 @@ let signatureTemplate(
   env: Model.Environment,
   signature: Model.Signature)
   : (Model.Callable * Model.Environment) =
-  let none = Option.None
+  let none = None
   let mapping = Types.rigid(signature.typeParams)
   let (parameters, found) = Types.fromReferencesInto(mapping, none, [], signature.parameters)
   let (ret, found) = Types.fromReferenceInto(mapping, none, found, signature.returnType)
@@ -168,7 +168,7 @@ let builtinCallable(
 /// The trait behind <param hash>: one this batch declares, else the store's.
 let traitFor(env: Model.Environment, hash: ProgramTypes.Hash): Option<ProgramTypes.Trait.Trait> =
   match Stdlib.Dict.get(env.batchTraits, ProgramTypes.hashToString(hash)) with
-  | Some(trait_) -> Option.Some(trait_)
+  | Some(trait_) -> Some(trait_)
   | None -> PackageManager.Trait.get(hash)
 
 
@@ -238,7 +238,7 @@ let builtinValueType(
   | Builtin(name) ->
     findBuiltinValue(name.name, name.version)
     |> Stdlib.Option.map(fun value -> fromRuntimeType(value.type))
-  | Package(_) -> Option.None
+  | Package(_) -> None
 
 
 /// A runtime type reference as the checker's own type, for comparing against one it inferred.
@@ -247,7 +247,7 @@ let builtinValueType(
 /// (`impl Add for List<'a>`) has no mapping here and converts to a placeholder, which is
 /// correct, because the only question asked of the result is what its HEAD is.
 let tyOfRuntimeType(typ: RuntimeTypes.TypeReference): Model.Ty =
-  let (ty, _) = Types.fromReference(Dict {}, Option.None, fromRuntimeType(typ))
+  let (ty, _) = Types.fromReference(Dict {}, None, fromRuntimeType(typ))
   ty
 
 
@@ -320,7 +320,7 @@ let withVisibleTraits(
   | Some(visible) -> (visible, env)
   | None ->
     let visible = visibleTraits(env.branchId)
-    (visible, { env with visibleTraits = Option.Some(visible) })
+    (visible, { env with visibleTraits = Some(visible) })
 
 
 /// One trait's implementations as the store has them, self types converted to the checker's
@@ -422,7 +422,7 @@ let infixTraitOf(
   : Option<(ProgramTypes.Hash * String)> =
   match Stdlib.Dict.get(env.infixTrait, infixKey(operation)) with
   | Some(found) -> found
-  | None -> Option.None
+  | None -> None
 
 
 /// The trait and method a UNARY operator is, and that trait's implementations.
@@ -434,8 +434,8 @@ let unaryImplsFor(
   match Stdlib.Dict.get(env.infixTrait, key) with
   | Some(Some((traitHash, method_))) ->
     let (impls, env) = implsOfTrait(env, traitHash)
-    (Option.Some((traitHash, method_, impls)), env)
-  | _ -> (Option.None, env)
+    (Some((traitHash, method_, impls)), env)
+  | _ -> (None, env)
 
 
 /// The trait and method an operator is, and that trait's implementations.
@@ -447,8 +447,8 @@ let infixImplsFor(
   match infixTraitOf(env, operation) with
   | Some((traitHash, method_)) ->
     let (impls, env) = implsOfTrait(env, traitHash)
-    (Option.Some((traitHash, method_, impls)), env)
-  | None -> (Option.None, env)
+    (Some((traitHash, method_, impls)), env)
+  | None -> (None, env)
 
 
 /// Create an empty environment with the standard Option, Result and Test.Result
@@ -463,7 +463,7 @@ let builtins(branchId: Uuid): Model.Environment =
       values = Dict {}
       declarationFacts = Dict {}
       traitImpls = Dict {}
-      visibleTraits = Option.None
+      visibleTraits = None
       batchImpls = Dict {}
       replacedImpls = []
       batchTraits = Dict {}
@@ -506,7 +506,7 @@ let withBatch(
           | Some(impls) -> impls
           | None -> []
 
-        let (self, _) = Types.fromReference(Dict {}, Option.None, i.self)
+        let (self, _) = Types.fromReference(Dict {}, None, i.self)
         Stdlib.Dict.set(found, key, Stdlib.List.append(existing, (self, i.hash)))
     | Error(_) -> found)
 
@@ -530,8 +530,8 @@ let withoutReplaced(
     ops
     |> Stdlib.List.filterMap(fun op ->
       match op with
-      | SetName(location, PackageTraitImpl(hash), _) -> Option.Some((location, hash))
-      | _ -> Option.None)
+      | SetName(location, PackageTraitImpl(hash), _) -> Some((location, hash))
+      | _ -> None)
 
   let reboundLocations = rebound |> Stdlib.List.map(fun((location, _)) -> location)
   let batchHashes = rebound |> Stdlib.List.map(fun((_, hash)) -> hash)
@@ -545,10 +545,10 @@ let withoutReplaced(
           |> Stdlib.List.any(fun l -> Stdlib.Bool.not(Stdlib.List.contains(reboundLocations, l)))
 
         if Stdlib.List.contains(batchHashes, old) || keptElsewhere then
-          Option.None
+          None
         else
-          Option.Some(old)
-      | None -> Option.None)
+          Some(old)
+      | None -> None)
 
   if Stdlib.List.isEmpty(replaced) then
     env
@@ -907,7 +907,7 @@ let loadDependency(
   | PackageType(hash) ->
     let found =
       match Stdlib.Dict.get(pool.types, hash) with
-      | Some(t) -> Option.Some(t)
+      | Some(t) -> Some(t)
       | None -> PackageManager.Type.get(hash)
 
     match found with
@@ -928,7 +928,7 @@ let loadDependency(
   | PackageFn(hash) ->
     let found =
       match Stdlib.Dict.get(pool.fns, hash) with
-      | Some(fn) -> Option.Some(fn)
+      | Some(fn) -> Some(fn)
       | None -> PackageManager.Function.getSignature(hash)
 
     match found with

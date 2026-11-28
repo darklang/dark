@@ -94,17 +94,15 @@ let selectKind(
 /// and a bare `--kind` is a missing value, not an unknown flag.
 let kindArgChecked(args: List<String>): Result<Unit, String> =
   match Stdlib.List.findFirstIndex(args, fun a -> a == "--kind") with
-  | None -> Result.Ok()
+  | None -> Ok()
   | Some(i) ->
     match Stdlib.List.getAt(args, i + 1) with
-    | None ->
-      Result.Error("--kind needs a value: stale-usage, kind-changed, or rival-implementations.")
+    | None -> Error("--kind needs a value: stale-usage, kind-changed, or rival-implementations.")
     | Some(wanted) ->
       match SCM.Constraints.kindFromString(wanted) with
-      | Some(_) -> Result.Ok()
+      | Some(_) -> Ok()
       | None ->
-        Result.Error(
-          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, or rival-implementations.")
+        Error($"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, or rival-implementations.")
 
 
 let executeJson(state: AppState, args: List<String>): AppState =
@@ -193,7 +191,7 @@ let selectTargets(ids: List<String>): (List<SCM.Constraints.Finding> * List<Stri
 
     let matches(idPrefix: String): Option<SCM.Constraints.Finding> =
       if idPrefix == "" then
-        Option.None
+        None
       else
         all |> Stdlib.List.findFirst(fun f -> Stdlib.String.startsWith(f.id, idPrefix))
 
@@ -299,15 +297,14 @@ let resolutionFor(
           SCM.Constraints.offersResolution(f.kind, only) |> Stdlib.Bool.not)
 
       match cannot with
-      | [] -> Result.Ok(only)
+      | [] -> Ok(only)
       | fs ->
         let ids =
           fs
           |> Stdlib.List.map(fun f -> $"#{f.id}")
           |> (fun l -> Stdlib.String.join(l, " "))
 
-        Result.Error(
-          $"{ids} can't be resolved as \"{only}\" -- ack those, or resolve them separately.")
+        Error($"{ids} can't be resolved as \"{only}\" -- ack those, or resolve them separately.")
     | [] ->
       let noun =
         if Stdlib.List.length(targets) == 1 then
@@ -315,11 +312,10 @@ let resolutionFor(
         else
           "these findings offer"
 
-      Result.Error($"{noun} no resolution.")
+      Error($"{noun} no resolution.")
     | many ->
       let list = Stdlib.String.join(many, " | ")
-      Result.Error(
-        $"these findings can be resolved more than one way -- say which with `--as <{list}>`.")
+      Error($"these findings can be resolved more than one way -- say which with `--as <{list}>`.")
   | asked ->
     let unsupported =
       targets
@@ -327,14 +323,14 @@ let resolutionFor(
         SCM.Constraints.offersResolution(f.kind, asked) |> Stdlib.Bool.not)
 
     match unsupported with
-    | [] -> Result.Ok(asked)
+    | [] -> Ok(asked)
     | fs ->
       let ids =
         fs
         |> Stdlib.List.map(fun f -> $"#{f.id}")
         |> (fun l -> Stdlib.String.join(l, " "))
 
-      Result.Error($"{ids} can't be resolved as \"{asked}\".")
+      Error($"{ids} can't be resolved as \"{asked}\".")
 
 
 /// RESOLVE: apply a named resolution. `repoint` runs the same cascade an ordinary edit runs, so everything

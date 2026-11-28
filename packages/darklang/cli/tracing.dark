@@ -60,8 +60,7 @@ type ViewOptions =
 
 
 val defaultViewOptions =
-  ViewOptions
-    { filter = Option.None, exclude = Option.None, slowThresholdMs = Option.None, all = false }
+  ViewOptions { filter = None, exclude = None, slowThresholdMs = None, all = false }
 
 
 /// English ordinal suffix for a non-negative integer. "1st", "2nd",
@@ -101,68 +100,66 @@ let parsePositionalErr(input: String, label: String): String =
 let resolveTraceID(input: String): Option<String> =
   if Stdlib.String.startsWith(input, "-") then
     printErr($"unknown flag: {input}")
-    Option.None
+    None
   else
     // Trim accidental whitespace from copy-paste; never part of a UUID.
     let trimmed = Stdlib.String.trim(input)
     if trimmed == "" then
       printErr("that is an empty id; `dark traces` lists the traces and their ids")
-      Option.None
+      None
     else
       match Tracing.Store.resolveID(trimmed) with
-      | Ok(fullID) -> Option.Some(fullID)
+      | Ok(fullID) -> Some(fullID)
       | Error(msg) ->
         printErr(msg)
-        Option.None
+        None
 
 
 let parseViewOptions(opts: ViewOptions, args: List<String>): Result<ViewOptions, String> =
   match args with
-  | [] -> Result.Ok(opts)
+  | [] -> Ok(opts)
   // `--depth`, `--no-builtins` and `--no-stdlib` were about a tree of every call. The log is a
   // sequence of impure calls now, so they have nothing to do; refused by name rather than
   // accepted and ignored, which is the failure mode that wastes an afternoon.
   | ["--depth", ...] | ["-d", ...] ->
-    Result.Error(
-      "--depth is gone: a trace's log is a list of its impure calls, with no tree to cap")
+    Error("--depth is gone: a trace's log is a list of its impure calls, with no tree to cap")
   | ["--no-builtins", ...] | ["--no-stdlib", ...] ->
-    Result.Error(
+    Error(
       "--no-builtins and --no-stdlib are gone: every logged call is an impure builtin, so "
       + "hiding them hides the log. `--filter` and `--exclude` narrow it by name")
   | ["--filter", pattern, ...rest] ->
     if Stdlib.String.startsWith(pattern, "-") then
-      Result.Error($"unknown flag: {pattern}")
+      Error($"unknown flag: {pattern}")
     else if pattern == "" then
-      Result.Error("--filter takes part of a call's name")
+      Error("--filter takes part of a call's name")
     else
-      parseViewOptions({ opts with filter = Option.Some(pattern) }, rest)
+      parseViewOptions({ opts with filter = Some(pattern) }, rest)
   | ["--exclude", pattern, ...rest] ->
     if Stdlib.String.startsWith(pattern, "-") then
-      Result.Error($"unknown flag: {pattern}")
+      Error($"unknown flag: {pattern}")
     else if pattern == "" then
-      Result.Error("--exclude takes part of a call's name")
+      Error("--exclude takes part of a call's name")
     else
-      parseViewOptions({ opts with exclude = Option.Some(pattern) }, rest)
+      parseViewOptions({ opts with exclude = Some(pattern) }, rest)
   | ["--all", ...rest] -> parseViewOptions({ opts with all = true }, rest)
   | ["--slow", ...rest] ->
     // Bare `--slow` defaults to 10ms. For a custom threshold, use --slow-ms.
-    parseViewOptions({ opts with slowThresholdMs = Option.Some(10) }, rest)
+    parseViewOptions({ opts with slowThresholdMs = Some(10) }, rest)
   | ["--slow-ms", numStr, ...rest] ->
     match Stdlib.Int64.parse(numStr) with
     | Ok(n) ->
       if n < 0 then
-        Result.Error(
-          $"--slow-ms is a number of milliseconds, so it cannot be negative (got {numStr})")
+        Error($"--slow-ms is a number of milliseconds, so it cannot be negative (got {numStr})")
       else
-        parseViewOptions({ opts with slowThresholdMs = Option.Some(n) }, rest)
-    | Error(_) -> Result.Error(parsePositionalErr(numStr, "--slow-ms threshold"))
+        parseViewOptions({ opts with slowThresholdMs = Some(n) }, rest)
+    | Error(_) -> Error(parsePositionalErr(numStr, "--slow-ms threshold"))
   // Recognized value-taking flag with no value left — distinguish from the
   // catch-all `[unknown, ...]` so the user gets "missing value" not the
   // misleading "unknown flag".
-  | ["--filter"] -> Result.Error("--filter requires a pattern (e.g. `--filter List.map`)")
-  | ["--exclude"] -> Result.Error("--exclude requires a pattern (e.g. `--exclude listConcat`)")
-  | ["--slow-ms"] -> Result.Error("--slow-ms requires a value (e.g. `--slow-ms 100`)")
-  | [unknown, ...] -> Result.Error($"unknown flag: {unknown}")
+  | ["--filter"] -> Error("--filter requires a pattern (e.g. `--filter List.map`)")
+  | ["--exclude"] -> Error("--exclude requires a pattern (e.g. `--exclude listConcat`)")
+  | ["--slow-ms"] -> Error("--slow-ms requires a value (e.g. `--slow-ms 100`)")
+  | [unknown, ...] -> Error($"unknown flag: {unknown}")
 
 
 /// Confirm a destructive op. Returns true to proceed, false to bail.
@@ -277,7 +274,7 @@ let showFromTrace(
     // the one that was called rather than one it called. Neither applies, and it lists.
     let root =
       match Tracing.Store.get(id) with
-      | None -> Option.None
+      | None -> None
       | Some(trace) ->
         let named = Tracing.Store.fnsOf(id)
         match trace.entryHash with
@@ -295,7 +292,7 @@ let showFromTrace(
             Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
 
     let show(state: AppState, fn: String): AppState =
-      showCode(state, fn, Option.Some(arg), iteration, wantsJson, wantsFull)
+      showCode(state, fn, Some(arg), iteration, wantsJson, wantsFull)
 
     match root with
     | Some(fn) -> show(state, fn)
@@ -369,9 +366,7 @@ let execute(state: AppState, args: List<String>): AppState =
     // positional patterns below read it as a trace id, so `traces show <fn> --iteration` answered
     // "no trace whose id starts with --iteration", which sends someone who mistyped a flag off
     // looking for a trace.
-    let iterationMissingValue =
-      Stdlib.List.contains(args, "--iteration") && iteration == Option.None
-
+    let iterationMissingValue = Stdlib.List.contains(args, "--iteration") && iteration == None
     let args =
       match iteration with
       | None -> args
@@ -415,26 +410,26 @@ let execute(state: AppState, args: List<String>): AppState =
         match Stdlib.Int64.parse(limitStr) with
         | Ok(limit) -> executeListByRoute(state, route, limit, wantsJson)
         | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
-      | ["follow"] -> executeFollow(state, Option.None, wantsJson)
-      | ["follow", "--route", route] -> executeFollow(state, Option.Some(route), wantsJson)
+      | ["follow"] -> executeFollow(state, None, wantsJson)
+      | ["follow", "--route", route] -> executeFollow(state, Some(route), wantsJson)
       | ["stats"] -> if wantsJson then executeStatsJson(state, 100) else executeStats(state, 100)
       | ["stats", limitStr] ->
         match Stdlib.Int64.parse(limitStr) with
         | Ok(limit) ->
           if wantsJson then executeStatsJson(state, limit) else executeStats(state, limit)
         | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
-      | ["tail"] -> executeTail(state, Option.None, 1)
+      | ["tail"] -> executeTail(state, None, 1)
       // Flag-without-arg case must precede the `[ "tail", nStr ]` arm
       // (which would otherwise treat "--route" as a malformed N).
       | ["tail", "--route"] -> refuse(state, "Usage: traces tail [N] --route <substring>")
       | ["tail", nStr] ->
         match Stdlib.Int64.parse(nStr) with
-        | Ok(n) -> executeTail(state, Option.None, n)
+        | Ok(n) -> executeTail(state, None, n)
         | Error(_) -> refuse(state, parsePositionalErr(nStr, "trace number"))
-      | ["tail", "--route", route] -> executeTail(state, Option.Some(route), 1)
+      | ["tail", "--route", route] -> executeTail(state, Some(route), 1)
       | ["tail", "--route", route, nStr] | ["tail", nStr, "--route", route] ->
         match Stdlib.Int64.parse(nStr) with
-        | Ok(n) -> executeTail(state, Option.Some(route), n)
+        | Ok(n) -> executeTail(state, Some(route), n)
         | Error(_) -> refuse(state, parsePositionalErr(nStr, "trace number"))
       | ["find", pattern] ->
         if wantsFindInspect then
@@ -543,7 +538,7 @@ let execute(state: AppState, args: List<String>): AppState =
           let on = value == "on"
           // What was STORED, not what is in effect: setting `on` while the environment
           // already says on is a real change, because it pins it.
-          let wasAlready = Tracing.Store.storedSetting() == Option.Some(on)
+          let wasAlready = Tracing.Store.storedSetting() == Some(on)
           Tracing.Store.setRecording(on)
           if wasAlready then
             // Nothing moved. Saying what the setting now means, as though it had, is how
@@ -574,11 +569,11 @@ let execute(state: AppState, args: List<String>): AppState =
       // The trace verbs (`cli/traceVerbs.dark`). `resume` replays the log; `rerun` performs
       // everything again, which is why they are two words.
       | ["resume", prefix] -> TraceVerbs.resume(state, prefix)
-      | ["fork", prefix] -> exitWith(state, TraceVerbs.fork(prefix, Option.None))
+      | ["fork", prefix] -> exitWith(state, TraceVerbs.fork(prefix, None))
       | ["fork", prefix, "--at", at] ->
         let ok =
           match Stdlib.Int64.parse(at) with
-          | Ok(n) -> TraceVerbs.fork(prefix, Option.Some(n))
+          | Ok(n) -> TraceVerbs.fork(prefix, Some(n))
           | Error(_) ->
             printErr($"--at wants a step number, as `traces inspect` numbers its calls, not {at}")
             false
@@ -596,7 +591,7 @@ let execute(state: AppState, args: List<String>): AppState =
           LanguageTools.PackageManager.Function.find(
             state.currentBranchId,
             LanguageTools.ProgramTypes.parsePackageLocation(fnName))
-          == Option.None
+          == None
           && Stdlib.List.isEmpty(Tracing.Store.wentThrough(fnName, "", 1))
         then
           refuse(state, $"no function named {fnName} on this branch")
@@ -617,23 +612,21 @@ let execute(state: AppState, args: List<String>): AppState =
               init = "Darklang.Cli.TraceWatch.init"
               update = "Darklang.Cli.TraceWatch.update"
               render = "Darklang.Cli.TraceWatch.render"
-              every = Option.Some(500)
-              keys =
-                Option.Some(
-                  "up/down pick a trace  |  esc quit  (nothing here performs an effect)") }
+              every = Some(500)
+              keys = Some("up/down pick a trace  |  esc quit  (nothing here performs an effect)") }
 
         // `--watch` IS the opt-in: a panel whose whole job is to repaint as traces arrive and as you
         // edit the code it is showing you.
         match LiveView.Host.openView(
                 state.currentBranchId,
                 view,
-                Option.None,
+                None,
                 LiveView.Host.Updates.Live) with
         | Ok(_) -> state
         | Error(e) -> refuse(state, e)
-      | ["show", fnName] -> executeShow(state, fnName, Option.None, iteration, wantsJson, wantsFull)
+      | ["show", fnName] -> executeShow(state, fnName, None, iteration, wantsJson, wantsFull)
       | ["show", fnName, run] ->
-        executeShow(state, fnName, Option.Some(run), iteration, wantsJson, wantsFull)
+        executeShow(state, fnName, Some(run), iteration, wantsJson, wantsFull)
       // Refused by name, like the others: `show` is the verb for the code with its values on it.
       | ["values", ...rest] ->
         let tail = Stdlib.String.join(rest, " ")
@@ -1537,15 +1530,15 @@ let executeClear(state: AppState): AppState =
 /// `parsePositionalErr`. Otherwise delegates to `Stdlib.Duration.parse`.
 let parseDuration(s: String): Result<Stdlib.Duration.Duration, String> =
   if Stdlib.String.startsWith(s, "-") then
-    Result.Error($"unknown flag: {s}")
+    Error($"unknown flag: {s}")
   else
     match Stdlib.Duration.parse(s) with
-    | Ok(d) -> Result.Ok(d)
+    | Ok(d) -> Ok(d)
     | Error(MissingUnit) ->
-      Result.Error($"Duration '{s}' has no unit; need a number + unit (s/m/h/d), e.g. 5m")
+      Error($"Duration '{s}' has no unit; need a number + unit (s/m/h/d), e.g. 5m")
     | Error(InvalidNumber) ->
-      Result.Error($"Invalid duration '{s}'; need a number + unit (s/m/h/d), e.g. 5m")
-    | Error(UnknownUnit) -> Result.Error($"Unknown unit in '{s}'; use s, m, h, or d")
+      Error($"Invalid duration '{s}'; need a number + unit (s/m/h/d), e.g. 5m")
+    | Error(UnknownUnit) -> Error($"Unknown unit in '{s}'; use s, m, h, or d")
 
 
 /// `traces delete --before <duration>` — drop traces older than the

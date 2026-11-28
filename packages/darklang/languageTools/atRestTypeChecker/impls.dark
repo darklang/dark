@@ -14,9 +14,9 @@ let refsOf(
       match nr.resolved with
       | Ok(resolved) ->
         match resolved.name with
-        | Package(hash) -> Option.Some(ProgramTypes.Reference.PackageFn(hash))
-        | _ -> Option.None
-      | Error(_) -> Option.None)
+        | Package(hash) -> Some(ProgramTypes.Reference.PackageFn(hash))
+        | _ -> None
+      | Error(_) -> None)
 
   let traitTypes =
     match traitOf((fun h -> Stdlib.Dict.get(batchTraits, h)), implementation) with
@@ -48,11 +48,11 @@ let traitOf(
     | Package(hash) ->
       let found =
         match inBatch(hash) with
-        | Some(t) -> Option.Some(t)
+        | Some(t) -> Some(t)
         | None -> PackageManager.Trait.get(hash)
 
       found |> Stdlib.Option.map(fun t -> (hash, t))
-  | Error(_) -> Option.None
+  | Error(_) -> None
 
 
 /// The type variables a written type names.
@@ -87,7 +87,7 @@ let expectedType(
   trait_: ProgramTypes.Trait.Trait,
   method_: ProgramTypes.Trait.Method)
   : (Model.Ty * List<Model.Finding>) =
-  let none = Option.None
+  let none = None
   let implParams = Types.rigid(implParamsOf(implementation))
   let (selfTy, found) = Types.fromReferenceInto(implParams, none, [], implementation.self)
   let (args, found) =
@@ -186,7 +186,7 @@ let check(
   batchFns: Dict<ProgramTypes.Hash, ProgramTypes.PackageFn.PackageFn>,
   implementation: ProgramTypes.TraitImpl.TraitImpl)
   : Items.Outcome =
-  let none = Option.None
+  let none = None
   let s = Solve.start(env)
   match traitOf((fun h -> Environment.traitFor(env, h)), implementation) with
   | None ->
@@ -268,8 +268,8 @@ let check(
                     Types.definiteError(
                       IssueCode.ImplMethodSignature,
                       none,
-                      Option.Some(Solve.zonk(after, expected)),
-                      Option.Some(Solve.zonk(after, actual)),
+                      Some(Solve.zonk(after, expected)),
+                      Some(Solve.zonk(after, actual)),
                       Context.ImplMethod(
                         traitHash,
                         name,

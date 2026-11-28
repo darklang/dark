@@ -17,8 +17,8 @@ impl Display for Option<'v> =
 /// {{Some}}. Otherwise, returns {{None}}
 let map(option: Option<'a>, fn: 'a -> 'b): Option<'b> =
   match option with
-  | Some(v) -> Option.Some(fn(v))
-  | None -> Option.None
+  | Some(v) -> Some(fn(v))
+  | None -> None
 
 
 ///  If both arguments are {{Some}} (<param option1> is {{Some <var v1>}} and
@@ -29,8 +29,8 @@ let map(option: Option<'a>, fn: 'a -> 'b): Option<'b> =
 ///  fn>.
 let map2(option1: Option<'a>, option2: Option<'b>, fn: ('a, 'b) -> 'c): Option<'c> =
   match option1, option2 with
-  | Some(v1), Some(v2) -> Option.Some(fn(v1, v2))
-  | _ -> Option.None
+  | Some(v1), Some(v2) -> Some(fn(v1, v2))
+  | _ -> None
 
 
 /// if all three arguments are {{Some}} (<param option1> is {{Some <var v1>}},
@@ -45,8 +45,8 @@ let map3(
   fn: ('a, 'b, 'c) -> 'd)
   : Option<'d> =
   match option1, option2, option3 with
-  | Some(v1), Some(v2), Some(v3) -> Option.Some(fn(v1, v2, v3))
-  | _ -> Option.None
+  | Some(v1), Some(v2), Some(v3) -> Some(fn(v1, v2, v3))
+  | _ -> None
 
 
 /// if all four arguments are {{Some}} (<param option1> is {{Some <var v1>}},
@@ -62,8 +62,8 @@ let map4(
   fn: ('a, 'b, 'c, 'd) -> 'e)
   : Option<'e> =
   match option1, option2, option3, option4 with
-  | Some(v1), Some(v2), Some(v3), Some(v4) -> Option.Some(fn(v1, v2, v3, v4))
-  | _ -> Option.None
+  | Some(v1), Some(v2), Some(v3), Some(v4) -> Some(fn(v1, v2, v3, v4))
+  | _ -> None
 
 
 /// if all five arguments are {{Some}} (<param option1> is {{Some <var v1>}},
@@ -80,8 +80,8 @@ let map5(
   fn: ('a, 'b, 'c, 'd, 'e) -> 'f)
   : Option<'f> =
   match option1, option2, option3, option4, option5 with
-  | Some(v1), Some(v2), Some(v3), Some(v4), Some(v5) -> Option.Some(fn(v1, v2, v3, v4, v5))
-  | _ -> Option.None
+  | Some(v1), Some(v2), Some(v3), Some(v4), Some(v5) -> Some(fn(v1, v2, v3, v4, v5))
+  | _ -> None
 
 
 /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The lambda <fn fn> is applied to <var value> and the result is wrapped in {{Some}}. Otherwise, returns {{None}}
@@ -97,7 +97,7 @@ let mapWithDefault(option: Option<'a>, default_: 'b, fn: 'a -> 'b): 'b =
 let andThen(option: Option<'a>, fn: 'a -> Option<'b>): Option<'b> =
   match option with
   | Some(v) -> fn(v)
-  | None -> Option.None
+  | None -> None
 
 
 /// If both <param option1> and <param option2> are {{Some}}, returns {{fn <var value1, value2>}}.
@@ -106,7 +106,7 @@ let andThen(option: Option<'a>, fn: 'a -> Option<'b>): Option<'b> =
 let andThen2(option1: Option<'a>, option2: Option<'b>, fn: ('a, 'b) -> Option<'c>): Option<'c> =
   match option1, option2 with
   | Some(v1), Some(v2) -> fn(v1, v2)
-  | _ -> Option.None
+  | _ -> None
 
 
 /// If all <param option1>, <param option2>, and <param option3> are {{Some}}, returns {{fn <var value1, value2, value3>}}.
@@ -120,7 +120,7 @@ let andThen3(
   : Option<'d> =
   match option1, option2, option3 with
   | Some(v1), Some(v2), Some(v3) -> fn(v1, v2, v3)
-  | _ -> Option.None
+  | _ -> None
 
 
 /// If all <param option1>, <param option2>, <param option3>, and <param option4> are {{Some}}, returns {{fn <var value1, value2, value3, value4>}}.
@@ -135,7 +135,7 @@ let andThen4(
   : Option<'e> =
   match option1, option2, option3, option4 with
   | Some(v1), Some(v2), Some(v3), Some(v4) -> fn(v1, v2, v3, v4)
-  | _ -> Option.None
+  | _ -> None
 
 
 /// If <param option> is {{Some <var value>}}, returns <var value>. Otherwise,
@@ -163,8 +163,8 @@ let isNone(option: Option<'a>): Bool =
 /// Turn a <type Option> into a <type Result>, using <param error> as the error message for Error. if <param option> is {{Some <var value>}}, returns {{Ok <var value>}}. Otherwise, returns {{Error <var error>}}
 let toResult(option: Option<'a>, error: 'e): Result<'a, 'e> =
   match option with
-  | Some(v) -> Result.Ok(v)
-  | None -> Result.Error(error)
+  | Some(v) -> Ok(v)
+  | None -> Error(error)
 
 
 /// If <param option1> is {{Some _}}, then returns the value of <param option2>.
@@ -172,7 +172,7 @@ let toResult(option: Option<'a>, error: 'e): Result<'a, 'e> =
 let and(option1: Option<'a>, option2: Option<'b>): Option<'b> =
   match option1 with
   | Some(_) -> option2
-  | None -> Option.None
+  | None -> None
 
 
 /// Returns <param option1> if it is {{Some _}}. Otherwise, returns <param option2>.
@@ -193,7 +193,7 @@ let toList(option: Option<'a>): List<'a> =
 let join(option: Option<Option<'a>>): Option<'a> =
   match option with
   | Some(v) -> v
-  | None -> Option.None
+  | None -> None
 
 
 /// Combines a list of options into a single option containing a list of unwrapped values.
@@ -203,12 +203,12 @@ let combine(options: List<Option<'a>>): Option<List<'a>> =
   // Built back to front and reversed once: `List.append acc value` copies the accumulator every
   // element, so this was quadratic in the list length.
   let folded =
-    List.fold(options, Option.Some([]), fun(acc, option) ->
-      andThen2(acc, option, fun(acc, value) -> Option.Some(List.prepend(acc, value))))
+    List.fold(options, Some([]), fun(acc, option) ->
+      andThen2(acc, option, fun(acc, value) -> Some(List.prepend(acc, value))))
 
   match folded with
-  | Some(l) -> Option.Some(List.reverse(l))
-  | None -> Option.None
+  | Some(l) -> Some(List.reverse(l))
+  | None -> None
 
 
 /// Returns a list of all the values that are {{Some _}}, and ignores all the {{None}} values.

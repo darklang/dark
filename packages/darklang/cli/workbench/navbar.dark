@@ -115,10 +115,10 @@ let workspaceOf(d: Dest): Int64 =
 /// you were.
 let workspaceEntryIn(vis: List<Int64>, state: State, wsIdx: Int64): Option<Dest> =
   match Stdlib.List.getAt(workspaces, wsIdx) with
-  | None -> Option.None
+  | None -> None
   | Some(w) ->
     if Stdlib.Bool.not(workspaceVisibleIn(vis, w)) then
-      Option.None
+      None
     else
       let remembered =
         state.wsLast
@@ -130,8 +130,8 @@ let workspaceEntryIn(vis: List<Int64>, state: State, wsIdx: Int64): Option<Dest>
           d)
 
       match remembered with
-      | Some(d) -> if d.view == w.dest.view then Option.Some(d) else Option.Some(w.dest)
-      | None -> Option.Some(w.dest)
+      | Some(d) -> if d.view == w.dest.view then Some(d) else Some(w.dest)
+      | None -> Some(w.dest)
 
 
 let workspaceEntry(state: State, wsIdx: Int64): Option<Dest> =

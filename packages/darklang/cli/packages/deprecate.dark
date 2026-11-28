@@ -62,28 +62,28 @@ let findAt(
   match itemKind with
   | Fn ->
     match LanguageTools.PackageManager.Function.find(branchId, location) with
-    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn(h))
-    | None -> Option.None
+    | Some(h) -> Some(LanguageTools.ProgramTypes.Reference.PackageFn(h))
+    | None -> None
   | Type ->
     match LanguageTools.PackageManager.Type.find(branchId, location) with
-    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageType(h))
-    | None -> Option.None
+    | Some(h) -> Some(LanguageTools.ProgramTypes.Reference.PackageType(h))
+    | None -> None
   | Value ->
     match LanguageTools.PackageManager.Value.find(branchId, location) with
-    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue(h))
-    | None -> Option.None
+    | Some(h) -> Some(LanguageTools.ProgramTypes.Reference.PackageValue(h))
+    | None -> None
   | Trait ->
     match LanguageTools.PackageManager.Trait.find(branchId, location) with
-    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait(h))
-    | None -> Option.None
+    | Some(h) -> Some(LanguageTools.ProgramTypes.Reference.PackageTrait(h))
+    | None -> None
   | TraitImpl ->
     match LanguageTools.PackageManager.TraitImpl.find(branchId, location) with
-    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(h))
-    | None -> Option.None
+    | Some(h) -> Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(h))
+    | None -> None
   | Test ->
     match LanguageTools.PackageManager.Test.find(branchId, location) with
-    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest(h))
-    | None -> Option.None
+    | Some(h) -> Some(LanguageTools.ProgramTypes.Reference.PackageTest(h))
+    | None -> None
 
 
 /// Where <param target> resolves as an item of <param itemKind>, and the item there.
@@ -167,12 +167,12 @@ let resolveKindAndTarget(
   match LanguageTools.ProgramTypes.ItemKind.fromString(first), second with
   | Some(itemKind), Some(target) ->
     match resolveAt(branchId, currentLoc, itemKind, first, target) with
-    | Some(found) -> Result.Ok(found)
-    | None -> Result.Error($"Could not resolve {first} {target}")
+    | Some(found) -> Ok(found)
+    | None -> Error($"Could not resolve {first} {target}")
   // A kind word and nothing after it: say that, rather than looking for an item called `fn`.
-  | Some(_), None -> Result.Error($"Missing target (location or hash) after '{first}'")
+  | Some(_), None -> Error($"Missing target (location or hash) after '{first}'")
   | None, Some(extra) ->
-    Result.Error(
+    Error(
       $"'{first}' is not a valid item kind, and '{extra}' follows it. "
       + "Expected `deprecate <fn|type|value|trait|impl> <name>`, or just `deprecate <name>`.")
   | None, None ->
@@ -183,15 +183,15 @@ let resolveKindAndTarget(
         resolveAt(branchId, currentLoc, k, word, first))
 
     match found with
-    | [one] -> Result.Ok(one)
-    | [] -> Result.Error($"Could not resolve {first}")
+    | [one] -> Ok(one)
+    | [] -> Error($"Could not resolve {first}")
     | several ->
       let kinds =
         several
         |> Stdlib.List.map(fun t -> t.itemTypeStr)
         |> Stdlib.String.join(", ")
 
-      Result.Error(
+      Error(
         $"{first} names more than one kind of item ({kinds}). "
         + $"Say which: `dark deprecate <{kinds |> Stdlib.String.replaceAll(", ", "|")}> {first}`")
 
@@ -203,11 +203,11 @@ let selectKind(
   replacementRef: Option<LanguageTools.ProgramTypes.Reference>)
   : Result<LanguageTools.ProgramTypes.DeprecationKind, String> =
   match replacementRef with
-  | Some(r) -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.WithReplacement(r))
+  | Some(r) -> Ok(LanguageTools.ProgramTypes.DeprecationKind.WithReplacement(r))
   | None when parsed.blockExecution && itemKind == LanguageTools.ProgramTypes.ItemKind.Fn ->
-    Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Harmful)
-  | None when parsed.blockExecution -> Result.Error("--block-execution only applies to functions.")
-  | None -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Deprecated)
+    Ok(LanguageTools.ProgramTypes.DeprecationKind.Harmful)
+  | None when parsed.blockExecution -> Error("--block-execution only applies to functions.")
+  | None -> Ok(LanguageTools.ProgramTypes.DeprecationKind.Deprecated)
 
 
 /// Other names that hold the same content as <param target> at <param location>.
@@ -341,10 +341,10 @@ let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState
       let targetRef = found.targetRef
       let replacementResult =
         match parsed.replacement with
-        | None -> Result.Ok(Option.None)
+        | None -> Ok(None)
         | Some(r) ->
           match resolveTarget(branchId, currentLoc, itemKind, r) with
-          | Some(ref) -> Result.Ok(Option.Some(ref))
+          | Some(ref) -> Ok(Some(ref))
           | None ->
             // Check other item kinds so the error can distinguish a kind mismatch
             // from an unknown name.
@@ -352,16 +352,16 @@ let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState
               allItemKinds
               |> Stdlib.List.filter(fun pair ->
                 let (k, _) = pair
-                k != itemKind && resolveTarget(branchId, currentLoc, k, r) != Option.None)
+                k != itemKind && resolveTarget(branchId, currentLoc, k, r) != None)
               |> Stdlib.List.head
 
             match otherKind with
             | Some(found) ->
               let (_, foundName) = found
-              Result.Error(
+              Error(
                 $"{r} is a {foundName}, but you are deprecating a {itemTypeStr}. "
                 + "Choose a replacement of the same kind, or omit --replacement.")
-            | None -> Result.Error($"Could not resolve --replacement {itemTypeStr} {r}")
+            | None -> Error($"Could not resolve --replacement {itemTypeStr} {r}")
 
       match replacementResult with
       | Error(msg) ->
@@ -456,7 +456,7 @@ let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState
                     targetRef,
                     deprecationKind,
                     parsed.reason,
-                    Option.None))
+                    None))
 
               match SCM.PackageOps.add(branchId, ops) with
               | Ok(_) ->
@@ -599,7 +599,7 @@ let executeUndeprecate(state: AppState, args: List<String>): AppState =
         let ops =
           cleared
           |> Stdlib.List.map(fun l ->
-            LanguageTools.ProgramTypes.PackageOp.Undeprecate(l, targetRef, Option.None))
+            LanguageTools.ProgramTypes.PackageOp.Undeprecate(l, targetRef, None))
 
         sayShared(harmfulTwins, "no longer harmful", SharedNameDetail.ListNames)
         match SCM.PackageOps.add(branchId, ops) with
@@ -683,12 +683,12 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
   let hasTarget =
     match parsed.itemType with
     | Some(first) ->
-      LanguageTools.ProgramTypes.ItemKind.fromString(first) == Option.None
+      LanguageTools.ProgramTypes.ItemKind.fromString(first) == None
       || Stdlib.Option.isSome(parsed.target)
     | None -> false
 
   if hasTarget && parsed.parseErrors == [] then
-    let chooseEffect = Stdlib.Bool.not(parsed.blockExecution) && parsed.replacement == Option.None
+    let chooseEffect = Stdlib.Bool.not(parsed.blockExecution) && parsed.replacement == None
     [ (chooseEffect, "--replacement")
       (chooseEffect, "--block-execution")
       (parsed.reason == "", "--reason")
@@ -696,6 +696,6 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
       (Stdlib.Bool.not(parsed.dryRun), "--dry-run")
       (Stdlib.Bool.not(parsed.json), "--json") ]
     |> Stdlib.List.filterMap(fun((show, flag)) ->
-      if show then Option.Some(Completion.simple(flag)) else Option.None)
+      if show then Some(Completion.simple(flag)) else None)
   else
     completeItemTypes(args)

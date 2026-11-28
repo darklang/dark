@@ -1,0 +1,95 @@
+module Darklang.LanguageTools.Suggest.Tests
+
+test distanceCountsASwapOnce =
+  Stdlib.Test.all(
+    [ LanguageTools.Suggest.distance("lenght", "length") |> Stdlib.Test.equal(1)
+
+      LanguageTools.Suggest.distance("stauts", "status") |> Stdlib.Test.equal(1)
+
+      LanguageTools.Suggest.distance("comit", "commit") |> Stdlib.Test.equal(1)
+
+      LanguageTools.Suggest.distance("Stdlib", "stdlib") |> Stdlib.Test.equal(0)
+
+      LanguageTools.Suggest.distance("", "abc") |> Stdlib.Test.equal(3)
+
+      LanguageTools.Suggest.distance("kitten", "sitting")
+      |> Stdlib.Test.equal(3) ])
+
+
+// Typos from agent sessions, and the name each meant.
+test nearFindsTheTypo =
+  let near = fun(word, names) -> LanguageTools.Suggest.near(word, names, [])
+  Stdlib.Test.all(
+    [ near("lenght", [ "length", "left", "height", "lengthy" ])
+      |> Stdlib.Test.equal([ "length" ])
+
+      near("tset", [ "let", "test", "tree" ]) |> Stdlib.Test.equal([ "test" ])
+
+      near("dcos", [ "cls", "docs", "deps" ]) |> Stdlib.Test.equal([ "docs" ])
+
+      near("recrods", [ "records", "errors" ])
+      |> Stdlib.Test.equal([ "records" ])
+
+      near("--jsno", [ "--json", "--plain" ]) |> Stdlib.Test.equal([ "--json" ])
+
+      near("fitler", [ "filter", "iter", "find" ])
+      |> Stdlib.Test.equal([ "filter" ])
+
+      near("toUpper", [ "toUppercase", "toLowercase" ])
+      |> Stdlib.Test.equal([ "toUppercase" ]) ])
+
+
+// Words that are not typos, from search queries that found nothing.
+test nearLeavesRealWordsAlone =
+  let near = fun(word, names) -> LanguageTools.Suggest.near(word, names, [])
+  Stdlib.Test.all(
+    [ near("tcp", [ "tap", "tcpPort" ]) |> Stdlib.Test.equal([])
+
+      near("mod", [ "Mode", "mode" ]) |> Stdlib.Test.equal([])
+
+      near("panic", [ "pair", "panel" ]) |> Stdlib.Test.equal([])
+
+      near("async", [ "asin" ]) |> Stdlib.Test.equal([])
+
+      near("stdlib", [ "Stdio" ]) |> Stdlib.Test.equal([])
+
+      near("x", [ "q", "y" ]) |> Stdlib.Test.equal([])
+
+      near("DateTime", [ "toStringISO8601BasicDateTime" ])
+      |> Stdlib.Test.equal([]) ])
+
+
+test nearRanks =
+  Stdlib.Test.all(
+    [ // the same name in another case beats a near one
+      LanguageTools.Suggest.near(
+        "printline",
+        [ "printLines", "printLine", "printList" ],
+        [])
+      |> Stdlib.Test.equal([ "printLine" ])
+
+      // what the word means comes first, and only when it is a name here
+      LanguageTools.Suggest.near(
+        "size",
+        [ "sizes", "length" ],
+        [ "length", "count" ])
+      |> Stdlib.Test.equal([ "length" ])
+
+      // never the word itself
+      LanguageTools.Suggest.near("loopT", [ "loopT" ], [])
+      |> Stdlib.Test.equal([])
+
+      // ties keep the order given, three at most
+      LanguageTools.Suggest.near("cat", [ "Cat", "CAT", "cAt", "caT" ], [])
+      |> Stdlib.Test.equal([ "Cat", "CAT", "cAt" ]) ])
+
+
+test sentence =
+  Stdlib.Test.all(
+    [ LanguageTools.Suggest.sentence([]) |> Stdlib.Test.equal("")
+
+      LanguageTools.Suggest.sentence([ "A.a" ])
+      |> Stdlib.Test.equal("Did you mean `A.a`?")
+
+      LanguageTools.Suggest.sentence([ "A.a", "A.b", "A.c" ])
+      |> Stdlib.Test.equal("Did you mean `A.a`, `A.b` or `A.c`?") ])

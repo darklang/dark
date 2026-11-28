@@ -156,222 +156,133 @@ test sum =
 test parseOutOfRange =
   Stdlib.Test.all(
     [ Stdlib.UInt8.parse("-129")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.OutOfRange))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.OutOfRange))
 
       Stdlib.UInt8.parse("256")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.OutOfRange)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.OutOfRange)) ])
 
 
 test parseBadFormat =
   Stdlib.Test.all(
     [ // bad format
       Stdlib.UInt8.parse("256u8")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("1 2 3")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("+ 1")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("- 1")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("0xA")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("0x123")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("0b0100")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("pi")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("Darklang.Stdlib.Math.pi")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("1.23E+04")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("1I")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("one")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat))
 
       Stdlib.UInt8.parse("XIV")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt8.ParseError.BadFormat)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.UInt8.ParseError.BadFormat)) ])
 
 
 test fromInt8 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromInt8(0s8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromInt8(1s8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromInt8(127s8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(127u8))
-
-      Stdlib.UInt8.fromInt8(-128s8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.UInt8.fromInt8(-1s8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromInt8(0s8) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromInt8(1s8) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromInt8(127s8) |> Stdlib.Test.equal(Some(127u8))
+      Stdlib.UInt8.fromInt8(-128s8) |> Stdlib.Test.equal(None)
+      Stdlib.UInt8.fromInt8(-1s8) |> Stdlib.Test.equal(None) ])
 
 
 test fromInt16 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromInt16(0s16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromInt16(1s16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromInt16(255s16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromInt16(256s16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.UInt8.fromInt16(-1s16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromInt16(0s16) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromInt16(1s16) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromInt16(255s16) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromInt16(256s16) |> Stdlib.Test.equal(None)
+      Stdlib.UInt8.fromInt16(-1s16) |> Stdlib.Test.equal(None) ])
 
 
 test fromUInt16 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromUInt16(0u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromUInt16(1u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromUInt16(255u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromUInt16(256u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromUInt16(0u16) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromUInt16(1u16) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromUInt16(255u16) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromUInt16(256u16) |> Stdlib.Test.equal(None) ])
 
 
 test fromInt32 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromInt32(0s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromInt32(1s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromInt32(255s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromInt32(256s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.UInt8.fromInt32(-1s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromInt32(0s32) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromInt32(1s32) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromInt32(255s32) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromInt32(256s32) |> Stdlib.Test.equal(None)
+      Stdlib.UInt8.fromInt32(-1s32) |> Stdlib.Test.equal(None) ])
 
 
 test fromUInt32 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromUInt32(0u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromUInt32(1u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromUInt32(255u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromUInt32(256u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromUInt32(0u32) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromUInt32(1u32) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromUInt32(255u32) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromUInt32(256u32) |> Stdlib.Test.equal(None) ])
 
 
 test fromInt64 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromInt64(0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromInt64(1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromInt64(255)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromInt64(256)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.UInt8.fromInt64(-1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromInt64(0) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromInt64(1) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromInt64(255) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromInt64(256) |> Stdlib.Test.equal(None)
+      Stdlib.UInt8.fromInt64(-1) |> Stdlib.Test.equal(None) ])
 
 
 test fromUInt64 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromUInt64(0u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromUInt64(1u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromUInt64(255u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromUInt64(256u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromUInt64(0u64) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromUInt64(1u64) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromUInt64(255u64) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromUInt64(256u64) |> Stdlib.Test.equal(None) ])
 
 
 test fromInt128 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromInt128(0s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromInt128(1s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromInt128(255s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromInt128(256s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.UInt8.fromInt128(-1s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromInt128(0s128) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromInt128(1s128) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromInt128(255s128) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromInt128(256s128) |> Stdlib.Test.equal(None)
+      Stdlib.UInt8.fromInt128(-1s128) |> Stdlib.Test.equal(None) ])
 
 
 test fromUInt128 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.fromUInt128(0u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
-
-      Stdlib.UInt8.fromUInt128(1u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u8))
-
-      Stdlib.UInt8.fromUInt128(255u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
-
-      Stdlib.UInt8.fromUInt128(256u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.UInt8.fromUInt128(0u128) |> Stdlib.Test.equal(Some(0u8))
+      Stdlib.UInt8.fromUInt128(1u128) |> Stdlib.Test.equal(Some(1u8))
+      Stdlib.UInt8.fromUInt128(255u128) |> Stdlib.Test.equal(Some(255u8))
+      Stdlib.UInt8.fromUInt128(256u128) |> Stdlib.Test.equal(None) ])
 
 
 test bitwiseAnd =
@@ -434,130 +345,100 @@ test shiftCountWraps =
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedAdd(255u8, 1u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt8.checkedAdd(255u8, 255u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.UInt8.checkedAdd(255u8, 0u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8))
+      Stdlib.UInt8.checkedAdd(255u8, 0u8) |> Stdlib.Test.equal(Ok(255u8))
 
-      Stdlib.UInt8.checkedAdd(254u8, 1u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8)) ])
+      Stdlib.UInt8.checkedAdd(254u8, 1u8) |> Stdlib.Test.equal(Ok(255u8)) ])
 
 
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedSubtract(0u8, 1u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt8.checkedSubtract(1u8, 255u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.UInt8.checkedSubtract(255u8, 255u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8))
+      Stdlib.UInt8.checkedSubtract(255u8, 255u8) |> Stdlib.Test.equal(Ok(0u8))
 
       Stdlib.UInt8.checkedSubtract(255u8, 0u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8)) ])
+      |> Stdlib.Test.equal(Ok(255u8)) ])
 
 
 test checkedMultiply =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedMultiply(255u8, 2u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt8.checkedMultiply(255u8, 255u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.UInt8.checkedMultiply(255u8, 1u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8))
+      Stdlib.UInt8.checkedMultiply(255u8, 1u8) |> Stdlib.Test.equal(Ok(255u8))
 
-      Stdlib.UInt8.checkedMultiply(255u8, 0u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8))
+      Stdlib.UInt8.checkedMultiply(255u8, 0u8) |> Stdlib.Test.equal(Ok(0u8))
 
       Stdlib.UInt8.checkedMultiply(127u8, 2u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(254u8)) ])
+      |> Stdlib.Test.equal(Ok(254u8)) ])
 
 
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedNegate(1u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt8.checkedNegate(255u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.UInt8.checkedNegate(0u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8)) ])
+      Stdlib.UInt8.checkedNegate(0u8) |> Stdlib.Test.equal(Ok(0u8)) ])
 
 
 test checkedAbsoluteValue =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.checkedAbsoluteValue(255u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8))
-
-      Stdlib.UInt8.checkedAbsoluteValue(0u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8)) ])
+    [ Stdlib.UInt8.checkedAbsoluteValue(255u8) |> Stdlib.Test.equal(Ok(255u8))
+      Stdlib.UInt8.checkedAbsoluteValue(0u8) |> Stdlib.Test.equal(Ok(0u8)) ])
 
 
 /// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
 test checkedPower =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.checkedPower(2u8, 7u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128u8))
+    [ Stdlib.UInt8.checkedPower(2u8, 7u8) |> Stdlib.Test.equal(Ok(128u8))
 
       Stdlib.UInt8.checkedPower(2u8, 8u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
 
-      Stdlib.UInt8.checkedPower(15u8, 2u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(225u8))
+      Stdlib.UInt8.checkedPower(15u8, 2u8) |> Stdlib.Test.equal(Ok(225u8))
 
       Stdlib.UInt8.checkedPower(16u8, 2u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
 
-      Stdlib.UInt8.checkedPower(3u8, 0u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u8))
+      Stdlib.UInt8.checkedPower(3u8, 0u8) |> Stdlib.Test.equal(Ok(1u8))
 
-      Stdlib.UInt8.checkedPower(0u8, 0u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u8))
+      Stdlib.UInt8.checkedPower(0u8, 0u8) |> Stdlib.Test.equal(Ok(1u8))
 
-      Stdlib.UInt8.checkedPower(0u8, 255u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8))
+      Stdlib.UInt8.checkedPower(0u8, 255u8) |> Stdlib.Test.equal(Ok(0u8))
 
-      Stdlib.UInt8.checkedPower(1u8, 255u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u8))
+      Stdlib.UInt8.checkedPower(1u8, 255u8) |> Stdlib.Test.equal(Ok(1u8))
 
       Stdlib.UInt8.checkedPower(2u8, 255u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow)) ])
 
 
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.checkedDivide(17u8, 3u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5u8))
+    [ Stdlib.UInt8.checkedDivide(17u8, 3u8) |> Stdlib.Test.equal(Ok(5u8))
 
       Stdlib.UInt8.checkedDivide(5u8, 0u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
 
-      Stdlib.UInt8.checkedMod(15u8, 6u8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3u8))
+      Stdlib.UInt8.checkedMod(15u8, 6u8) |> Stdlib.Test.equal(Ok(3u8))
 
       Stdlib.UInt8.checkedMod(5u8, 0u8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus)) ])
 
 
 test limits =

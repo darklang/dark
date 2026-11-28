@@ -67,7 +67,7 @@ let currentHash(
 /// The version this branch inherited when it first changed this name.
 let forkBaseOf(branchId: Uuid, loc: LanguageTools.ProgramTypes.PackageLocation): Option<String> =
   if Branch.isMain(branchId) then
-    Option.None
+    None
   else
     Conflicts.branchBases(branchId)
     |> Stdlib.List.findFirst(fun b ->

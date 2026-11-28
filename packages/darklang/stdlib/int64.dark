@@ -136,11 +136,11 @@ let fromFloatCeiling(a: Float64): Result<Int64, Math.NonFinite> =
 // way it rounds: the Float64s nearest either end are whole numbers
 let __inRange(a: Float64): Result<Float64, Math.NonFinite> =
   if Float64.isNaN(a) then
-    Result.Error(Math.NonFinite.NotANumber)
+    Error(Math.NonFinite.NotANumber)
   else if a >= -9223372036854775808.0 && a < 9223372036854775808.0 then
-    Result.Ok(a)
+    Ok(a)
   else
-    Result.Error(Math.NonFinite.Overflow)
+    Error(Math.NonFinite.Overflow)
 
 
 /// Parses a <type String> into an <type Int64>, returning {{Ok}} with the
@@ -152,9 +152,9 @@ let parse(s: String): Result<Int64, ParseError> =
   match BigInt.parse(s) with
   | Ok(n) ->
     match BigInt.toInt64(n) with
-    | Some(i) -> Result.Ok(i)
-    | None -> Result.Error(ParseError.OutOfRange)
-  | Error(_) -> Result.Error(ParseError.BadFormat)
+    | Some(i) -> Ok(i)
+    | None -> Error(ParseError.OutOfRange)
+  | Error(_) -> Error(ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int64>.
@@ -316,60 +316,57 @@ impl One for Int64 =
 let checkedAdd(a: Int64, b: Int64): Result<Int64, Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0 then sum > a else sum < a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(a: Int64, b: Int64): Result<Int64, Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0 then difference < a else difference > a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(a: Int64, b: Int64): Result<Int64, Math.Overflow> =
   let product = BigInt.fromInt64(a) * BigInt.fromInt64(b)
   match BigInt.toInt64(product) with
-  | Some(fits) -> Result.Ok(fits)
-  | None -> Result.Error(Math.Overflow.Overflow)
+  | Some(fits) -> Ok(fits)
+  | None -> Error(Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int64): Result<Int64, Math.Overflow> =
-  if a == -9223372036854775808 then
-    Result.Error(Math.Overflow.Overflow)
-  else
-    Result.Ok(-a)
+  if a == -9223372036854775808 then Error(Math.Overflow.Overflow) else Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int64): Result<Int64, Math.Overflow> =
   if a == -9223372036854775808 then
-    Result.Error(Math.Overflow.Overflow)
+    Error(Math.Overflow.Overflow)
   else if a < 0 then
-    Result.Ok(-a)
+    Ok(-a)
   else
-    Result.Ok(a)
+    Ok(a)
 
 
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(base: Int64, exponent: Int64): Result<Int64, Math.PowerError> =
   if exponent < 0 then
-    Result.Error(Math.PowerError.NegativeExponent)
+    Error(Math.PowerError.NegativeExponent)
   else if base == 0 || base == 1 || base == -1 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Result.Ok(base ** exponent)
+    Ok(base ** exponent)
   else if exponent >= 64 then
     // any other base is at least 2 from zero, and 2 ** 64 is past the Int64 range
-    Result.Error(Math.PowerError.Overflow)
+    Error(Math.PowerError.Overflow)
   else
     let result = BigInt.fromInt64(base) ** BigInt.fromInt64(exponent)
     match BigInt.toInt64(result) with
-    | Some(fits) -> Result.Ok(fits)
-    | None -> Result.Error(Math.PowerError.Overflow)
+    | Some(fits) -> Ok(fits)
+    | None -> Error(Math.PowerError.Overflow)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -380,11 +377,11 @@ let checkedPower(base: Int64, exponent: Int64): Result<Int64, Math.PowerError> =
 /// minimum value divided by -1, where `/` wraps back to the minimum.
 let checkedDivide(a: Int64, b: Int64): Result<Int64, Math.DivisionError> =
   if b == 0 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else if b == -1 && a == -9223372036854775808 then
-    Result.Error(Math.DivisionError.Overflow)
+    Error(Math.DivisionError.Overflow)
   else
-    Result.Ok(a / b)
+    Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
@@ -393,17 +390,17 @@ let checkedDivide(a: Int64, b: Int64): Result<Int64, Math.DivisionError> =
 /// Use <fn Int64.checkedMod> to wrap around into {{0 <= res < b}} instead.
 let checkedRemainder(value: Int64, divisor: Int64): Result<Int64, Math.DivisionError> =
   if divisor == 0 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else
-    Result.Ok(value - value / divisor * divisor)
+    Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: Int64, b: Int64): Result<Int64, Math.ModulusError> =
   if b == 0 then
-    Result.Error(Math.ModulusError.ZeroModulus)
+    Error(Math.ModulusError.ZeroModulus)
   else if b < 0 then
-    Result.Error(Math.ModulusError.NegativeModulus)
+    Error(Math.ModulusError.NegativeModulus)
   else
-    Result.Ok(a % b)
+    Ok(a % b)

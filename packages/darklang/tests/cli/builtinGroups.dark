@@ -76,7 +76,7 @@ test builtinValuesAreListedAndFiltered =
   let has(filter: Stdlib.Option.Option<String>): Bool =
     Stdlib.List.contains(names(filter), "bytesEmpty")
 
-  let unfiltered = has(Stdlib.Option.Option.None)
-  let matching = has(Stdlib.Option.Option.Some("bytes"))
-  let other = has(Stdlib.Option.Option.Some("json"))
+  let unfiltered = has(None)
+  let matching = has(Some("bytes"))
+  let other = has(Some("json"))
   (unfiltered, matching, other) |> Stdlib.Test.equal((true, true, false))

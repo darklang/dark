@@ -38,14 +38,14 @@ type Endianness =
 /// The <param width> bytes at <param offset> as one unsigned number, or {{None}} if they don't all fit.
 let __readBits(bytes: Bytes, offset: Int64, width: Int64, endianness: Endianness): Option<UInt64> =
   if offset < 0 || offset > length(bytes) - width then
-    Option.None
+    None
   else
     let indexes =
       match endianness with
       | BigEndian -> List.range(offset, offset + width - 1)
       | LittleEndian -> List.reverse(List.range(offset, offset + width - 1))
 
-    Option.Some(
+    Some(
       List.fold(indexes, 0u64, fun(acc, i) ->
         let byte = getAt(bytes, i) |> Result.withDefault(0u8)
         Builtin.bitwiseOr(acc << 8u64, UInt64.fromUInt8(byte))))
@@ -97,8 +97,8 @@ let __inRange(
   width: Int64)
   : Result<'a, ReadOutOfRange> =
   match found with
-  | Some(n) -> Result.Ok(n)
-  | None -> Result.Error(ReadOutOfRange { offset = offset, width = width, length = length(bytes) })
+  | Some(n) -> Ok(n)
+  | None -> Error(ReadOutOfRange { offset = offset, width = width, length = length(bytes) })
 
 
 /// Returns {{Ok}} the byte at <param offset> in <param bytes>, or {{Error}}
@@ -274,9 +274,9 @@ type IndexError =
 /// {{0 <= start <= end <= length}}.
 let slice(bytes: Bytes, start: Int64, end: Int64): Result<Bytes, IndexError> =
   if start < 0 || start > end || end > length(bytes) then
-    Result.Error(IndexError.IndexOutOfBounds)
+    Error(IndexError.IndexOutOfBounds)
   else
-    Result.Ok(Builtin.bytesSlice(bytes, start, end - start))
+    Ok(Builtin.bytesSlice(bytes, start, end - start))
 
 
 /// Returns the first <param count> bytes of <param bytes>, or all of them if
@@ -316,9 +316,9 @@ let drop(bytes: Bytes, count: Int64): Bytes =
 /// {{0 <= index < length}}.
 let setAt(bytes: Bytes, index: Int64, byte: UInt8): Result<Bytes, IndexError> =
   if index < 0 || index >= length(bytes) then
-    Result.Error(IndexError.IndexOutOfBounds)
+    Error(IndexError.IndexOutOfBounds)
   else
-    Result.Ok(concatAll([ take(bytes, index), fromList([ byte ]), drop(bytes, index + 1) ]))
+    Ok(concatAll([ take(bytes, index), fromList([ byte ]), drop(bytes, index + 1) ]))
 
 
 /// Returns {{true}} if <param bytes> begins with <param prefix>. Every Bytes

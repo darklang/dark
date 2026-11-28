@@ -28,7 +28,7 @@ let isLatestBuild(currentVersion: String): Result<Bool, String> =
 /// Copy the running binary to `~/.darklang/bin/dark` and put it on the PATH.
 let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Result<String, String> =
   match Config.getDarklangHomeDir(host) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(darklangHomeDir) ->
     let currentBinaryPath = Stdlib.Cli.Sys.currentExecutablePath()
     let globalBinDir = $"{darklangHomeDir}/bin/"
@@ -38,11 +38,11 @@ let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Result<String, String>
       | Ok(_) ->
         match Stdlib.Cli.Unix.copyFile(currentBinaryPath, globalBinaryPath) with
         | Ok(_) -> Stdlib.Cli.Unix.grantExecutePermission(globalBinaryPath)
-        | Error(e) -> Result.Error(e)
-      | Error(e) -> Result.Error(e)
+        | Error(e) -> Error(e)
+      | Error(e) -> Error(e)
 
     match copied with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(_) ->
       // Unexpanded, as `install.sh` writes it. A PATH we couldn't edit is a warning, not a failure.
       match Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/") with
@@ -51,7 +51,7 @@ let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Result<String, String>
         Stdlib.printErrorLine(
           $"Couldn't add {globalBinDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
 
-      Result.Ok($"Installed to {globalBinaryPath}. The 'dark' command should now be available.")
+      Ok($"Installed to {globalBinaryPath}. The 'dark' command should now be available.")
 
 
 /// Update the CLI if a newer version is available. Never prompts, so `--yes` changes nothing here.
@@ -65,17 +65,16 @@ let updateIfAvailable(
   // A pinned tag is installed whatever is current: it is how you roll back.
   let check =
     match pinned with
-    | Some(_) -> Result.Ok(false)
+    | Some(_) -> Ok(false)
     | None -> isLatestBuild(currentVersion)
 
   match check with
-  | Error(_) ->
-    Result.Error("Couldn't reach GitHub to find the latest release. Nothing was changed.")
-  | Ok(true) -> Result.Ok("Already up to date!")
+  | Error(_) -> Error("Couldn't reach GitHub to find the latest release. Nothing was changed.")
+  | Ok(true) -> Ok("Already up to date!")
   | Ok(false) ->
     match replace() with
-    | Ok(tag) -> Result.Ok($"Updated to {tag}.")
-    | Error(e) -> Result.Error(e)
+    | Ok(tag) -> Ok($"Updated to {tag}.")
+    | Error(e) -> Error(e)
 
 
 /// Uninstall the CLI with user confirmation, which {{Confirm.Assume}} skips
@@ -84,7 +83,7 @@ let uninstallWithConfirmation(
   confirm: Confirm)
   : Result<String, String> =
   match Config.getDarklangHomeDir(host) with
-  | Error(e) -> Result.Error($"refusing to uninstall: {e}")
+  | Error(e) -> Error($"refusing to uninstall: {e}")
   | Ok(darklangHomeDir) ->
     if
       Prompt.confirmExplicit(
@@ -93,10 +92,10 @@ let uninstallWithConfirmation(
     then
       Stdlib.printErrorLine("Uninstalling...")
       match Uninstall.runUninstall(host) with
-      | Ok(_) -> Result.Ok("Uninstall complete")
-      | Error(e) -> Result.Error(e)
+      | Ok(_) -> Ok("Uninstall complete")
+      | Error(e) -> Error(e)
     // An Error: the Ok arm reports success and exits the CLI as though the binary were gone.
     else if Stdlib.Cli.UI.Prompt.canAsk() then
-      Result.Error("Uninstall cancelled")
+      Error("Uninstall cancelled")
     else
-      Result.Error(Prompt.refuseWithoutTerminal("Uninstall", "dark uninstall"))
+      Error(Prompt.refuseWithoutTerminal("Uninstall", "dark uninstall"))

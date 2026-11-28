@@ -185,8 +185,8 @@ type Focused<'msg> =
 
 let findFocused(node: Node<'msg>, id: String): Option<Focused<'msg>> =
   match node with
-  | Input(spec) -> if spec.id == id then Option.Some(Focused.OnInput(spec)) else Option.None
-  | Button(label, msg) -> if label == id then Option.Some(Focused.OnButton(msg)) else Option.None
+  | Input(spec) -> if spec.id == id then Some(Focused.OnInput(spec)) else None
+  | Button(label, msg) -> if label == id then Some(Focused.OnButton(msg)) else None
   | Styled(_, inner) -> findFocused(inner, id)
   | Region(_, _, inner) -> findFocused(inner, id)
   | Row(children) ->
@@ -201,7 +201,7 @@ let findFocused(node: Node<'msg>, id: String): Option<Focused<'msg>> =
     children
     |> List.filterMap(fun c -> findFocused(c, id))
     |> List.head
-  | _ -> Option.None
+  | _ -> None
 
 
 // --- the terminal ---
@@ -255,7 +255,7 @@ let tableRows(columns: List<String>, rows: List<List<String>>): List<String> =
     widths
     |> List.indexedMap(fun(i, w) ->
       let cell = List.getAt(cells, i) |> Option.withDefault("")
-      if List.getAt(numeric, i) == Option.Some(true) then
+      if List.getAt(numeric, i) == Some(true) then
         Text.padStartToWidth(cell, w)
       else
         Text.padEndToWidth(cell, w))
@@ -393,8 +393,8 @@ let toLines(node: Node<'msg>, width: Int64): List<String> =
 let rowOf(node: Node<'msg>, id: String): Option<Int64> =
   let find(n: Node<'msg>, top: Int64): Option<Int64> =
     match n with
-    | Input(spec) -> if spec.id == id then Option.Some(top) else Option.None
-    | Button(label, _) -> if label == id then Option.Some(top) else Option.None
+    | Input(spec) -> if spec.id == id then Some(top) else None
+    | Button(label, _) -> if label == id then Some(top) else None
     | Styled(_, inner) -> find(inner, top)
     | Region(_, _, inner) -> find(inner, top)
     | Row(children) ->
@@ -404,7 +404,7 @@ let rowOf(node: Node<'msg>, id: String): Option<Int64> =
     | Column(children) | ListOf(children) ->
       let (_, found) =
         children
-        |> List.fold((top, Option.None), fun(acc, child) ->
+        |> List.fold((top, None), fun(acc, child) ->
           let (at, found) = acc
           match found with
           | Some(_) -> acc
@@ -413,6 +413,6 @@ let rowOf(node: Node<'msg>, id: String): Option<Int64> =
             (at + rows, find(child, at)))
 
       found
-    | _ -> Option.None
+    | _ -> None
 
   find(node, 0)

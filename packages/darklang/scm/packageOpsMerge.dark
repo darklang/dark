@@ -20,8 +20,8 @@ module Darklang.SCM.PackageOps
 /// no later fold undoes.
 let settleConflict(branchId: Uuid, c: Conflicts.Conflict, hash: String): Result<Unit, String> =
   match Actions.resolve(Actions.Resolution.Override(branchId, c.id, hash)) with
-  | Ok(_) -> Result.Ok()
-  | Error(e) -> Result.Error(Actions.failureMessage(e))
+  | Ok(_) -> Ok()
+  | Error(e) -> Error(Actions.failureMessage(e))
 
 
 /// Settle a conflict by taking the REMOVAL: end the name again, and close the record.
@@ -36,8 +36,8 @@ let settleConflictByRemoval(branchId: Uuid, c: Conflicts.Conflict): Result<Unit,
   let location = Deps.locationOf(c.owner, c.modules, c.name)
   let previous = liveBindingFor(branchId, location) |> Stdlib.Option.map(fun b -> b.hash)
   match Actions.resolve(Actions.Resolution.TakeRemoval(branchId, c.id, previous)) with
-  | Ok(_) -> Result.Ok()
-  | Error(e) -> Result.Error(Actions.failureMessage(e))
+  | Ok(_) -> Ok()
+  | Error(e) -> Error(Actions.failureMessage(e))
 
 
 /// Commit the draft on <param branchId> under <param message>. Returns the new commit's hash.
@@ -57,26 +57,26 @@ let commitDraft(branchId: Uuid, message: String): Result<String, String> =
   match typeReport.verdict with
   | Failed ->
     let count = Stdlib.List.length(Stdlib.List.concat(typeReport.diagnostics, typeReport.warnings))
-    Result.Error(
+    Error(
       $"the at-rest type check found {Stdlib.display(count)} definite error(s); "
       + "`dark constraints` and `dark typecheck` show them")
   | Checked | Incomplete ->
     match unresolvedInDraft(branchId) with
     | [] ->
       match draftOpCountFor(branchId) with
-      | 0 -> Result.Error("nothing to commit")
+      | 0 -> Error("nothing to commit")
       | _ ->
         match commitOn(branchId, message, Actions.CommitScope.Whole, Namings.KeepAll) with
-        | Ok(c) -> Result.Ok(c.hash)
-        | Error(Refused(NothingToCommit)) -> Result.Error("nothing was committed")
-        | Error(e) -> Result.Error(Actions.failureMessage(e))
+        | Ok(c) -> Ok(c.hash)
+        | Error(Refused(NothingToCommit)) -> Error("nothing was committed")
+        | Error(e) -> Error(Actions.failureMessage(e))
     | broken ->
       let names =
         broken
         |> Stdlib.List.map(fun((label, _)) -> label)
         |> Stdlib.String.join(", ")
 
-      Result.Error(
+      Error(
         $"unresolved references in {names} -- author what's missing, or commit with --allow-unresolved")
 
 
@@ -147,23 +147,23 @@ let mergeErrorMessage(e: MergeError): String =
 /// (a rebase records them there) move to the parent too.
 let mergeBranch(branchId: Uuid): Result<MergeOutcome, MergeError> =
   match Branches.outdatedRepoints(branchId) with
-  | Error(e) -> Result.Error(MergeError.Mechanism(e))
+  | Error(e) -> Error(MergeError.Mechanism(e))
   | Ok(repoints) ->
     match Actions.merge(Actions.MergeAction.IntoParent(branchId, repoints)) with
     | Ok(r) ->
       MergeOutcome
         { merged = r.moved, conflicts = r.conflicts, repointed = r.repointed, warning = r.warning }
       |> Result.Ok
-    | Error(Refused(IsMain)) -> Result.Error(MergeError.Refused(Branches.MergeRefusal.IsMain))
+    | Error(Refused(IsMain)) -> Error(MergeError.Refused(Branches.MergeRefusal.IsMain))
     | Error(Refused(NothingToMerge)) ->
-      Result.Error(MergeError.Refused(Branches.MergeRefusal.NothingToMerge))
+      Error(MergeError.Refused(Branches.MergeRefusal.NothingToMerge))
     | Error(Refused(HasActiveChildren)) ->
-      Result.Error(MergeError.Refused(Branches.MergeRefusal.HasActiveChildren))
+      Error(MergeError.Refused(Branches.MergeRefusal.HasActiveChildren))
     | Error(Refused(Moved)) ->
-      Result.Error(
+      Error(
         MergeError.Mechanism(
           "the branch changed while it was being merged, so nothing was changed. Run it again."))
-    | Error(e) -> Result.Error(MergeError.Mechanism(Actions.failureMessage(e)))
+    | Error(e) -> Error(MergeError.Mechanism(Actions.failureMessage(e)))
 
 
 /// What a rebase did: the parent's message, and what the rebase reconciled.
@@ -209,7 +209,7 @@ let rebaseBranch(branchId: Uuid): Result<RebaseOutcome, String> =
   if Branch.isMain(branchId) then
     // Main has no parent to rebase onto, so this is not a thing you can do rather than a thing that found
     // nothing to do.
-    Result.Error("main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
+    Error("main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
   else
     match Branches.rebaseDetailed(branchId) with
     | Ok(reconciled) ->
@@ -218,7 +218,7 @@ let rebaseBranch(branchId: Uuid): Result<RebaseOutcome, String> =
 
       let msg = rebaseMessage(branchParentOf(branchId), rebased)
       RebaseOutcome { message = msg, conflicts = reconciled.conflicts } |> Result.Ok
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
 
 
 /// A display of all active branches (one line each: name (id) <- parent [status]).
@@ -263,13 +263,13 @@ let resolveConflict(branchId: Uuid, name: String, choice: String): Result<String
     | "theirs" ->
       Branches.resolveTakeTheirs(branchId, name)
       |> Stdlib.Result.map(fun _ -> $"took the parent's {name} (dropped the branch's binding)")
-    | other -> Result.Error($"unknown choice \"{other}\" -- use \"mine\" or \"theirs\"")
+    | other -> Error($"unknown choice \"{other}\" -- use \"mine\" or \"theirs\"")
 
   match resolved with
   | Ok(kept) ->
     // The branch by NAME: this line is read by a person, and the id is a uuid.
-    Result.Ok($"resolved {name} on \"{branchName(branchId)}\": {kept}.")
-  | Error(e) -> Result.Error(e)
+    Ok($"resolved {name} on \"{branchName(branchId)}\": {kept}.")
+  | Error(e) -> Error(e)
 
 
 /// Archive (soft-delete) a branch, discarding its unmerged ops: one action, which also authors and
@@ -278,8 +278,8 @@ let archiveBranch(branchId: Uuid): Result<String, String> =
   // Read before the archive: afterwards the branch has no name to put in the message.
   let handle = branchName(branchId)
   match Actions.branch(Actions.BranchAction.Archive(branchId)) with
-  | Ok(_) -> Result.Ok($"archived branch \"{handle}\".")
-  | Error(e) -> Result.Error($"archive failed, nothing was changed: {Actions.failureMessage(e)}")
+  | Ok(_) -> Ok($"archived branch \"{handle}\".")
+  | Error(e) -> Error($"archive failed, nothing was changed: {Actions.failureMessage(e)}")
 
 
 /// The id of the branch NAMED <param name>, starting it off <param parentId> if no live branch has that

@@ -52,8 +52,8 @@ let __fetchString(url: String): Result<String, ReleaseError> =
       |> Stdlib.Utf8.decodeWithReplacement
       |> Result.Ok
     else
-      Result.Error(ReleaseError.BadStatus(r.statusCode))
-  | Error(e) -> Result.Error(ReleaseError.RequestFailed(e))
+      Error(ReleaseError.BadStatus(r.statusCode))
+  | Error(e) -> Error(ReleaseError.RequestFailed(e))
 
 
 module Releases =
@@ -76,9 +76,9 @@ module Releases =
       | Ok(releases) ->
         match Stdlib.List.head(releases) with
         | Some(latestRelease) -> latestRelease.tag_name |> Result.Ok
-        | None -> Result.Error(ReleaseError.NoReleases)
-      | Error(_e) -> Result.Error(ReleaseError.UnexpectedResponse)
-    | Error(e) -> Result.Error(e)
+        | None -> Error(ReleaseError.NoReleases)
+      | Error(_e) -> Error(ReleaseError.UnexpectedResponse)
+    | Error(e) -> Error(e)
 
 
   /// The published releases, newest first: the first hundred, which is the most GitHub
@@ -87,9 +87,9 @@ module Releases =
     match __fetchString($"{darklangRepoBaseUrl}/releases?per_page=100") with
     | Ok(releasesJsonString) ->
       match Stdlib.Json.parse<List<Release>>(releasesJsonString) with
-      | Ok(releases) -> Result.Ok(releases)
-      | Error(_e) -> Result.Error("Couldn't parse releases JSON string")
-    | Error(_e) -> Result.Error("Couldn't fetch releases list from GitHub API")
+      | Ok(releases) -> Ok(releases)
+      | Error(_e) -> Error("Couldn't parse releases JSON string")
+    | Error(_e) -> Error("Couldn't fetch releases list from GitHub API")
 
 
   /// The build a release shipped, in the form the CLI prints its own (`alpha-abe74e7`). Asset
@@ -107,7 +107,7 @@ module Releases =
   /// The tag appears nowhere in the binary, so the build is the only way to find it.
   let tagFor(releases: List<Release>, cliVersion: String): Option<String> =
     releases
-    |> Stdlib.List.findFirst(fun r -> buildOf(r) == Option.Some(cliVersion))
+    |> Stdlib.List.findFirst(fun r -> buildOf(r) == Some(cliVersion))
     |> Stdlib.Option.map(fun r -> r.tag_name)
 
 
@@ -122,8 +122,8 @@ module Releases =
         buildOf(latestRelease)
         |> Stdlib.Option.withDefault(latestRelease.tag_name)
         |> Result.Ok
-      | None -> Result.Error("No releases found")
-    | Error(e) -> Result.Error(e)
+      | None -> Error("No releases found")
+    | Error(e) -> Error(e)
 
 
   /// The asset for one platform id, matched by SUFFIX.
@@ -158,7 +158,7 @@ module Releases =
     | Linux, X86_64 -> "linux-musl-x64" |> Result.Ok
     | MacOS, Arm64 -> "osx-arm64" |> Result.Ok
     | MacOS, X86_64 -> "osx-x64" |> Result.Ok
-    | _, _ -> Result.Error("Unsupported OS or Arch")
+    | _, _ -> Error("Unsupported OS or Arch")
 
 
   /// One binary to download: its asset name, its URL, and the URL of the checksums file that
@@ -182,18 +182,17 @@ module Releases =
   /// A release with no checksums file is an error, so nothing installs a download it can't check.
   let getDownload(host: Stdlib.Cli.Host.Host, releaseTag: String): Result<Download, ReleaseError> =
     match platformId(host) with
-    | Error(_e) -> Result.Error(ReleaseError.UnsupportedHost)
+    | Error(_e) -> Error(ReleaseError.UnsupportedHost)
     | Ok(hostStr) ->
       match __fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}") with
-      | Error(BadStatus(code)) -> Result.Error(statusError(releaseTag, code))
-      | Error(e) -> Result.Error(e)
+      | Error(BadStatus(code)) -> Error(statusError(releaseTag, code))
+      | Error(e) -> Error(e)
       | Ok(releaseJsonString) ->
         match Stdlib.Json.parse<Release>(releaseJsonString) with
-        | Error(_e) -> Result.Error(ReleaseError.UnexpectedResponse)
+        | Error(_e) -> Error(ReleaseError.UnexpectedResponse)
         | Ok(release) ->
           match assetFor(release.assets, hostStr), sumsUrlFor(release.assets) with
-          | None, _ -> Result.Error(ReleaseError.NoAssetForPlatform(hostStr))
-          | Some(_), None -> Result.Error(ReleaseError.NoChecksums(releaseTag))
+          | None, _ -> Error(ReleaseError.NoAssetForPlatform(hostStr))
+          | Some(_), None -> Error(ReleaseError.NoChecksums(releaseTag))
           | Some(asset), Some(sumsUrl) ->
-            Result.Ok(
-              Download { name = asset.name, url = asset.browser_download_url, sumsUrl = sumsUrl })
+            Ok(Download { name = asset.name, url = asset.browser_download_url, sumsUrl = sumsUrl })

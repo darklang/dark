@@ -59,8 +59,8 @@ let create(promptText: String, items: List<Completion.CompletionItem>): State =
 /// Get the currently selected item's value (what gets inserted)
 let getSelectedValue(state: State): Option<String> =
   match Stdlib.List.getAt(state.items, state.selectedIndex) with
-  | Some(item) -> Option.Some(item.value)
-  | None -> Option.None
+  | Some(item) -> Some(item.value)
+  | None -> None
 
 
 /// Reserve the help row and fit completion items and a scroll indicator above it.
@@ -208,11 +208,11 @@ type Session =
 
 let startAtSize(state: State, size: Stdlib.Cli.Tui.Size): Result<Session, String> =
   if Stdlib.Bool.not(supportsSize(size)) then
-    Result.Error(unsupportedSizeMessage)
+    Error(unsupportedSizeMessage)
   else
     match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, viewAtSize(state, size)) with
-    | Ok(terminal) -> Result.Ok(Session { state = state, terminal = terminal })
-    | Error(message) -> Result.Error(message)
+    | Ok(terminal) -> Ok(Session { state = state, terminal = terminal })
+    | Error(message) -> Error(message)
 
 
 let presentAtSize(session: Session, state: State, size: Stdlib.Cli.Tui.Size): Session =

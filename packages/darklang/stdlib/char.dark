@@ -70,8 +70,8 @@ let isASCII(c: Char): Bool =
 /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}
 let toAsciiCode(c: Char): Option<UInt8> =
   match toCodepoint(c) with
-  | Some(code) -> if code < 128u32 then UInt8.fromUInt32(code) else Option.None
-  | None -> Option.None
+  | Some(code) -> if code < 128u32 then UInt8.fromUInt32(code) else None
+  | None -> None
 
 
 /// Return whether <param c1> sorts before <param c2>, by code point
@@ -121,12 +121,12 @@ let fromCodepoint(codepoint: UInt32): Option<Char> =
   if Codepoint.isValidScalar(codepoint) then
     Builtin.charFromCodepoint(codepoint)
   else
-    Option.None
+    None
 
 
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
 /// This undoes <fn Char.fromCodepoint>, except for the few codepoints NFC replaces.
 let toCodepoint(c: Char): Option<UInt32> =
   match String.toCodepoints(display(c)) with
-  | [codepoint] -> Option.Some(codepoint)
-  | _ -> Option.None
+  | [codepoint] -> Some(codepoint)
+  | _ -> None

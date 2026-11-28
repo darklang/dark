@@ -312,7 +312,7 @@ let fdReadAll(fd: Fd, acc: List<Bytes>): Result<Bytes, Error> =
   fdRead(fd, 4096)
   |> Result.andThen(fun chunk ->
     if Bytes.length(chunk) == 0 then
-      Result.Ok(Bytes.concatAll(acc))
+      Ok(Bytes.concatAll(acc))
     else
       fdReadAll(fd, List.append(acc, chunk)))
 
@@ -393,11 +393,11 @@ let readlink(path: String): Result<String, Error> =
 /// readlink returns EINVAL when the target is not a symlink.
 let isSymlink(path: String): Result<Bool, Error> =
   match readlink(path) with
-  | Ok(_) -> Result.Ok(true)
+  | Ok(_) -> Ok(true)
   | Error(e) ->
     match Error.kind(e) with
-    | InvalidInput -> Result.Ok(false)
-    | _ -> Result.Error(e)
+    | InvalidInput -> Ok(false)
+    | _ -> Error(e)
 
 
 /// Create a unique temporary file. Returns (fd, path).
@@ -573,29 +573,29 @@ let isProcessRunning(pid: Pid): Bool =
 let mkdirRecursive(path: String): Result<Unit, Error> =
   let target = Path.stripTrailing(path)
   match mkdir(target, Modes.defaultDir) with
-  | Ok(()) -> Result.Ok()
+  | Ok(()) -> Ok()
   | Error(e) ->
     match Error.kind(e) with
     | AlreadyExists ->
       // Something is there already; only a directory satisfies mkdir -p.
-      if isDirectory(target) then Result.Ok() else Result.Error(e)
+      if isDirectory(target) then Ok() else Error(e)
     | NotFound ->
       let parent = Path.parent(target)
       if parent == target || parent == "." || parent == "/" then
-        Result.Error(e)
+        Error(e)
       else
         match mkdirRecursive(parent) with
-        | Error(parentError) -> Result.Error(parentError)
+        | Error(parentError) -> Error(parentError)
         | Ok(()) ->
           match mkdir(target, Modes.defaultDir) with
-          | Ok(()) -> Result.Ok()
+          | Ok(()) -> Ok()
           | Error(again) ->
             // Lost a race to something that created it meanwhile.
             if Error.kind(again) == ErrorKind.AlreadyExists && isDirectory(target) then
-              Result.Ok()
+              Ok()
             else
-              Result.Error(again)
-    | _ -> Result.Error(e)
+              Error(again)
+    | _ -> Error(e)
 
 
 /// Target kernel constants and structure layouts. These are Dark data, shared
@@ -689,23 +689,23 @@ let __abiDirectoryNameOffset(): Int64 = if __abiMac() then 21 else 19
 /// <param width> bytes of <param bytes> from <param offset>, little-endian.
 let __kernelField(bytes: Bytes, offset: Int64, width: Int64): Result<Int64, Error> =
   if width == 0 then
-    Result.Ok(0)
+    Ok(0)
   else
     match Bytes.getAt(bytes, offset) with
-    | Error(_) -> Result.Error(Error.BadKernelReply)
+    | Error(_) -> Error(Error.BadKernelReply)
     | Ok(byte) ->
       match __kernelField(bytes, offset + 1, width - 1) with
-      | Error(e) -> Result.Error(e)
-      | Ok(high) -> Result.Ok(Int64.fromUInt8(byte) + 256 * high)
+      | Error(e) -> Error(e)
+      | Ok(high) -> Ok(Int64.fromUInt8(byte) + 256 * high)
 
 
 let __kernelSignedField(bytes: Bytes, offset: Int64, width: Int64): Result<Int64, Error> =
   match __kernelField(bytes, offset, width) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(n) ->
     // For a width of 8 both wrap, and the field is already signed.
     let half = 128 * __byteRange(width - 1)
-    Result.Ok(if n >= half then n - 2 * half else n)
+    Ok(if n >= half then n - 2 * half else n)
 
 
 let __byteRange(width: Int64): Int64 =
@@ -751,13 +751,13 @@ let __kernelEntriesFrom(
   : Result<List<String>, Error> =
   let remaining = Bytes.length(bytes) - at
   if remaining <= 0 then
-    Result.Ok(reversed)
+    Ok(reversed)
   else
     __kernelField(bytes, at + 16, 2)
     |> Result.andThen(fun length ->
       let nameOffset = __abiDirectoryNameOffset()
       if length <= nameOffset || length > remaining then
-        Result.Error(Error.BadKernelReply)
+        Error(Error.BadKernelReply)
       else
         let nameStart = at + nameOffset
         let recordEnd = at + length
@@ -770,8 +770,8 @@ let __kernelEntriesFrom(
               if name == "." || name == ".." then reversed else List.prepend(reversed, name)
 
             __kernelEntriesFrom(bytes, recordEnd, next)
-          | Error(_) -> Result.Error(Error.BadKernelReply)
-        | _ -> Result.Error(Error.BadKernelReply))
+          | Error(_) -> Error(Error.BadKernelReply)
+        | _ -> Error(Error.BadKernelReply))
 
 
 let __kernelEntries(bytes: Bytes, reversed: List<String>): Result<List<String>, Error> =
@@ -782,40 +782,40 @@ let __kernelEntries(bytes: Bytes, reversed: List<String>): Result<List<String>, 
 let __directoryReadAll(fd: Fd, reversed: List<String>): Result<List<String>, Error> =
   match Builtin.syscallGetdents(fd.__fd, 32768) with
   | Error(4) -> __directoryReadAll(fd, reversed)
-  | Error(e) -> Result.Error(__fromErrno(e))
+  | Error(e) -> Error(__fromErrno(e))
   | Ok(bytes) ->
     if Bytes.length(bytes) == 0 then
-      Result.Ok(List.reverse(reversed))
+      Ok(List.reverse(reversed))
     else
       match __kernelEntries(bytes, reversed) with
-      | Error(e) -> Result.Error(e)
+      | Error(e) -> Error(e)
       | Ok(next) -> __directoryReadAll(fd, next)
 
 
 let __directoryList(path: String): Result<List<String>, Error> =
   match openFile(path, __abiOpenDirectory(), Modes.none) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(fd) ->
     let result = __directoryReadAll(fd, [])
     let closed = fdClose(fd)
     match result with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(entries) -> closed |> Result.map(fun _ -> entries)
 
 
 /// Path buffer growth and text decoding over one-call kernel primitives.
 let __pathReadlinkWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Result<Bytes, Error> =
   if count <= 0 then
-    Result.Error(__fromErrno(22))
+    Error(__fromErrno(22))
   else
     match read(count) with
     | Error(4) -> __pathReadlinkWith(read, count)
-    | Error(e) -> Result.Error(__fromErrno(e))
+    | Error(e) -> Error(__fromErrno(e))
     | Ok(bytes) ->
       if Bytes.length(bytes) < count then
-        Result.Ok(bytes)
+        Ok(bytes)
       else if count >= 1048576 then
-        Result.Error(__fromErrno(if __abiMac() then 63 else 36))
+        Error(__fromErrno(if __abiMac() then 63 else 36))
       else
         __pathReadlinkWith(read, count * 2)
 
@@ -827,13 +827,13 @@ let __pathReadlink(path: String): Result<String, Error> =
 
 let __pathCwdWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Result<Bytes, Error> =
   if count <= 0 then
-    Result.Error(__fromErrno(22))
+    Error(__fromErrno(22))
   else
     match read(count) with
     | Error(4) -> __pathCwdWith(read, count)
     | Error(34) when count < 1048576 -> __pathCwdWith(read, count * 2)
-    | Error(e) -> Result.Error(__fromErrno(e))
-    | Ok(bytes) -> Result.Ok(bytes)
+    | Error(e) -> Error(__fromErrno(e))
+    | Ok(bytes) -> Ok(bytes)
 
 
 let __pathPathText(bytes: Bytes): String =
@@ -849,16 +849,16 @@ let __pathGetCwd(): Result<String, Error> =
   let bytes =
     if __abiMac() then
       match Builtin.syscallOpen(".", __abiOpenDirectory(), 0) with
-      | Error(e) -> Result.Error(__fromErrno(e))
+      | Error(e) -> Error(__fromErrno(e))
       | Ok(fd) ->
         let result = Builtin.syscallFcntlGetPath(fd)
         let closed = Builtin.syscallClose(fd)
         match result with
-        | Error(e) -> Result.Error(__fromErrno(e))
+        | Error(e) -> Error(__fromErrno(e))
         | Ok(bytes) ->
           match closed with
-          | Error(e) -> Result.Error(__fromErrno(e))
-          | Ok(_) -> Result.Ok(bytes)
+          | Error(e) -> Error(__fromErrno(e))
+          | Ok(_) -> Ok(bytes)
     else
       __pathCwdWith(Builtin.syscallGetcwd, 256)
 
@@ -916,7 +916,7 @@ type __ErrnoEntry =
 
 
 let __errnoEntry(name: String, kind: ErrorKind, message: String): Option<__ErrnoEntry> =
-  Option.Some(__ErrnoEntry { name = name, kind = kind, message = message })
+  Some(__ErrnoEntry { name = name, kind = kind, message = message })
 
 
 /// The one table of error numbers: name, kind and the OS's own text, per OS.
@@ -1062,7 +1062,7 @@ let __linuxErrno(code: Int64): Option<__ErrnoEntry> =
   | 131 -> __errnoEntry("ENOTRECOVERABLE", ErrorKind.Other, "State not recoverable")
   | 132 -> __errnoEntry("ERFKILL", ErrorKind.Other, "Operation not possible due to RF-kill")
   | 133 -> __errnoEntry("EHWPOISON", ErrorKind.Other, "Memory page has hardware error")
-  | _ -> Option.None
+  | _ -> None
 
 
 let __darwinErrno(code: Int64): Option<__ErrnoEntry> =
@@ -1175,7 +1175,7 @@ let __darwinErrno(code: Int64): Option<__ErrnoEntry> =
   | 105 -> __errnoEntry("EOWNERDEAD", ErrorKind.Other, "Previous owner died")
   | 106 -> __errnoEntry("EQFULL", ErrorKind.Other, "Interface output queue is full")
   | 107 -> __errnoEntry("ENOTCAPABLE", ErrorKind.Other, "Capabilities insufficient")
-  | _ -> Option.None
+  | _ -> None
 
 
 /// Complete a descriptor write when the kernel accepts only part of a buffer.
@@ -1186,18 +1186,18 @@ let __writeAll(
   : Result<Int64, Error> =
   let length = Bytes.length(bytes)
   if length == 0 then
-    Result.Ok(written)
+    Ok(written)
   else
     match write(bytes) with
     | Error(error) ->
       match Error.kind(error) with
       | Interrupted -> __writeAll(write, bytes, written)
-      | _ -> Result.Error(error)
+      | _ -> Error(error)
     | Ok(count) ->
       if count <= 0 || count > length then
-        Result.Error(Error.BadKernelReply)
+        Error(Error.BadKernelReply)
       else if count == length then
-        Result.Ok(written + count)
+        Ok(written + count)
       else
         let rest = Bytes.drop(bytes, count)
         __writeAll(write, rest, written + count)
@@ -1206,13 +1206,13 @@ let __writeAll(
 /// Account-file parsing ported from the compiler's Cli.Env implementation.
 let __accountFieldFromPasswd(lines: List<String>, uid: String, index: Int64): Option<String> =
   match lines with
-  | [] -> Option.None
+  | [] -> None
   | [line, ...rest] ->
     let fields = String.split(line, ":")
     match List.getAt(fields, 2), List.getAt(fields, index) with
     | Some(candidateUid), Some(value) ->
       if candidateUid == uid then
-        Option.Some(value)
+        Some(value)
       else
         __accountFieldFromPasswd(rest, uid, index)
     | _ -> __accountFieldFromPasswd(rest, uid, index)
@@ -1222,21 +1222,21 @@ let __accountFieldFromPasswd(lines: List<String>, uid: String, index: Int64): Op
 let __accountLookup(uid: String, index: Int64): Option<String> =
   match FileSystem.readFileAsString("/etc/passwd") with
   | Ok(contents) -> __accountFieldFromPasswd(String.splitOnNewline(contents), uid, index)
-  | Error(_) -> Option.None
+  | Error(_) -> None
 
 
 /// Collision retries for exclusive temporary-entry creation.
 let __tempEntropy(remaining: Int64, reversed: List<Bytes>): Result<Bytes, Error> =
   if remaining == 0 then
-    Result.Ok(Bytes.concatAll(List.reverse(reversed)))
+    Ok(Bytes.concatAll(List.reverse(reversed)))
   else
     match Builtin.syscallGetentropy(remaining) with
     | Error(4) -> __tempEntropy(remaining, reversed)
-    | Error(e) -> Result.Error(__fromErrno(e))
+    | Error(e) -> Error(__fromErrno(e))
     | Ok(bytes) ->
       let count = Bytes.length(bytes)
       if count <= 0 || count > remaining then
-        Result.Error(Error.BadKernelReply)
+        Error(Error.BadKernelReply)
       else
         __tempEntropy(remaining - count, List.prepend(reversed, bytes))
 
@@ -1251,8 +1251,8 @@ let __tempRetry(create: Int64 -> Result<'a, Error>, remaining: Int64): Result<'a
     if Error.kind(error) == ErrorKind.AlreadyExists && remaining > 0 then
       __tempRetry(create, remaining - 1)
     else
-      Result.Error(error)
-  | Ok(value) -> Result.Ok(value)
+      Error(error)
+  | Ok(value) -> Ok(value)
 
 
 /// Suffix creation and collision policy are shared Dark algorithms. O_EXCL is
@@ -1278,7 +1278,7 @@ let __tempDirectory(prefix: String): Result<String, Error> =
 let __uname(): Result<(String * String * String), Error> =
   let result =
     if Builtin.runtimeTargetOS() == "browser" then
-      Result.Ok(("Browser", "browser", "wasm32"))
+      Ok(("Browser", "browser", "wasm32"))
     else if __abiMac() then
       Sys.__sysctlText([ 1, 1 ])
       |> Result.andThen(fun os ->
@@ -1290,9 +1290,8 @@ let __uname(): Result<(String * String * String), Error> =
       |> Result.mapError(__fromErrno)
       |> Result.andThen(fun bytes ->
         if Bytes.length(bytes) < 390 then
-          Result.Error(Error.BadKernelReply)
+          Error(Error.BadKernelReply)
         else
-          Result.Ok(
-            (Sys.__text(bytes, 0, 65), Sys.__text(bytes, 65, 65), Sys.__text(bytes, 260, 65))))
+          Ok((Sys.__text(bytes, 0, 65), Sys.__text(bytes, 65, 65), Sys.__text(bytes, 260, 65))))
 
   result

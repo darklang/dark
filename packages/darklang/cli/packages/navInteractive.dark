@@ -471,7 +471,7 @@ let start(navState: State): Result<Session, String> =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
   match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, viewAtSize(navState, size)) with
   | Ok(terminal) -> Session { state = navState, terminal = terminal } |> Result.Ok
-  | Error(message) -> Result.Error(message)
+  | Error(message) -> Error(message)
 
 
 /// Present the next navigation model using an already sampled terminal size.
@@ -660,9 +660,9 @@ let handleNavKeys(
   viewportHeight: Int64)
   : Option<State> =
   match key with
-  | UpArrow -> Option.Some(moveUp(navState, viewportHeight))
-  | DownArrow -> Option.Some(moveDown(navState, viewportHeight))
-  | _ -> Option.None
+  | UpArrow -> Some(moveUp(navState, viewportHeight))
+  | DownArrow -> Some(moveDown(navState, viewportHeight))
+  | _ -> None
 
 
 let toggleDisplay(navState: State): State =
@@ -693,7 +693,7 @@ let handleSearchKeys(
           scrollOffset = 0 }
       |> refreshFocusRows
 
-    Option.Some(show(state, session, newNavState))
+    Some(show(state, session, newNavState))
   | Backspace ->
     let newQuery =
       if Stdlib.String.length(navState.searchQuery) > 0 then
@@ -703,19 +703,19 @@ let handleSearchKeys(
 
     let newNavState = { navState with searchQuery = newQuery }
     let searchedNavState = performSearch(newNavState)
-    Option.Some(show(state, session, searchedNavState))
+    Some(show(state, session, searchedNavState))
   | Spacebar ->
     let newNavState = toggleDisplay(navState)
-    Option.Some(show(state, session, newNavState))
-  | Enter -> Option.Some(selectAndExit(state, session))
+    Some(show(state, session, newNavState))
+  | Enter -> Some(selectAndExit(state, session))
   | _ ->
     match keyChar with
     | Some(char) ->
       let newQuery = navState.searchQuery + char
       let newNavState = { navState with searchQuery = newQuery }
       let searchedNavState = performSearch(newNavState)
-      Option.Some(show(state, session, searchedNavState))
-    | None -> Option.None
+      Some(show(state, session, searchedNavState))
+    | None -> None
 
 
 let handleNavModeKeys(
@@ -728,17 +728,17 @@ let handleNavModeKeys(
   match key with
   | Spacebar ->
     let newNavState = toggleDisplay(navState)
-    Option.Some(show(state, session, newNavState))
-  | RightArrow -> Option.Some(navigateIntoModule(state, session))
-  | LeftArrow -> Option.Some(navigateToParent(state, session))
-  | Enter -> Option.Some(selectAndExit(state, session))
-  | Escape -> Option.Some(exitToMainPrompt(state, session))
+    Some(show(state, session, newNavState))
+  | RightArrow -> Some(navigateIntoModule(state, session))
+  | LeftArrow -> Some(navigateToParent(state, session))
+  | Enter -> Some(selectAndExit(state, session))
+  | Escape -> Some(exitToMainPrompt(state, session))
   | _ ->
     match keyChar with
     | Some("/") ->
       let newNavState = { navState with mode = Mode.Search }
-      Option.Some(show(state, session, newNavState))
-    | _ -> Option.None
+      Some(show(state, session, newNavState))
+    | _ -> None
 
 
 // Handle key input for interactive navigation.
@@ -756,25 +756,25 @@ let handleKey(
   let previewResult =
     match navState.display, key with
     | Source, PageUp ->
-      Option.Some(
+      Some(
         withFocusScrollOffset(
           navState,
           regions.focusContentHeight,
           navState.focusScrollOffset - previewPageSize))
     | Source, PageDown ->
-      Option.Some(
+      Some(
         withFocusScrollOffset(
           navState,
           regions.focusContentHeight,
           navState.focusScrollOffset + previewPageSize))
-    | Source, Home -> Option.Some(withFocusScrollOffset(navState, regions.focusContentHeight, 0))
+    | Source, Home -> Some(withFocusScrollOffset(navState, regions.focusContentHeight, 0))
     | Source, End ->
-      Option.Some(
+      Some(
         withFocusScrollOffset(
           navState,
           regions.focusContentHeight,
           Stdlib.List.length(navState.focusRows)))
-    | _, _ -> Option.None
+    | _, _ -> None
 
   match previewResult with
   | Some(newNavState) -> showAtSize(state, session, size, newNavState)

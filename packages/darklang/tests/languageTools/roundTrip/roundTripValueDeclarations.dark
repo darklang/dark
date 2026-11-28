@@ -125,12 +125,12 @@ test valueDeclarationsTuples =
       roundTrip(
         "option, none",
         "val none = Stdlib.Option.Option.None",
-        "val none = Option.None")
+        "val none = None")
 
       roundTrip(
         "option, some 1",
         "val some = Stdlib.Option.Option.Some(1)",
-        "val some = Option.Some(1)")
+        "val some = Some(1)")
 
       roundTripWith(
         myEnum,

@@ -77,8 +77,7 @@ let moduleRows(
         |> Stdlib.List.map(fun r -> r.location.name)
         |> Stdlib.List.unique
 
-      { ctx with
-          knownBindings = Option.Some(PrettyPrinter.ProgramTypes.knownBindings(branchId, names)) }
+      { ctx with knownBindings = Some(PrettyPrinter.ProgramTypes.knownBindings(branchId, names)) }
     else
       ctx
 
@@ -157,7 +156,7 @@ let moduleRows(
     if descriptions == Descriptions.Show then
       Packages.Test.lastOutcomes(branchId, results.tests |> Stdlib.List.map(fun t -> t.entity.hash))
     else
-      results.tests |> Stdlib.List.map(fun _ -> Option.None)
+      results.tests |> Stdlib.List.map(fun _ -> None)
 
   let testItems =
     Stdlib.List.zipShortest(results.tests, testOutcomes)

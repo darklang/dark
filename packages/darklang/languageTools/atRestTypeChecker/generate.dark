@@ -27,12 +27,7 @@ type Scope =
 /// Start a scope for an expression outside any function, with no local bindings,
 /// declared type parameters, positional arguments, or return type for ?.
 let emptyScope(): Scope =
-  Scope
-    { locals = Dict {}
-      arguments = []
-      self = Option.None
-      typeVariables = Dict {}
-      returns = Option.None }
+  Scope { locals = Dict {}, arguments = [], self = None, typeVariables = Dict {}, returns = None }
 
 
 // --------------------
@@ -92,12 +87,12 @@ let equal(id: Int64, site: Site, expected: Model.Ty, actual: Model.Ty): Model.Co
 
 /// Attach a known syntax-node ID to a finding.
 let at(id: Int64): Option<Int64> =
-  Option.Some(id)
+  Some(id)
 
 
 /// Omit an expected or actual type when a finding does not describe a type mismatch.
 let noType(): Option<Model.Ty> =
-  Option.None
+  None
 
 
 /// Return each repeated name once, for duplicate-name diagnostics.
@@ -177,8 +172,8 @@ let resolvedFn(
   name: ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>)
   : Option<ProgramTypes.FQFnName.FQFnName> =
   match name.resolved with
-  | Ok(resolved) -> Option.Some(resolved.name)
-  | Error(_) -> Option.None
+  | Ok(resolved) -> Some(resolved.name)
+  | Error(_) -> None
 
 
 /// Return a version-0 builtin's name for special-rule lookup. Return an empty
@@ -197,25 +192,25 @@ let builtinName(fn: ProgramTypes.FQFnName.FQFnName): String =
 /// aligned with ProgramTypes.InfixFnName.toBuiltinName, which maps the other way.
 let operatorOf(name: String): Option<ProgramTypes.InfixFnName> =
   match name with
-  | "add" -> Option.Some(ProgramTypes.InfixFnName.ArithmeticPlus)
-  | "subtract" -> Option.Some(ProgramTypes.InfixFnName.ArithmeticMinus)
-  | "multiply" -> Option.Some(ProgramTypes.InfixFnName.ArithmeticMultiply)
-  | "divide" -> Option.Some(ProgramTypes.InfixFnName.ArithmeticDivide)
-  | "modulo" -> Option.Some(ProgramTypes.InfixFnName.ArithmeticModulo)
-  | "power" -> Option.Some(ProgramTypes.InfixFnName.ArithmeticPower)
-  | "bitwiseAnd" -> Option.Some(ProgramTypes.InfixFnName.BitwiseAnd)
-  | "bitwiseOr" -> Option.Some(ProgramTypes.InfixFnName.BitwiseOr)
-  | "bitwiseXor" -> Option.Some(ProgramTypes.InfixFnName.BitwiseXor)
-  | "shiftLeft" -> Option.Some(ProgramTypes.InfixFnName.ShiftLeft)
-  | "shiftRight" -> Option.Some(ProgramTypes.InfixFnName.ShiftRight)
-  | "greaterThan" -> Option.Some(ProgramTypes.InfixFnName.ComparisonGreaterThan)
-  | "greaterThanOrEqualTo" -> Option.Some(ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual)
-  | "lessThan" -> Option.Some(ProgramTypes.InfixFnName.ComparisonLessThan)
-  | "lessThanOrEqualTo" -> Option.Some(ProgramTypes.InfixFnName.ComparisonLessThanOrEqual)
-  | "stringAppend" -> Option.Some(ProgramTypes.InfixFnName.StringConcat)
-  | "equals" -> Option.Some(ProgramTypes.InfixFnName.ComparisonEquals)
-  | "notEquals" -> Option.Some(ProgramTypes.InfixFnName.ComparisonNotEquals)
-  | _ -> Option.None
+  | "add" -> Some(ProgramTypes.InfixFnName.ArithmeticPlus)
+  | "subtract" -> Some(ProgramTypes.InfixFnName.ArithmeticMinus)
+  | "multiply" -> Some(ProgramTypes.InfixFnName.ArithmeticMultiply)
+  | "divide" -> Some(ProgramTypes.InfixFnName.ArithmeticDivide)
+  | "modulo" -> Some(ProgramTypes.InfixFnName.ArithmeticModulo)
+  | "power" -> Some(ProgramTypes.InfixFnName.ArithmeticPower)
+  | "bitwiseAnd" -> Some(ProgramTypes.InfixFnName.BitwiseAnd)
+  | "bitwiseOr" -> Some(ProgramTypes.InfixFnName.BitwiseOr)
+  | "bitwiseXor" -> Some(ProgramTypes.InfixFnName.BitwiseXor)
+  | "shiftLeft" -> Some(ProgramTypes.InfixFnName.ShiftLeft)
+  | "shiftRight" -> Some(ProgramTypes.InfixFnName.ShiftRight)
+  | "greaterThan" -> Some(ProgramTypes.InfixFnName.ComparisonGreaterThan)
+  | "greaterThanOrEqualTo" -> Some(ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual)
+  | "lessThan" -> Some(ProgramTypes.InfixFnName.ComparisonLessThan)
+  | "lessThanOrEqualTo" -> Some(ProgramTypes.InfixFnName.ComparisonLessThanOrEqual)
+  | "stringAppend" -> Some(ProgramTypes.InfixFnName.StringConcat)
+  | "equals" -> Some(ProgramTypes.InfixFnName.ComparisonEquals)
+  | "notEquals" -> Some(ProgramTypes.InfixFnName.ComparisonNotEquals)
+  | _ -> None
 
 
 /// Identify operator builtins that need special operand checks. When used as
@@ -698,10 +693,10 @@ let inferApply(
 
     let calleeName =
       match callee with
-      | EFnName(_, name, _, _) -> Option.Some(name.originalName)
-      | EValue(_, name) -> Option.Some(name.originalName)
-      | EVariable(_, name) -> Option.Some([ name ])
-      | _ -> Option.None
+      | EFnName(_, name, _, _) -> Some(name.originalName)
+      | EValue(_, name) -> Some(name.originalName)
+      | EVariable(_, name) -> Some([ name ])
+      | _ -> None
 
     let (resultType, applyConstraints) = apply(scope, id, calleeType, calleeName, [], args)
     (resultType, all([ calleeConstraints, applyConstraints ]))
@@ -939,7 +934,7 @@ let inferLambda(
   : (Model.Ty * Model.Constraint) =
   let parameters = lambdaParameters(id, patterns)
   let (bindings, patternConstraints) = letPatterns(parameters, patterns)
-  let (bodyScope, bindProblems) = bind(scope, Option.None, bindings)
+  let (bodyScope, bindProblems) = bind(scope, None, bindings)
   let (bodyType, bodyConstraints) = infer(withLambdaReturn(bodyScope, id), body)
   (
     Model.Ty.TFn(parameters, bodyType),
@@ -950,7 +945,7 @@ let inferLambda(
 /// inherited from the outer function. Captured parameters are accessed by name;
 /// an EArg node inside the lambda must not read an outer function's slot.
 let withLambdaReturn(scope: Scope, id: Int64): Scope =
-  { scope with arguments = [], returns = Option.Some(var(id, Model.Role.Return)) }
+  { scope with arguments = [], returns = Some(var(id, Model.Role.Return)) }
 
 
 /// Require the lambda's return-type unknown to match its body's inferred result.
@@ -1055,7 +1050,7 @@ let inferRecordUpdate(
           IssueCode.DuplicateRecordField,
           at(id),
           noType(),
-          Option.Some(recordType),
+          Some(recordType),
           Context.Duplicate(name, DuplicateSite.InRecordUpdate))))
 
   let slots = Stdlib.List.indexedMap(updates, fun(i, (name, _)) -> (name, part(id, i)))
@@ -1096,24 +1091,24 @@ let constantDictKey(expr: ProgramTypes.Expr): Option<String> =
   let joined(parts: List<ProgramTypes.Expr>): Option<String> =
     let keys = Stdlib.List.map(parts, fun part -> constantDictKey(part))
     if Stdlib.List.all(keys, fun k -> Stdlib.Option.isSome(k)) then
-      Option.Some(Stdlib.String.join(Stdlib.List.filterMap(keys, fun k -> k), ", "))
+      Some(Stdlib.String.join(Stdlib.List.filterMap(keys, fun k -> k), ", "))
     else
-      Option.None
+      None
 
   match expr with
-  | EUnit(_) -> Option.Some("()")
-  | EBool(_, b) -> Option.Some(Stdlib.display(b))
-  | EInt8(_, n) -> Option.Some(Stdlib.display(n))
-  | EUInt8(_, n) -> Option.Some(Stdlib.display(n))
-  | EInt16(_, n) -> Option.Some(Stdlib.display(n))
-  | EUInt16(_, n) -> Option.Some(Stdlib.display(n))
-  | EInt32(_, n) -> Option.Some(Stdlib.display(n))
-  | EUInt32(_, n) -> Option.Some(Stdlib.display(n))
-  | EInt64(_, n) -> Option.Some(Stdlib.display(n))
-  | EUInt64(_, n) -> Option.Some(Stdlib.display(n))
-  | EInt128(_, n) -> Option.Some(Stdlib.display(n))
-  | EUInt128(_, n) -> Option.Some(Stdlib.display(n))
-  | EBigInt(_, n) -> Option.Some(Stdlib.display(n))
+  | EUnit(_) -> Some("()")
+  | EBool(_, b) -> Some(Stdlib.display(b))
+  | EInt8(_, n) -> Some(Stdlib.display(n))
+  | EUInt8(_, n) -> Some(Stdlib.display(n))
+  | EInt16(_, n) -> Some(Stdlib.display(n))
+  | EUInt16(_, n) -> Some(Stdlib.display(n))
+  | EInt32(_, n) -> Some(Stdlib.display(n))
+  | EUInt32(_, n) -> Some(Stdlib.display(n))
+  | EInt64(_, n) -> Some(Stdlib.display(n))
+  | EUInt64(_, n) -> Some(Stdlib.display(n))
+  | EInt128(_, n) -> Some(Stdlib.display(n))
+  | EUInt128(_, n) -> Some(Stdlib.display(n))
+  | EBigInt(_, n) -> Some(Stdlib.display(n))
   | EFloat64(_, sign, whole, fraction) ->
     let sign =
       match sign with
@@ -1121,8 +1116,8 @@ let constantDictKey(expr: ProgramTypes.Expr): Option<String> =
       | Positive -> ""
 
     match Stdlib.Float64.parse(sign + whole + "." + fraction) with
-    | Ok(f) -> if f == 0.0 then Option.Some("0.0") else Option.Some(Stdlib.display(f))
-    | Error(_) -> Option.None
+    | Ok(f) -> if f == 0.0 then Some("0.0") else Some(Stdlib.display(f))
+    | Error(_) -> None
   | EFloat32(_, sign, whole, fraction) ->
     let sign =
       match sign with
@@ -1130,29 +1125,25 @@ let constantDictKey(expr: ProgramTypes.Expr): Option<String> =
       | Positive -> ""
 
     match Stdlib.Float32.parse(sign + whole + "." + fraction) with
-    | Ok(f) ->
-      if f == 0.0f32 then
-        Option.Some("0.0f32")
-      else
-        Option.Some(Stdlib.display(f) + "f32")
-    | Error(_) -> Option.None
+    | Ok(f) -> if f == 0.0f32 then Some("0.0f32") else Some(Stdlib.display(f) + "f32")
+    | Error(_) -> None
   // normalised, so `1.10dec` and `1.1dec` are one key, as they are one value under `==`
-  | EDecimal(_, d) -> Option.Some(Stdlib.display(Stdlib.Decimal.normalize(d)))
-  | EChar(_, c) -> Option.Some(quote("'", c))
+  | EDecimal(_, d) -> Some(Stdlib.display(Stdlib.Decimal.normalize(d)))
+  | EChar(_, c) -> Some(quote("'", c))
   | EString(_, segments) ->
     let texts = Stdlib.List.map(segments, fun segment ->
       match segment with
-      | StringText(text) -> Option.Some(text)
-      | StringInterpolation(_) -> Option.None)
+      | StringText(text) -> Some(text)
+      | StringInterpolation(_) -> None)
 
     if Stdlib.List.all(texts, fun t -> Stdlib.Option.isSome(t)) then
-      Option.Some(quote("\"", Stdlib.String.join(Stdlib.List.filterMap(texts, fun t -> t), "")))
+      Some(quote("\"", Stdlib.String.join(Stdlib.List.filterMap(texts, fun t -> t), "")))
     else
-      Option.None
+      None
   | ETuple(_, first, second, rest) ->
     joined(Stdlib.List.concat([ first, second ], rest)) |> Stdlib.Option.map(fun k -> "(" + k + ")")
   | EList(_, items) -> joined(items) |> Stdlib.Option.map(fun k -> "[" + k + "]")
-  | _ -> Option.None
+  | _ -> None
 
 
 /// Give all entries one shared key type and one shared value type. After checking
@@ -1255,24 +1246,23 @@ let specialApplication(
         | [arg] ->
           if builtin == "unwrap" then
             let (argType, argConstraints) = infer(scope, arg)
-            Option.Some(
+            Some(
               (
                 resultOf(id),
                 all([ argConstraints, Model.Constraint.Unwrap(id, fn, argType, resultOf(id)) ])))
           else if builtin == "negate" then
             let (argType, argConstraints) = infer(scope, arg)
-            Option.Some(
-              (argType, all([ argConstraints, Model.Constraint.Negate(id, argType, false) ])))
+            Some((argType, all([ argConstraints, Model.Constraint.Negate(id, argType, false) ])))
           else if builtin == "bitwiseNot" then
             let (argType, argConstraints) = infer(scope, arg)
-            Option.Some(
+            Some(
               (argType, all([ argConstraints, Model.Constraint.BitwiseNot(id, argType, false) ])))
           else
-            Option.None
+            None
         | [lhs, rhs] ->
           match operatorOf(builtin) with
           | Some(operation) ->
-            Option.Some(
+            Some(
               inferInfix(
                 scope,
                 id,
@@ -1281,12 +1271,12 @@ let specialApplication(
                 rhs,
                 ProgramTypes.FQFnName.ImplChoice.Unknown,
                 false))
-          | None -> Option.None
-        | _ -> Option.None
+          | None -> None
+        | _ -> None
       else
-        Option.None
-    | None -> Option.None
-  | _ -> Option.None
+        None
+    | None -> None
+  | _ -> None
 
 
 /// Generate a requirement that target match a named function's signature with
@@ -1533,17 +1523,17 @@ let inferPipePart(
           match args with
           | [] ->
             if builtin == "unwrap" then
-              Option.Some((resultOf(id), Model.Constraint.Unwrap(id, fn, input, resultOf(id))))
+              Some((resultOf(id), Model.Constraint.Unwrap(id, fn, input, resultOf(id))))
             else if builtin == "negate" then
-              Option.Some((input, Model.Constraint.Negate(id, input, false)))
+              Some((input, Model.Constraint.Negate(id, input, false)))
             else if builtin == "bitwiseNot" then
-              Option.Some((input, Model.Constraint.BitwiseNot(id, input, false)))
+              Some((input, Model.Constraint.BitwiseNot(id, input, false)))
             else
-              Option.None
+              None
           | [rhs] ->
             match operatorOf(builtin) with
             | Some(operation) ->
-              Option.Some(
+              Some(
                 inferPipePart(
                   scope,
                   input,
@@ -1553,11 +1543,11 @@ let inferPipePart(
                     rhs,
                     ProgramTypes.FQFnName.ImplChoice.Unknown),
                   false))
-            | None -> Option.None
-          | _ -> Option.None
+            | None -> None
+          | _ -> None
         else
-          Option.None
-      | None -> Option.None
+          None
+      | None -> None
 
     match special with
     | Some(result) -> result
@@ -1568,13 +1558,7 @@ let inferPipePart(
         useFunction(scope, id, name, typeArgs, var(id, Model.Role.Callee))
 
       let (resultType, applyConstraints) =
-        apply(
-          scope,
-          id,
-          fnType,
-          Option.Some(name.originalName),
-          [ (input, Site.PipelineFunction) ],
-          args)
+        apply(scope, id, fnType, Some(name.originalName), [ (input, Site.PipelineFunction) ], args)
 
       (resultType, all([ fnConstraints, applyConstraints ]))
   | EPipeEnum(id, typeName, caseName, fields) ->
@@ -1619,7 +1603,7 @@ let inferPipePart(
           (callee, Model.Constraint.UseLocal(id, key, callee))
 
       let (resultType, applyConstraints) =
-        apply(scope, id, fnType, Option.None, [ (input, Site.PipelineVariable) ], args)
+        apply(scope, id, fnType, None, [ (input, Site.PipelineVariable) ], args)
 
       (resultType, all([ fnConstraints, applyConstraints ]))
     | None ->

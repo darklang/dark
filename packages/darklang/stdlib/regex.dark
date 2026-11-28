@@ -145,9 +145,9 @@ let findAllMatches(input: String, regex: Regex): Result<List<Match>, RegexError>
 let isMatch(input: String, pattern: String): Result<Bool, RegexError> =
   // A match rather than Result.map: on a short input the lambda costs more than the regex.
   match scan(input, ofPattern(pattern), Limit.First, Collect.TextOnly) with
-  | Ok(([_], _)) -> Result.Ok(false)
-  | Ok(_) -> Result.Ok(true)
-  | Error(e) -> Result.Error(e)
+  | Ok(([_], _)) -> Ok(false)
+  | Ok(_) -> Ok(true)
+  | Error(e) -> Error(e)
 
 
 /// The text of the first match of the regex <param pattern> in <param input>.
@@ -165,8 +165,8 @@ let findAll(input: String, pattern: String): Result<List<String>, RegexError> =
 /// groups, use <fn replaceWith>.
 let replace(input: String, pattern: String, replacement: String): Result<String, RegexError> =
   match scan(input, ofPattern(pattern), Limit.First, Collect.TextOnly) with
-  | Ok((pieces, _)) -> Result.Ok(String.join(pieces, replacement))
-  | Error(e) -> Result.Error(e)
+  | Ok((pieces, _)) -> Ok(String.join(pieces, replacement))
+  | Error(e) -> Error(e)
 
 
 /// Replaces every match of the regex <param pattern> in <param input> with <param
@@ -174,8 +174,8 @@ let replace(input: String, pattern: String, replacement: String): Result<String,
 /// <fn replaceAllWith>.
 let replaceAll(input: String, pattern: String, replacement: String): Result<String, RegexError> =
   match scan(input, ofPattern(pattern), Limit.All, Collect.TextOnly) with
-  | Ok((pieces, _)) -> Result.Ok(String.join(pieces, replacement))
-  | Error(e) -> Result.Error(e)
+  | Ok((pieces, _)) -> Ok(String.join(pieces, replacement))
+  | Error(e) -> Error(e)
 
 
 /// Replaces the first match of the regex <param pattern> in <param input> with what
@@ -215,8 +215,8 @@ let replaceMatches(
 /// pattern are not included in the result.
 let split(input: String, pattern: String): Result<List<String>, RegexError> =
   match scan(input, ofPattern(pattern), Limit.All, Collect.TextOnly) with
-  | Ok((pieces, _)) -> Result.Ok(pieces)
-  | Error(e) -> Result.Error(e)
+  | Ok((pieces, _)) -> Ok(pieces)
+  | Error(e) -> Error(e)
 
 
 /// <param text> with every character a pattern treats specially escaped, so it

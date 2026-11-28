@@ -155,9 +155,9 @@ let execute(state: AppState, args: List<String>): AppState =
 
   let filter =
     match filterArgs with
-    | [] -> Option.None
-    | [pattern] -> Option.Some(pattern)
-    | _ -> Option.None
+    | [] -> None
+    | [pattern] -> Some(pattern)
+    | _ -> None
 
   let grouped =
     allBuiltins
@@ -185,10 +185,7 @@ let execute(state: AppState, args: List<String>): AppState =
           |> Stdlib.List.filter(fun fn ->
             Stdlib.String.contains(fn.name.name, pattern) || Stdlib.String.contains(group, pattern))
 
-        if Stdlib.List.isEmpty(matchingFns) then
-          Option.None
-        else
-          Option.Some((group, matchingFns)))
+        if Stdlib.List.isEmpty(matchingFns) then None else Some((group, matchingFns)))
 
   if withSigs then
     filteredGroups

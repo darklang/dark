@@ -62,10 +62,7 @@ let render(node: Node.Node<'msg>, toJson: 'msg -> String): String =
   | Table(columns, rows) ->
     let numeric = columns |> List.indexedMap(fun(i, _) -> Node.isNumericColumn(rows, i))
     let cls(i: Int64): String =
-      if List.getAt(numeric, i) == Option.Some(true) then
-        " class=\"dark-num\""
-      else
-        ""
+      if List.getAt(numeric, i) == Some(true) then " class=\"dark-num\"" else ""
 
     let head =
       columns

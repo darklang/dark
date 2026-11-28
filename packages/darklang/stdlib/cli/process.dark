@@ -116,7 +116,7 @@ let spawnAndWait(
 /// Run a program with arguments and capture its output as bytes, for output
 /// that isn't UTF-8 text. No bash, no shell. `outputText` decodes it.
 let runBytes(program: String, args: List<String>): Result<BytesOutput, Posix.Error> =
-  spawnAndWaitBytes(program, args, Option.None)
+  spawnAndWaitBytes(program, args, None)
   |> Result.map(fun result ->
     let (code, output, error) = result
     BytesOutput { exitCode = code, stdout = output, stderr = error })
@@ -145,13 +145,13 @@ let exec(program: String, args: List<String>): Result<String, String> =
   |> Result.mapError(display)
   |> Result.andThen(fun output ->
     if output.exitCode == 0 then
-      Result.Ok(String.trimEnd(output.stdout))
+      Ok(String.trimEnd(output.stdout))
     else
       let err = String.trimEnd(output.stderr)
       if err == "" then
-        Result.Error($"Command failed with exit code {Posix.__decimal(output.exitCode)}")
+        Error($"Command failed with exit code {Posix.__decimal(output.exitCode)}")
       else
-        Result.Error(err))
+        Error(err))
 
 
 /// Kill a process by PID.
@@ -203,7 +203,7 @@ let runWithEnv(
       |> Builtin.unwrap
       |> Tuple2.first
 
-    Result.Error($"Invalid env var name: '{badName}' (must not contain '=' or spaces)")
+    Error($"Invalid env var name: '{badName}' (must not contain '=' or spaces)")
   else
     let envArgs =
       env
@@ -220,9 +220,9 @@ let runWithEnv(
 /// Returns String errors because it mixes spawn failures with validation/timeout errors.
 let runWithTimeout(timeoutMs: Int64, program: String, args: List<String>): Result<Output, String> =
   if timeoutMs <= 0 then
-    Result.Error("timeoutMs must be positive")
+    Error("timeoutMs must be positive")
   else
-    spawnAndWait(program, args, Option.Some(timeoutMs))
+    spawnAndWait(program, args, Some(timeoutMs))
     |> Result.mapError(display)
     |> Result.map(fun result ->
       Output
@@ -328,21 +328,21 @@ let __childCloseChild(child: BigInt): Result<Unit, Posix.Error> =
 let __childFinish(child: BigInt, result: Result<'a, Posix.Error>): Result<'a, Posix.Error> =
   let closed = __childCloseChild(child)
   match result with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(value) -> closed |> Result.map(fun _ -> value)
 
 
 let __childRead(fd: Posix.Fd, eof: Bool): Result<(Bytes * Bool), Posix.Error> =
   if eof then
-    Result.Ok((Bytes.empty, true))
+    Ok((Bytes.empty, true))
   else
     match Builtin.syscallRead(fd.__fd, 65536) |> Result.mapError(Posix.__fromErrno) with
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __childRead(fd, false)
-      | WouldBlock -> Result.Ok((Bytes.empty, false))
-      | _ -> Result.Error(e)
-    | Ok(chunk) -> Result.Ok((chunk, Bytes.length(chunk) == 0))
+      | WouldBlock -> Ok((Bytes.empty, false))
+      | _ -> Error(e)
+    | Ok(chunk) -> Ok((chunk, Bytes.length(chunk) == 0))
 
 
 /// One write per turn, interleaved with both readers, so a child producing
@@ -350,7 +350,7 @@ let __childRead(fd: Posix.Fd, eof: Bool): Result<(Bytes * Bool), Posix.Error> =
 let __childWrite(fd: Posix.Fd, pending: Bytes): Result<Bytes, Posix.Error> =
   let length = Bytes.length(pending)
   if length == 0 then
-    Result.Ok(pending)
+    Ok(pending)
   else
     let count = if length < 65536 then length else 65536
     let chunk = if count == length then pending else Bytes.take(pending, count)
@@ -358,13 +358,13 @@ let __childWrite(fd: Posix.Fd, pending: Bytes): Result<Bytes, Posix.Error> =
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __childWrite(fd, pending)
-      | WouldBlock -> Result.Ok(pending)
-      | _ -> Result.Error(e)
+      | WouldBlock -> Ok(pending)
+      | _ -> Error(e)
     | Ok(written) ->
       if written <= 0 || written > count then
-        Result.Error(Posix.Error.BadKernelReply)
+        Error(Posix.Error.BadKernelReply)
       else
-        Result.Ok(Bytes.drop(pending, written))
+        Ok(Bytes.drop(pending, written))
 
 
 let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit, Posix.Error> =
@@ -382,8 +382,8 @@ let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit
 
   match result with
   | Error(4) -> __childPoll(fds, milliseconds)
-  | Error(e) -> Result.Error(Posix.__fromErrno(e))
-  | Ok(_) -> Result.Ok()
+  | Error(e) -> Error(Posix.__fromErrno(e))
+  | Ok(_) -> Ok()
 
 
 let __childDescriptors(
@@ -421,7 +421,7 @@ let __childCapture(
 
   if remaining <= 0 then
     let _ = __childKillChild(child)
-    Result.Error(Posix.Error.ProcessTimedOut)
+    Error(Posix.Error.ProcessTimedOut)
   else
     __childRead(stdout, outEOF)
     |> Result.andThen(fun out ->
@@ -435,7 +435,7 @@ let __childCapture(
         |> Result.andThen(fun status ->
           if outEOF && errEOF then
             match status with
-            | Some(code) -> Result.Ok((code, __childBytes(output), __childBytes(error)))
+            | Some(code) -> Ok((code, __childBytes(output), __childBytes(error)))
             | None ->
               match deadline with
               | None ->
@@ -446,9 +446,7 @@ let __childCapture(
                 __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)
           else
             let wait = if remaining < 100 then remaining else 100
-            __childPoll(
-              __childDescriptors(Option.None, stdout, stderr, Bytes.empty, outEOF, errEOF),
-              wait)
+            __childPoll(__childDescriptors(None, stdout, stderr, Bytes.empty, outEOF, errEOF), wait)
             |> Result.andThen(fun _ ->
               __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)))))
 
@@ -468,15 +466,15 @@ let __childRun(
         | [_stdin, stdout, stderr] ->
           let closed =
             match Builtin.runtimeChildClosePort(child, 0) with
-            | Error(4) -> Result.Ok()
+            | Error(4) -> Ok()
             | result -> result |> Result.mapError(Posix.__fromErrno)
 
           closed
           |> Result.andThen(fun _ ->
             let deadline =
               match timeoutMs with
-              | None -> Option.None
-              | Some(ms) -> Option.Some(DateTime.__monotonicMilliseconds() + ms)
+              | None -> None
+              | Some(ms) -> Some(DateTime.__monotonicMilliseconds() + ms)
 
             __childCapture(
               child,
@@ -487,7 +485,7 @@ let __childRun(
               __childEmpty(),
               false,
               false))
-        | _ -> Result.Error(Posix.Error.BadKernelReply))
+        | _ -> Error(Posix.Error.BadKernelReply))
 
     __childFinish(child, result))
 
@@ -499,7 +497,7 @@ let __childInteractive(program: String, args: List<String>): Result<Int64, Posix
 
 let __childNewline(bytes: Bytes): Bool =
   // An empty Bytes asks for index -1, which is an Error.
-  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Result.Ok(10u8)
+  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Ok(10u8)
 
 
 /// Empty-input communication is immediately nonblocking. Input-driven calls
@@ -537,10 +535,10 @@ let __childCommunicateLoop(
             Bytes.length(pending) == 0 && (__childNewline(outChunk) || __childNewline(errChunk))
 
           if turns <= 0 || complete || outEOF && errEOF then
-            Result.Ok((code, __childBytes(output), __childBytes(error)))
+            Ok((code, __childBytes(output), __childBytes(error)))
           else
             __childPoll(
-              __childDescriptors(Option.Some(stdin), stdout, stderr, pending, outEOF, errEOF),
+              __childDescriptors(Some(stdin), stdout, stderr, pending, outEOF, errEOF),
               100)
             |> Result.andThen(fun _ ->
               __childCommunicateLoop(
@@ -582,7 +580,7 @@ let __childCommunicate(child: BigInt, input: String): Result<(Int64 * Bytes * By
         __childSaveHistory(child, 0, output)
         |> Result.andThen(fun _ ->
           __childSaveHistory(child, 1, error) |> Result.map(fun _ -> (code, output, error))))
-    | _ -> Result.Error(Posix.Error.BadKernelReply))
+    | _ -> Error(Posix.Error.BadKernelReply))
 
 
 /// After terminating the owned child, drain currently available bytes, not
@@ -596,7 +594,7 @@ let __childDrain(
   error: __ChildBuffer)
   : Result<(Bytes * Bytes), Posix.Error> =
   if turns <= 0 then
-    Result.Ok((__childBytes(output), __childBytes(error)))
+    Ok((__childBytes(output), __childBytes(error)))
   else
     __childRead(stdout, false)
     |> Result.andThen(fun out ->
@@ -607,7 +605,7 @@ let __childDrain(
         let output = __childAppend(output, outChunk)
         let error = __childAppend(error, errChunk)
         if Bytes.length(outChunk) == 0 && Bytes.length(errChunk) == 0 then
-          Result.Ok((__childBytes(output), __childBytes(error)))
+          Ok((__childBytes(output), __childBytes(error)))
         else
           __childDrain(stdout, stderr, turns - 1, output, error)))
 
@@ -638,6 +636,6 @@ let __childTerminate(child: BigInt): Result<(Int64 * Bytes * Bytes), Posix.Error
                 |> Result.map(fun pair ->
                   let (output, error) = pair
                   (code, output, error))))
-          | _ -> Result.Error(Posix.Error.BadKernelReply))))
+          | _ -> Error(Posix.Error.BadKernelReply))))
 
   __childFinish(child, result)

@@ -22,14 +22,14 @@ module Input =
       { id = "trace"
         entry = "eval"
         input = input
-        scriptOrEvalInput = Stdlib.Option.Option.None
+        scriptOrEvalInput = None
         servedRequest = false
-        result = Stdlib.Option.Option.None
+        result = None
         status = Tracing.Status.Done
-        parent = Stdlib.Option.Option.None
+        parent = None
         pinned = false
         durationMs = 0
-        entryHash = Stdlib.Option.Option.None
+        entryHash = None
         created = ""
         updated = "" }
 
@@ -46,14 +46,13 @@ module Input =
     Stdlib.Test.all(
       [ { recorded with
             scriptOrEvalInput =
-              Stdlib.Option.Option.Some(
-                Tracing.ScriptOrEvalInput.Eval("42", false)) }
+              Some(Tracing.ScriptOrEvalInput.Eval("42", false)) }
         |> Tracing.Format.inputText
         |> Stdlib.Test.equal("42")
 
         { recorded with
             scriptOrEvalInput =
-              Stdlib.Option.Option.Some(
+              Some(
                 Tracing.ScriptOrEvalInput.Script(
                   "file.dark",
                   "main(args)",
@@ -176,7 +175,7 @@ module TheLog =
         args = []
         result = LanguageTools.RuntimeTypes.Dval.DUnit
         durationMs = ms
-        processId = Stdlib.Option.Option.None
+        processId = None
         seq = seq
         ord = seq }
 
@@ -209,29 +208,22 @@ module TheLog =
   test filterAndExclude =
     Stdlib.Test.all(
       [ render(
-          { Cli.Tracing.defaultViewOptions with
-              filter = Stdlib.Option.Option.Some("httpclient") })
+          { Cli.Tracing.defaultViewOptions with filter = Some("httpclient") })
         |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)")
 
-        render(
-          { Cli.Tracing.defaultViewOptions with
-              exclude = Stdlib.Option.Option.Some("PRINT") })
+        render({ Cli.Tracing.defaultViewOptions with exclude = Some("PRINT") })
         |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)") ])
 
 
   // `--slow` is only meaningful because impure calls carry a real duration now.
   test slowCalls =
-    render(
-      { Cli.Tracing.defaultViewOptions with
-          slowThresholdMs = Stdlib.Option.Option.Some(100) })
+    render({ Cli.Tracing.defaultViewOptions with slowThresholdMs = Some(100) })
     |> Stdlib.Test.equal("      0  httpClientGet() -> ()  (120ms)")
 
 
   // A filter that matches nothing says THAT, rather than looking like a run that did nothing.
   test filterMatchesNothing =
-    render(
-      { Cli.Tracing.defaultViewOptions with
-          filter = Stdlib.Option.Option.Some("nope") })
+    render({ Cli.Tracing.defaultViewOptions with filter = Some("nope") })
     |> Stdlib.Test.equal("  (no logged call matches the active filters)")
 
 
@@ -251,7 +243,7 @@ module TheLogIsCut =
         args = []
         result = LanguageTools.RuntimeTypes.Dval.DUnit
         durationMs = 0
-        processId = Stdlib.Option.Option.None
+        processId = None
         seq = 0
         ord = 0 }
 
@@ -349,8 +341,8 @@ module ViewFlags =
              Cli.Tracing.defaultViewOptions,
              [ "--slow-ms", "50" ]) with
      | Ok(opts) -> opts.slowThresholdMs
-     | Error(_) -> Stdlib.Option.Option.None)
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some(50))
+     | Error(_) -> None)
+    |> Stdlib.Test.equal(Some(50))
 
 
 module WatchCursor =
@@ -362,8 +354,7 @@ module WatchCursor =
 
   // Following a run: the cursor goes to wherever that run is now.
   test followRun =
-    Cli.TraceWatch.pickCursor(ids, 0, Stdlib.Option.Option.Some("oldest"))
-    |> Stdlib.Test.equal(2)
+    Cli.TraceWatch.pickCursor(ids, 0, Some("oldest")) |> Stdlib.Test.equal(2)
 
 
   // A run that arrived at the top pushes the one being read down, and the cursor goes with it.
@@ -371,33 +362,25 @@ module WatchCursor =
     Cli.TraceWatch.pickCursor(
       [ "brand-new", "newest", "middle", "oldest" ],
       0,
-      Stdlib.Option.Option.Some("newest"))
+      Some("newest"))
     |> Stdlib.Test.equal(1)
 
 
   // The run being read is gone (retention dropped it): keep the position, clamped.
   test vanishedRunClamps =
-    Cli.TraceWatch.pickCursor(ids, 2, Stdlib.Option.Option.Some("vanished"))
-    |> Stdlib.Test.equal(2)
+    Cli.TraceWatch.pickCursor(ids, 2, Some("vanished")) |> Stdlib.Test.equal(2)
 
 
   // Not following anything -- a key press -- is a plain clamp.
   test plainClamp =
     Stdlib.Test.all(
-      [ Cli.TraceWatch.pickCursor(ids, 1, Stdlib.Option.Option.None)
-        |> Stdlib.Test.equal(1)
-
-        Cli.TraceWatch.pickCursor(ids, 9, Stdlib.Option.Option.None)
-        |> Stdlib.Test.equal(2)
-
-        Cli.TraceWatch.pickCursor(ids, -3, Stdlib.Option.Option.None)
-        |> Stdlib.Test.equal(0) ])
+      [ Cli.TraceWatch.pickCursor(ids, 1, None) |> Stdlib.Test.equal(1)
+        Cli.TraceWatch.pickCursor(ids, 9, None) |> Stdlib.Test.equal(2)
+        Cli.TraceWatch.pickCursor(ids, -3, None) |> Stdlib.Test.equal(0) ])
 
 
   // No runs at all: there is nowhere to be but zero.
-  test noRuns =
-    Cli.TraceWatch.pickCursor([], 4, Stdlib.Option.Option.None)
-    |> Stdlib.Test.equal(0)
+  test noRuns = Cli.TraceWatch.pickCursor([], 4, None) |> Stdlib.Test.equal(0)
 
 
 module ReplayReasons =
@@ -418,5 +401,5 @@ module ReplayReasons =
     cases
     |> Stdlib.List.map(fun((reason, expected)) ->
       Tracing.Format.replayStop(SCM.Branch.mainBranchId, reason)
-      |> Stdlib.Test.equal((expected, Stdlib.Option.Option.None)))
+      |> Stdlib.Test.equal((expected, None)))
     |> Stdlib.Test.all

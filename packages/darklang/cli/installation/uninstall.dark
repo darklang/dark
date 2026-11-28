@@ -27,11 +27,11 @@ let runUninstall(host: Stdlib.Cli.Host.Host): Result<Unit, String> =
         home,
         (fun () -> Stdlib.Cli.Unix.deleteAlias(host.defaultShell, "dark")),
         fun dir -> Stdlib.Cli.Unix.removeDirectory(dir))
-    | Error(e) -> Result.Error($"couldn't find your home directory: {e}")
+    | Error(e) -> Error($"couldn't find your home directory: {e}")
 
   match result with
-  | Ok(_) -> Result.Ok()
-  | Error(err) -> Result.Error($"Error uninstalling dark: {err}")
+  | Ok(_) -> Ok()
+  | Error(err) -> Error($"Error uninstalling dark: {err}")
 
 
 let execute(state: AppState, args: List<String>): AppState =

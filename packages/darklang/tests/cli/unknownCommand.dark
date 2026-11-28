@@ -19,6 +19,35 @@ test didYouMeanPicksTheNearest =
       Cli.Accepts.didYouMean("x", [ "q" ]) |> Stdlib.Test.equal("") ])
 
 
+// `findCommand` takes the first command a name or alias matches, so there must be only one.
+test commandNamesAreUnique =
+  let words =
+    Cli.Registry.allCommands()
+    |> Stdlib.List.map(fun c -> Stdlib.List.prepend(c.aliases, c.name))
+    |> Stdlib.List.flatten
+
+  words
+  |> Stdlib.List.filter(fun w ->
+    Stdlib.List.length(Stdlib.List.filter(words, fun x -> x == w)) > 1)
+  |> Stdlib.List.unique
+  |> Stdlib.Test.equal([])
+
+
+test findCommandSuggestsOnAMiss =
+  let commands = Cli.Registry.allCommands()
+  let near = fun name ->
+    match Cli.Registry.findCommand(commands, name) with
+    | Ok(c) -> [ "found " + c.name ]
+    | Error(near) -> near
+
+  Stdlib.Test.all(
+    [ near("status") |> Stdlib.Test.equal([ "found status" ])
+      near("tset") |> Stdlib.Test.equal([ "test" ])
+      near("dcos") |> Stdlib.Test.equal([ "docs" ])
+      near("comit") |> Stdlib.Test.equal([ "commit" ])
+      near("zzzzzz") |> Stdlib.Test.equal([]) ])
+
+
 test unknownFlagSuggestsOne =
   refusal("status", Cli.Registry.acceptsStatus(), [ "--jsno" ])
   |> Stdlib.Test.equal(

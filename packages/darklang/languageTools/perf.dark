@@ -106,11 +106,11 @@ let minus(m: Measurement, f: Measurement): Measurement =
 /// ever adds (a GC, a busy box, a cold cache), so the lowest reading is the one nearest the work.
 let best(readings: List<Measurement>): Option<Measurement> =
   match readings with
-  | [] -> Option.None
+  | [] -> None
   | [first, ...rest] ->
     let low64(a: Int64, b: Int64): Int64 = if b < a then b else a
     let low(a: Int64, b: Int64): Int64 = if b < a then b else a
-    Option.Some(
+    Some(
       Stdlib.List.fold(rest, first, fun(acc, m) ->
         { acc with
             allocBytes = low64(acc.allocBytes, m.allocBytes)

@@ -52,16 +52,16 @@ test callsAreWrittenAsPeopleWriteThem =
 test operatorsOnlyForStdlibTraits =
   Stdlib.Test.all(
     [ Cli.Packages.Impls.operatorSyntax(stdlibTrait("Add"), "add")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a + b"))
+      |> Stdlib.Test.equal(Some("a + b"))
 
       Cli.Packages.Impls.operatorSyntax(
         LanguageTools.ProgramTypes.PackageLocation
           { owner = "Acme", modules = [], name = "Add" },
         "add")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Cli.Packages.Impls.operatorSyntax(stdlibTrait("Display"), "toString")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 // The section lines: the call, padded, then the trait.

@@ -141,87 +141,66 @@ test moduloRejectsZero =
 test parse =
   Stdlib.Test.all(
     [ // parses OK
-      Stdlib.UInt128.parse("0")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u128))
+      Stdlib.UInt128.parse("0") |> Stdlib.Test.equal(Ok(0u128))
 
-      Stdlib.UInt128.parse("1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      Stdlib.UInt128.parse("1") |> Stdlib.Test.equal(Ok(1u128))
 
-      Stdlib.UInt128.parse(" 1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      Stdlib.UInt128.parse(" 1") |> Stdlib.Test.equal(Ok(1u128))
 
-      Stdlib.UInt128.parse("1 ")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      Stdlib.UInt128.parse("1 ") |> Stdlib.Test.equal(Ok(1u128))
 
-      Stdlib.UInt128.parse("+1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      Stdlib.UInt128.parse("+1") |> Stdlib.Test.equal(Ok(1u128))
 
-      Stdlib.UInt128.parse(" +1 ")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      Stdlib.UInt128.parse(" +1 ") |> Stdlib.Test.equal(Ok(1u128))
 
       // "octal" format ignored
-      Stdlib.UInt128.parse("078")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(78u128))
+      Stdlib.UInt128.parse("078") |> Stdlib.Test.equal(Ok(78u128))
 
       Stdlib.UInt128.parse("170141183460469231731687303715884105727")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(170141183460469231731687303715884105727u128))
+      |> Stdlib.Test.equal(Ok(170141183460469231731687303715884105727u128))
 
       Stdlib.UInt128.parse("170141183460469231731687303715884105729")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(170141183460469231731687303715884105729u128)) ])
+      |> Stdlib.Test.equal(Ok(170141183460469231731687303715884105729u128)) ])
 
 
 test parseBadFormat =
   Stdlib.Test.all(
     [ // bad format
       Stdlib.UInt128.parse("1 2 3")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("+ 1")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("0xA")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("0x123")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("0b0100")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("pi")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("Stdlib.Math.pi")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("1.23E+04")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("1I")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("one")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat))
 
       Stdlib.UInt128.parse("XIV")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.UInt128.ParseError.BadFormat)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.UInt128.ParseError.BadFormat)) ])
 
 
 test fromUInt8 =
@@ -323,50 +302,43 @@ test checkedAdd =
     [ Stdlib.UInt128.checkedAdd(
         340282366920938463463374607431768211455u128,
         1u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt128.checkedAdd(
         340282366920938463463374607431768211455u128,
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt128.checkedAdd(
         340282366920938463463374607431768211455u128,
         0u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(340282366920938463463374607431768211455u128))
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455u128))
 
       Stdlib.UInt128.checkedAdd(
         340282366920938463463374607431768211454u128,
         1u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(340282366920938463463374607431768211455u128)) ])
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455u128)) ])
 
 
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.UInt128.checkedSubtract(0u128, 1u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt128.checkedSubtract(
         1u128,
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt128.checkedSubtract(
         340282366920938463463374607431768211455u128,
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u128))
+      |> Stdlib.Test.equal(Ok(0u128))
 
       Stdlib.UInt128.checkedSubtract(
         340282366920938463463374607431768211455u128,
         0u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(340282366920938463463374607431768211455u128)) ])
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455u128)) ])
 
 
 test checkedMultiply =
@@ -374,116 +346,98 @@ test checkedMultiply =
     [ Stdlib.UInt128.checkedMultiply(
         340282366920938463463374607431768211455u128,
         2u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt128.checkedMultiply(
         340282366920938463463374607431768211455u128,
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt128.checkedMultiply(
         340282366920938463463374607431768211455u128,
         1u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(340282366920938463463374607431768211455u128))
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455u128))
 
       Stdlib.UInt128.checkedMultiply(
         340282366920938463463374607431768211455u128,
         0u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u128))
+      |> Stdlib.Test.equal(Ok(0u128))
 
       Stdlib.UInt128.checkedMultiply(
         170141183460469231731687303715884105727u128,
         2u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(340282366920938463463374607431768211454u128)) ])
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211454u128)) ])
 
 
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.UInt128.checkedNegate(1u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.UInt128.checkedNegate(340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.UInt128.checkedNegate(0u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u128)) ])
+      Stdlib.UInt128.checkedNegate(0u128) |> Stdlib.Test.equal(Ok(0u128)) ])
 
 
 test checkedAbsoluteValue =
   Stdlib.Test.all(
     [ Stdlib.UInt128.checkedAbsoluteValue(
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(340282366920938463463374607431768211455u128))
+      |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455u128))
 
       Stdlib.UInt128.checkedAbsoluteValue(0u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u128)) ])
+      |> Stdlib.Test.equal(Ok(0u128)) ])
 
 
 /// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
 test checkedPower =
   Stdlib.Test.all(
     [ Stdlib.UInt128.checkedPower(2u128, 127u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(170141183460469231731687303715884105728u128))
+      |> Stdlib.Test.equal(Ok(170141183460469231731687303715884105728u128))
 
       Stdlib.UInt128.checkedPower(2u128, 128u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
 
       Stdlib.UInt128.checkedPower(18446744073709551615u128, 2u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(340282366920938463426481119284349108225u128))
+      |> Stdlib.Test.equal(Ok(340282366920938463426481119284349108225u128))
 
       Stdlib.UInt128.checkedPower(18446744073709551616u128, 2u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
 
-      Stdlib.UInt128.checkedPower(3u128, 0u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      Stdlib.UInt128.checkedPower(3u128, 0u128) |> Stdlib.Test.equal(Ok(1u128))
 
-      Stdlib.UInt128.checkedPower(0u128, 0u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      Stdlib.UInt128.checkedPower(0u128, 0u128) |> Stdlib.Test.equal(Ok(1u128))
 
       Stdlib.UInt128.checkedPower(
         0u128,
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u128))
+      |> Stdlib.Test.equal(Ok(0u128))
 
       Stdlib.UInt128.checkedPower(
         1u128,
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u128))
+      |> Stdlib.Test.equal(Ok(1u128))
 
       Stdlib.UInt128.checkedPower(
         2u128,
         340282366920938463463374607431768211455u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow)) ])
 
 
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(
     [ Stdlib.UInt128.checkedDivide(17u128, 3u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5u128))
+      |> Stdlib.Test.equal(Ok(5u128))
 
       Stdlib.UInt128.checkedDivide(5u128, 0u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
 
-      Stdlib.UInt128.checkedMod(15u128, 6u128)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3u128))
+      Stdlib.UInt128.checkedMod(15u128, 6u128) |> Stdlib.Test.equal(Ok(3u128))
 
       Stdlib.UInt128.checkedMod(5u128, 0u128)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus)) ])
 
 
 test limits =

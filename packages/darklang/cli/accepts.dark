@@ -42,22 +42,13 @@ type Accepts =
 let flagsOnly(flags: List<String>): Accepts =
   Accepts.Takes(
     Shape
-      { flags = flags
-        valueFlags = []
-        atLeast = 0
-        atMost = Option.Some(0)
-        wordsAreNotFlags = false })
+      { flags = flags, valueFlags = [], atLeast = 0, atMost = Some(0), wordsAreNotFlags = false })
 
 
 /// Takes nothing at all.
 let nothing(): Accepts =
   Accepts.Takes(
-    Shape
-      { flags = []
-        valueFlags = []
-        atLeast = 0
-        atMost = Option.Some(0)
-        wordsAreNotFlags = false })
+    Shape { flags = [], valueFlags = [], atLeast = 0, atMost = Some(0), wordsAreNotFlags = false })
 
 
 /// At most <param atMost> words, and these flags.
@@ -67,7 +58,7 @@ let upTo(atMost: Int64, flags: List<String>): Accepts =
       { flags = flags
         valueFlags = []
         atLeast = 0
-        atMost = Option.Some(atMost)
+        atMost = Some(atMost)
         wordsAreNotFlags = false })
 
 
@@ -78,7 +69,7 @@ let between(atLeast: Int64, atMost: Int64, flags: List<String>): Accepts =
       { flags = flags
         valueFlags = []
         atLeast = atLeast
-        atMost = Option.Some(atMost)
+        atMost = Some(atMost)
         wordsAreNotFlags = false })
 
 
@@ -89,7 +80,7 @@ let freeText(atLeast: Int64, flags: List<String>): Accepts =
       { flags = flags
         valueFlags = []
         atLeast = atLeast
-        atMost = Option.None
+        atMost = None
         wordsAreNotFlags = false })
 
 
@@ -97,11 +88,7 @@ let freeText(atLeast: Int64, flags: List<String>): Accepts =
 let text(atLeast: Int64): Accepts =
   Accepts.Takes(
     Shape
-      { flags = []
-        valueFlags = []
-        atLeast = atLeast
-        atMost = Option.None
-        wordsAreNotFlags = true })
+      { flags = [], valueFlags = [], atLeast = atLeast, atMost = None, wordsAreNotFlags = true })
 
 
 /// From <param atLeast> to <param atMost> words, every one of them a word.
@@ -111,7 +98,7 @@ let textBetween(atLeast: Int64, atMost: Int64): Accepts =
       { flags = []
         valueFlags = []
         atLeast = atLeast
-        atMost = Option.Some(atMost)
+        atMost = Some(atMost)
         wordsAreNotFlags = true })
 
 
@@ -149,21 +136,17 @@ let everywhere(flags: List<String>, valueFlags: List<String>, accepts: Accepts):
       add(s))
 
 
-/// " Did you mean `x`?" for the one of <param candidates> nearest <param word>, or "" when none is
+/// " Did you mean `x`?" for the <param candidates> nearest <param word>, or "" when none is
 /// close. Only ever called on the way to a refusal, so a start that succeeds never fetches it.
 let didYouMean(word: String, candidates: List<String>): String =
-  let w = Stdlib.String.toLowercase(word)
-  let allowed = if Stdlib.String.length(w) >= 4 then 2 else 1
-  if Stdlib.String.length(w) < 3 then
-    ""
-  else
-    candidates
-    |> Stdlib.List.map(fun c -> (Config.editDistance(w, Stdlib.String.toLowercase(c)), c))
-    |> Stdlib.List.filter(fun((d, _)) -> d <= allowed)
-    |> Stdlib.List.sortBy(fun((d, _)) -> d)
-    |> Stdlib.List.head
-    |> Stdlib.Option.map(fun((_, c)) -> $" Did you mean `{c}`?")
-    |> Stdlib.Option.withDefault("")
+  nearHint(LanguageTools.Suggest.near(word, candidates, []))
+
+
+/// " Did you mean `x`?" for names a lookup found near what was asked, or "" for none.
+let nearHint(near: List<String>): String =
+  match near with
+  | [] -> ""
+  | near -> " " + LanguageTools.Suggest.sentence(near)
 
 
 /// Why <param args> are not what <param accepts> declares, or None if they are. <param name> is how
@@ -182,16 +165,16 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
     let count = Stdlib.List.length(words)
     if count < s.atLeast then
       if count == 0 && s.atLeast == 1 then
-        Option.Some($"`dark {name}` needs an argument.")
+        Some($"`dark {name}` needs an argument.")
       else
-        Option.Some(
+        Some(
           $"`dark {name}` needs {Stdlib.display(s.atLeast)} arguments, and was given {Stdlib.display(count)}.")
     else
       match s.atMost with
       | Some(atMost) when count > atMost ->
         let extra = Stdlib.List.drop(words, atMost) |> Stdlib.String.join(" ")
-        Option.Some($"`dark {name}` does not take `{extra}`.")
-      | _ -> Option.None
+        Some($"`dark {name}` does not take `{extra}`.")
+      | _ -> None
 
   // Walk the arguments once, collecting the words, stopping at the first flag that is wrong.
   let walk(
@@ -201,8 +184,8 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
     words: List<String>)
     : Result<List<String>, String> =
     match remaining with
-    | [] -> Result.Ok(Stdlib.List.reverse(words))
-    | ["--", ...rest] -> Result.Ok(Stdlib.List.concat(Stdlib.List.reverse(words), rest))
+    | [] -> Ok(Stdlib.List.reverse(words))
+    | ["--", ...rest] -> Ok(Stdlib.List.concat(Stdlib.List.reverse(words), rest))
     | [a, ...rest] ->
       if Stdlib.Bool.not(isFlag(s, a)) then
         walk(name, s, rest, Stdlib.List.prepend(words, a))
@@ -217,16 +200,16 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
           walk(name, s, rest, words)
         else
           let hint = didYouMean(flagName, s.valueFlags)
-          Result.Error($"`dark {name}` does not take `{flagName}`.{hint}")
+          Error($"`dark {name}` does not take `{flagName}`.{hint}")
       else if Stdlib.List.contains(s.flags, a) then
         walk(name, s, rest, words)
       else if Stdlib.List.contains(s.valueFlags, a) then
         match rest with
         | [_value, ...afterValue] -> walk(name, s, afterValue, words)
-        | [] -> Result.Error($"`{a}` needs a value.")
+        | [] -> Error($"`{a}` needs a value.")
       else
         let hint = didYouMean(a, Stdlib.List.concat(s.flags, s.valueFlags))
-        Result.Error($"`dark {name}` does not take `{a}`.{hint}")
+        Error($"`dark {name}` does not take `{a}`.{hint}")
 
   let checkShape(name: String, s: Shape, args: List<String>): Option<String> =
     // Every word a word: nothing to walk, only the count to check.
@@ -234,7 +217,7 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
       countRefusal(name, s, args)
     else
       match walk(name, s, args, []) with
-      | Error(why) -> Option.Some(why)
+      | Error(why) -> Some(why)
       | Ok(words) -> countRefusal(name, s, words)
 
   match accepts with
@@ -250,7 +233,7 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
         |> Stdlib.List.findFirst(fun pair -> Stdlib.Tuple2.first(pair) == first)
         |> Stdlib.Option.map(fun pair ->
           (first, Stdlib.Tuple2.second(pair), Stdlib.List.concat(leadingFlags, rest)))
-      | [] -> Option.None
+      | [] -> None
 
     match picked with
     | Some((sub, subAccepts, subArgs)) -> check($"{name} {sub}", subAccepts, subArgs)
@@ -263,5 +246,5 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
           | [first, ...] -> didYouMean(first, named |> Stdlib.List.map(Stdlib.Tuple2.first))
           | [] -> ""
 
-        Option.Some(why + hint)
-      | None -> Option.None
+        Some(why + hint)
+      | None -> None

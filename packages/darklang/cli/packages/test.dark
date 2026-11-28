@@ -230,7 +230,7 @@ let resultKey(
 let storedOutcome(cache: CacheContext, testHash: LanguageTools.ProgramTypes.Hash): Option<Outcome> =
   match LanguageTools.PackageManager.Test.storedResult(resultKey(cache, testHash)) with
   | Some(json) -> Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption
-  | None -> Option.None
+  | None -> None
 
 
 let storeOutcome(
@@ -249,7 +249,7 @@ let storeOutcome(
 let lastOutcome(branchId: Uuid, testHash: LanguageTools.ProgramTypes.Hash): Option<Outcome> =
   match cacheContext(branchId) with
   | Some(cache) -> storedOutcome(cache, testHash) |> Stdlib.Option.map(summary)
-  | None -> Option.None
+  | None -> None
 
 
 /// <fn lastOutcome> for each of <param testHashes>, in order, for a listing: the cache key is
@@ -270,7 +270,7 @@ let lastOutcomes(
         |> Stdlib.Option.andThen(fun json ->
           Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption)
         |> Stdlib.Option.map(summary))
-    | None -> testHashes |> Stdlib.List.map(fun _ -> Option.None)
+    | None -> testHashes |> Stdlib.List.map(fun _ -> None)
 
 
 /// Run <param test> now, ignoring the cache, and say how it went.
@@ -407,9 +407,9 @@ let addTest(
                     LanguageTools.ProgramTypes.PackageOp.SetName(
                       location,
                       LanguageTools.ProgramTypes.Reference.PackageTest(packageTest.hash),
-                      Option.None) ]
+                      None) ]
 
-                Option.Some((ops, packageTest.hash, unresolvedNames)))
+                Some((ops, packageTest.hash, unresolvedNames)))
         | _ -> addFailed(state, "Expected exactly one test declaration")
 
 
@@ -448,7 +448,7 @@ let runTests(state: AppState, args: List<String>): AppState =
         json = false
         brief = Stdlib.Bool.not(Stdlib.Cli.Sys.isTerminal(1))
         jobs = if cores < 16 then cores else 16
-        seed = Option.None
+        seed = None
         filters = [] }
 
   match parseRunOptions(defaults, args) with
@@ -549,8 +549,8 @@ let runScriptTestsIn(
     ops
     |> Stdlib.List.filterMap(fun op ->
       match op with
-      | SetName(location, _, _) -> Option.Some(location)
-      | _ -> Option.None)
+      | SetName(location, _, _) -> Some(location)
+      | _ -> None)
 
   let taken =
     locations
@@ -614,7 +614,7 @@ type RunOptions =
 
 let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions, String> =
   match args with
-  | [] -> Result.Ok(options)
+  | [] -> Ok(options)
   | ["--force", ...rest] -> parseRunOptions({ options with force = true }, rest)
   | ["--json", ...rest] -> parseRunOptions({ options with json = true }, rest)
   | ["--brief", ...rest] -> parseRunOptions({ options with brief = true }, rest)
@@ -622,22 +622,22 @@ let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions,
   | ["--jobs", value, ...rest] ->
     match Stdlib.Int64.parse(value) with
     | Ok(jobs) when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
-    | _ -> Result.Error("--jobs needs a positive whole number")
-  | ["--jobs"] -> Result.Error("--jobs needs a positive whole number")
+    | _ -> Error("--jobs needs a positive whole number")
+  | ["--jobs"] -> Error("--jobs needs a positive whole number")
   | [arg, ...rest] when Stdlib.String.startsWith(arg, "--jobs=") ->
     let value = Stdlib.String.dropFirst(arg, 7)
     parseRunOptions(options, Stdlib.List.concat([ "--jobs", value ], rest))
   | ["--seed", value, ...rest] ->
     match Stdlib.Int64.parse(value) with
-    | Ok(seed) -> parseRunOptions({ options with seed = Option.Some(seed) }, rest)
-    | Error(_) -> Result.Error("--seed needs a whole number")
-  | ["--seed"] -> Result.Error("--seed needs a whole number")
+    | Ok(seed) -> parseRunOptions({ options with seed = Some(seed) }, rest)
+    | Error(_) -> Error("--seed needs a whole number")
+  | ["--seed"] -> Error("--seed needs a whole number")
   | [arg, ...rest] when Stdlib.String.startsWith(arg, "--seed=") ->
     let value = Stdlib.String.dropFirst(arg, 7)
     parseRunOptions(options, Stdlib.List.concat([ "--seed", value ], rest))
   | [arg, ...rest] ->
     if Stdlib.String.startsWith(arg, "-") then
-      Result.Error($"Unknown option: {arg}")
+      Error($"Unknown option: {arg}")
     else
       parseRunOptions({ options with filters = Stdlib.List.prepend(options.filters, arg) }, rest)
 
@@ -727,15 +727,15 @@ let runSelected(
   | [(item, cacheSafe), ...rest] when Stdlib.List.length(running) < options.jobs ->
     let cachedResult =
       if options.force then
-        Option.None
+        None
       else
         match cache with
         | Some(context) when mayCache(item.entity) ->
           match storedOutcome(context, item.entity.hash) with
           | Some(outcome) when isPassed(outcome) && isCacheable(item.entity, cacheSafe) ->
-            Option.Some(outcome)
-          | _ -> Option.None
-        | _ -> Option.None
+            Some(outcome)
+          | _ -> None
+        | _ -> None
 
     match cachedResult with
     | Some(outcome) ->
@@ -882,9 +882,9 @@ let groupedTests(
   SCM.Deps.dependentsFor(branchId, [ (group, LanguageTools.ProgramTypes.ItemKind.Fn) ])
   |> Stdlib.List.filterMap(fun((_, loc, kind)) ->
     if kind == LanguageTools.ProgramTypes.ItemKind.Test then
-      Option.Some(Stdlib.List.prepend(loc.modules, loc.owner))
+      Some(Stdlib.List.prepend(loc.modules, loc.owner))
     else
-      Option.None)
+      None)
   |> Stdlib.List.unique
   |> Stdlib.List.map(fun modules -> liveTests(branchId, modules, ""))
   |> Stdlib.List.flatten
@@ -914,10 +914,7 @@ let testItemsUnder(
   found
   |> Stdlib.List.filterMap(fun item ->
     let path = Stdlib.String.split(groupedPath(item), ".")
-    if Stdlib.List.take(path, depth) == prefix then
-      Option.Some((path, item))
-    else
-      Option.None)
+    if Stdlib.List.take(path, depth) == prefix then Some((path, item)) else None)
 
 
 let runTestsInRun(
@@ -1040,7 +1037,7 @@ let deepestShared(prefix: List<String>, tests: List<(List<String> * Int64)>): Li
       if Stdlib.List.length(path) > depth + 1 then
         Stdlib.List.getAt(path, depth)
       else
-        Option.None)
+        None)
     |> Stdlib.List.unique
 
   match next with
@@ -1107,9 +1104,9 @@ let countTests(state: AppState, args: List<String>): AppState =
   let branchId = state.currentBranchId
   let (forItem, rest) =
     match args with
-    | ["--for", item, ...rest] -> (Option.Some(item), rest)
-    | [moduleArg, "--for", item] -> (Option.Some(item), [ moduleArg ])
-    | _ -> (Option.None, args)
+    | ["--for", item, ...rest] -> (Some(item), rest)
+    | [moduleArg, "--for", item] -> (Some(item), [ moduleArg ])
+    | _ -> (None, args)
 
   let badArgs(message: String): AppState =
     printErr(message)
@@ -1158,9 +1155,9 @@ let countTests(state: AppState, args: List<String>): AppState =
             dependents
             |> Stdlib.List.filterMap(fun((depLoc, depKind)) ->
               if depKind == LanguageTools.ProgramTypes.ItemKind.Test then
-                Option.Some((Deps.fqnOf(depLoc), true))
+                Some((Deps.fqnOf(depLoc), true))
               else
-                Option.None)
+                None)
             |> Stdlib.Dict.fromList
 
           let using =

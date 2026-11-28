@@ -62,13 +62,13 @@ let evaluateRawUnder(
   | Ok(value) ->
     // Unit has no output, and a string prints without its quotes.
     match LanguageTools.RuntimeTypes.reflect(value) with
-    | DUnit -> Result.Ok(Option.None)
-    | DString(text) -> Result.Ok(Option.Some(text))
+    | DUnit -> Ok(None)
+    | DString(text) -> Ok(Some(text))
     | dv ->
       let (width, _rows) = Terminal.getSize()
       let color = Stdlib.Cli.Sys.isTerminal(1)
-      Result.Ok(Option.Some(Terminal.renderValue(branchId, width, color, currentModule, dv)))
-  | Error(error) -> Result.Error(error)
+      Ok(Some(Terminal.renderValue(branchId, width, color, currentModule, dv)))
+  | Error(error) -> Error(error)
 
 
 /// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
@@ -94,11 +94,11 @@ let evaluateUnder(
           currentModule,
           harmful,
           grants) with
-  | Ok(result) -> Result.Ok(result)
+  | Ok(result) -> Ok(result)
   | Error(err) ->
     let message = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err)
     let lines = ExecutionError.whereLines(state.currentBranchId, err, ExecutionError.Entry.Call)
-    Result.Error(Stdlib.String.join(Stdlib.List.prepend(lines, message), "\n"))
+    Error(Stdlib.String.join(Stdlib.List.prepend(lines, message), "\n"))
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -150,7 +150,7 @@ let executeUnder(
     let expr =
       match args with
       | ["-"] -> Stdlib.Cli.Stdin.readAll()
-      | parts -> Result.Ok(Stdlib.String.join(parts, " "))
+      | parts -> Ok(Stdlib.String.join(parts, " "))
 
     match expr with
     | Error(message) ->
@@ -163,9 +163,9 @@ let executeUnder(
           let (raw, result) =
             LanguageTools.Perf.measure(fun () -> evaluateUnder(state, expr, harmful, grants))
 
-          (Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
+          (Some(LanguageTools.Perf.minus(raw, harness)), result)
         else
-          (Option.None, evaluateUnder(state, expr, harmful, grants))
+          (None, evaluateUnder(state, expr, harmful, grants))
 
       let newState =
         match outcome with

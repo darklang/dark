@@ -103,11 +103,11 @@ let fromFloat64(a: Float64): BigInt =
 /// <fn BigInt.fromFloat64>, or {{Error NotANumber}} for NaN and {{Error Overflow}} for an infinity
 let checkedFromFloat64(a: Float64): Result<BigInt, Math.NonFinite> =
   if Float64.isNaN(a) then
-    Result.Error(Math.NonFinite.NotANumber)
+    Error(Math.NonFinite.NotANumber)
   else if Float64.isFinite(a) then
-    Result.Ok(fromFloat64(a))
+    Ok(fromFloat64(a))
   else
-    Result.Error(Math.NonFinite.Overflow)
+    Error(Math.NonFinite.Overflow)
 
 
 /// Returns the <type BigInt> value of a <type String>. Because <type BigInt> is
@@ -284,17 +284,17 @@ val maxPowerBits = 8388608z
 /// before computing anything. {{0}}, {{1}} and {{-1}} take any exponent.
 let checkedPower(base: BigInt, exponent: BigInt): Result<BigInt, Math.PowerError> =
   if exponent < 0z then
-    Result.Error(Math.PowerError.NegativeExponent)
+    Error(Math.PowerError.NegativeExponent)
   else if exponent == 0z || base == 0z || base == 1z || base == -1z then
-    Result.Ok(base ** exponent)
+    Ok(base ** exponent)
   else
     let magnitude = if base < 0z then -base else base
     // bits(magnitude) * exponent <= maxPowerBits exactly when magnitude has no bit at
     // or past maxPowerBits / exponent: one shift, without counting the bits
     if magnitude >> maxPowerBits / exponent == 0z then
-      Result.Ok(base ** exponent)
+      Ok(base ** exponent)
     else
-      Result.Error(Math.PowerError.ResultTooLarge)
+      Error(Math.PowerError.ResultTooLarge)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -303,10 +303,7 @@ let checkedPower(base: BigInt, exponent: BigInt): Result<BigInt, Math.PowerError
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises.
 let checkedDivide(a: BigInt, b: BigInt): Result<BigInt, Math.DivisionError> =
-  if b == 0z then
-    Result.Error(Math.DivisionError.DivisionByZero)
-  else
-    Result.Ok(a / b)
+  if b == 0z then Error(Math.DivisionError.DivisionByZero) else Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
@@ -315,37 +312,37 @@ let checkedDivide(a: BigInt, b: BigInt): Result<BigInt, Math.DivisionError> =
 /// Use <fn BigInt.checkedMod> to wrap around into {{0 <= res < b}} instead.
 let checkedRemainder(value: BigInt, divisor: BigInt): Result<BigInt, Math.DivisionError> =
   if divisor == 0z then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else
-    Result.Ok(value - value / divisor * divisor)
+    Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: BigInt, b: BigInt): Result<BigInt, Math.ModulusError> =
   if b == 0z then
-    Result.Error(Math.ModulusError.ZeroModulus)
+    Error(Math.ModulusError.ZeroModulus)
   else if b < 0z then
-    Result.Error(Math.ModulusError.NegativeModulus)
+    Error(Math.ModulusError.NegativeModulus)
   else
-    Result.Ok(a % b)
+    Ok(a % b)
 
 
 /// <param a> shifted left by <param count> bits, or {{Error NegativeCount}} where `<<`
 /// raises. {{Error ResultTooLarge}} if the result would take more than 1 MB.
 let checkedShiftLeft(a: BigInt, count: BigInt): Result<BigInt, Math.ShiftError> =
   if count < 0z then
-    Result.Error(Math.ShiftError.NegativeCount)
+    Error(Math.ShiftError.NegativeCount)
   else if a == 0z then
-    Result.Ok(0z)
+    Ok(0z)
   else if count > maxPowerBits then
-    Result.Error(Math.ShiftError.ResultTooLarge)
+    Error(Math.ShiftError.ResultTooLarge)
   else
     let magnitude = if a < 0z then -a else a
     if magnitude >> maxPowerBits - count == 0z then
-      Result.Ok(a << count)
+      Ok(a << count)
     else
-      Result.Error(Math.ShiftError.ResultTooLarge)
+      Error(Math.ShiftError.ResultTooLarge)
 
 
 /// <param a> shifted right by <param count> bits, rounding down, or
@@ -353,9 +350,9 @@ let checkedShiftLeft(a: BigInt, count: BigInt): Result<BigInt, Math.ShiftError> 
 /// for a negative <param a>.
 let checkedShiftRight(a: BigInt, count: BigInt): Result<BigInt, Math.ShiftError> =
   if count < 0z then
-    Result.Error(Math.ShiftError.NegativeCount)
+    Error(Math.ShiftError.NegativeCount)
   else if count > 2147483647z then
     // `>>` takes an Int32 count; every bit is gone long before this
-    Result.Ok(if a < 0z then -1z else 0z)
+    Ok(if a < 0z then -1z else 0z)
   else
-    Result.Ok(a >> count)
+    Ok(a >> count)

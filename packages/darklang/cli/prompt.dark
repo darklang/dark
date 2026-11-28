@@ -114,7 +114,7 @@ module History =
     let updatedHistory =
       if
         Stdlib.List.isEmpty(state.commandHistory)
-        || Stdlib.List.head(state.commandHistory) != Option.Some(command)
+        || Stdlib.List.head(state.commandHistory) != Some(command)
       then
         Stdlib.List.prepend(state.commandHistory, command)
       else

@@ -73,12 +73,12 @@ let fresh(s: State): (Model.Ty * State) =
 
 /// Omit an expected or actual type from a finding.
 let none(): Option<Model.Ty> =
-  Option.None
+  None
 
 
 /// Include an expected or actual type in a finding.
 let some(t: Model.Ty): Option<Model.Ty> =
-  Option.Some(t)
+  Some(t)
 
 
 /// Follow replacements and outer aliases, adding expansion problems to the state.
@@ -677,7 +677,7 @@ let generalize(s: State, key: Int64, ty: Model.Ty, scope: List<Model.Binder>): S
     let s =
       addFinding(
         s,
-        Types.warning(IssueCode.UnsupportedConstruct, Option.Some(key), Context.DuplicateBindingId))
+        Types.warning(IssueCode.UnsupportedConstruct, Some(key), Context.DuplicateBindingId))
 
     let invalidScheme = Model.Scheme { quantified = [], typ = Model.Ty.TError, constraints = [] }
     { s with schemes = Stdlib.Dict.set(s.schemes, key, invalidScheme) }
@@ -699,7 +699,7 @@ let zonkConstraint(s: State, c: Model.Constraint): Model.Constraint =
 let solve(s: State, c: Model.Constraint): State =
   match c with
   | All(constraints) -> solveAll(s, constraints)
-  | Equal(at, site, expected, actual) -> unify(s, Option.Some(at), site, expected, actual)
+  | Equal(at, site, expected, actual) -> unify(s, Some(at), site, expected, actual)
   | _ -> solveOther(s, c)
 
 
@@ -712,7 +712,7 @@ let solveAll(s: State, constraints: List<Model.Constraint>): State =
     match c with
     | All(inner) -> solveAll(solveAll(s, inner), rest)
     | Equal(at, site, expected, actual) ->
-      solveAll(unify(s, Option.Some(at), site, expected, actual), rest)
+      solveAll(unify(s, Some(at), site, expected, actual), rest)
     | _ -> solveAll(solveOther(s, c), rest)
 
 
@@ -727,7 +727,7 @@ let solveOther(s: State, c: Model.Constraint): State =
     match Stdlib.Dict.get(s.schemes, key) with
     | Some(scheme) ->
       let (t, s) = instantiate(s, scheme)
-      unify(s, Option.Some(at), Site.Expression, t, target)
+      unify(s, Some(at), Site.Expression, t, target)
     | None -> markUnknownsAsError(s, target)
   | NewRecord(at, typeName, typeArgs, fields, result) ->
     newRecord(s, at, typeName, typeArgs, fields, result)
@@ -846,7 +846,7 @@ let relateUnwrapCase(
   inner: Model.Ty,
   caseName: String)
   : State =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   if caseName == "Some" || caseName == "None" then
     unify(s, nodeId, Site.MatchPattern, Model.Ty.TCustom(s.env.optionType, [ inner ]), subject)
   else if caseName == "Ok" || caseName == "Error" then
@@ -880,12 +880,12 @@ let relateDeferred(s: State, current: DeferredUse, previous: DeferredUse): State
       s,
       Types.definiteError(
         IssueCode.TypeMismatch,
-        Option.Some(current.at),
+        Some(current.at),
         none(),
         none(),
         Context.At(current.site)))
   else
-    let nodeId = Option.Some(current.at)
+    let nodeId = Some(current.at)
     match current.requirement, previous.requirement with
     | FieldType(name, typ), FieldType(oldName, oldType) ->
       if name == oldName then unify(s, nodeId, current.site, oldType, typ) else s
@@ -918,9 +918,9 @@ let relateDeferred(s: State, current: DeferredUse, previous: DeferredUse): State
 let queueDeferred(s: State, c: Model.Constraint): State =
   let unwrapped =
     match c with
-    | Unwrap(at, _, subject, result) -> Option.Some((at, subject, result))
-    | Propagate(at, operand, inner, _) -> Option.Some((at, operand, inner))
-    | _ -> Option.None
+    | Unwrap(at, _, subject, result) -> Some((at, subject, result))
+    | Propagate(at, operand, inner, _) -> Some((at, operand, inner))
+    | _ -> None
 
   let s =
     match unwrapped with
@@ -931,7 +931,7 @@ let queueDeferred(s: State, c: Model.Constraint): State =
           let finding =
             Types.definiteError(
               IssueCode.OccursCheckFailed,
-              Option.Some(at),
+              Some(at),
               some(subject),
               some(result),
               Context.At(Site.Expression))
@@ -1011,9 +1011,8 @@ let trySolveDeferred(s: State, c: Model.Constraint): Option<State> =
   | Unwrap(at, fn, arg, result) -> unwrap(s, at, fn, arg, result)
   | Propagate(at, operand, inner, returned) -> checkUnwrapReturn(s, c, at, operand, inner, returned)
   | DictKey(at, key) -> dictKey(s, at, key)
-  | Apply(at, callee, name, args, result) ->
-    Option.Some(applyArguments(s, at, callee, name, args, result))
-  | _ -> Option.Some(solve(s, c))
+  | Apply(at, callee, name, args, result) -> Some(applyArguments(s, at, callee, name, args, result))
+  | _ -> Some(solve(s, c))
 
 
 /// Reject a dictionary key containing a forbidden type as soon as one is known.
@@ -1023,19 +1022,19 @@ let dictKey(s: State, at: Int64, key: Model.Ty): Option<State> =
   if Stdlib.Bool.not(Types.isUsableDictKey(s.env, [], key)) then
     // A known forbidden component proves the key invalid even when other
     // components are unknown. Preserve those unknowns in the reported type.
-    Option.Some(
+    Some(
       addFinding(
         s,
         Types.definiteError(
           IssueCode.UnsupportedDictKeyType,
-          Option.Some(at),
-          Option.None,
-          Option.Some(key),
+          Some(at),
+          None,
+          Some(key),
           Context.NoDetail)))
   else if Stdlib.Dict.isEmpty(Types.freeVars(s.subst, key)) then
-    Option.Some(s)
+    Some(s)
   else
-    Option.None
+    None
 
 
 /// Follow pending field, enum-payload, and unwrap relationships from a dictionary
@@ -1085,7 +1084,7 @@ let checkReachableKeyTypes(
                     s,
                     Types.definiteError(
                       IssueCode.UnsupportedDictKeyType,
-                      Option.Some(at),
+                      Some(at),
                       none(),
                       some(subject),
                       Context.NoDetail)),
@@ -1125,9 +1124,7 @@ let reportUnsolvedConstraints(s: State): State =
   let pending = Stdlib.List.reverse(s.waiting)
   Stdlib.List.fold(pending, { s with waiting = [] }, fun(s, c) ->
     let ambiguous(at: Int64, subject: AmbiguousSubject): State =
-      addFinding(
-        s,
-        Types.warning(IssueCode.AmbiguousType, Option.Some(at), Context.Ambiguous(subject)))
+      addFinding(s, Types.warning(IssueCode.AmbiguousType, Some(at), Context.Ambiguous(subject)))
 
     match c with
     | GetField(at, _, _, result) ->
@@ -1152,7 +1149,7 @@ let reportUnsolvedConstraints(s: State): State =
           s,
           Types.warning(
             IssueCode.UnsupportedConstruct,
-            Option.Some(at),
+            Some(at),
             Context.Untrusted(Types.fnNameRef(fn), UntrustedBuiltin.UnwrapArgumentUnknown))),
         result)
     | Propagate(at, _, inner, _) ->
@@ -1161,7 +1158,7 @@ let reportUnsolvedConstraints(s: State): State =
           s,
           Types.warning(
             IssueCode.UnsupportedConstruct,
-            Option.Some(at),
+            Some(at),
             Context.UnwrapRequiresOptionOrResult)),
         inner)
     | _ -> s)
@@ -1178,7 +1175,7 @@ let inferUnwrapReturnTypes(s: State): State =
     | Propagate(at, operand, _, returned) ->
       match Types.walk(s.subst, returned) with
       | TVar(_) ->
-        let nodeId = Option.Some(at)
+        let nodeId = Some(at)
         let (operandType, s) = expand(s, nodeId, operand)
         match unwrapContainer(s, operandType) with
         | OptionOf(_) ->
@@ -1219,7 +1216,7 @@ let useFunction(
   typeArgs: List<Model.Ty>,
   target: Model.Ty)
   : State =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let untrusted(reason: UntrustedBuiltin): State =
     markUnknownsAsError(
       addFinding(
@@ -1327,19 +1324,19 @@ let useValue(
   name: ProgramTypes.FQValueName.FQValueName,
   target: Model.Ty)
   : State =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let found =
     match name with
     | Package(hash) ->
       match Stdlib.Dict.get(s.env.values, hash) with
-      | Some(scheme) -> Option.Some(instantiate(s, scheme))
-      | None -> Option.None
+      | Some(scheme) -> Some(instantiate(s, scheme))
+      | None -> None
     | Builtin(_) ->
       match Environment.builtinValueType(name) with
       | Some(typ) ->
         let (converted, problems) = Types.fromReference(Dict {}, nodeId, typ)
-        Option.Some((converted, addFindings(s, problems)))
-      | None -> Option.None
+        Some((converted, addFindings(s, problems)))
+      | None -> None
 
   match found with
   | Some((t, s)) ->
@@ -1364,7 +1361,7 @@ let useValue(
 /// aliases Int64, Tag<t> no longer contains t. Return an empty list when expansion
 /// fails, since an unavailable type cannot prove a containment cycle here.
 let containedUnknowns(s: State, at: Int64, t: Model.Ty): List<Model.Var> =
-  match Types.expandDeep(s.env, s.subst, Option.Some(at), [], t) with
+  match Types.expandDeep(s.env, s.subst, Some(at), [], t) with
   | Ok(expanded) -> Stdlib.Dict.keys(Types.freeVars(s.subst, expanded))
   | Error(_) -> []
 
@@ -1380,8 +1377,8 @@ let wouldContainItself(s: State, at: Int64, v: Model.Var, contents: List<Model.T
 
   let contains(subject: Model.Ty, types: List<Model.Ty>): Option<(Model.Var * List<Model.Var>)> =
     match Types.walk(s.subst, subject) with
-    | TVar(c) -> Option.Some((c, unknowns(types)))
-    | _ -> Option.None
+    | TVar(c) -> Some((c, unknowns(types)))
+    | _ -> None
 
   let waiting =
     s.waiting
@@ -1391,7 +1388,7 @@ let wouldContainItself(s: State, at: Int64, v: Model.Var, contents: List<Model.T
         contains(callee, Stdlib.List.prepend(Stdlib.List.map(applied, fun((t, _)) -> t), gives))
       | Unwrap(_, _, subject, result) -> contains(subject, [ result ])
       | Propagate(_, operand, inner, _) -> contains(operand, [ inner ])
-      | _ -> Option.None)
+      | _ -> None)
 
   let edges =
     Stdlib.List.prepend(waiting, (v, unknowns(contents)))
@@ -1430,7 +1427,7 @@ let selfApplication(s: State, at: Int64, callee: Model.Ty, args: List<(Model.Ty 
     s,
     Types.error(
       IssueCode.OccursCheckFailed,
-      Option.Some(at),
+      Some(at),
       some(callee),
       Stdlib.List.head(Stdlib.List.map(args, fun((t, _)) -> t)),
       Context.At(Site.FunctionApplication)))
@@ -1450,7 +1447,7 @@ let applyArguments(
   args: List<(Model.Ty * Site)>,
   result: Model.Ty)
   : State =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (callee, s) = expand(s, nodeId, callee)
   match callee with
   | TFn(parameters, ret) ->
@@ -1508,7 +1505,7 @@ let waitApplication(
 
     match previous with
     | Some(Apply(_, _, _, oldArgs, oldResult)) ->
-      let nodeId = Option.Some(at)
+      let nodeId = Some(at)
       let s = unifyArguments(s, nodeId, Stdlib.List.map(oldArgs, fun((t, _)) -> t), args)
       let expected = Types.count(oldArgs)
       let given = Types.count(args)
@@ -1585,25 +1582,22 @@ let instantiateType(
   typeName: ProgramTypes.Hash,
   typeArgs: List<Model.Ty>)
   : Option<(Model.Ty * State)> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   match Types.declaration(s.env, typeName) with
-  | None -> Option.None
+  | None -> None
   | Some(decl) ->
     let (args, s) = typeArguments(s, nodeId, decl.typeParams, typeArgs)
     let typ = Model.Ty.TCustom(typeName, args)
     // Check the declaration and its dependencies here too. A constructed value
     // may be discarded without its type ever appearing in the enclosing signature.
-    Option.Some((typ, validateType(s, nodeId, typ)))
+    Some((typ, validateType(s, nodeId, typ)))
 
 
 /// Report that a required type declaration was not loaded into the environment.
 let missingType(s: State, at: Int64, typeName: ProgramTypes.Hash): State =
   addFinding(
     s,
-    Types.warning(
-      IssueCode.MissingTypeDeclaration,
-      Option.Some(at),
-      Context.TypeUnavailable(typeName)))
+    Types.warning(IssueCode.MissingTypeDeclaration, Some(at), Context.TypeUnavailable(typeName)))
 
 
 /// Check record construction against its declaration and assign the result type.
@@ -1617,7 +1611,7 @@ let newRecord(
   fields: List<(String * Model.Ty)>,
   result: Model.Ty)
   : State =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   match instantiateType(s, at, typeName, typeArgs) with
   | None ->
     markAllUnknownsAsError(
@@ -1705,7 +1699,7 @@ let newEnum(
   fields: List<(Model.Ty * Site)>,
   result: Model.Ty)
   : State =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let fieldTypes = Stdlib.List.map(fields, fun((t, _)) -> t)
   match instantiateType(s, at, typeName, typeArgs) with
   | None ->
@@ -1769,7 +1763,7 @@ let newEnum(
 let tupleIndexOfFieldName(field: String): Option<Int64> =
   let chars = Stdlib.String.toList(field)
   match chars with
-  | [] -> Option.None
+  | [] -> None
   | [c, ...] ->
     if
       c != '0'
@@ -1778,7 +1772,7 @@ let tupleIndexOfFieldName(field: String): Option<Int64> =
     then
       Stdlib.Result.toOption(Stdlib.Int64.parse(field))
     else
-      Option.None
+      None
 
 
 /// `x.display` where x has no field `display`: a call to the trait method of that name, with x
@@ -1791,7 +1785,7 @@ let receiverCall(
   field: String,
   result: Model.Ty)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (visible, env) = Environment.withVisibleTraits(s.env)
   let hashes =
     Stdlib.List.concat(
@@ -1839,13 +1833,13 @@ let receiverCall(
         let returnType = Types.substituteRigid(mapping, t.returnType)
         let s = unify(s, nodeId, Site.Expression, self, subject)
         match rest with
-        | [] -> Option.Some(unify(s, nodeId, Site.Expression, returnType, result))
+        | [] -> Some(unify(s, nodeId, Site.Expression, returnType, result))
         | _ ->
           let rest = rest |> Stdlib.List.map(fun p -> Types.substituteRigid(mapping, p))
-          Option.Some(unify(s, nodeId, Site.Expression, Model.Ty.TFn(rest, returnType), result))
-      | [] -> Option.None
-    | _ -> Option.None
-  | _ -> Option.None
+          Some(unify(s, nodeId, Site.Expression, Model.Ty.TFn(rest, returnType), result))
+      | [] -> None
+    | _ -> None
+  | _ -> None
 
 
 /// No field by that name: try it as a method call (<fn receiverCall>), else report
@@ -1859,8 +1853,8 @@ let fieldOrReceiver(
   finding: Model.Finding)
   : Option<State> =
   match receiverCall(s, at, subject, field, result) with
-  | Some(s) -> Option.Some(s)
-  | None -> Option.Some(markUnknownsAsError(addFinding(s, finding), result))
+  | Some(s) -> Some(s)
+  | None -> Some(markUnknownsAsError(addFinding(s, finding), result))
 
 
 /// Resolve a tuple position or declared record field and connect its type to result.
@@ -1873,16 +1867,16 @@ let getField(
   field: String,
   result: Model.Ty)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, record)
   match subject with
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(markUnknownsAsError(s, result))
+  | TVar(_) -> None
+  | TError -> Some(markUnknownsAsError(s, result))
   | TTuple(first, second, rest) ->
     let elements = Stdlib.List.concat([ first, second ], rest)
     match tupleIndexOfFieldName(field)
           |> Stdlib.Option.andThen(fun n -> Stdlib.List.getAt(elements, n - 1)) with
-    | Some(element) -> Option.Some(unify(s, nodeId, Site.RecordFieldAccess, element, result))
+    | Some(element) -> Some(unify(s, nodeId, Site.RecordFieldAccess, element, result))
     | None ->
       fieldOrReceiver(
         s,
@@ -1905,7 +1899,7 @@ let getField(
         match Stdlib.List.findFirst(fields, fun f -> f.name == field) with
         | Some(declared) ->
           let (t, s) = fieldType(s, nodeId, decl.typeParams, args, declared.typ)
-          Option.Some(unify(s, nodeId, Site.RecordFieldAccess, t, result))
+          Some(unify(s, nodeId, Site.RecordFieldAccess, t, result))
         | None ->
           fieldOrReceiver(
             s,
@@ -1959,19 +1953,19 @@ let updateRecord(
   record: Model.Ty,
   fields: List<(String * Model.Ty)>)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, record)
   let slots = Stdlib.List.map(fields, fun((_, t)) -> t)
   match subject with
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(markAllUnknownsAsError(s, slots))
+  | TVar(_) -> None
+  | TError -> Some(markAllUnknownsAsError(s, slots))
   | _ ->
     let (found, s) = declarationFor(s, nodeId, subject)
     match found with
     | Some((_, args, decl)) ->
       match decl.definition with
       | Record(declared) ->
-        Option.Some(
+        Some(
           Stdlib.List.fold(fields, s, fun(s, (name, slot)) ->
             match Stdlib.List.findFirst(declared, fun f -> f.name == name) with
             | Some(field) ->
@@ -1987,7 +1981,7 @@ let updateRecord(
                   some(record),
                   Context.Identifier(name)))))
       | _ ->
-        Option.Some(
+        Some(
           markAllUnknownsAsError(
             addFinding(
               s,
@@ -1999,7 +1993,7 @@ let updateRecord(
                 Context.RecordRequiredForUpdate)),
             slots))
     | None ->
-      Option.Some(
+      Some(
         markAllUnknownsAsError(
           addFinding(
             s,
@@ -2022,14 +2016,14 @@ let enumPattern(
   caseName: String,
   fields: List<Model.Ty>)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, scrutinee)
   let failWith(s: State, finding: Model.Finding): Option<State> =
-    Option.Some(markAllUnknownsAsError(addFinding(s, finding), fields))
+    Some(markAllUnknownsAsError(addFinding(s, finding), fields))
 
   match subject with
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(markAllUnknownsAsError(s, fields))
+  | TVar(_) -> None
+  | TError -> Some(markAllUnknownsAsError(s, fields))
   | _ ->
     let (found, s) = declarationFor(s, nodeId, subject)
     match found with
@@ -2049,7 +2043,7 @@ let enumPattern(
         | Some(case) ->
           match Stdlib.List.zip(case.fields, fields) with
           | Ok(pairs) ->
-            Option.Some(
+            Some(
               Stdlib.List.fold(pairs, s, fun(s, (declared, slot)) ->
                 let (t, s) = fieldType(s, nodeId, decl.typeParams, args, declared.typ)
                 unify(s, nodeId, Site.MatchPattern, t, slot)))
@@ -2090,7 +2084,7 @@ let enumPattern(
 /// every depth. `expand` only decides the head, so `Box { f = 1 }` is still `Box<?t>` there.
 /// An expansion that fails leaves the aliases, which can only cost a match, never invent one.
 let decidedSubject(s: State, subject: Model.Ty): Model.Ty =
-  match Types.expandDeep(s.env, s.subst, Option.None, [], subject) with
+  match Types.expandDeep(s.env, s.subst, None, [], subject) with
   | Ok(expanded) -> expanded
   | Error(_) -> zonk(s, subject)
 
@@ -2121,7 +2115,7 @@ let recordImplChoice(
   candidates: List<(Model.Ty * ProgramTypes.Hash)>,
   record: Bool)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let missing(): State =
     // `MissingImpl` rather than anything operator-specific: under traits an operand a type
     // cannot take is the ordinary absence of an implementation, and it reads the same way as
@@ -2133,30 +2127,30 @@ let recordImplChoice(
         nodeId,
         none(),
         some(subject),
-        Context.TraitNeeded(traitHash, Option.Some(method_))))
+        Context.TraitNeeded(traitHash, Some(method_))))
 
   if Stdlib.List.isEmpty(candidates) then
     // The trait has no implementations at all, anywhere. That is a store they have not
     // reached rather than a type that cannot do this, and saying otherwise would report every
     // `+` in the tree at once.
-    Option.Some(s)
+    Some(s)
   else
     let byHead =
       candidates |> Stdlib.List.filter(fun((self, _)) -> Types.headMatches(self, subject))
 
     if Stdlib.List.isEmpty(byHead) then
-      Option.Some(missing())
+      Some(missing())
     else if Stdlib.Bool.not(Types.fullyResolved(s.subst, subject)) then
-      Option.None
+      None
     else
       let decided = decidedSubject(s, subject)
       let applies = byHead |> Stdlib.List.filter(fun((self, _)) -> Types.implApplies(self, decided))
       if Stdlib.List.isEmpty(applies) then
-        Option.Some(missing())
+        Some(missing())
       else if Stdlib.Bool.not(record) then
-        Option.Some(s)
+        Some(s)
       else
-        Option.Some(
+        Some(
           addResolution(
             s,
             Model.Resolution.Call(
@@ -2177,15 +2171,15 @@ let traitCallFor(
   method_: String,
   self: Model.Ty)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, self)
   match subject with
   // The arguments have not decided the self type yet.
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(s)
+  | TVar(_) -> None
+  | TError -> Some(s)
   // Inside a bounded generic: the caller's type argument decides, and the bound is the
   // promise that something will.
-  | TRigid(param) -> Option.Some(addResolution(s, Model.Resolution.Deferred(at, param)))
+  | TRigid(param) -> Some(addResolution(s, Model.Resolution.Deferred(at, param)))
   | _ ->
     let (candidates, env) = Environment.implsOfTrait(s.env, traitHash)
     recordImplChoice({ s with env = env }, at, traitHash, method_, subject, candidates, true)
@@ -2203,17 +2197,16 @@ let callerBoundFor(
   traitHash: ProgramTypes.Hash,
   supplied: Model.Ty)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, supplied)
   match subject with
   // The arguments have not decided the type argument yet.
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(s)
+  | TVar(_) -> None
+  | TError -> Some(s)
   // The type argument is one of THIS item's own parameters, so the obligation is passed along
   // rather than discharged. That is what threads a bound through a generic calling a generic.
   | TRigid(fromParam) ->
-    Option.Some(
-      addResolution(s, Model.Resolution.CallerBoundDeferred(at, param, traitHash, fromParam)))
+    Some(addResolution(s, Model.Resolution.CallerBoundDeferred(at, param, traitHash, fromParam)))
   | _ ->
     let (candidates, env) = Environment.implsOfTrait(s.env, traitHash)
     let s = { s with env = env }
@@ -2227,11 +2220,11 @@ let callerBoundFor(
     // with it because what gets recorded differs: a bound records which implementation the
     // type ARGUMENT implied, not which one the call runs.
     if Stdlib.List.isEmpty(candidates) then
-      Option.Some(s)
+      Some(s)
     else if Stdlib.List.isEmpty(byHead) then
       // Nothing of this shape meets the bound, and no argument can change that, so refuse now
       // rather than waiting and downgrading a definite error to Incomplete.
-      Option.Some(
+      Some(
         addFinding(
           s,
           Types.definiteError(
@@ -2239,13 +2232,13 @@ let callerBoundFor(
             nodeId,
             none(),
             some(subject),
-            Context.TraitNeeded(traitHash, Option.None))))
+            Context.TraitNeeded(traitHash, None))))
     else if Stdlib.Bool.not(Types.fullyResolved(s.subst, subject)) then
-      Option.None
+      None
     else if Stdlib.List.isEmpty(applies) then
       // The right shape but the wrong arguments: the type argument does not meet the callee's
       // bound, which is why a call INTO a bounded function can be refused at save now.
-      Option.Some(
+      Some(
         addFinding(
           s,
           Types.definiteError(
@@ -2253,9 +2246,9 @@ let callerBoundFor(
             nodeId,
             none(),
             some(subject),
-            Context.TraitNeeded(traitHash, Option.None))))
+            Context.TraitNeeded(traitHash, None))))
     else
-      Option.Some(
+      Some(
         addResolution(
           s,
           Model.Resolution.CallerBound(
@@ -2274,11 +2267,11 @@ let operandFor(
   operand: Model.Ty,
   record: Bool)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, operand)
   match subject with
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(s)
+  | TVar(_) -> None
+  | TError -> Some(s)
   // The operand is one of the enclosing item's OWN type parameters, so this item cannot say
   // which implementation runs and it is not supposed to: the bound on that parameter is the
   // promise that one exists, and the caller's type argument decides which. Record the
@@ -2286,8 +2279,8 @@ let operandFor(
   // and report every bounded generic in the tree as missing one.
   | TRigid(param) ->
     match Environment.infixTraitOf(s.env, operation) with
-    | Some(_) when record -> Option.Some(addResolution(s, Model.Resolution.Deferred(at, param)))
-    | _ -> Option.Some(s)
+    | Some(_) when record -> Some(addResolution(s, Model.Resolution.Deferred(at, param)))
+    | _ -> Some(s)
   | _ ->
     let (found, env) = Environment.infixImplsFor(s.env, operation)
     let s = { s with env = env }
@@ -2296,7 +2289,7 @@ let operandFor(
     // structural equality for every value, and an operator whose trait hash is not generated
     // yet answers the same way, which is what keeps a tree whose refs are missing from
     // reporting every operator as an error.
-    | None -> Option.Some(s)
+    | None -> Some(s)
     | Some((traitHash, method_, candidates)) ->
       recordImplChoice(s, at, traitHash, method_, subject, candidates, record)
 
@@ -2311,14 +2304,14 @@ let unaryOperatorCall(
   self: Model.Ty)
   : Option<Model.Constraint> =
   let isOperator(key: String): Bool =
-    Stdlib.Dict.get(env.infixTrait, key) == Option.Some(Option.Some((traitHash, method_)))
+    Stdlib.Dict.get(env.infixTrait, key) == Some(Some((traitHash, method_)))
 
   if isOperator("unary -") then
-    Option.Some(Model.Constraint.Negate(at, self, true))
+    Some(Model.Constraint.Negate(at, self, true))
   else if isOperator("unary ~") then
-    Option.Some(Model.Constraint.BitwiseNot(at, self, true))
+    Some(Model.Constraint.BitwiseNot(at, self, true))
   else
-    Option.None
+    None
 
 
 /// Require a signed integer or Float64 for unary minus, waiting if its type is unknown.
@@ -2335,25 +2328,25 @@ let bitwiseNot(s: State, at: Int64, operand: Model.Ty, record: Bool): Option<Sta
 /// predicate over types: `Stdlib.abs` takes `'a` under a `Negate` bound, and a bound is a
 /// promise to be deferred, not a type to be recognised.
 let unaryOperand(s: State, at: Int64, operand: Model.Ty, key: String, record: Bool): Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, operand)
   match subject with
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(s)
+  | TVar(_) -> None
+  | TError -> Some(s)
   // The enclosing item's own type parameter: its caller decides, and the bound is the promise
   // that something will. Exactly what `operandFor` does for the binary operators.
   | TRigid(param) ->
     if record then
-      Option.Some(addResolution(s, Model.Resolution.Deferred(at, param)))
+      Some(addResolution(s, Model.Resolution.Deferred(at, param)))
     else
-      Option.Some(s)
+      Some(s)
   | _ ->
     let (found, env) = Environment.unaryImplsFor(s.env, key)
     let s = { s with env = env }
     match found with
     // Not a trait yet, or the refs are not generated: say nothing rather than refuse
     // everything.
-    | None -> Option.Some(s)
+    | None -> Some(s)
     | Some((traitHash, method_, candidates)) ->
       recordImplChoice(s, at, traitHash, method_, subject, candidates, record)
 
@@ -2368,25 +2361,25 @@ let unwrap(
   arg: Model.Ty,
   result: Model.Ty)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (subject, s) = expand(s, nodeId, arg)
   match subject with
-  | TVar(_) -> Option.None
-  | TError -> Option.Some(markUnknownsAsError(s, result))
+  | TVar(_) -> None
+  | TError -> Some(markUnknownsAsError(s, result))
   | TCustom(name, args) ->
     match args with
     | [inner] ->
       if name == s.env.optionType then
-        Option.Some(unify(s, nodeId, Site.Expression, inner, result))
+        Some(unify(s, nodeId, Site.Expression, inner, result))
       else
-        Option.Some(unwrapUnknown(s, at, fn, result))
+        Some(unwrapUnknown(s, at, fn, result))
     | [ok, _] ->
       if name == s.env.resultType then
-        Option.Some(unify(s, nodeId, Site.Expression, ok, result))
+        Some(unify(s, nodeId, Site.Expression, ok, result))
       else
-        Option.Some(unwrapUnknown(s, at, fn, result))
-    | _ -> Option.Some(unwrapUnknown(s, at, fn, result))
-  | _ -> Option.Some(unwrapUnknown(s, at, fn, result))
+        Some(unwrapUnknown(s, at, fn, result))
+    | _ -> Some(unwrapUnknown(s, at, fn, result))
+  | _ -> Some(unwrapUnknown(s, at, fn, result))
 
 
 /// Warn that the checker cannot determine this unwrap call's result and mark
@@ -2402,7 +2395,7 @@ let unwrapUnknown(
       s,
       Types.warning(
         IssueCode.UnsupportedConstruct,
-        Option.Some(at),
+        Some(at),
         Context.Untrusted(Types.fnNameRef(fn), UntrustedBuiltin.UnwrapArgumentUnknown))),
     result)
 
@@ -2436,9 +2429,7 @@ let unwrapContainer(s: State, t: Model.Ty): UnwrapContainer =
 
 /// Report a definite postfix-? error at the operator's node with the supplied reason.
 let invalidUnwrap(s: State, at: Int64, context: Context): State =
-  addFinding(
-    s,
-    Types.definiteError(IssueCode.InvalidUnwrap, Option.Some(at), none(), none(), context))
+  addFinding(s, Types.definiteError(IssueCode.InvalidUnwrap, Some(at), none(), none(), context))
 
 
 /// Check postfix ?: connect inner to the operand's successful payload, and require
@@ -2455,22 +2446,22 @@ let checkUnwrapReturn(
   inner: Model.Ty,
   returned: Model.Ty)
   : Option<State> =
-  let nodeId = Option.Some(at)
+  let nodeId = Some(at)
   let (operandType, s) = expand(s, nodeId, operand)
   match operandType with
-  | TError -> Option.Some(markUnknownsAsError(s, inner))
+  | TError -> Some(markUnknownsAsError(s, inner))
   | TVar(_) ->
     let (returnedType, s) = expand(s, nodeId, returned)
     match returnedType with
-    | TVar(_) -> Option.None
-    | TError -> Option.Some(markUnknownsAsError(s, inner))
+    | TVar(_) -> None
+    | TError -> Some(markUnknownsAsError(s, inner))
     | _ ->
       match unwrapContainer(s, returnedType) with
       | OptionOf(_) ->
-        Option.Some(
+        Some(
           unify(s, nodeId, Site.Expression, Model.Ty.TCustom(s.env.optionType, [ inner ]), operand))
       | ResultOf(_, error) ->
-        Option.Some(
+        Some(
           unify(
             s,
             nodeId,
@@ -2478,7 +2469,7 @@ let checkUnwrapReturn(
             Model.Ty.TCustom(s.env.resultType, [ inner, error ]),
             operand))
       | NotContainer ->
-        Option.Some(
+        Some(
           markUnknownsAsError(
             invalidUnwrap(s, at, Context.UnwrapRequiresMatchingReturnType),
             inner))
@@ -2486,8 +2477,7 @@ let checkUnwrapReturn(
     let operandContainer = unwrapContainer(s, operandType)
     match operandContainer with
     | NotContainer ->
-      Option.Some(
-        markUnknownsAsError(invalidUnwrap(s, at, Context.UnwrapRequiresOptionOrResult), inner))
+      Some(markUnknownsAsError(invalidUnwrap(s, at, Context.UnwrapRequiresOptionOrResult), inner))
     | _ ->
       let s =
         match operandContainer with
@@ -2499,11 +2489,11 @@ let checkUnwrapReturn(
       match returnedType with
       // The payload assignment above is useful even while the return type is
       // unknown. Keep the updated state and queue the remaining check ourselves.
-      | TVar(_) -> Option.Some(queueDeferred(s, c))
-      | TError -> Option.Some(s)
+      | TVar(_) -> Some(queueDeferred(s, c))
+      | TError -> Some(s)
       | _ ->
         match operandContainer, unwrapContainer(s, returnedType) with
-        | OptionOf(_), OptionOf(_) -> Option.Some(s)
+        | OptionOf(_), OptionOf(_) -> Some(s)
         | ResultOf(_, error), ResultOf(_, returnedError) ->
-          Option.Some(unify(s, nodeId, Site.UnwrappedError, returnedError, error))
-        | _ -> Option.Some(invalidUnwrap(s, at, Context.UnwrapRequiresMatchingReturnType))
+          Some(unify(s, nodeId, Site.UnwrappedError, returnedError, error))
+        | _ -> Some(invalidUnwrap(s, at, Context.UnwrapRequiresMatchingReturnType))

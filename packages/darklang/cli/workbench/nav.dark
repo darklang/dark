@@ -254,10 +254,7 @@ let navBottom(state: State): Step =
 /// Resets scroll.
 let openReader(state: State, content: String, reader: Reader): Step =
   Step.Continue(
-    { state with
-        reading = Option.Some(content)
-        readingIsCode = reader == Reader.Code
-        detailScroll = 0 })
+    { state with reading = Some(content), readingIsCode = reader == Reader.Code, detailScroll = 0 })
 
 
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.

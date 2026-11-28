@@ -21,14 +21,14 @@ let formatDocComment(description: String): String =
 /// laid out on one line.
 let inlineDocDoc(description: String): Option<Stdlib.Pretty.Doc> =
   if description == "" then
-    Option.None
+    None
   else
     description
     |> Stdlib.String.split("\n")
     |> Stdlib.List.map(fun line -> Stdlib.Pretty.text(if line == "" then "///" else $"/// {line}"))
     |> (fun docs ->
           Stdlib.Pretty.join(docs, Stdlib.Pretty.Doc.HardLine)
-          |> (fun doc -> Option.Some(Stdlib.Pretty.Doc.Concat(doc, Stdlib.Pretty.Doc.HardLine))))
+          |> (fun doc -> Some(Stdlib.Pretty.Doc.Concat(doc, Stdlib.Pretty.Doc.HardLine))))
 
 
 /// <param doc>, with <param description> written above it as `///` lines.
@@ -167,9 +167,9 @@ module Context =
     Context
       { branchId = branchId
         currentModule = []
-        currentFunction = Option.None
+        currentFunction = None
         width = 80
-        preferredLocation = Option.None
+        preferredLocation = None
         liveValues = Stdlib.Dict.empty
         breakForValues = false
         comments = Stdlib.Dict.empty
@@ -183,7 +183,7 @@ module Context =
         spellings = Stdlib.Dict.empty
         textParts = Stdlib.Dict.empty
         localNames = Stdlib.Dict.empty
-        knownBindings = Option.None }
+        knownBindings = None }
 
 
   val forMain = forBranch(SCM.Branch.mainBranchId)
@@ -198,9 +198,9 @@ module Context =
     Context
       { branchId = branchId
         currentModule = path
-        currentFunction = Option.None
+        currentFunction = None
         width = 80
-        preferredLocation = Option.None
+        preferredLocation = None
         liveValues = Stdlib.Dict.empty
         breakForValues = false
         comments = Stdlib.Dict.empty
@@ -214,7 +214,7 @@ module Context =
         spellings = Stdlib.Dict.empty
         textParts = Stdlib.Dict.empty
         localNames = Stdlib.Dict.empty
-        knownBindings = Option.None }
+        knownBindings = None }
 
 
   let toPickContext(ctx: Context): LanguageTools.PackageManager.PickContext =
@@ -386,10 +386,10 @@ let referenceSegments(
     match known with
     | Some(k) ->
       if Stdlib.Dict.isEmpty(k.segments) then
-        Option.None
+        None
       else
         Stdlib.Dict.get(k.segments, segmentsKey(kind, location, currentModule, minSegments))
-    | None -> Option.None
+    | None -> None
 
   match found with
   | Some(segments) -> segments
@@ -429,8 +429,8 @@ let referenceSegmentsWorkedOut(
 
   let fallbackOwner =
     shared == 0
-    && (Stdlib.List.head(fullPath) == Option.Some("Darklang")
-        && Stdlib.List.getAt(fullPath, 1) == Option.Some("Stdlib")
+    && (Stdlib.List.head(fullPath) == Some("Darklang")
+        && Stdlib.List.getAt(fullPath, 1) == Some("Stdlib")
         || Stdlib.List.contains([ "Tests", "CliScript", "" ], location.owner))
 
   // (segments dropped, reached by a fallback), most dropped first.
@@ -456,10 +456,10 @@ let referenceSegmentsWorkedOut(
   let atPath(path: List<String>, name: String): Option<LanguageTools.ProgramTypes.PackageLocation> =
     match path with
     | [owner, ...modules] ->
-      Option.Some(
+      Some(
         LanguageTools.ProgramTypes.PackageLocation
           { owner = owner, modules = modules, name = name })
-    | [] -> Option.None
+    | [] -> None
 
   let shadowed(candidate: (Int64 * Bool)): Bool =
     let (dropped, viaFallback) = candidate
@@ -583,7 +583,7 @@ let segmentsFor(
         Stdlib.Dict.set(
           acc,
           key,
-          referenceSegmentsWorkedOut(branchId, Option.Some(known), r.kind, r.location, path, n))))
+          referenceSegmentsWorkedOut(branchId, Some(known), r.kind, r.location, path, n))))
 
 
 /// The package references in printed code: what `referenceSegments` is asked about.
@@ -869,7 +869,7 @@ let referenceName(
   // one hash, and the one written is the one meant. Otherwise the one that suits `ctx` best.
   let location =
     match recorded with
-    | Some(l) -> Option.Some(l)
+    | Some(l) -> Some(l)
     | None ->
       LanguageTools.PackageManager.pickLocation(
         Context.toPickContext(ctx),
@@ -896,6 +896,28 @@ module NameResolution =
           r.location,
           nr.originalName)
     | Error(_) -> NameResolutionError.source(nr.originalName)
+
+
+  /// <fn typeName> before one of its cases, or "" where the case reads back bare: lowering gives
+  /// `Some`, `None`, `Ok` and `Error` to Stdlib's Option and Result
+  /// (<fn LanguageTools.WrittenTypesToProgramTypes.optionOrResultTypeName>).
+  let caseTypeName(
+    ctx: Context,
+    nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>,
+    caseName: String)
+    : String =
+    let bare =
+      match LanguageTools.WrittenTypesToProgramTypes.optionOrResultTypeName(
+              caseName), nr.resolved with
+      | Some(written), Ok(r) ->
+        match r.location with
+        | Some(l) ->
+          Stdlib.List.prepend(Stdlib.List.append(l.modules, l.name), l.owner)
+          == Stdlib.List.prepend(written, "Darklang")
+        | None -> false
+      | _ -> false
+
+    if bare then "" else typeName(ctx, nr)
 
 
   let traitName(
@@ -1376,11 +1398,11 @@ let tripleQuotedString(
       | StringInterpolation(_) -> true)
 
   if endsInQuote || Stdlib.Bool.not(allRaw) then
-    Option.None
+    None
   else
     match segments with
-    | [] -> Option.None
-    | [StringText(text)] -> Option.Some("\"\"\"" + text + "\"\"\"")
+    | [] -> None
+    | [StringText(text)] -> Some("\"\"\"" + text + "\"\"\"")
     | segments ->
       let inner =
         segments
@@ -1393,7 +1415,7 @@ let tripleQuotedString(
           | StringInterpolation(_) -> stringSegment(ctx, seg))
         |> Stdlib.String.join("")
 
-      Option.Some("$\"\"\"" + inner + "\"\"\"")
+      Some("$\"\"\"" + inner + "\"\"\"")
 
 
 let stringSegment(ctx: Context, s: LanguageTools.ProgramTypes.StringSegment): String =
@@ -2063,17 +2085,17 @@ let prefixOperator(
     match r.name with
     | Builtin(b) ->
       if b.version != 0s32 then
-        Option.None
+        None
       else if b.name == "boolNot" then
-        Option.Some("!")
+        Some("!")
       else
-        Option.None
+        None
     | _ ->
       match spelling(ctx, callId) with
-      | Some("-") -> Option.Some("-")
-      | Some("~") -> Option.Some("~")
-      | _ -> Option.None
-  | Error(_) -> Option.None
+      | Some("-") -> Some("-")
+      | Some("~") -> Some("~")
+      | _ -> None
+  | Error(_) -> None
 
 
 /// A pattern's own node id.
@@ -2111,7 +2133,7 @@ let patternId(p: LanguageTools.ProgramTypes.MatchPattern): Int64 =
 /// node there to ask.
 let commentsAt(ctx: Context, id: Int64): Option<(String * List<LanguageTools.Formatter.Comment>)> =
   if Stdlib.Dict.isEmpty(ctx.comments) then
-    Option.None
+    None
   else
     let key = Stdlib.display(id)
     Stdlib.Dict.get(ctx.comments, key) |> Stdlib.Option.map(fun cs -> (key, cs))
@@ -2225,7 +2247,7 @@ let spreadAlone(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Bool =
     false
   else
     Stdlib.Dict.get(ctx.spreads, Stdlib.display(LanguageTools.ProgramTypes.Expr.toID(e)))
-    == Option.Some("alone")
+    == Some("alone")
 
 
 /// Whether call <param id> is what a list written with `...` lowered to.
@@ -2233,13 +2255,13 @@ let spreadCall(ctx: Context, id: Int64): Bool =
   if Stdlib.Dict.isEmpty(ctx.spreads) then
     false
   else
-    Stdlib.Dict.get(ctx.spreads, Stdlib.display(id)) == Option.Some("call")
+    Stdlib.Dict.get(ctx.spreads, Stdlib.display(id)) == Some("call")
 
 
 /// How the literal <param id> was written, when the source is known.
 let spelling(ctx: Context, id: Int64): Option<String> =
   if Stdlib.Dict.isEmpty(ctx.spellings) then
-    Option.None
+    None
   else
     Stdlib.Dict.get(ctx.spellings, Stdlib.display(id))
 
@@ -2442,7 +2464,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
       |> Stdlib.List.map(fun seg ->
         let key = Stdlib.display(LanguageTools.ProgramTypes.Expr.toID(seg))
         match seg with
-        | _ when Stdlib.Dict.get(ctx.spreads, key) == Option.Some("element") ->
+        | _ when Stdlib.Dict.get(ctx.spreads, key) == Some("element") ->
           [ Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text("..."), exprDoc(ctx, seg)) ]
         | EList(_, items) -> items |> Stdlib.List.map(fun i -> exprDoc(ctx, i))
         | _ -> [ Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text("..."), exprDoc(ctx, seg)) ])
@@ -2524,7 +2546,10 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
 
     Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text("Dict "), spacedParts(ctx, "{", "}", parts))
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
-    let typeNamePart = NameResolution.typeName(ctx, typeName)
+    let typeNamePart =
+      match typeArgs with
+      | [] -> NameResolution.caseTypeName(ctx, typeName, caseName)
+      | _ -> NameResolution.typeName(ctx, typeName)
 
     // A bare, unqualified case (no type name) prints as just the case name; the `.` only separates a
     // present type name from its case.
@@ -2654,7 +2679,7 @@ let bindingDoc(
     | LPVariable(_, name), ELambda(id, _, body) ->
       Stdlib.Dict.get(ctx.localFns, Stdlib.display(id))
       |> Stdlib.Option.map(fun signature -> (name, signature, body))
-    | _ -> Option.None
+    | _ -> None
 
   match localFn with
   | Some((name, signature, body)) ->
@@ -2801,7 +2826,11 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
 
     $"Dict {pairPart}"
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
-    let typeNamePart = NameResolution.typeName(ctx, typeName)
+    let typeNamePart =
+      match typeArgs with
+      | [] -> NameResolution.caseTypeName(ctx, typeName, caseName)
+      | _ -> NameResolution.typeName(ctx, typeName)
+
     let typeArgsPart =
       match typeArgs with
       | [] -> ""
@@ -3244,7 +3273,7 @@ let packageFnNamed(
 
   let contextWithFn =
     { ctx with
-        currentFunction = Option.Some((namePart, argMap))
+        currentFunction = Some((namePart, argMap))
         localNames =
           nameSet(
             Stdlib.List.concat(

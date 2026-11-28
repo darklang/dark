@@ -43,10 +43,10 @@ let kindToString(k: Kind): String =
 /// The other direction, for reading a kind back out of storage or a CLI argument.
 let kindFromString(s: String): Option<Kind> =
   match s with
-  | "stale-usage" -> Option.Some(Kind.StaleUsage)
-  | "kind-changed" -> Option.Some(Kind.KindChanged)
-  | "rival-implementations" -> Option.Some(Kind.RivalImplementations)
-  | _ -> Option.None
+  | "stale-usage" -> Some(Kind.StaleUsage)
+  | "kind-changed" -> Some(Kind.KindChanged)
+  | "rival-implementations" -> Some(Kind.RivalImplementations)
+  | _ -> None
 
 
 /// The ways a finding of this kind can be RESOLVED, named, most-obvious first.
@@ -275,7 +275,7 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
           else
             RivalChoice.Theirs
 
-        Option.Some(
+        Some(
           Finding
             { kind = Kind.RivalImplementations
               id = findingId(mine, t.location, $"{selfStr}|{fqnOf(other)}")
@@ -284,13 +284,13 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
               dependency = t.location
               dependencyKind = LanguageTools.ProgramTypes.ItemKind.Trait
               detail = FindingDetail.Rivals(selfStr, other, choice) })
-      | _, _ -> Option.None))
+      | _, _ -> None))
   |> Stdlib.List.flatten
 
 
 /// Find outdated references on a non-main branch, including inherited callers.
 let detectOutdatedUsagesOn(branchId: Uuid): Result<List<Finding>, String> =
-  if Branch.isMain(branchId) then Result.Ok([]) else outdatedUsagesOn(branchId)
+  if Branch.isMain(branchId) then Ok([]) else outdatedUsagesOn(branchId)
 
 
 /// Everything detection turned up, and everything it could not look at.
@@ -377,5 +377,5 @@ let ack(branchId: Uuid, s: Finding, note: String): Result<Unit, String> =
       LanguageTools.ProgramTypes.DecisionKind.Ack(s.id))
 
   match PackageOps.add(branchId, [ op ]) with
-  | Ok(_) -> Result.Ok()
-  | Error(e) -> Result.Error(e)
+  | Ok(_) -> Ok()
+  | Error(e) -> Error(e)

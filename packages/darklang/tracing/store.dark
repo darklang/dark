@@ -19,9 +19,9 @@ let enabled(): Bool =
 /// `None` when nothing is stored, in which case the environment or the default decides.
 let storedSetting(): Option<Bool> =
   match LanguageTools.LocalStore.configGet("trace.record") with
-  | Some("on") -> Option.Some(true)
-  | Some("off") -> Option.Some(false)
-  | _ -> Option.None
+  | Some("on") -> Some(true)
+  | Some("off") -> Some(false)
+  | _ -> None
 
 
 /// Turn recording on or off for this instance: the stored setting, plus this process, so a
@@ -265,8 +265,8 @@ let viewTrace(
 /// back up to six ids, enough to tell "one more" from "several more"; the message shows five.
 let resolveID(input: String): Result<String, String> =
   match (query(TraceQuery.IdsStartingWith(input))).ids with
-  | [fullID] -> Result.Ok(fullID)
-  | [] -> Result.Error($"no trace whose id starts with {input} -- `dark traces` lists them")
+  | [fullID] -> Ok(fullID)
+  | [] -> Error($"no trace whose id starts with {input} -- `dark traces` lists them")
   | candidates ->
     // Six were asked for, so a sixth means "at least one more", not "one more".
     let shown = Stdlib.List.take(candidates, 5)
@@ -276,7 +276,7 @@ let resolveID(input: String): Result<String, String> =
       |> Stdlib.List.map(fun id -> $"  {Stdlib.String.first(id, 12)}")
       |> Stdlib.String.join("\n")
 
-    Result.Error($"more than one trace starts with {input}; give more of the id:\n{body}{suffix}")
+    Error($"more than one trace starts with {input}; give more of the id:\n{body}{suffix}")
 
 
 /// Per-fn totals over the last <param traceLimit> traces:

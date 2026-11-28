@@ -78,8 +78,8 @@ let readRevisionOps(
 
       let limit =
         match cutoff, firstEdit with
-        | Some(limit), Some(first) -> Option.Some(if limit < first then limit else first)
-        | None, Some(first) -> Option.Some(first)
+        | Some(limit), Some(first) -> Some(if limit < first then limit else first)
+        | None, Some(first) -> Some(first)
         | limit, None -> limit
 
       readRevisionOps(parentId, Edits.Inherited, limit, location)
@@ -98,7 +98,7 @@ let revisionOps(
   branch: Uuid,
   location: LanguageTools.ProgramTypes.PackageLocation)
   : List<(Uuid * String * LanguageTools.ProgramTypes.PackageOp)> =
-  readRevisionOps(branch, Edits.Own, Option.None, location)
+  readRevisionOps(branch, Edits.Own, None, location)
 
 
 type UndoRevision =
@@ -137,7 +137,7 @@ let recordUndoRevision(
             history.revisions,
             id,
             UndoRevision { previous = history.current, snapshot = snapshot })
-        current = Option.Some(id) }
+        current = Some(id) }
 
   match history.current with
   | Some(current) ->
@@ -168,11 +168,10 @@ let previousRevision(
       LanguageTools.ProgramTypes.PackageOp.bindingOps(op)
       |> Stdlib.List.filterMap(fun effect ->
         match effect with
-        | SetName(loc, target, _) ->
-          if loc == location then Option.Some((location, target)) else Option.None
+        | SetName(loc, target, _) -> if loc == location then Some((location, target)) else None
         | Decision(_, loc, _, Override(target)) ->
-          if loc == location then Option.Some((location, target)) else Option.None
-        | _ -> Option.None))
+          if loc == location then Some((location, target)) else None
+        | _ -> None))
     |> Stdlib.List.flatten
     |> Stdlib.List.unique
 
@@ -192,7 +191,7 @@ let previousRevision(
     target: LanguageTools.ProgramTypes.Reference)
     : LanguageTools.ProgramTypes.ReferenceNamesSnapshot =
     LanguageTools.ProgramTypes.ReferenceNamesSnapshot
-      { location = location, target = target, names = [], restating = Option.None }
+      { location = location, target = target, names = [], restating = None }
 
   let step(
     history: UndoHistory,
@@ -205,7 +204,7 @@ let previousRevision(
         Stdlib.List.any(history.names, fun saved ->
           saved.location == location && saved.target == target)
 
-      Option.Some((ts, Stdlib.Bool.not(hasNames)))
+      Some((ts, Stdlib.Bool.not(hasNames)))
 
     match op with
     | Decision(_, _, _, Restore(revision, target, names)) ->
@@ -216,14 +215,13 @@ let previousRevision(
           Stdlib.Dict.set(
             history.revisions,
             revision,
-            UndoRevision
-              { previous = Option.None, snapshot = { snapshot(target) with names = names } })
+            UndoRevision { previous = None, snapshot = { snapshot(target) with names = names } })
 
       { history with
           revisions = revisions
-          current = Option.Some(revision)
-          binding = Option.Some(target)
-          pendingBinding = Option.None }
+          current = Some(revision)
+          binding = Some(target)
+          pendingBinding = None }
     | SetName(_, target, _) ->
       let selected =
         recordUndoRevision(
@@ -233,7 +231,7 @@ let previousRevision(
           Revision.Append)
 
       { selected with
-          binding = Option.Some(target)
+          binding = Some(target)
           pendingBinding =
             if selected.current != history.current then
               pendingFor(target)
@@ -247,9 +245,9 @@ let previousRevision(
           { snapshot(target) with names = namesFor(history, target) },
           Revision.Append)
 
-      { selected with binding = Option.Some(target), pendingBinding = pendingFor(target) }
+      { selected with binding = Some(target), pendingBinding = pendingFor(target) }
     | SetReferenceNames(_, target, names, authoredAt) ->
-      if history.binding == Option.Some(target) then
+      if history.binding == Some(target) then
         // The first saved names establish the binding's original spelling; refresh
         // may have given its body a different canonical spelling in the meantime.
         // Once names are known, only a capture made with the binding belongs to it.
@@ -266,14 +264,13 @@ let previousRevision(
             { snapshot(target) with names = names },
             if accompaniesBinding then Revision.Amend else Revision.Append)
 
-        { selected with pendingBinding = Option.None }
+        { selected with pendingBinding = None }
       else
         history
-    | Unbind(_, _) ->
-      { history with binding = Option.None, current = Option.None, pendingBinding = Option.None }
+    | Unbind(_, _) -> { history with binding = None, current = None, pendingBinding = None }
     | Rename(oldLoc, newLoc, target, _, _) ->
       if oldLoc == location && newLoc != location then
-        { history with binding = Option.None, current = Option.None, pendingBinding = Option.None }
+        { history with binding = None, current = None, pendingBinding = None }
       else if newLoc == location then
         let selected =
           recordUndoRevision(
@@ -282,7 +279,7 @@ let previousRevision(
             { snapshot(target) with names = namesFor(history, target) },
             Revision.Append)
 
-        { selected with binding = Option.Some(target), pendingBinding = Option.None }
+        { selected with binding = Some(target), pendingBinding = None }
       else
         match history.binding with
         | Some(bound) ->
@@ -293,8 +290,8 @@ let previousRevision(
               { snapshot(bound) with names = namesFor(history, bound) },
               Revision.Append)
 
-          { selected with pendingBinding = Option.None }
-        | None -> { history with pendingBinding = Option.None }
+          { selected with pendingBinding = None }
+        | None -> { history with pendingBinding = None }
     | _ -> history
 
   let history =
@@ -303,9 +300,9 @@ let previousRevision(
       UndoHistory
         { names = []
           revisions = Stdlib.Dict.empty
-          current = Option.None
-          binding = Option.None
-          pendingBinding = Option.None },
+          current = None
+          binding = None
+          pendingBinding = None },
       step)
 
   history.current

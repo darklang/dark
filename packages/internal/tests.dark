@@ -20,22 +20,22 @@ let parseTest(pf: LanguageTools.WrittenTypes.ParsedFile): Result<WTTest, String>
     | SourceFile(s) -> s.exprsToEval
 
   match exprsToEval with
-  | [] -> Result.Error("no exprs to eval")
-  | [_, _, ...] -> Result.Error("expected exactly one expr to eval")
+  | [] -> Error("no exprs to eval")
+  | [_, _, ...] -> Error("expected exactly one expr to eval")
   | [e] ->
     match e with
     | EInfix(r, _, actual, expected) ->
       WTTest { name = "test", lineNumber = r.start.row, actual = actual, expected = expected }
       |> Result.Ok
-    | _ -> Result.Error("expected x = y format")
+    | _ -> Error("expected x = y format")
 
 
 let parseSingleTestFromFile(filename: String, testSource: String): Result<PTTest, String> =
   match testSource |> LanguageTools.Parser.Parse.initialParse with
-  | Error(e) -> Result.Error(LanguageTools.Parser.Parse.ParseError.toString(e))
+  | Error(e) -> Error(LanguageTools.Parser.Parse.ParseError.toString(e))
   | Ok(parsedFile) ->
     match parseTest(parsedFile) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(wtTest) ->
       let lineNumber = wtTest.lineNumber
       let pm = LanguageTools.PackageManager.pm()
@@ -49,7 +49,7 @@ let parseSingleTestFromFile(filename: String, testSource: String): Result<PTTest
 
       let context =
         LanguageTools.WrittenTypesToProgramTypes.Context
-          { currentFnName = Option.None, argMap = Stdlib.Dict.empty, localBindings = [] }
+          { currentFnName = None, argMap = Stdlib.Dict.empty, localBindings = [] }
 
       let (actual, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT(ctx, context, wtTest.actual)

@@ -4,10 +4,10 @@ module Darklang.Stdlib.Cli.Sys
 /// Checks $LOGNAME, then $USER, then falls back to the passwd database.
 let currentUser(): Option<String> =
   match Env.get("LOGNAME") with
-  | Some(u) -> Option.Some(u)
+  | Some(u) -> Some(u)
   | None ->
     match Env.get("USER") with
-    | Some(u) -> Option.Some(u)
+    | Some(u) -> Some(u)
     | None -> Posix.__accountLookup(Posix.__decimal(Builtin.syscallGetuid()), 0)
 
 
@@ -68,8 +68,8 @@ let __sysctlWith(mib: List<Int64>, count: Int64): Result<Bytes, Posix.Error> =
     match Posix.Error.kind(e) with
     | Interrupted -> __sysctlWith(mib, count)
     | OutOfMemory when count < 1048576 -> __sysctlWith(mib, count * 2)
-    | _ -> Result.Error(e)
-  | Ok(bytes) -> Result.Ok(bytes)
+    | _ -> Error(e)
+  | Ok(bytes) -> Ok(bytes)
 
 
 let __sysctlText(mib: List<Int64>): Result<String, Posix.Error> =
@@ -90,8 +90,8 @@ let __affinityWith(count: Int64): Result<Bytes, Posix.Error> =
     match Posix.Error.kind(e) with
     | Interrupted -> __affinityWith(count)
     | InvalidInput when count < 1048576 -> __affinityWith(count * 2)
-    | _ -> Result.Error(e)
-  | Ok(mask) -> Result.Ok(mask)
+    | _ -> Error(e)
+  | Ok(mask) -> Ok(mask)
 
 
 /// Available CPUs means the calling process's affinity on Linux, hw.ncpu on
@@ -99,7 +99,7 @@ let __affinityWith(count: Int64): Result<Bytes, Posix.Error> =
 let __cpuCount(): Result<Int64, Posix.Error> =
   let result =
     if Builtin.runtimeTargetOS() == "browser" then
-      Result.Ok(1)
+      Ok(1)
     else if Posix.__abiMac() then
       __sysctlWith([ 6, 3 ], 4) |> Result.andThen(fun bytes -> Posix.__kernelField(bytes, 0, 4))
     else
@@ -109,5 +109,4 @@ let __cpuCount(): Result<Int64, Posix.Error> =
           total + __countBits(Int64.fromUInt8(byte))))
 
   result
-  |> Result.andThen(fun count ->
-    if count > 0 then Result.Ok(count) else Result.Error(Posix.Error.BadKernelReply))
+  |> Result.andThen(fun count -> if count > 0 then Ok(count) else Error(Posix.Error.BadKernelReply))

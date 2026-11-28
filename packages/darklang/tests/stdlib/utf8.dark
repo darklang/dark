@@ -34,22 +34,22 @@ test decodeNormalizes =
   Stdlib.Test.all(
     [ Stdlib.Base16.decode("63616665cc81")
       |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("café"))
+      |> Stdlib.Test.equal(Ok("café"))
 
       Stdlib.Base16.decode("63616665cc81")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("café"))
+      |> Stdlib.Test.equal(Ok("café"))
 
       Stdlib.Base16.decode("65cc81616263")
       |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
       |> Stdlib.Result.map(fun s -> s + "x")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("éabcx")) ])
+      |> Stdlib.Test.equal(Ok("éabcx")) ])
 
 
 test roundTrip =
   Stdlib.Utf8.encode("hello")
   |> Stdlib.Utf8.decode
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello"))
+  |> Stdlib.Test.equal(Ok("hello"))
 
 
 // Keep the Base64 Result so a bad fixture fails the assertion.
@@ -57,29 +57,23 @@ test decode =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("w6I")
       |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("â"))
+      |> Stdlib.Test.equal(Ok("â"))
 
       Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
       |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello 😀"))
+      |> Stdlib.Test.equal(Ok("hello 😀"))
 
       Stdlib.Base64.decode("ww==")
       |> Stdlib.Result.map(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          Stdlib.Result.Result.Error("Invalid UTF-8 at byte 0: C3")))
+      |> Stdlib.Test.equal(Ok(Error("Invalid UTF-8 at byte 0: C3")))
 
       Stdlib.Base64.decode("7aCA")
       |> Stdlib.Result.map(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          Stdlib.Result.Result.Error("Invalid UTF-8 at byte 0: ED")))
+      |> Stdlib.Test.equal(Ok(Error("Invalid UTF-8 at byte 0: ED")))
 
       Stdlib.Base64.decode("aMM=")
       |> Stdlib.Result.map(Stdlib.Utf8.decode)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          Stdlib.Result.Result.Error("Invalid UTF-8 at byte 1: C3"))) ])
+      |> Stdlib.Test.equal(Ok(Error("Invalid UTF-8 at byte 1: C3"))) ])
 
 
 // The Error says where the first bad bytes are, and what they are.
@@ -87,40 +81,37 @@ test decodeErrorMessage =
   Stdlib.Test.all(
     [ Stdlib.Bytes.fromList([ 104u8, 226u8, 130u8 ])
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error("Invalid UTF-8 at byte 1: E2 82"))
+      |> Stdlib.Test.equal(Error("Invalid UTF-8 at byte 1: E2 82"))
 
       Stdlib.Bytes.fromList([ 255u8 ])
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error("Invalid UTF-8 at byte 0: FF"))
+      |> Stdlib.Test.equal(Error("Invalid UTF-8 at byte 0: FF"))
 
       Stdlib.Bytes.concat(
         Stdlib.Utf8.encode(Stdlib.String.repeat("abcdefgh", 10000)),
         Stdlib.Bytes.fromList([ 192u8 ]))
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error("Invalid UTF-8 at byte 80000: C0")) ])
+      |> Stdlib.Test.equal(Error("Invalid UTF-8 at byte 80000: C0")) ])
 
 
 test decodeWithReplacement =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("w6I")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("â"))
+      |> Stdlib.Test.equal(Ok("â"))
 
       Stdlib.Base64.decode("aGVsbG8g8J+YgA==")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello 😀"))
+      |> Stdlib.Test.equal(Ok("hello 😀"))
 
       Stdlib.Base64.decode("ww==")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("�"))
+      |> Stdlib.Test.equal(Ok("�"))
 
       Stdlib.Base64.decode("7aCA")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("���"))
+      |> Stdlib.Test.equal(Ok("���"))
 
       Stdlib.Base64.decode("aMM=")
       |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("h�")) ])
+      |> Stdlib.Test.equal(Ok("h�")) ])

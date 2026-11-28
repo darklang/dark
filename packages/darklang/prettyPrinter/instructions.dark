@@ -249,8 +249,8 @@ let lambdas(
   instrs.instructions
   |> Stdlib.List.filterMap(fun i ->
     match i with
-    | CreateLambda(_, l) -> Option.Some(l)
-    | _ -> Option.None)
+    | CreateLambda(_, l) -> Some(l)
+    | _ -> None)
   |> Stdlib.List.map(fun l -> Stdlib.List.prepend(lambdas(l.instructions), l))
   |> Stdlib.List.flatten
 

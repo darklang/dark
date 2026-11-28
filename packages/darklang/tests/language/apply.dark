@@ -46,15 +46,15 @@ let shouldReturnStringButDoesNot(): String = 5
 
 
 let returnsOptionSome(): Stdlib.Option.Option<Int64> =
-  Stdlib.Option.Option.Some(5)
+  Some(5)
 
 
 let returnsOptionNone(): Stdlib.Option.Option<Int64> =
-  Stdlib.Option.Option.None
+  None
 
 
 let returnsResultOk(): Stdlib.Result.Result<Int64, 'err> =
-  Stdlib.Result.Result.Ok(5)
+  Ok(5)
 
 
 let derrorFn(msg: String): String = msg + Language.Tests.raiseRuntimeError(msg)
@@ -86,15 +86,15 @@ test userFunctions =
 
       returnsString() |> Stdlib.Test.equal("string")
 
-      returnsOptionSome() |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
+      returnsOptionSome() |> Stdlib.Test.equal(Some(5))
 
       returnsOptionSome()
       |> Builtin.unwrap
       |> Stdlib.Test.equal(5)
 
-      returnsOptionNone() |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      returnsOptionNone() |> Stdlib.Test.equal(None)
 
-      returnsResultOk() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5))
+      returnsResultOk() |> Stdlib.Test.equal(Ok(5))
 
       returnsResultOk()
       |> Builtin.unwrap
@@ -139,8 +139,7 @@ module InferFromParts =
   test fromARecord = sameAsBoxed(Box { v = 1 }, 2) |> Stdlib.Test.equal(2)
 
 
-  test fromAnEnum =
-    sameAsSome(Stdlib.Option.Option.Some("a"), "b") |> Stdlib.Test.equal("b")
+  test fromAnEnum = sameAsSome(Some("a"), "b") |> Stdlib.Test.equal("b")
 
 
   test fromATuple = sameAsSecond((1, "a"), "b") |> Stdlib.Test.equal("b")
@@ -322,8 +321,7 @@ test argumentsThatFitExactly =
       tuplesArg([ (1, ArgMode.Flat), (2, ArgMode.Break) ])
       |> Stdlib.Test.equal(2)
 
-      optionArg(Stdlib.Option.Option.Some(ArgMode.Break))
-      |> Stdlib.Test.equal(true) ])
+      optionArg(Some(ArgMode.Break)) |> Stdlib.Test.equal(true) ])
 
 
 test aTupleThatDoesNotFitRaises =
@@ -337,5 +335,5 @@ test aListOfTuplesThatDoesNotFitRaises =
 
 
 test anOptionThatDoesNotFitRaises =
-  optionArg(Stdlib.Option.Option.Some(3))
+  optionArg(Some(3))
   => raises "Darklang.Language.Tests.Apply.optionArg's 1st parameter `o` expects Darklang.Stdlib.Option.Option<Darklang.Language.Tests.Apply.ArgMode>, but got Darklang.Stdlib.Option.Option<Int64> (Some(3))"

@@ -33,13 +33,11 @@ module AssetForPlatform =
     Stdlib.Test.all(
       [ GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-linux-arm64.gz"))
+          Some("https://example.com/darklang-alpha-abc1234-linux-arm64.gz"))
 
         GitHub.Releases.assetUrlFor(assets(), "linux-arm")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-linux-arm.gz")) ])
+          Some("https://example.com/darklang-alpha-abc1234-linux-arm.gz")) ])
 
 
   // Each glibc build and its musl build end alike (`linux-x64`, `linux-musl-x64`), the same trap
@@ -48,48 +46,42 @@ module AssetForPlatform =
     Stdlib.Test.all(
       [ GitHub.Releases.assetUrlFor(assets(), "linux-x64")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-linux-x64.gz"))
+          Some("https://example.com/darklang-alpha-abc1234-linux-x64.gz"))
 
         GitHub.Releases.assetUrlFor(assets(), "linux-musl-x64")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-linux-musl-x64.gz"))
+          Some("https://example.com/darklang-alpha-abc1234-linux-musl-x64.gz"))
 
         GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-linux-arm64.gz"))
+          Some("https://example.com/darklang-alpha-abc1234-linux-arm64.gz"))
 
         GitHub.Releases.assetUrlFor(assets(), "linux-musl-arm64")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
+          Some(
             "https://example.com/darklang-alpha-abc1234-linux-musl-arm64.gz"))
 
         GitHub.Releases.assetUrlFor(assets(), "osx-arm64")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-osx-arm64.gz")) ])
+          Some("https://example.com/darklang-alpha-abc1234-osx-arm64.gz")) ])
 
 
   // A platform this release has no build for is None, not the first thing that looks close.
   // `osx-x64` is a real runtime we publish, so this is the "a tag is missing one asset" case
   // rather than "we do not build that at all".
   test missingPlatform =
-    GitHub.Releases.assetUrlFor(assets(), "osx-x64")
-    |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+    GitHub.Releases.assetUrlFor(assets(), "osx-x64") |> Stdlib.Test.equal(None)
 
 
   // An empty list, and an asset list that carries something other than a `.gz`.
   test emptyAndNonGzAssets =
     Stdlib.Test.all(
-      [ GitHub.Releases.assetUrlFor([], "linux-x64")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      [ GitHub.Releases.assetUrlFor([], "linux-x64") |> Stdlib.Test.equal(None)
 
         GitHub.Releases.assetUrlFor(
           [ asset("darklang-alpha-abc1234-linux-x64.tar") ],
           "linux-x64")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
 // Which runtime id a host maps to. Every id here is one `ALL_RUNTIMES` publishes.
@@ -116,34 +108,34 @@ module PlatformForHost =
       [ PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.Arm)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-arm"))
+        |> Stdlib.Test.equal(Ok("linux-arm"))
 
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.Aarch64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-musl-arm64"))
+        |> Stdlib.Test.equal(Ok("linux-musl-arm64"))
 
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.X86_64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-musl-x64"))
+        |> Stdlib.Test.equal(Ok("linux-musl-x64"))
 
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.MacOS,
           Stdlib.Cli.Architecture.Architecture.Arm64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("osx-arm64"))
+        |> Stdlib.Test.equal(Ok("osx-arm64"))
 
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.MacOS,
           Stdlib.Cli.Architecture.Architecture.X86_64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("osx-x64")) ])
+        |> Stdlib.Test.equal(Ok("osx-x64")) ])
 
 
   test unsupportedCombination =
     PlatformForHost.idFor(
       Stdlib.Cli.OS.OS.MacOS,
       Stdlib.Cli.Architecture.Architecture.Arm)
-    |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Unsupported OS or Arch"))
+    |> Stdlib.Test.equal(Error("Unsupported OS or Arch"))
 
 
 // Which release a build is. The tag is nowhere in the binary, so `dark version` finds it by the
@@ -165,23 +157,23 @@ module ReleaseForBuild =
   // An asset carries ten characters of the hash and the CLI prints seven.
   test buildFromAssetName =
     GitHub.Releases.buildOf(release("v0.0.104", "e76430be5c"))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("alpha-e76430b"))
+    |> Stdlib.Test.equal(Some("alpha-e76430b"))
 
 
   test tagOfAnOlderRelease =
     GitHub.Releases.tagFor(releases(), "alpha-0ab12cd")
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("v0.0.103"))
+    |> Stdlib.Test.equal(Some("v0.0.103"))
 
 
   // A dev build is no release, and a release with no assets names no build.
   test noReleaseForADevBuild =
     Stdlib.Test.all(
       [ GitHub.Releases.tagFor(releases(), "alpha-1234567")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         GitHub.Releases.buildOf(
           GitHub.Releases.Release { tag_name = "v0.0.1", assets = [] })
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
 // What `install.sh` and `dark update` check a download against: the release's checksums file.
@@ -195,16 +187,14 @@ module Checksums =
     Stdlib.Test.all(
       [ GitHub.Releases.sumsUrlFor(assets)
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-sha256sums.txt"))
+          Some("https://example.com/darklang-alpha-abc1234-sha256sums.txt"))
 
         GitHub.Releases.sumsUrlFor(AssetForPlatform.assets())
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        |> Stdlib.Test.equal(None)
 
         GitHub.Releases.assetUrlFor(assets, "linux-x64")
         |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(
-            "https://example.com/darklang-alpha-abc1234-linux-x64.gz")) ])
+          Some("https://example.com/darklang-alpha-abc1234-linux-x64.gz")) ])
 
 
   // As `sha256sum` prints them. `linux-arm` must not take `linux-arm64`'s line.
@@ -217,17 +207,17 @@ module Checksums =
       [ Cli.Installation.Download.expectedSha256(
           sums,
           "darklang-alpha-abc1234-linux-arm.gz")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some("cd34"))
+        |> Stdlib.Test.equal(Some("cd34"))
 
         Cli.Installation.Download.expectedSha256(
           sums,
           "darklang-alpha-abc1234-linux-arm64.gz")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some("ab12"))
+        |> Stdlib.Test.equal(Some("ab12"))
 
         Cli.Installation.Download.expectedSha256(
           sums,
           "darklang-alpha-abc1234-osx-x64.gz")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
   val refused =
@@ -244,7 +234,7 @@ module Checksums =
       abcSums,
       "darklang-alpha-abc1234-linux-x64.gz",
       Stdlib.Utf8.encode("abc"))
-    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+    |> Stdlib.Test.equal(Ok())
 
 
   test changedDownloadIsRefused =
@@ -253,7 +243,7 @@ module Checksums =
       "darklang-alpha-abc1234-linux-x64.gz",
       Stdlib.Utf8.encode("abd"))
     |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Error(
+      Error(
         $"darklang-alpha-abc1234-linux-x64.gz doesn't match the checksum its release lists for it: it was damaged or changed on the way, {refused}"))
 
 
@@ -263,7 +253,7 @@ module Checksums =
       "darklang-alpha-abc1234-osx-arm64.gz",
       Stdlib.Utf8.encode("abc"))
     |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Error(
+      Error(
         $"The release's checksums file doesn't list darklang-alpha-abc1234-osx-arm64.gz, {refused}"))
 
 

@@ -21,8 +21,8 @@ let singleton(value: 'a): List<'a> =
 /// Takes O(1) time.
 let head(list: List<'a>): Option<'a> =
   match list with
-  | [] -> Option.None
-  | [head, ...] -> Option.Some(head)
+  | [] -> None
+  | [head, ...] -> Some(head)
 
 
 /// If <param list> contains at least one value, returns {{Some}} with a list of
@@ -30,8 +30,8 @@ let head(list: List<'a>): Option<'a> =
 /// Takes O(1) time.
 let tail(list: List<'a>): Option<List<'a>> =
   match list with
-  | [] -> Option.None
-  | [_, ...tail] -> Option.Some(tail)
+  | [] -> None
+  | [_, ...tail] -> Some(tail)
 
 
 /// Returns a new list with all values in <param as> followed by all values in <param bs>,
@@ -117,11 +117,11 @@ type RepeatError =
 /// Takes O(n) time, where n is <param times>.
 let checkedRepeat(times: Int64, value: 'a): Result<List<'a>, RepeatError> =
   if times < 0 then
-    Result.Error(RepeatError.NegativeCount)
+    Error(RepeatError.NegativeCount)
   else if times > 2147483591 then
-    Result.Error(RepeatError.TooLong)
+    Error(RepeatError.TooLong)
   else
-    Result.Ok(repeat(times, value))
+    Ok(repeat(times, value))
 
 
 /// Returns the number of values in <param list>
@@ -148,11 +148,11 @@ type RangeError =
 /// Takes O(n) time, where n is the number of values returned.
 let checkedRange(lowest: Int64, highest: Int64): Result<List<Int64>, RangeError> =
   if highest < lowest then
-    Result.Ok([])
+    Ok([])
   else if highest - lowest < 0 || highest - lowest >= 2147483591 then
-    Result.Error(RangeError.TooLong)
+    Error(RangeError.TooLong)
   else
-    Result.Ok(range(lowest, highest))
+    Ok(range(lowest, highest))
 
 
 /// Folds <param list> into a single value, by calling <param fn> on each element with the value
@@ -173,13 +173,13 @@ let fold(list: List<'a>, init: 'b, fn: ('b, 'a) -> 'b): 'b =
 /// Takes O(n) time.
 let maxBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option<'a> =
   match list with
-  | [] -> Option.None
+  | [] -> None
   | [head, ...tail] ->
     let (best, _) = fold(tail, (head, fn(head)), fun((best, bestKey), value) ->
       let key = fn(value)
       if key > bestKey then (value, key) else (best, bestKey))
 
-    Option.Some(best)
+    Some(best)
 
 
 /// Returns the element of <param list> whose key from <param fn> is smallest,
@@ -189,13 +189,13 @@ let maxBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option<'a> =
 /// Takes O(n) time.
 let minBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option<'a> =
   match list with
-  | [] -> Option.None
+  | [] -> None
   | [head, ...tail] ->
     let (best, _) = fold(tail, (head, fn(head)), fun((best, bestKey), value) ->
       let key = fn(value)
       if key < bestKey then (value, key) else (best, bestKey))
 
-    Option.Some(best)
+    Some(best)
 
 
 /// Returns the largest element of <param list>, or {{None}} if it is empty.
@@ -388,9 +388,9 @@ let remove(list: List<'a>, x: 'a): List<'a> =
 /// Takes O(n) time.
 let removeAt(list: List<'a>, index: Int64): Result<List<'a>, IndexError> =
   if index < 0 || index >= length(list) then
-    Result.Error(IndexError.IndexOutOfBounds)
+    Error(IndexError.IndexOutOfBounds)
   else
-    Result.Ok(flatten([ take(list, index), drop(list, index + 1) ]))
+    Ok(flatten([ take(list, index), drop(list, index + 1) ]))
 
 
 /// Returns {{Ok}} <param list> with <param value> inserted at zero-based <param index>,
@@ -399,9 +399,9 @@ let removeAt(list: List<'a>, index: Int64): Result<List<'a>, IndexError> =
 /// Takes O(n) time.
 let insertAt(list: List<'a>, index: Int64, value: 'a): Result<List<'a>, IndexError> =
   if index < 0 || index > length(list) then
-    Result.Error(IndexError.IndexOutOfBounds)
+    Error(IndexError.IndexOutOfBounds)
   else
-    Result.Ok(flatten([ take(list, index), [ value ], drop(list, index) ]))
+    Ok(flatten([ take(list, index), [ value ], drop(list, index) ]))
 
 
 /// Drops the first <param count> values from <param list>
@@ -501,9 +501,9 @@ let map2(as_: List<'a>, bs: List<'b>, fn: ('a, 'b) -> 'c): Result<List<'c>, Leng
   let left = length(as_)
   let right = length(bs)
   if left != right then
-    Result.Error(LengthMismatch { left = left, right = right })
+    Error(LengthMismatch { left = left, right = right })
   else
-    Result.Ok(map2Shortest(as_, bs, fn))
+    Ok(map2Shortest(as_, bs, fn))
 
 
 /// Returns a list of parallel pairs from <param as> and <param bs>.
@@ -534,9 +534,9 @@ let zip(l1: List<'a>, l2: List<'b>): Result<List<('a * 'b)>, LengthMismatch> =
   let left = length(l1)
   let right = length(l2)
   if left != right then
-    Result.Error(LengthMismatch { left = left, right = right })
+    Error(LengthMismatch { left = left, right = right })
   else
-    Result.Ok(zipShortest(l1, l2))
+    Ok(zipShortest(l1, l2))
 
 
 /// Given a <param pairs> list where each value is a tuple of two values (such
@@ -572,9 +572,9 @@ type IndexError =
 /// Takes O(n) time (O(log n) in the interpreter).
 let setAt(list: List<'a>, index: Int64, value: 'a): Result<List<'a>, IndexError> =
   if index < 0 || index >= length(list) then
-    Result.Error(IndexError.IndexOutOfBounds)
+    Error(IndexError.IndexOutOfBounds)
   else
-    Result.Ok(Builtin.listSetAt(list, index, value))
+    Ok(Builtin.listSetAt(list, index, value))
 
 
 /// Returns {{Some <var randomValue>}}, where <var randomValue> is a randomly
@@ -583,7 +583,7 @@ let setAt(list: List<'a>, index: Int64, value: 'a): Result<List<'a>, IndexError>
 /// Takes O(log n) time.
 let randomElement(list: List<'a>): Option<'a> =
   match list with
-  | [] -> Option.None
+  | [] -> None
   | _ -> getAt(list, Int64.random(0, length(list) - 1))
 
 
@@ -661,7 +661,7 @@ type ChunkBySizeError =
 /// Takes O(n) time.
 let chunkBySize(list: List<'a>, size: Int64): Result<List<List<'a>>, ChunkBySizeError> =
   if size <= 0 then
-    Result.Error(ChunkBySizeError.SizeMustBeGreaterThanZero)
+    Error(ChunkBySizeError.SizeMustBeGreaterThanZero)
   else
     let chunk(remaining: List<'a>, chunks: List<List<'a>>): List<List<'a>> =
       match remaining with
@@ -671,7 +671,7 @@ let chunkBySize(list: List<'a>, size: Int64): Result<List<List<'a>>, ChunkBySize
         let rest = drop(remaining, size)
         chunk(rest, prepend(chunks, taken))
 
-    Result.Ok(chunk(list, []))
+    Ok(chunk(list, []))
 
 
 /// Returns {{Some}} of every value but the last, and the last value, or {{None}}
@@ -679,5 +679,5 @@ let chunkBySize(list: List<'a>, size: Int64): Result<List<List<'a>>, ChunkBySize
 /// Takes O(n) time.
 let splitLast(l: List<'a>): Option<(List<'a> * 'a)> =
   match reverse(l) with
-  | [] -> Option.None
-  | [head, ...tail] -> Option.Some((reverse(tail), head))
+  | [] -> None
+  | [head, ...tail] -> Some((reverse(tail), head))

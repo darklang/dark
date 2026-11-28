@@ -43,17 +43,16 @@ let kevent(
 // __watchEvents (inotify)
 test watchEvents =
   Stdlib.Test.all(
-    [ events([]) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((false, false)))
+    [ events([]) |> Stdlib.Test.equal(Ok((false, false)))
 
       events([ 0u8 ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply))
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply))
 
       events(inotify([ 2u8, 0u8, 0u8, 0u8 ]))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, false)))
+      |> Stdlib.Test.equal(Ok((true, false)))
 
       events(inotify([ 0u8, 8u8, 0u8, 0u8 ]))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true)))
+      |> Stdlib.Test.equal(Ok((true, true)))
 
       // A name length that runs past the buffer.
       events(
@@ -61,8 +60,7 @@ test watchEvents =
           [ [ 1u8, 0u8, 0u8, 0u8, 2u8, 0u8, 0u8, 0u8 ]
             zeros(4)
             [ 8u8, 0u8, 0u8, 0u8 ] ]))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
 
 
 // Each event is read from where the previous one ended, including its name.
@@ -75,33 +73,30 @@ test watchEventsWalksSeveralEvents =
 
   Stdlib.Test.all(
     [ events(Stdlib.List.concat(inotify([ 2u8, 0u8, 0u8, 0u8 ]), named))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true)))
+      |> Stdlib.Test.equal(Ok((true, true)))
 
       events(Stdlib.List.concat(named, inotify([ 0u8, 0u8, 0u8, 0u8 ])))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((false, true)))
+      |> Stdlib.Test.equal(Ok((false, true)))
 
       events(
         Stdlib.List.concat(inotify([ 2u8, 0u8, 0u8, 0u8 ]), [ 1u8, 2u8, 3u8 ]))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
 
 
 // __watchVnodeEvents (kqueue)
 test watchVnodeEvents =
   let noData = zeros(8)
   Stdlib.Test.all(
-    [ vnodeEvents([])
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((false, false)))
+    [ vnodeEvents([]) |> Stdlib.Test.equal(Ok((false, false)))
 
       vnodeEvents([ 0u8 ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply))
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply))
 
       vnodeEvents(kevent([ 0u8, 0u8 ], [ 2u8, 0u8, 0u8, 0u8 ], noData))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, false)))
+      |> Stdlib.Test.equal(Ok((true, false)))
 
       vnodeEvents(kevent([ 0u8, 0u8 ], [ 32u8, 0u8, 0u8, 0u8 ], noData))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true))) ])
+      |> Stdlib.Test.equal(Ok((true, true))) ])
 
 
 test watchVnodeEventsWalksSeveralEvents =
@@ -119,21 +114,20 @@ test watchVnodeEventsWalksSeveralEvents =
   let failedNoErrno = kevent([ 0u8, 64u8 ], [ 0u8, 0u8, 0u8, 0u8 ], noData)
   Stdlib.Test.all(
     [ vnodeEvents(Stdlib.List.concat(changed, deleted))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true)))
+      |> Stdlib.Test.equal(Ok((true, true)))
 
       vnodeEvents(Stdlib.List.concat(changed, failed))
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           Stdlib.Cli.Posix.Error.Os(
             Stdlib.Cli.Posix.Errno
               { os = Stdlib.Cli.Posix.Os.Darwin, code = 2 })))
 
       vnodeEvents(Stdlib.List.concat(failedNoErrno, changed))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, false)))
+      |> Stdlib.Test.equal(Ok((true, false)))
 
       vnodeEvents(Stdlib.List.concat(changed, [ 1u8 ]))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
 
 
 // countNewlines
@@ -163,44 +157,29 @@ test dropThroughFirstNewline =
       Stdlib.Cli.File.__dropThroughFirstNewline(Stdlib.Utf8.encode(text)))
 
   Stdlib.Test.all(
-    [ drop("") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
-      drop("abc") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
-      drop("a\nbc") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("bc"))
-      drop("\nx") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("x"))
-      drop("x\n") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
-      drop("a\nb\nc") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("b\nc")) ])
+    [ drop("") |> Stdlib.Test.equal(Ok(""))
+      drop("abc") |> Stdlib.Test.equal(Ok(""))
+      drop("a\nbc") |> Stdlib.Test.equal(Ok("bc"))
+      drop("\nx") |> Stdlib.Test.equal(Ok("x"))
+      drop("x\n") |> Stdlib.Test.equal(Ok(""))
+      drop("a\nb\nc") |> Stdlib.Test.equal(Ok("b\nc")) ])
 
 
 // __copyWriteAt: a write must make exact progress; errors pass through
 test copyWriteAt =
   let abc = Stdlib.Utf8.encode("abc")
   Stdlib.Test.all(
-    [ Stdlib.Cli.File.__copyWriteAt(
-        (fun(_, _) -> Stdlib.Result.Result.Ok(1)),
-        abc,
-        0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+    [ Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(1)), abc, 0)
+      |> Stdlib.Test.equal(Ok())
 
-      Stdlib.Cli.File.__copyWriteAt(
-        (fun(_, _) -> Stdlib.Result.Result.Ok(0)),
-        abc,
-        0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply))
+      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(0)), abc, 0)
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply))
 
-      Stdlib.Cli.File.__copyWriteAt(
-        (fun(_, _) -> Stdlib.Result.Result.Ok(4)),
-        abc,
-        0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply))
+      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(4)), abc, 0)
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply))
 
-      Stdlib.Cli.File.__copyWriteAt(
-        (fun(_, _) -> Stdlib.Result.Result.Error(28)),
-        abc,
-        0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(28))) ])
+      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Error(28)), abc, 0)
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.__fromErrno(28))) ])
 
 
 // __copyBuffered reads 64 KiB chunks from the offset until an empty read
@@ -208,20 +187,16 @@ test copyBuffered =
   Stdlib.Cli.File.__copyBuffered(
     (fun(count, offset) ->
        if count != 65536 then
-         Stdlib.Result.Result.Error(22)
+         Error(22)
        else if offset == 2 then
-         Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("abc"))
+         Ok(Stdlib.Utf8.encode("abc"))
        else if offset == 5 then
-         Stdlib.Result.Result.Ok(Stdlib.Bytes.empty)
+         Ok(Stdlib.Bytes.empty)
        else
-         Stdlib.Result.Result.Error(22)),
-    (fun(_, offset) ->
-       if offset >= 2 && offset < 5 then
-         Stdlib.Result.Result.Ok(1)
-       else
-         Stdlib.Result.Result.Error(22)),
+         Error(22)),
+    (fun(_, offset) -> if offset >= 2 && offset < 5 then Ok(1) else Error(22)),
     2)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+  |> Stdlib.Test.equal(Ok())
 
 
 // Which errors fall back to a buffered copy, and which error wins on close
@@ -257,10 +232,9 @@ test copyFallbackAndFinish =
       unsupported(darwin, 95) |> Stdlib.Test.equal(false)
 
       Stdlib.Cli.File.__copyFinish(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(28)),
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(5)))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(28))) ])
+        Error(Stdlib.Cli.Posix.__fromErrno(28)),
+        Error(Stdlib.Cli.Posix.__fromErrno(5)))
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.__fromErrno(28))) ])
 
 
 // Copying a directory fails with EISDIR and leaves no destination behind
@@ -270,15 +244,12 @@ test copyDirectoryRefused =
     let copied = Stdlib.Cli.File.copy(dir, destination)
     let kind =
       match copied with
-      | Error(e) -> Stdlib.Option.Option.Some(Stdlib.Cli.Posix.Error.kind(e))
-      | Ok(_) -> Stdlib.Option.Option.None
+      | Error(e) -> Some(Stdlib.Cli.Posix.Error.kind(e))
+      | Ok(_) -> None
 
     (kind, Stdlib.Cli.File.exists(destination)))
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      (
-        Stdlib.Option.Option.Some(Stdlib.Cli.Posix.ErrorKind.IsADirectory),
-        false)))
+    Ok((Some(Stdlib.Cli.Posix.ErrorKind.IsADirectory), false)))
 
 
 // Watching a missing path returns at once; a zero interval is still valid
@@ -295,9 +266,6 @@ test watchEdges =
         10,
         (fun _ -> true),
         fun _ -> ())
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+      |> Stdlib.Test.equal(Ok())
 
-      immediate
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          (Stdlib.Result.Result.Ok(), Stdlib.Result.Result.Ok()))) ])
+      immediate |> Stdlib.Test.equal(Ok((Ok(), Ok()))) ])

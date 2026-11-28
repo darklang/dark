@@ -82,19 +82,19 @@ let await(watch: LanguageTools.Live.Watch, specs: List<EventSpec>): Awaited =
     if List.contains(specs, EventSpec.StoreChanged) then
       LanguageTools.Live.poll(watch)
     else
-      (watch, Option.None)
+      (watch, None)
 
   match pending with
   | Some(change) -> Awaited { watch = watch, event = Event.StoreChanged(change) }
   | None ->
     let event =
       match Builtin.hostAwait(specs) with
-      | Key(k) -> Option.Some(Event.Key(k))
-      | Timer -> Option.Some(Event.Timer)
-      | ExecDone(id) -> Option.Some(Event.ExecDone(id))
-      | Stdin(text) -> Option.Some(Event.Stdin(text))
-      | StdinClosed -> Option.Some(Event.StdinClosed)
-      | StoreChanged -> Option.None
+      | Key(k) -> Some(Event.Key(k))
+      | Timer -> Some(Event.Timer)
+      | ExecDone(id) -> Some(Event.ExecDone(id))
+      | Stdin(text) -> Some(Event.Stdin(text))
+      | StdinClosed -> Some(Event.StdinClosed)
+      | StoreChanged -> None
 
     match event with
     | Some(e) -> Awaited { watch = watch, event = e }

@@ -280,8 +280,8 @@ let executeFiltered(
       match Stdlib.List.last(path) |> Stdlib.Option.andThen(Stdlib.String.head) with
       | Some(c)
         when Stdlib.Char.isUppercase(c) && path != rootPath && Stdlib.List.take(path, Stdlib.List.length(rootPath)) == rootPath ->
-        Option.Some(path)
-      | _ -> Option.None)
+        Some(path)
+      | _ -> None)
 
   let searchResults =
     match qualifiedModulePath with
@@ -517,12 +517,12 @@ let execute(state: AppState, args: List<String>): AppState =
 
     let finalState =
       match parsed.filters with
-      | [] -> listing(state, Option.None)
+      | [] -> listing(state, None)
       | [first, ...rest] ->
         rest
-        |> Stdlib.List.fold(listing(state, Option.Some(first)), fun(acc, filter) ->
+        |> Stdlib.List.fold(listing(state, Some(first)), fun(acc, filter) ->
           Stdlib.printLine("")
-          listing(acc, Option.Some(filter)))
+          listing(acc, Some(filter)))
 
     if finalState.exitCode == 0 && Stdlib.Bool.not(parsed.includeTypes) then
       Stdlib.printErrorLine(

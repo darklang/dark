@@ -255,7 +255,7 @@ let passAlong(f: 'a -> Stdlib.Option.Option<'b>, x: 'a): Int64 =
 
 
 test innerHelpersStricterTypeIsChecked =
-  passAlong((fun _ -> Stdlib.Option.Option.Some("wrong")), 1)
+  passAlong((fun _ -> Some("wrong")), 1)
   => raises "Darklang.Language.Tests.Lambdas.passAlong's 1st parameter `f` returned Darklang.Stdlib.Option.Option<String> (Some(\"wrong\")), but should return Darklang.Stdlib.Option.Option<Int64>"
 
 
@@ -329,8 +329,7 @@ test foldTupleAccumulatorKeepsItsShape =
 
 
 test foldEnumAccumulatorKeepsItsTypeArg =
-  Stdlib.List.fold([ 1, 2 ], Stdlib.Option.Option.Some(0), fun(acc, x) ->
-    Stdlib.Option.Option.Some("a"))
+  Stdlib.List.fold([ 1, 2 ], Some(0), fun(acc, x) -> Some("a"))
   => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Darklang.Stdlib.Option.Option<String> (Some(\"a\")), but should return Darklang.Stdlib.Option.Option<Int64>"
 
 

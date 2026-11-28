@@ -28,7 +28,6 @@
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.createTemp
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.writeText
-1 Darklang.Cli.Packages.Errors.closestNames Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Impls.complete Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Impls.execute Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Impls.printJson Darklang.Stdlib.List.sort

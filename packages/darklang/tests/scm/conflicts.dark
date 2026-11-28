@@ -16,7 +16,7 @@ module Helpers =
         hash = hash
         originTs = ts
         author = ""
-        previous = Stdlib.Option.Option.None }
+        previous = None }
 
 
   /// The same, but recording what this binding REPLACED -- an edit rather than a creation.
@@ -34,7 +34,7 @@ module Helpers =
         hash = hash
         originTs = ts
         author = ""
-        previous = Stdlib.Option.Option.Some(replaced) }
+        previous = Some(replaced) }
 
 
   let base'(name: String, hash: String): SCM.Conflicts.NameBase =
@@ -252,7 +252,7 @@ module AutoResolution =
        [ Helpers.base'("f", "ooo") ])
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.autoResolvedTo))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("bbb"))
+    |> Stdlib.Test.equal(Some("bbb"))
 
 
   // ... and the older incoming loses to the newer local.
@@ -265,7 +265,7 @@ module AutoResolution =
        [ Helpers.base'("f", "ooo") ])
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.autoResolvedTo))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("aaa"))
+    |> Stdlib.Test.equal(Some("aaa"))
 
 
   // An exact stamp tie breaks by the HIGHER hash, so every instance converges on the same winner.
@@ -278,7 +278,7 @@ module AutoResolution =
        [ Helpers.base'("f", "ooo") ])
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.reason))
-    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("tie-break-by-hash"))
+    |> Stdlib.Test.equal(Some("tie-break-by-hash"))
 
 
 // The winner rule itself is pinned in `lww.dark` (through the Dark name) and `Lww.Tests.fs`;

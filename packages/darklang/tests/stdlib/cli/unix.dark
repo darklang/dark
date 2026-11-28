@@ -30,14 +30,7 @@ test removeDirectoryWithSpaceLeavesNeighbours =
       Stdlib.Cli.File.exists(target),
       Stdlib.Cli.File.exists(neighbour),
       Stdlib.Cli.File.exists($"{dir}/Jo Smith")))
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      (
-        Stdlib.Result.Result.Ok(),
-        Stdlib.Result.Result.Ok(),
-        false,
-        true,
-        true)))
+  |> Stdlib.Test.equal(Ok((Ok(), Ok(), false, true, true)))
 
 
 test helpersTakeAwkwardNames =
@@ -63,17 +56,7 @@ test helpersTakeAwkwardNames =
       Stdlib.Cli.File.exists(copy),
       Stdlib.Cli.File.exists(dashFile)))
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      (
-        Stdlib.Result.Result.Ok(),
-        Stdlib.Result.Result.Ok(),
-        Stdlib.Result.Result.Ok(),
-        Stdlib.Result.Result.Ok(),
-        true,
-        true,
-        Stdlib.Result.Result.Ok(),
-        false,
-        true)))
+    Ok((Ok(), Ok(), Ok(), Ok(), true, true, Ok(), false, true)))
 
 
 // chmod would read a leading dash as an option; the name goes in as ./-name.
@@ -81,14 +64,13 @@ test grantExecutePermissionOnARelativeDashName =
   Stdlib.Cli.Unix.grantExecutePermission("-no-such-file")
   |> Stdlib.Result.mapError(fun err ->
     Stdlib.String.contains(err, "./-no-such-file"))
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(true))
+  |> Stdlib.Test.equal(Error(true))
 
 
 test removeDirectoryRefusesRoot =
   Stdlib.Test.all(
     [ Stdlib.Cli.Unix.removeDirectory("")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("refusing to remove ''"))
+      |> Stdlib.Test.equal(Error("refusing to remove ''"))
 
       Stdlib.Cli.Unix.removeDirectory("/")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error("refusing to remove '/'")) ])
+      |> Stdlib.Test.equal(Error("refusing to remove '/'")) ])

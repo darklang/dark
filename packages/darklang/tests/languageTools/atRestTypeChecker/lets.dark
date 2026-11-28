@@ -524,6 +524,6 @@ module Lets =
           88,
           LanguageTools.ProgramTypes.Expr.EBool(89, true),
           LanguageTools.ProgramTypes.Expr.ETuple(85, arg(86), arg(87), []),
-          Stdlib.Option.Option.Some(
+          Some(
             LanguageTools.ProgramTypes.Expr.ETuple(90, arg(91), arg(92), [])))))
     |> Stdlib.Test.equal("failed:DuplicatePatternBinding")

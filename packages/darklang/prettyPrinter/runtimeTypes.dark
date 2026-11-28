@@ -83,7 +83,7 @@ let typeNameWith(
     let locations = LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
     match LanguageTools.PackageManager.pickLocation(
             LanguageTools.PackageManager.PickContext
-              { currentModule = opts.currentModule, preferredLocation = Option.None },
+              { currentModule = opts.currentModule, preferredLocation = None },
             locations) with
     | Some(l) -> shortenName(opts.currentModule, l.owner, l.modules, l.name)
     | None -> LanguageTools.RuntimeTypes.hashToString(hash)
@@ -489,12 +489,12 @@ let declaredKnownType(
 
   match kt, declared with
   | KTStream(inner), Some(TStream(dInner)) ->
-    $"Stream<{declaredValueType(branchId, Option.Some(dInner), inner)}>"
+    $"Stream<{declaredValueType(branchId, Some(dInner), inner)}>"
   | KTList(inner), Some(TList(dInner)) ->
-    $"List<{declaredValueType(branchId, Option.Some(dInner), inner)}>"
+    $"List<{declaredValueType(branchId, Some(dInner), inner)}>"
   | KTDict(key, value), Some(TDict(dKey, dValue)) ->
-    let k = declaredValueType(branchId, Option.Some(dKey), key)
-    let v = declaredValueType(branchId, Option.Some(dValue), value)
+    let k = declaredValueType(branchId, Some(dKey), key)
+    let v = declaredValueType(branchId, Some(dValue), value)
     $"Dict<{k}, {v}>"
   | KTTuple(t1, t2, trest), Some(TTuple(d1, d2, drest)) ->
     let items = Stdlib.List.concat([ t1, t2 ], trest)
@@ -514,7 +514,7 @@ let declaredKnownType(
         |> Stdlib.List.indexedMap(fun(i, arg) ->
           declaredValueType(branchId, nth(dArgTypes, i), arg))
 
-      let ret = declaredValueType(branchId, Option.Some(dRetType), retType)
+      let ret = declaredValueType(branchId, Some(dRetType), retType)
       fnTypeText(args, ret)
     else
       knownType(branchId, kt)
@@ -742,7 +742,7 @@ module Dval =
         | DEnum(_, _, _, _, _) -> true
         | _ -> false
 
-      let overridden = if custom then Builtin.inspectImpl(dv) else Option.None
+      let overridden = if custom then Builtin.inspectImpl(dv) else None
       if Stdlib.Option.isSome(overridden) then
         txt(Stdlib.Option.withDefault(overridden, ""))
       else
@@ -908,9 +908,7 @@ let capForDisplay(
 
 let dvalOneLine(branchId: Uuid, maxChars: Int64, dv: LanguageTools.RuntimeTypes.Dval): String =
   let dv = capForDisplay(maxChars, dv)
-  let text =
-    dvalWith(branchId, { DisplayOptions.default with width = 60, maxDepth = Option.Some(2) }, dv)
-
+  let text = dvalWith(branchId, { DisplayOptions.default with width = 60, maxDepth = Some(2) }, dv)
   let oneLine =
     text
     |> Stdlib.String.split("\n")

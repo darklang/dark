@@ -167,7 +167,7 @@ let heredocs(
   : List<(LanguageTools.Parser.FileKind * String)> =
   let (bodies, _) =
     lines
-    |> Stdlib.List.fold(([], Option.None), fun(acc, line) ->
+    |> Stdlib.List.fold(([], None), fun(acc, line) ->
       let (bodies, open) = acc
       match open with
       | None ->
@@ -178,7 +178,7 @@ let heredocs(
             else
               LanguageTools.Parser.FileKind.Package
 
-          (bodies, Option.Some((kind, [])))
+          (bodies, Some((kind, [])))
         else
           acc
       | Some((kind, body)) ->
@@ -186,9 +186,9 @@ let heredocs(
           (
             [ (kind, Stdlib.String.join(Stdlib.List.reverse(body), "\n"))
               ...bodies ],
-            Option.None)
+            None)
         else
-          (bodies, Option.Some((kind, [ line, ...body ]))))
+          (bodies, Some((kind, [ line, ...body ]))))
 
   Stdlib.List.reverse(bodies)
 
@@ -253,12 +253,12 @@ let check(
     Stdlib.String.contains(Stdlib.String.toLowercase(source), "// wrong")
 
   match diagnostics, wrong with
-  | [], false -> Option.None
-  | [_, ...], true -> Option.None
-  | [], true -> Option.Some($"docs {page}: marked wrong, but parses:\n{source}")
+  | [], false -> None
+  | [_, ...], true -> None
+  | [], true -> Some($"docs {page}: marked wrong, but parses:\n{source}")
   | [first, ...], false ->
     let why = LanguageTools.Parser.Parse.ParseError.diagnosticToString(first)
-    Option.Some($"docs {page}: {why}\n{source}")
+    Some($"docs {page}: {why}\n{source}")
 
 
 let failures(page: String, text: String): List<String> =

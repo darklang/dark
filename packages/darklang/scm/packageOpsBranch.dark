@@ -27,7 +27,7 @@ let branchExists(branchId: Uuid): Bool =
 /// (see `SCM.Branch.mainBranchId`).
 let branchParentOf(branchId: Uuid): Uuid =
   match Branches.query(Branches.BranchFilter.ById(branchId)) with
-  | [b, ...] -> Branch.fromTextField(Option.Some(b.parentId))
+  | [b, ...] -> Branch.fromTextField(Some(b.parentId))
   | [] -> Branch.mainBranchId
 
 
@@ -83,7 +83,7 @@ let branchDiffEntries(branchId: Uuid): List<BranchDiffEntry> =
     branchBinds
     |> Stdlib.List.filter(fun b ->
       Stdlib.Dict.get(parentByKey, Conflicts.bindingKey(b.owner, b.modules, b.name))
-      == Option.Some(b.hash))
+      == Some(b.hash))
     |> Stdlib.List.map(sourceOfBinding)
 
   let namesBySource(scope: Uuid): ReferenceNamesBySource =
@@ -107,7 +107,7 @@ let branchDiffEntries(branchId: Uuid): List<BranchDiffEntry> =
       |> Stdlib.Option.withDefault("")
 
     if b.hash == parentHash && namesAt(branchNames, b) == namesAt(parentNames, b) then
-      Option.None
+      None
     else
       let change = if parentHash == "" then "new" else "changed"
       BranchDiffEntry
@@ -151,12 +151,12 @@ let branchName(branchId: Uuid): String =
 let resolveBranchRef(branchRef: String): BranchRefResult =
   let asId =
     match Stdlib.Uuid.parse(branchRef) with
-    | Ok(id) -> Option.Some(id)
-    | Error(_) -> Option.None
+    | Ok(id) -> Some(id)
+    | Error(_) -> None
 
   // Main is resolvable by name and by id like any other branch, and has to be: it has no `branches`
   // row, so neither the name lookup nor the id-prefix search below can find it.
-  if branchRef == Branch.mainBranchName || asId == Option.Some(Branch.mainBranchId) then
+  if branchRef == Branch.mainBranchName || asId == Some(Branch.mainBranchId) then
     BranchRefResult.Found(Branch.mainBranchId)
   else
     match branchIdForName(branchRef) with
@@ -189,9 +189,9 @@ let branchIdForName(name: String): Option<Uuid> =
   match Branches.query(Branches.BranchFilter.ByName(name)) with
   | [b, ...] ->
     match Stdlib.Uuid.parse(b.id) with
-    | Ok(id) -> Option.Some(id)
-    | Error(_) -> Option.None
-  | [] -> Option.None
+    | Ok(id) -> Some(id)
+    | Error(_) -> None
+  | [] -> None
 
 
 /// Is this branch's work already in its parent?

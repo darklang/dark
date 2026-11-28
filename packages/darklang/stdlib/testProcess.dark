@@ -18,7 +18,7 @@ type Output<'a> =
 
 
 let defaults(): Options =
-  Options { branch = Option.None, timeoutMs = 120000, columns = 80, rows = 24 }
+  Options { branch = None, timeoutMs = 120000, columns = 80, rows = 24 }
 
 
 /// Run a named, unapplied package function with explicit arguments. The default
@@ -44,7 +44,7 @@ let run(options: Options, callback: 'a -> 'b, argument: 'a): Result.Result<Outpu
         "\n")
       |> Result.Result.Error
     | Some(result) ->
-      Result.Result.Ok(
+      Ok(
         Output
           { result = result
             stdout = stdout

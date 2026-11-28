@@ -87,7 +87,7 @@ let dictKeyParametersFor(
   let keys =
     Types.declarationFieldTypes(decl)
     |> Stdlib.List.map(fun field ->
-      let (ty, _) = Types.fromReference(mapping, Option.None, field)
+      let (ty, _) = Types.fromReference(mapping, None, field)
       dictKeyTypes(env, ty))
     |> Stdlib.List.flatten
 
@@ -152,12 +152,7 @@ let checkDictKey(
   else
     Stdlib.List.prepend(
       found,
-      Types.definiteError(
-        IssueCode.UnsupportedDictKeyType,
-        at,
-        Option.None,
-        Option.Some(key),
-        Context.NoDetail))
+      Types.definiteError(IssueCode.UnsupportedDictKeyType, at, None, Some(key), Context.NoDetail))
 
 
 /// Walk the supplied type and check that custom types exist, have the required
@@ -313,7 +308,7 @@ let declarationFactsOf(
   name: ProgramTypes.Hash,
   decl: ProgramTypes.TypeDeclaration.TypeDeclaration)
   : Model.DeclarationFacts =
-  let none = Option.None
+  let none = None
   let mapping = Types.rigid(decl.typeParams)
   let (names, found) = Stdlib.List.fold(
     Types.declarationFieldTypes(decl),
@@ -343,7 +338,7 @@ let failureFinding(failure: CheckFailure): Model.Finding =
     | TooDeep -> Context.DeclarationTooDeep
     | Failed(message) -> Context.CheckerUnavailable(message)
 
-  Types.warning(IssueCode.UnsupportedConstruct, Option.None, context)
+  Types.warning(IssueCode.UnsupportedConstruct, None, context)
 
 
 /// Prepare validation caches for all loaded type declarations. First determine
@@ -577,13 +572,13 @@ let declarationFactsFor(
   name: ProgramTypes.Hash)
   : Option<Model.DeclarationFacts> =
   match Stdlib.Dict.get(env.declarationFacts, name) with
-  | Some(declarationFacts) -> Option.Some(declarationFacts)
+  | Some(declarationFacts) -> Some(declarationFacts)
   | None ->
     match Types.declaration(env, name) with
     | Some(decl) ->
       let (_, cyclic) = reachesAliasCycle(env, Dict {}, Dict {}, name)
-      Option.Some(declarationFactsOf(env, cyclic, name, decl))
-    | None -> Option.None
+      Some(declarationFactsOf(env, cyclic, name, decl))
+    | None -> None
 
 
 /// Collect problems from this declaration and its dependencies, attaching at as
@@ -632,7 +627,7 @@ let collectDeclarationProblems(
   env: Model.Environment,
   name: ProgramTypes.Hash)
   : List<Model.Finding> =
-  let (_, found) = visit(env, Option.None, Dict {}, [], name)
+  let (_, found) = visit(env, None, Dict {}, [], name)
   Stdlib.List.reverse(found)
 
 

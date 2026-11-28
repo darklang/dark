@@ -17,7 +17,7 @@ type Context =
     localBindings: List<String> }
 
 
-val defaultContext = Context { currentFnName = Option.None, argMap = Dict {}, localBindings = [] }
+val defaultContext = Context { currentFnName = None, argMap = Dict {}, localBindings = [] }
 
 
 let gid(): Int64 =
@@ -49,9 +49,9 @@ let locationPlaceholderHash(owner: String, modules: List<String>, name: String):
 // `Type.Case` until expected-type inference is supported.
 let optionOrResultTypeName(caseName: String): Option<List<String>> =
   match caseName with
-  | "Some" | "None" -> Option.Some([ "Stdlib", "Option", "Option" ])
-  | "Ok" | "Error" -> Option.Some([ "Stdlib", "Result", "Result" ])
-  | _ -> Option.None
+  | "Some" | "None" -> Some([ "Stdlib", "Option", "Option" ])
+  | "Ok" | "Error" -> Some([ "Stdlib", "Result", "Result" ])
+  | _ -> None
 
 
 module Identifiers =
@@ -117,7 +117,7 @@ module Identifiers =
           | None ->
             ProgramTypes.NameResolution
               { originalName = [ caseName ]
-                resolved = Result.Error(ProgramTypes.NameResolutionError.InvalidName) }
+                resolved = Error(ProgramTypes.NameResolutionError.InvalidName) }
 
         toPTWithTypeName(ctx, i, typeName)
 
@@ -755,9 +755,7 @@ module Expr =
       // EVariable and let name resolution disambiguate — this mirrors the F# WT2PT
       // so the two lowerings agree.
       if
-        typeNameElided
-        && Stdlib.List.isEmpty(fields)
-        && optionOrResultTypeName(caseName) == Option.None
+        typeNameElided && Stdlib.List.isEmpty(fields) && optionOrResultTypeName(caseName) == None
       then
         toPT(ctx, context, WrittenTypes.Expr.EVariable(range, caseName))
       else
@@ -790,11 +788,9 @@ module Expr =
       let rhsContext =
         match pat, rhs, context.currentFnName with
         | LPVariable(_, name), ELambda(_, _, _, _, _), Some(qualifiedName)
-          when Stdlib.List.last(qualifiedName) == Option.Some(name) ->
+          when Stdlib.List.last(qualifiedName) == Some(name) ->
           Context
-            { currentFnName = Option.None
-              argMap = context.argMap
-              localBindings = context.localBindings }
+            { currentFnName = None, argMap = context.argMap, localBindings = context.localBindings }
         | _ -> context
 
       let (rhs, rhsUnresolvedNames) = toPT(ctx, rhsContext, rhs)
@@ -843,10 +839,10 @@ module Expr =
       let (thenExpr, thenUnresolvedNames) = toPT(ctx, context, thenExpr)
       let (elseExpr, elseUnresolvedNames) =
         match elseExpr with
-        | None -> (Option.None, [])
+        | None -> (None, [])
         | Some(e) ->
           let (e, unresolvedNames) = toPT(ctx, context, e)
-          (Option.Some(e), unresolvedNames)
+          (Some(e), unresolvedNames)
 
       let unresolvedNames =
         Stdlib.List.flatten([ condUnresolvedNames, thenUnresolvedNames, elseUnresolvedNames ])
@@ -870,9 +866,9 @@ module Expr =
             match context.currentFnName with
             | Some(qn) ->
               match Stdlib.List.last(qn) with
-              | Some(lastSeg) when Stdlib.List.contains(bindings, lastSeg) -> Option.None
+              | Some(lastSeg) when Stdlib.List.contains(bindings, lastSeg) -> None
               | _ -> context.currentFnName
-            | None -> Option.None
+            | None -> None
 
           let armContext =
             { context with
@@ -882,11 +878,11 @@ module Expr =
 
           let (whenCondition, whenUnresolvedNames) =
             match case.whenCondition with
-            | None -> (Option.None, [])
+            | None -> (None, [])
             | Some(e) ->
               let (_, e) = e
               let (e, unresolvedNames) = toPT(ctx, armContext, e)
-              (Option.Some(e), unresolvedNames)
+              (Some(e), unresolvedNames)
 
           let (rhs, rhsUnresolvedNames) = toPT(ctx, armContext, case.rhs)
           let matchCasesUnresolvedNames =
@@ -1015,21 +1011,20 @@ module Expr =
       let shadowedCallee =
         let name =
           match fn with
-          | EVariable(_, name) -> Option.Some(name)
-          | EFnName(_, fnName) when Stdlib.List.isEmpty(fnName.modules) ->
-            Option.Some(fnName.fn.name)
-          | _ -> Option.None
+          | EVariable(_, name) -> Some(name)
+          | EFnName(_, fnName) when Stdlib.List.isEmpty(fnName.modules) -> Some(fnName.fn.name)
+          | _ -> None
 
         match name with
-        | None -> Option.None
+        | None -> None
         | Some(name) ->
           match Stdlib.Dict.get(context.argMap, name) with
-          | Some(index) -> Option.Some(ProgramTypes.Expr.EArg(gid(), index))
+          | Some(index) -> Some(ProgramTypes.Expr.EArg(gid(), index))
           | None ->
             if Stdlib.List.contains(context.localBindings, name) then
-              Option.Some(ProgramTypes.Expr.EVariable(gid(), name))
+              Some(ProgramTypes.Expr.EVariable(gid(), name))
             else
-              Option.None
+              None
 
       let resolveAppliedName(range: WrittenTypes.Range, name: String) =
         let unresolvedName = WrittenTypes.Name.Unresolved(range, [ name ])
@@ -1048,14 +1043,14 @@ module Expr =
         | None -> false
         | Some(currentFnName) ->
           match fn with
-          | EVariable(_, varName) -> Stdlib.List.last(currentFnName) == Option.Some(varName)
+          | EVariable(_, varName) -> Stdlib.List.last(currentFnName) == Some(varName)
           | EFnName(_, fnName) ->
             // Only an UNQUALIFIED self-reference is recursion (ESelf); a qualified
             // call resolves normally (matches the F# lowering and the documented
             // "recurse by short name" convention — a qualified self-call is a normal
             // reference, not ESelf).
             if Stdlib.List.isEmpty(fnName.modules) then
-              Stdlib.List.last(currentFnName) == Option.Some(fnName.fn.name)
+              Stdlib.List.last(currentFnName) == Some(fnName.fn.name)
             else
               false
           | _ -> false
@@ -1208,8 +1203,8 @@ module ValueDeclaration =
       match d.typ with
       | Some(t) ->
         let (t, unresolved) = TypeReference.toPT(ctx, t)
-        (Option.Some(t), unresolved)
-      | None -> (Option.None, [])
+        (Some(t), unresolved)
+      | None -> (None, [])
 
     let (body, unresolvedNames) = Expr.toPT(ctx, defaultContext, d.body)
     (
@@ -1339,7 +1334,7 @@ module FunctionDeclaration =
 
       let functionContext =
         Context
-          { currentFnName = Option.Some(Stdlib.List.append(ctx.currentModule, fn.name.name))
+          { currentFnName = Some(Stdlib.List.append(ctx.currentModule, fn.name.name))
             argMap = argMap
             localBindings = [] }
 
@@ -1490,11 +1485,11 @@ module ImplDeclaration =
     |> Stdlib.List.filterMap(fun m ->
       match m with
       | Method(f) ->
-        Option.Some(
+        Some(
           { f with
               typeParams = Stdlib.List.concat(implDecl.typeParams, f.typeParams)
               bounds = Stdlib.List.concat(implDecl.bounds, f.bounds) })
-      | Alias(_) -> Option.None)
+      | Alias(_) -> None)
 
 
   /// Each member as (method name, the fn name to resolve): a method declared in
@@ -1571,10 +1566,7 @@ let traitWithOps(
 
   let ops =
     [ ProgramTypes.PackageOp.AddTrait(pt)
-      ProgramTypes.PackageOp.SetName(
-        location,
-        ProgramTypes.Reference.PackageTrait(pt.hash),
-        Option.None) ]
+      ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageTrait(pt.hash), None) ]
 
   (pt, ops, unresolvedNames)
 
@@ -1604,7 +1596,7 @@ let implWithOps(
           ProgramTypes.PackageOp.SetName(
             location,
             ProgramTypes.Reference.PackageFn(pf.hash),
-            Option.None) ]
+            None) ]
 
       (pf, ops, unresolvedNames))
 
@@ -1646,9 +1638,9 @@ let implWithOps(
             { name =
                 ProgramTypes.FQFnName.FQFnName.Package(
                   locationPlaceholderHash(ctx.owner, memberPath, name))
-              location = Option.Some(location) }
+              location = Some(location) }
 
-        (name, { nr with resolved = Result.Ok(resolved) })
+        (name, { nr with resolved = Ok(resolved) })
       else
         pair
 
@@ -1677,7 +1669,7 @@ let implWithOps(
       ProgramTypes.PackageOp.SetName(
         location,
         ProgramTypes.Reference.PackageTraitImpl(pi.hash),
-        Option.None) ]
+        None) ]
 
   (pi, fns, Stdlib.List.concat(fnOps, implOps), Stdlib.List.concat(fnUnresolved, implUnresolved))
 
@@ -1705,10 +1697,10 @@ let moduleDeclarationWithOpsHelper(
             ProgramTypes.PackageOp.SetName(
               location,
               ProgramTypes.Reference.PackageType(pt.hash),
-              Option.None) ]
+              None) ]
 
-        Option.Some((pt, ops, unresolvedNames))
-      | _ -> Option.None)
+        Some((pt, ops, unresolvedNames))
+      | _ -> None)
 
   let types = typeResults |> Stdlib.List.map(fun((t, _, _)) -> t)
   let typeOps = typeResults |> Stdlib.List.map(fun((_, ops, _)) -> ops)
@@ -1732,10 +1724,10 @@ let moduleDeclarationWithOpsHelper(
             ProgramTypes.PackageOp.SetName(
               location,
               ProgramTypes.Reference.PackageValue(pv.hash),
-              Option.None) ]
+              None) ]
 
-        Option.Some((pv, ops, unresolvedNames))
-      | _ -> Option.None)
+        Some((pv, ops, unresolvedNames))
+      | _ -> None)
 
   let values = valueResults |> Stdlib.List.map(fun((v, _, _)) -> v)
   let valueOps = valueResults |> Stdlib.List.map(fun((_, ops, _)) -> ops)
@@ -1759,10 +1751,10 @@ let moduleDeclarationWithOpsHelper(
             ProgramTypes.PackageOp.SetName(
               location,
               ProgramTypes.Reference.PackageFn(pf.hash),
-              Option.None) ]
+              None) ]
 
-        Option.Some((pf, ops, unresolvedNames))
-      | _ -> Option.None)
+        Some((pf, ops, unresolvedNames))
+      | _ -> None)
 
   let fns = fnResults |> Stdlib.List.map(fun((f, _, _)) -> f)
   let fnOps = fnResults |> Stdlib.List.map(fun((_, ops, _)) -> ops)
@@ -1773,8 +1765,8 @@ let moduleDeclarationWithOpsHelper(
     m.declarations
     |> Stdlib.List.filterMap(fun d ->
       match d with
-      | Trait(t) -> Option.Some(traitWithOps(ctx, t))
-      | _ -> Option.None)
+      | Trait(t) -> Some(traitWithOps(ctx, t))
+      | _ -> None)
 
   let traits = traitResults |> Stdlib.List.map(fun((t, _, _)) -> t)
   let traitOps = traitResults |> Stdlib.List.map(fun((_, ops, _)) -> ops)
@@ -1785,8 +1777,8 @@ let moduleDeclarationWithOpsHelper(
     m.declarations
     |> Stdlib.List.filterMap(fun d ->
       match d with
-      | Impl(i) -> Option.Some(implWithOps(ctx, i))
-      | _ -> Option.None)
+      | Impl(i) -> Some(implWithOps(ctx, i))
+      | _ -> None)
 
   let impls = implResults |> Stdlib.List.map(fun((i, _, _, _)) -> i)
   let implFns =
@@ -1817,10 +1809,10 @@ let moduleDeclarationWithOpsHelper(
             ProgramTypes.PackageOp.SetName(
               location,
               ProgramTypes.Reference.PackageTest(pt.hash),
-              Option.None) ]
+              None) ]
 
-        Option.Some((ops, unresolvedNames))
-      | _ -> Option.None)
+        Some((ops, unresolvedNames))
+      | _ -> None)
 
   let testOps = testResults |> Stdlib.List.map(Stdlib.Tuple2.first)
   let testUnresolvedNames = testResults |> Stdlib.List.map(Stdlib.Tuple2.second)
@@ -1834,8 +1826,8 @@ let moduleDeclarationWithOpsHelper(
         let exprContext = defaultContext
         let (expr, unresolvedNames) = Expr.toPT(ctx, exprContext, e)
         let fullPath = Stdlib.List.prepend(ctx.currentModule, ctx.owner)
-        Option.Some(((expr, fullPath), unresolvedNames))
-      | _ -> Option.None)
+        Some(((expr, fullPath), unresolvedNames))
+      | _ -> None)
     |> Stdlib.List.unzip
 
   // Process submodules recursively
@@ -1849,8 +1841,8 @@ let moduleDeclarationWithOpsHelper(
           { ctx with currentModule = Stdlib.List.append(ctx.currentModule, submoduleName) }
 
         let (defs, ops, unresolvedNames) = moduleDeclarationWithOpsHelper(subCtx, sm)
-        Option.Some((defs, ops, unresolvedNames))
-      | _ -> Option.None)
+        Some((defs, ops, unresolvedNames))
+      | _ -> None)
 
   let submoduleDefs = submoduleResults |> Stdlib.List.map(fun((defs, _, _)) -> defs)
 
@@ -1921,10 +1913,7 @@ let declarationsToPT(
 
     let ops =
       [ ProgramTypes.PackageOp.AddType(t)
-        ProgramTypes.PackageOp.SetName(
-          location,
-          ProgramTypes.Reference.PackageType(t.hash),
-          Option.None) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageType(t.hash), None) ]
 
     (ProgramTypes.SourceFile.Declaration.Type(t), ops, unresolvedNames)
   | Value(v) ->
@@ -1940,7 +1929,7 @@ let declarationsToPT(
         ProgramTypes.PackageOp.SetName(
           location,
           ProgramTypes.Reference.PackageValue(v.hash),
-          Option.None) ]
+          None) ]
 
     (ProgramTypes.SourceFile.Declaration.Value(v), ops, unresolvedNames)
   | Function(f) ->
@@ -1952,10 +1941,7 @@ let declarationsToPT(
 
     let ops =
       [ ProgramTypes.PackageOp.AddFn(f)
-        ProgramTypes.PackageOp.SetName(
-          location,
-          ProgramTypes.Reference.PackageFn(f.hash),
-          Option.None) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn(f.hash), None) ]
 
     (ProgramTypes.SourceFile.Declaration.Function(f), ops, unresolvedNames)
   | Trait(t) ->
@@ -1979,7 +1965,7 @@ let declarationsToPT(
         ProgramTypes.PackageOp.SetName(
           location,
           ProgramTypes.Reference.PackageTest(test.hash),
-          Option.None) ]
+          None) ]
 
     (ProgramTypes.SourceFile.Declaration.Test(test), ops, unresolvedNames)
   | Module(m) ->

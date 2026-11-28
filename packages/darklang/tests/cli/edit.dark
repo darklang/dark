@@ -228,14 +228,14 @@ test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
     Instance.runWithStdin(
       instance,
       [ "import", "-", "/Me.PatchNormalization" ],
-      "let f(): Result<Int64, String> =\n  Error(\"before\")\n")
+      "let f(): Result<Int64, String> =\n  Stdlib.Result.Result.Error(\"before\")\n")
 
   let before = Instance.said(instance, [ "view", name, "--raw" ])
   let (failedExitCode, failureOutput) =
     Instance.runWithStdin(
       instance,
       [ "edit", name, "--patch", "-" ],
-      "@@\n-  Error(\"before\")\n+  Error(\"after\")\n")
+      "@@\n-  Stdlib.Result.Result.Error(\"before\")\n+  Stdlib.Result.Result.Error(\"after\")\n")
 
   let unchanged = Instance.said(instance, [ "view", name, "--raw" ])
   let sourceLines = Stdlib.String.trim(before) |> Stdlib.String.split("\n")
@@ -258,8 +258,8 @@ test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
     [ Instance.exitedWith(createExitCode, 0, "fixture")
       Instance.says(
         before,
-        "Result.Error",
-        "saving expands the constructor name")
+        "  Error(\"before\")",
+        "saving shortens the constructor name")
 
       Instance.exitedWith(failedExitCode, 1, "original source does not match")
       Instance.says(
@@ -285,7 +285,7 @@ test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
       Instance.exitedWith(retryExitCode, 0, retryOutput)
       Instance.says(
         after,
-        "Result.Error(\"after\")",
+        "  Error(\"after\")",
         "patch built from raw source succeeds") ]))
 
 

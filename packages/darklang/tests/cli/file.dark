@@ -13,10 +13,9 @@ module WriteReadRoundtrip =
       let written = Stdlib.Cli.FileSystem.writeFile(filename, blob)
       let readBack = Stdlib.Cli.FileSystem.readFile(filename) |> Builtin.unwrap
       Stdlib.Test.all(
-        [ written |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
-
+        [ written |> Stdlib.Test.equal(Ok())
           Stdlib.Utf8.decode(readBack)
-          |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(testContents())) ]))
+          |> Stdlib.Test.equal(Ok(testContents())) ]))
     |> Builtin.unwrap
 
 
@@ -28,8 +27,7 @@ module MissingFile =
       let missing = filename + "-does-not-exist"
       Stdlib.Cli.FileSystem.readFile(missing)
       |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound)))
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.ErrorKind.NotFound)))
     |> Builtin.unwrap
 
 
@@ -38,26 +36,22 @@ module MissingFile =
     Stdlib.Test.all(
       [ Stdlib.Cli.FileSystem.readFile("")
         |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
+        |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
 
         Stdlib.Cli.FileSystem.writeFile("", Stdlib.Utf8.encode("x"))
         |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
+        |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
 
         Stdlib.Cli.FileSystem.deleteFile("")
         |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound)) ])
+        |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.ErrorKind.NotFound)) ])
 
 
   // `Stdlib.display` takes the error as it comes out of a failed read.
   test missingFileDisplay =
     Stdlib.Cli.FileSystem.readFile("/nonexistent-dark-test-file")
     |> Stdlib.Result.mapError(Stdlib.display)
-    |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Error("No such file or directory"))
+    |> Stdlib.Test.equal(Error("No such file or directory"))
 
 
 module AreIdentical =
@@ -89,8 +83,7 @@ module WriteErrors =
         filename + "/child/file",
         Stdlib.Utf8.encode("x"))
       |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotADirectory)))
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.ErrorKind.NotADirectory)))
     |> Builtin.unwrap
 
 
@@ -105,8 +98,7 @@ module WriteErrors =
       let _ = Stdlib.Cli.Dir.delete(directory) |> Builtin.unwrap
       result
       |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.IsADirectory)))
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.ErrorKind.IsADirectory)))
     |> Builtin.unwrap
 
 
@@ -116,7 +108,7 @@ module ReadErrors =
     Stdlib.Cli.Dir.withTemp(fun dir ->
       Stdlib.Cli.FileSystem.readFileAsString(dir)
       |> Stdlib.Result.mapError(Stdlib.display)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Is a directory")))
+      |> Stdlib.Test.equal(Error("Is a directory")))
     |> Builtin.unwrap
 
 
@@ -124,13 +116,12 @@ module ListErrors =
   test missingDirectory =
     Stdlib.Cli.FileSystem.listDirectory("/nonexistent-dark-test-dir")
     |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
-    |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
+    |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
 
 
   test existingDirectory =
     Stdlib.Cli.Dir.withTemp(fun dir ->
       let _ = Stdlib.Cli.File.writeText(dir + "/a.txt", "x") |> Builtin.unwrap
       Stdlib.Cli.FileSystem.listDirectory(dir)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ dir + "/a.txt" ])))
+      |> Stdlib.Test.equal(Ok([ dir + "/a.txt" ])))
     |> Builtin.unwrap

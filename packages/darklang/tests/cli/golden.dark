@@ -27,7 +27,7 @@ let compare(
         expectedRows
         |> Stdlib.List.indexedMap(fun(index, expectedRow) ->
           Stdlib.List.getAt(actualRows, index)
-          |> Stdlib.Test.equal(Stdlib.Option.Option.Some(expectedRow)))
+          |> Stdlib.Test.equal(Some(expectedRow)))
         |> Stdlib.Test.all ])
 
 
@@ -70,7 +70,7 @@ let goldenviewRender(): Unit =
   let loadedBase =
     Cli.Workbench.initialState(
       SCM.Branch.mainBranchId,
-      Stdlib.Option.Option.None,
+      None,
       "perf-instance",
       Cli.Workbench.Updates.Manual)
 
@@ -220,7 +220,7 @@ let goldenkeysRender(): Unit =
   let loadedBase =
     Cli.Workbench.initialState(
       SCM.Branch.mainBranchId,
-      Stdlib.Option.Option.None,
+      None,
       "perf-instance",
       Cli.Workbench.Updates.Manual)
 
@@ -248,7 +248,7 @@ let goldenkeysRender(): Unit =
     k: Stdlib.Cli.Stdin.Key.Key)
     : Cli.Workbench.State =
     let next =
-      match Cli.Workbench.handleKey(s, k, mods, Stdlib.Option.Option.None) with
+      match Cli.Workbench.handleKey(s, k, mods, None) with
       | Continue(s2) -> s2
       | Exit(s2) -> s2
       | Launch(s2, _cmd) -> s2

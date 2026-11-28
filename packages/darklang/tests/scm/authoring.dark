@@ -36,11 +36,11 @@ let authorOn(
           owner,
           [ m ],
           source) with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(ops) ->
     match SCM.PackageOps.addAuthored(branchId, ops) with
-    | Ok(_) -> Stdlib.Result.Result.Ok()
-    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Ok(_) -> Ok()
+    | Error(e) -> Error(e)
 
 
 let authorAs(
@@ -60,7 +60,7 @@ let authorAll(
   m: String,
   sources: List<String>)
   : Stdlib.Result.Result<Unit, String> =
-  Stdlib.List.fold(sources, Stdlib.Result.Result.Ok(), fun(acc, s) ->
+  Stdlib.List.fold(sources, Ok(), fun(acc, s) ->
     match acc with
     | Ok(_) -> author(m, s)
     | Error(_) -> acc)
@@ -98,13 +98,13 @@ let cascadeKind(
   | Some(f), Some(t) ->
     match SCM.Propagation.repointDependents(main(), l, kind, [ f ], t) with
     | Ok(repoints) ->
-      Stdlib.Result.Result.Ok(
+      Ok(
         repoints
         |> Stdlib.List.map(fun r -> r.location.name)
         |> Stdlib.List.unique
         |> Stdlib.List.sort)
-    | Error(e) -> Stdlib.Result.Result.Error(e)
-  | _ -> Stdlib.Result.Result.Error("a hash to cascade between is not bound")
+    | Error(e) -> Error(e)
+  | _ -> Error("a hash to cascade between is not bound")
 
 
 let cascade(

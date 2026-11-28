@@ -477,7 +477,7 @@ let itemLines(
 /// that position in the full list: filter to `terminal-ui`, get `for-ai`.
 let selectedDocTopic(state: State): Option<Docs.Command.Topics.DocTopic> =
   match Stdlib.List.getAt(state.items, state.selected) with
-  | None -> Option.None
+  | None -> None
   | Some(item) ->
     // Rows read "<name>  ·  <description>"; the name is what identifies the topic.
     let leaf =

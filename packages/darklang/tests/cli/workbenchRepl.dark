@@ -8,55 +8,46 @@ module Darklang.Cli.Tests.WorkbenchRepl
 test letBinding =
   Stdlib.Test.all(
     [ Cli.Repl.parseLetBinding("let x = 1")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("x", "1")))
+      |> Stdlib.Test.equal(Some(("x", "1")))
 
       Cli.Repl.parseLetBinding("  let  ys  =  [ 1, 2 ]  ")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("ys", "[ 1, 2 ]")))
+      |> Stdlib.Test.equal(Some(("ys", "[ 1, 2 ]")))
 
       Cli.Repl.parseLetBinding("let _priv = 3")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("_priv", "3")))
+      |> Stdlib.Test.equal(Some(("_priv", "3")))
 
       Cli.Repl.parseLetBinding("let x2 = x + 1")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("x2", "x + 1")))
+      |> Stdlib.Test.equal(Some(("x2", "x + 1")))
 
       // A wrapped declaration binds, rhs and all - a pasted chain never reaches here, because
       // `splitStatements` has already separated it into one statement per binding.
       Cli.Repl.parseLetBinding("let xs = [ 1\n  2 ]")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("xs", "[ 1\n  2 ]"))) ])
+      |> Stdlib.Test.equal(Some(("xs", "[ 1\n  2 ]"))) ])
 
 
 // the right-hand side keeps its own `=`, so a record literal or a named argument survives
 test rhsKeepsEquals =
   Cli.Repl.parseLetBinding("let r = f (a = 1)")
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("r", "f (a = 1)")))
+  |> Stdlib.Test.equal(Some(("r", "f (a = 1)")))
 
 
 // --- what deliberately doesn't, and falls through to being evaluated ---
 test nonBindingsFallThrough =
-  Cli.Repl.parseLetBinding("1 + 1")
-  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  Cli.Repl.parseLetBinding("1 + 1") |> Stdlib.Test.equal(None)
 
 
 // a comparison typo, not a binding
 test comparisonTypo =
-  Cli.Repl.parseLetBinding("let x == 3")
-  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  Cli.Repl.parseLetBinding("let x == 3") |> Stdlib.Test.equal(None)
 
 
 // a pattern binding can't be re-injected by name
 test patternBindingRejected =
   Stdlib.Test.all(
-    [ Cli.Repl.parseLetBinding("let (a, b) = t")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Cli.Repl.parseLetBinding("let x =")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Cli.Repl.parseLetBinding("letter = 3")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Cli.Repl.parseLetBinding("let 2x = 3")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Cli.Repl.parseLetBinding("let (a, b) = t") |> Stdlib.Test.equal(None)
+      Cli.Repl.parseLetBinding("let x =") |> Stdlib.Test.equal(None)
+      Cli.Repl.parseLetBinding("letter = 3") |> Stdlib.Test.equal(None)
+      Cli.Repl.parseLetBinding("let 2x = 3") |> Stdlib.Test.equal(None) ])
 
 
 // --- when ⏎ moves down a line instead of running ---
@@ -229,12 +220,10 @@ test capturesRealValues =
     [ (Cli.Repl.captureValue(branch, 42), "ok:42")
       (Cli.Repl.captureValue(branch, [ 1, 2 ]), "ok:[ 1, 2 ]")
       (Cli.Repl.captureValue(branch, "hi"), "ok:\"hi\"")
-      // An enum renders under a shortened package name, so `Option.Some(1)`. That and the
-      // fully-qualified spelling both parse back to the same value, which is what matters here: the
-      // property is that the output is source you could paste in, not that it is spelled one way.
-      (
-        Cli.Repl.captureValue(branch, Stdlib.Option.Option.Some(1)),
-        "ok:Option.Some(1)") ]
+      // An enum renders under its shortest name, so `Some(1)`. That and the fully-qualified
+      // spelling both parse back to the same value, which is what matters here: the property is
+      // that the output is source you could paste in, not that it is spelled one way.
+      (Cli.Repl.captureValue(branch, Some(1)), "ok:Some(1)") ]
 
   let wrong =
     cases
@@ -252,15 +241,11 @@ test capturesRealValues =
 
 
 test readCaptured =
-  Cli.Repl.readCaptured("ok:[1, 2]")
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("[1, 2]"))
+  Cli.Repl.readCaptured("ok:[1, 2]") |> Stdlib.Test.equal(Some("[1, 2]"))
 
 
 // anything that isn't `ok:` means "hold the expression instead"
 test nonOkHoldsExpression =
   Stdlib.Test.all(
-    [ Cli.Repl.readCaptured("err:no literal form")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Cli.Repl.readCaptured("")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Cli.Repl.readCaptured("err:no literal form") |> Stdlib.Test.equal(None)
+      Cli.Repl.readCaptured("") |> Stdlib.Test.equal(None) ])

@@ -24,13 +24,13 @@ let nameOf(
     |> Stdlib.Option.map(render)
 
   match named(LanguageTools.PackageManager.Type.locations(branchId, hash)) with
-  | Some(name) -> Option.Some(name)
+  | Some(name) -> Some(name)
   | None ->
     match named(LanguageTools.PackageManager.Trait.locations(branchId, hash)) with
-    | Some(name) -> Option.Some(name)
+    | Some(name) -> Some(name)
     | None ->
       match named(LanguageTools.PackageManager.Value.locations(branchId, hash)) with
-      | Some(name) -> Option.Some(name)
+      | Some(name) -> Some(name)
       | None -> named(LanguageTools.PackageManager.Function.locations(branchId, hash))
 
 
@@ -46,7 +46,7 @@ let enumWithCase(
   caseName: String)
   : Option<(String * String)> =
   match modules with
-  | [] -> Option.None
+  | [] -> None
   | _ ->
     let (_, types, _, _, _, _, _) = Query.allDirectDescendantNamesAndHashes(branchId, modules)
     let hasCase = fun hash ->
@@ -60,7 +60,7 @@ let enumWithCase(
     match Stdlib.List.findFirst(types, fun((_, hash)) -> hasCase(hash)) with
     | Some((name, _)) ->
       let path = Stdlib.String.join(Stdlib.List.append(modules, name), ".")
-      Option.Some((path, name))
+      Some((path, name))
     | None -> enumWithCase(branchId, Stdlib.List.dropLast(modules), caseName)
 
 
@@ -75,31 +75,31 @@ let explainIssue(
   : Option<String> =
   let notParsed = fun name ->
     if Stdlib.List.contains(unparsed, name) then
-      Option.Some($"`{name}` was not saved because it did not parse")
+      Some($"`{name}` was not saved because it did not parse")
     else
-      Option.None
+      None
 
   let unnamed = fun hash -> Stdlib.Option.isNone(customTypeName(branchId, hash))
   match issue.context with
   | Identifier(name) when issue.code == LanguageTools.AtRestTypeChecker.IssueCode.UnknownVariable ->
     match notParsed(name) with
-    | Some(text) -> Option.Some(text)
+    | Some(text) -> Some(text)
     | None ->
       enumWithCase(branchId, near, name)
       |> Stdlib.Option.map(fun((path, typeName)) ->
         $"`{name}` is a case of {path}; write `{typeName}.{name}`")
   | Unresolved([name]) -> notParsed(name)
   | ValueUnavailable(Package(hash)) when unnamed(hash) ->
-    Option.Some(
+    Some(
       "The value used here is not on this branch (was its save refused?), so its type is unknown")
   | FunctionUnavailable(Package(hash)) when unnamed(hash) ->
-    Option.Some(
+    Some(
       "The function called here is not on this branch (was its save refused?), so its signature is unknown")
   | TypeUnavailable(hash) when unnamed(hash) ->
-    Option.Some("A type used here is not on this branch (was its save refused?)")
+    Some("A type used here is not on this branch (was its save refused?)")
   | TraitUnavailable(hash) when unnamed(hash) ->
-    Option.Some("A trait used here is not on this branch (was its save refused?)")
-  | _ -> Option.None
+    Some("A trait used here is not on this branch (was its save refused?)")
+  | _ -> None
 
 
 /// The issue in words: <fn explainIssue>'s where they apply, else the checker's.
@@ -226,8 +226,8 @@ let positionShifted(nodeId: Option<UInt64>, shift: UInt64): Option<String> =
     let row = rest / 137438953472u64
     let column = rest / 2097152u64 % 65536u64
     let column = if row == 0u64 && column >= shift then column - shift else column
-    Option.Some($"line {row + 1u64}, column {column + 1u64}")
-  | _ -> Option.None
+    Some($"line {row + 1u64}, column {column + 1u64}")
+  | _ -> None
 
 
 /// Describe each unresolved call with its own position in the author's source.
@@ -251,7 +251,7 @@ let unresolvedTraitCallsText(
                 (at, "operator `" + PrettyPrinter.ProgramTypes.infixFnName(op) + "`")
 
             let at =
-              positionShifted(Option.Some(nodeId), firstLineShift)
+              positionShifted(Some(nodeId), firstLineShift)
               |> Stdlib.Option.withDefault($"call {index + 1}")
 
             $"{description} ({at})")
@@ -327,9 +327,9 @@ let issueLinesNear(
 
 let summary(report: LanguageTools.AtRestTypeChecker.Report): Option<String> =
   match report.verdict with
-  | Checked -> Option.None
-  | Failed -> Option.Some("static type errors detected")
-  | Incomplete -> Option.Some("static check incomplete")
+  | Checked -> None
+  | Failed -> Some("static type errors detected")
+  | Incomplete -> Some("static check incomplete")
 
 
 /// Return a failing exit code for type errors and names that cannot be found.

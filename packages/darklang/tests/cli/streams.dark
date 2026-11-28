@@ -141,28 +141,24 @@ let streamFault(
 
   let wrong =
     match expected with
-    | Silent ->
-      if text != "" then
-        Stdlib.Option.Option.Some($"{name} not empty: {first}")
-      else
-        Stdlib.Option.Option.None
+    | Silent -> if text != "" then Some($"{name} not empty: {first}") else None
     | Says(s) ->
       if Stdlib.String.contains(text, s) then
-        Stdlib.Option.Option.None
+        None
       else
-        Stdlib.Option.Option.Some($"{name} lacks \"{s}\": {first}")
-    | Any -> Stdlib.Option.Option.None
+        Some($"{name} lacks \"{s}\": {first}")
+    | Any -> None
 
   match wrong with
-  | Some(w) -> Stdlib.Option.Option.Some(w)
+  | Some(w) -> Some(w)
   | None ->
     match other with
     | Says(s) ->
       if Stdlib.String.contains(text, s) then
-        Stdlib.Option.Option.Some($"{name} also has \"{s}\"")
+        Some($"{name} also has \"{s}\"")
       else
-        Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None
+        None
+    | _ -> None
 
 
 /// The top-level commands in the forms people type, in order, each with its exit code and what
@@ -524,10 +520,9 @@ test eachCommandKeepsItsStreams = Instance.withInstance(fun i ->
       let (status, stdout, stderr) = plainStreams(i, args)
       let exitFault =
         if status != code then
-          Stdlib.Option.Option.Some(
-            $"exit {Stdlib.display(status)}, not {Stdlib.display(code)}")
+          Some($"exit {Stdlib.display(status)}, not {Stdlib.display(code)}")
         else
-          Stdlib.Option.Option.None
+          None
 
       let cmd = Stdlib.String.join(args, " ")
       [ exitFault

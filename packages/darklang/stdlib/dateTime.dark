@@ -33,14 +33,14 @@ module Weekday =
   /// The weekday numbered <param n> by ISO 8601 (Monday = {{1}} to Sunday = {{7}}), or {{None}} for any other number
   let fromNumber(n: UInt8): Option<Weekday> =
     match n with
-    | 1u8 -> Option.Some(Weekday.Monday)
-    | 2u8 -> Option.Some(Weekday.Tuesday)
-    | 3u8 -> Option.Some(Weekday.Wednesday)
-    | 4u8 -> Option.Some(Weekday.Thursday)
-    | 5u8 -> Option.Some(Weekday.Friday)
-    | 6u8 -> Option.Some(Weekday.Saturday)
-    | 7u8 -> Option.Some(Weekday.Sunday)
-    | _ -> Option.None
+    | 1u8 -> Some(Weekday.Monday)
+    | 2u8 -> Some(Weekday.Tuesday)
+    | 3u8 -> Some(Weekday.Wednesday)
+    | 4u8 -> Some(Weekday.Thursday)
+    | 5u8 -> Some(Weekday.Friday)
+    | 6u8 -> Some(Weekday.Saturday)
+    | 7u8 -> Some(Weekday.Sunday)
+    | _ -> None
 
 
 impl Display for Weekday =
@@ -93,19 +93,19 @@ module Month =
   /// The month numbered <param n> (January = {{1}} to December = {{12}}), or {{None}} for any other number
   let fromNumber(n: UInt8): Option<Month> =
     match n with
-    | 1u8 -> Option.Some(Month.January)
-    | 2u8 -> Option.Some(Month.February)
-    | 3u8 -> Option.Some(Month.March)
-    | 4u8 -> Option.Some(Month.April)
-    | 5u8 -> Option.Some(Month.May)
-    | 6u8 -> Option.Some(Month.June)
-    | 7u8 -> Option.Some(Month.July)
-    | 8u8 -> Option.Some(Month.August)
-    | 9u8 -> Option.Some(Month.September)
-    | 10u8 -> Option.Some(Month.October)
-    | 11u8 -> Option.Some(Month.November)
-    | 12u8 -> Option.Some(Month.December)
-    | _ -> Option.None
+    | 1u8 -> Some(Month.January)
+    | 2u8 -> Some(Month.February)
+    | 3u8 -> Some(Month.March)
+    | 4u8 -> Some(Month.April)
+    | 5u8 -> Some(Month.May)
+    | 6u8 -> Some(Month.June)
+    | 7u8 -> Some(Month.July)
+    | 8u8 -> Some(Month.August)
+    | 9u8 -> Some(Month.September)
+    | 10u8 -> Some(Month.October)
+    | 11u8 -> Some(Month.November)
+    | 12u8 -> Some(Month.December)
+    | _ -> None
 
 
 impl Display for Month =
@@ -477,13 +477,13 @@ let isLeapYear(year: Int64): Bool =
 /// February in a leap year. {{Error OutOfRange}} for a month outside {{1}} to {{12}}.
 let daysInMonth(year: Int64, month: Int64): Result<Int64, FromPartsError> =
   if month < 1 || month > 12 then
-    Result.Error(FromPartsError.OutOfRange(Part.Month, month, 1, 12))
+    Error(FromPartsError.OutOfRange(Part.Month, month, 1, 12))
   else if month == 2 then
-    Result.Ok(if isLeapYear(year) then 29 else 28)
+    Ok(if isLeapYear(year) then 29 else 28)
   else if month == 4 || month == 6 || month == 9 || month == 11 then
-    Result.Ok(30)
+    Ok(30)
   else
-    Result.Ok(31)
+    Ok(31)
 
 
 /// The UTC <type DateTime> for <param year>, <param month> ({{1}} to {{12}}), <param day>,
@@ -516,10 +516,10 @@ let fromParts(
     value < min || value > max)
 
   match outOfRange with
-  | Some((part, value, min, max)) -> Result.Error(FromPartsError.OutOfRange(part, value, min, max))
+  | Some((part, value, min, max)) -> Error(FromPartsError.OutOfRange(part, value, min, max))
   | None ->
     let seconds = __daysFromCivil(year, month, day) * 86400 + hour * 3600 + minute * 60 + second
-    Result.Ok(fromSeconds(seconds))
+    Ok(fromSeconds(seconds))
 
 
 /// Returns a <type DateTime> <param days> days after <param d>, or before it for a negative
@@ -554,11 +554,11 @@ let __checkedOffset(ticks: Int64, count: BigInt, unit: Int64): Result<DateTime, 
   let total = BigInt.fromInt64(ticks) + count * BigInt.fromInt64(unit)
   // -9998-01-01T00:00:00Z and 9999-12-31T23:59:59.9999999Z
   if total < -3776735808000000000z || total > 2534023007999999999z then
-    Result.Error(Math.Overflow.Overflow)
+    Error(Math.Overflow.Overflow)
   else
     match BigInt.toInt64(total) with
-    | Some(t) -> Result.Ok(__fromTicks(t))
-    | None -> Result.Error(Math.Overflow.Overflow)
+    | Some(t) -> Ok(__fromTicks(t))
+    | None -> Error(Math.Overflow.Overflow)
 
 
 /// A <type DateTime> <param seconds> seconds after <param d>, as <fn DateTime.addSeconds>
@@ -640,16 +640,15 @@ let __fieldsOf(date: DateTime, pattern: String): __Fields =
 let __formatDirective(f: __Fields, directive: Char): Option<String> =
   let t = f.ticksWithinDay
   match directive with
-  | 'Y' ->
-    Option.Some(if f.year < 0 then "-" + zeroPadded(0 - f.year, 4) else zeroPadded(f.year, 4))
-  | 'm' -> Option.Some(zeroPadded(f.month, 2))
-  | 'd' -> Option.Some(zeroPadded(f.day, 2))
-  | 'H' -> Option.Some(zeroPadded(__div(t, __ticksPerHour()), 2))
-  | 'M' -> Option.Some(zeroPadded(__mod(__div(t, __ticksPerMinute()), 60), 2))
-  | 'S' -> Option.Some(zeroPadded(__mod(__div(t, __ticksPerSecond()), 60), 2))
-  | 'f' -> Option.Some(zeroPadded(__mod(__div(t, __ticksPerMillisecond()), 1000), 3))
-  | '%' -> Option.Some("%")
-  | _ -> Option.None
+  | 'Y' -> Some(if f.year < 0 then "-" + zeroPadded(0 - f.year, 4) else zeroPadded(f.year, 4))
+  | 'm' -> Some(zeroPadded(f.month, 2))
+  | 'd' -> Some(zeroPadded(f.day, 2))
+  | 'H' -> Some(zeroPadded(__div(t, __ticksPerHour()), 2))
+  | 'M' -> Some(zeroPadded(__mod(__div(t, __ticksPerMinute()), 60), 2))
+  | 'S' -> Some(zeroPadded(__mod(__div(t, __ticksPerSecond()), 60), 2))
+  | 'f' -> Some(zeroPadded(__mod(__div(t, __ticksPerMillisecond()), 1000), 3))
+  | '%' -> Some("%")
+  | _ -> None
 
 
 /// Writes <param chars> of a {{format}} pattern after <param written> (kept in reverse order)
@@ -659,13 +658,13 @@ let __formatChars(
   written: List<String>)
   : Result<String, String> =
   match chars with
-  | [] -> Result.Ok(String.join(List.reverse(written), ""))
-  | ['%'] -> Result.Error("The pattern ends in a lone %; write %% for a literal %")
+  | [] -> Ok(String.join(List.reverse(written), ""))
+  | ['%'] -> Error("The pattern ends in a lone %; write %% for a literal %")
   | ['%', directive, ...rest] ->
     match __formatDirective(date, directive) with
     | Some(text) -> __formatChars(date, rest, List.prepend(written, text))
     | None ->
-      Result.Error(
+      Error(
         "Unknown directive %"
         + String.fromChar(directive)
         + "; the directives are %Y %m %d %H %M %S %f %%")
@@ -687,7 +686,7 @@ let format(date: DateTime, pattern: String): Result<String, String> =
     Bool.not(String.contains(pattern, "%"))
     && List.any(foreign, fun f -> String.contains(pattern, f))
   then
-    Result.Error(
+    Error(
       $"`{pattern}` has no % directive, so it would print as written; the directives are %Y %m %d %H %M %S %f %%")
   else
     __formatChars(__fieldsOf(date, pattern), String.toList(pattern), [])
@@ -778,8 +777,8 @@ type __Parsed =
 /// included
 let __asciiDigit(c: Char): Option<Int64> =
   match Char.toAsciiCode(c) with
-  | Some(code) when code >= 48u8 && code <= 57u8 -> Option.Some(UInt8.toInt64(code) - 48)
-  | _ -> Option.None
+  | Some(code) when code >= 48u8 && code <= 57u8 -> Some(UInt8.toInt64(code) - 48)
+  | _ -> None
 
 
 /// Reads up to <param most> digits from the start of <param text>. Returns the number, how
@@ -816,7 +815,7 @@ let __readField(
   set: Int64 -> __Parsed)
   : Option<(__Parsed * List<Char>)> =
   let (value, count, rest) = __readMoreDigits(text, most, largest, 0, 0)
-  if count == 0 then Option.None else Option.Some((set(value), rest))
+  if count == 0 then None else Some((set(value), rest))
 
 
 /// A fraction of a second, written as <param count> digits, in ticks. A <type DateTime>
@@ -832,8 +831,7 @@ let __fractionTicks(digits: Int64, count: Int64): Int64 =
 /// optional colon, {{+0530}} or {{-05:30}}
 let __readOffset(text: List<Char>, p: __Parsed): Option<(__Parsed * List<Char>)> =
   match text with
-  | ['Z', ...rest] ->
-    Option.Some(({ p with offsetSign = 1, offsetHours = 0, offsetMinutes = 0 }, rest))
+  | ['Z', ...rest] -> Some(({ p with offsetSign = 1, offsetHours = 0, offsetMinutes = 0 }, rest))
   | [sign, ...afterSign] when sign == '+' || sign == '-' ->
     let (hours, hourDigits, afterHours) = __readDigits(afterSign, 2)
     let afterColon =
@@ -844,11 +842,10 @@ let __readOffset(text: List<Char>, p: __Parsed): Option<(__Parsed * List<Char>)>
     let (minutes, minuteDigits, rest) = __readDigits(afterColon, 2)
     if hourDigits == 2 && minuteDigits == 2 then
       let offsetSign = if sign == '-' then -1 else 1
-      Option.Some(
-        ({ p with offsetSign = offsetSign, offsetHours = hours, offsetMinutes = minutes }, rest))
+      Some(({ p with offsetSign = offsetSign, offsetHours = hours, offsetMinutes = minutes }, rest))
     else
-      Option.None
-  | _ -> Option.None
+      None
+  | _ -> None
 
 
 /// Reads the text for one directive (the character after {{%}}). Returns the updated fields
@@ -872,31 +869,31 @@ let __parseDirective(
   | 'f' ->
     let (digits, count, rest) = __readDigits(text, 9)
     if count == 0 then
-      Option.None
+      None
     else
-      Option.Some(({ p with fractionTicks = __fractionTicks(digits, count) }, rest))
+      Some(({ p with fractionTicks = __fractionTicks(digits, count) }, rest))
   | 'z' -> __readOffset(text, p)
   | _ ->
     // %%, the only other directive __checkPattern allows
     match text with
-    | ['%', ...rest] -> Option.Some((p, rest))
-    | _ -> Option.None
+    | ['%', ...rest] -> Some((p, rest))
+    | _ -> None
 
 
 /// {{Ok}} if every {{%}} in <param pattern> starts a directive <fn DateTime.parseWith>
 /// supports, and none but {{%%}} appears twice. <param seen> holds the directives so far.
 let __checkPattern(pattern: List<Char>, seen: List<Char>): Result<Unit, PatternParseError> =
   match pattern with
-  | [] -> Result.Ok()
-  | ['%'] -> Result.Error(PatternParseError.UnknownDirective("%"))
+  | [] -> Ok()
+  | ['%'] -> Error(PatternParseError.UnknownDirective("%"))
   | ['%', directive, ...rest] ->
     let written = "%" + String.fromChar(directive)
     if Bool.not(String.contains(__parseDirectives, String.fromChar(directive))) then
-      Result.Error(PatternParseError.UnknownDirective(written))
+      Error(PatternParseError.UnknownDirective(written))
     else if directive == '%' then
       __checkPattern(rest, seen)
     else if List.contains(seen, directive) then
-      Result.Error(PatternParseError.RepeatedDirective(written))
+      Error(PatternParseError.RepeatedDirective(written))
     else
       __checkPattern(rest, [ directive, ...seen ])
   | [_, ...rest] -> __checkPattern(rest, seen)
@@ -908,7 +905,7 @@ let __patternMismatch(
   text: List<Char>,
   mismatch: PatternMismatch)
   : Result<__Parsed, PatternParseError> =
-  Result.Error(PatternParseError.Mismatch(total - List.length(text), mismatch))
+  Error(PatternParseError.Mismatch(total - List.length(text), mismatch))
 
 
 /// Matches the rest of <param text> against the rest of <param pattern>. <param total> is
@@ -922,7 +919,7 @@ let __parseChars(
   match pattern with
   | [] ->
     match text with
-    | [] -> Result.Ok(p)
+    | [] -> Ok(p)
     | [c, ...] -> __patternMismatch(total, text, PatternMismatch.TrailingText(c))
   | ['%', directive, ...rest] ->
     match __parseDirective(directive, text, p) with
@@ -958,9 +955,9 @@ let __parsedToDateTime(p: __Parsed): Result<DateTime, PatternParseError> =
   let first = __daysFromCivil(-9998, 1, 1) * __ticksPerDay()
   let pastLast = __daysFromCivil(10000, 1, 1) * __ticksPerDay()
   if realDate && realTime && realOffset && ticks >= first && ticks < pastLast then
-    Result.Ok(__fromTicks(ticks))
+    Ok(__fromTicks(ticks))
   else
-    Result.Error(PatternParseError.InvalidDate)
+    Error(PatternParseError.InvalidDate)
 
 
 /// What <fn DateTime.parseWith> starts from: 1970-01-01T00:00:00Z, for the fields a pattern
@@ -998,11 +995,11 @@ val __epochFields: __Parsed =
 let parseWith(text: String, pattern: String): Result<DateTime, PatternParseError> =
   let patternChars = String.toList(pattern)
   match __checkPattern(patternChars, []) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok(_) ->
     let textChars = String.toList(text)
     match __parseChars(patternChars, textChars, List.length(textChars), __epochFields) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Error(e)
     | Ok(p) -> __parsedToDateTime(p)
 
 
@@ -1018,7 +1015,7 @@ let __timespec(bytes: Bytes): Result<(Int64 * Int64), Cli.Posix.Error> =
 let __realtimeNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
   if Builtin.runtimeTargetOS() == "browser" then
     let ticks = Builtin.runtimeRealtimeTicks()
-    Result.Ok((ticks / 10000000, ticks % 10000000 * 100))
+    Ok((ticks / 10000000, ticks % 10000000 * 100))
   else if Cli.Posix.__abiMac() then
     Builtin.syscallGettimeofday()
     |> Result.mapError(Cli.Posix.__fromErrno)
@@ -1037,9 +1034,9 @@ let __monotonicNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
   if Builtin.runtimeTargetOS() == "browser" then
     let (ticks, frequency) = Builtin.runtimeMonotonicCounter()
     if frequency <= 0 then
-      Result.Error(Cli.Posix.Error.BadKernelReply)
+      Error(Cli.Posix.Error.BadKernelReply)
     else
-      Result.Ok((ticks / frequency, ticks % frequency * 1000000000 / frequency))
+      Ok((ticks / frequency, ticks % frequency * 1000000000 / frequency))
   else if Cli.Posix.__abiMac() then
     Builtin.syscallMachAbsoluteTime()
     |> Result.mapError(Cli.Posix.__fromErrno)
@@ -1054,12 +1051,12 @@ let __monotonicNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
             Cli.Posix.__kernelField(base, 4, 4)
             |> Result.andThen(fun denominator ->
               if denominator == 0 then
-                Result.Error(Cli.Posix.Error.BadKernelReply)
+                Error(Cli.Posix.Error.BadKernelReply)
               else
                 let nanos =
                   ticks / denominator * numerator + ticks % denominator * numerator / denominator
 
-                Result.Ok((nanos / 1000000000, nanos % 1000000000)))))))
+                Ok((nanos / 1000000000, nanos % 1000000000)))))))
   else
     Builtin.syscallClockGettime(1)
     |> Result.mapError(Cli.Posix.__fromErrno)
@@ -1096,14 +1093,14 @@ let __sleepWith(
   : Result<Unit, Cli.Posix.Error> =
   let (rc, remaining) = sleep(seconds, nanos)
   if rc == 0 then
-    Result.Ok()
+    Ok()
   else if rc == -4 then
     __timespec(remaining)
     |> Result.andThen(fun pair ->
       let (seconds, nanos) = pair
       __sleepWith(sleep, seconds, nanos))
   else
-    Result.Error(Cli.Posix.__fromErrno(0 - rc))
+    Error(Cli.Posix.__fromErrno(0 - rc))
 
 
 let __sleepNanoseconds(seconds: Int64, nanos: Int64): Result<Unit, Cli.Posix.Error> =

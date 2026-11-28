@@ -306,8 +306,8 @@ let bareTargetBranch(verb: String): Result<String, Unit> =
   | id when SCM.Branch.isMain(id) ->
     printErr($"usage: dark {verb} <branch>")
     printHint($"  on main there is no branch to {verb}. `dark branches` lists them.")
-    Result.Error()
-  | id -> Result.Ok(SCM.PackageOps.branchName(id))
+    Error()
+  | id -> Ok(SCM.PackageOps.branchName(id))
 
 
 /// `dark merge` with no branch named merges whatever you are standing on, which is the one form where

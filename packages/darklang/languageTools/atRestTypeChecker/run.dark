@@ -132,7 +132,7 @@ type Base =
 /// content-addressed. A caller that has no branch in hand goes through `checkPackageOps`
 /// below, which answers about main.
 let checkPackageOpsOn(branchId: Uuid, ops: List<ProgramTypes.PackageOp>): Report =
-  checkPackageOpsFrom(Environment.emptyClosure(), Option.None, branchId, ops)
+  checkPackageOpsFrom(Environment.emptyClosure(), None, branchId, ops)
 
 
 /// `checkPackageOpsOn`, taking dependencies from <param pool> before the store (see
@@ -187,7 +187,7 @@ let checkPackageOpsFrom(
     collectItemReferences(
       types,
       (fun t -> ProgramTypes.Reference.PackageType(t.hash)),
-      (fun t -> Option.None),
+      (fun t -> None),
       fun t -> Environment.declarationRefs(t.declaration))
 
   let (fns, signatureRefs, signatureFailures) =
@@ -251,7 +251,7 @@ let checkPackageOpsFrom(
     collectItemReferences(
       impls,
       (fun i -> ProgramTypes.Reference.PackageTraitImpl(i.hash)),
-      (fun _ -> Option.None),
+      (fun _ -> None),
       fun i -> Impls.refsOf(candidates.traits, i))
 
   let dependencyRefs =
@@ -324,7 +324,7 @@ let checkPackageOpsFrom(
       let reference = ProgramTypes.Reference.PackageTraitImpl(i.hash)
       match guard((fun i -> Impls.check(implEnv, batchFns, i)), i) with
       | Ok(outcome) -> (reference, outcome)
-      | Error(failure) -> (reference, Items.checkerFailureOutcome(Option.None, failure)))
+      | Error(failure) -> (reference, Items.checkerFailureOutcome(None, failure)))
 
   let results =
     Stdlib.List.flatten([ checked, implChecked, typeFailures, signatureFailures, implFailures ])
@@ -376,7 +376,7 @@ let checkReferences(
   load: ProgramTypes.Reference -> Option<ProgramTypes.PackageOp>,
   references: List<ProgramTypes.Reference>)
   : Report =
-  checkReferencesFrom(Environment.emptyClosure(), Option.None, branchId, load, references)
+  checkReferencesFrom(Environment.emptyClosure(), None, branchId, load, references)
 
 
 /// `checkReferences`, taking dependencies from <param pool> before the store and starting from
@@ -394,16 +394,15 @@ let checkReferencesFrom(
     fun((ops, failures), reference) ->
       let loaded =
         match guard(load, reference) with
-        | Ok(Some(op)) -> Result.Ok(op)
+        | Ok(Some(op)) -> Ok(op)
         | Ok(None) ->
-          Result.Error(
-            CheckFailure.Failed("Declaration unavailable while loading branch candidates"))
-        | Error(failure) -> Result.Error(failure)
+          Error(CheckFailure.Failed("Declaration unavailable while loading branch candidates"))
+        | Error(failure) -> Error(failure)
 
       match loaded with
       | Ok(op) -> (Stdlib.List.prepend(ops, op), failures)
       | Error(failure) ->
-        let outcome = Items.checkerFailureOutcome(Option.None, failure)
+        let outcome = Items.checkerFailureOutcome(None, failure)
         let item =
           ItemReport
             { item = reference
@@ -547,11 +546,11 @@ let baseFor(branchId: Uuid, pool: Environment.Closure, wholeBranch: Bool): Optio
 
     if closed then
       let (env, outcomes) = Items.checkValues(env, Stdlib.Dict.values(pool.values))
-      Option.Some(Base { env = env, closed = true, pool = pool, values = outcomes })
+      Some(Base { env = env, closed = true, pool = pool, values = outcomes })
     else
-      Option.Some(Base { env = env, closed = false, pool = pool, values = Dict {} })
+      Some(Base { env = env, closed = false, pool = pool, values = Dict {} })
   else
-    Option.None
+    None
 
 
 /// Load these types, values, and fns by signature, into a closure for `checkReferencesFrom`.

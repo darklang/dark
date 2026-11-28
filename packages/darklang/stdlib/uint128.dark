@@ -92,9 +92,9 @@ let parse(s: String): Result<UInt128, ParseError> =
   match BigInt.parse(s) with
   | Ok(n) ->
     match BigInt.toUInt128(n) with
-    | Some(i) -> Result.Ok(i)
-    | None -> Result.Error(ParseError.OutOfRange)
-  | Error(_) -> Result.Error(ParseError.BadFormat)
+    | Some(i) -> Ok(i)
+    | None -> Error(ParseError.OutOfRange)
+  | Error(_) -> Error(ParseError.BadFormat)
 
 
 /// Converts a <type UInt8> to an <type UInt128>.
@@ -255,32 +255,32 @@ impl One for UInt128 =
 /// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
 let checkedAdd(a: UInt128, b: UInt128): Result<UInt128, Math.Overflow> =
   let sum = a + b
-  if sum < a then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
+  if sum < a then Error(Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(a: UInt128, b: UInt128): Result<UInt128, Math.Overflow> =
-  if b > a then Result.Error(Math.Overflow.Overflow) else Result.Ok(a - b)
+  if b > a then Error(Math.Overflow.Overflow) else Ok(a - b)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(a: UInt128, b: UInt128): Result<UInt128, Math.Overflow> =
   let product = BigInt.fromUInt128(a) * BigInt.fromUInt128(b)
   match BigInt.toUInt128(product) with
-  | Some(fits) -> Result.Ok(fits)
-  | None -> Result.Error(Math.Overflow.Overflow)
+  | Some(fits) -> Ok(fits)
+  | None -> Error(Math.Overflow.Overflow)
 
 
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
 let checkedNegate(a: UInt128): Result<UInt128, Math.Overflow> =
-  if a == 0u128 then Result.Ok(a) else Result.Error(Math.Overflow.Overflow)
+  if a == 0u128 then Ok(a) else Error(Math.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always
 /// <param a> itself. Here so every fixed-width type has the same checked set.
 let checkedAbsoluteValue(a: UInt128): Result<UInt128, Math.Overflow> =
-  Result.Ok(a)
+  Ok(a)
 
 
 /// <param base> raised to the power of <param exponent>, or {{Error Overflow}}
@@ -288,15 +288,15 @@ let checkedAbsoluteValue(a: UInt128): Result<UInt128, Math.Overflow> =
 let checkedPower(base: UInt128, exponent: UInt128): Result<UInt128, Math.PowerError> =
   if base == 0u128 || base == 1u128 then
     // 0 and 1 never grow, so `**` is exact whatever the exponent
-    Result.Ok(base ** exponent)
+    Ok(base ** exponent)
   else if exponent >= 128u128 then
     // any other base is at least 2 from zero, and 2 ** 128 is past the UInt128 range
-    Result.Error(Math.PowerError.Overflow)
+    Error(Math.PowerError.Overflow)
   else
     let result = BigInt.fromUInt128(base) ** BigInt.fromUInt128(exponent)
     match BigInt.toUInt128(result) with
-    | Some(fits) -> Result.Ok(fits)
-    | None -> Result.Error(Math.PowerError.Overflow)
+    | Some(fits) -> Ok(fits)
+    | None -> Error(Math.PowerError.Overflow)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -305,16 +305,10 @@ let checkedPower(base: UInt128, exponent: UInt128): Result<UInt128, Math.PowerEr
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises.
 let checkedDivide(a: UInt128, b: UInt128): Result<UInt128, Math.DivisionError> =
-  if b == 0u128 then
-    Result.Error(Math.DivisionError.DivisionByZero)
-  else
-    Result.Ok(a / b)
+  if b == 0u128 then Error(Math.DivisionError.DivisionByZero) else Ok(a / b)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or {{Error ZeroModulus}}
 /// where `%` raises
 let checkedMod(a: UInt128, b: UInt128): Result<UInt128, Math.ModulusError> =
-  if b == 0u128 then
-    Result.Error(Math.ModulusError.ZeroModulus)
-  else
-    Result.Ok(a % b)
+  if b == 0u128 then Error(Math.ModulusError.ZeroModulus) else Ok(a % b)

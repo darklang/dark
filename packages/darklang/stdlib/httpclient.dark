@@ -147,9 +147,9 @@ module Request =
         url = url
         headers = headers
         body = body
-        timeoutMs = Option.None
-        redirects = Option.None
-        retry = Option.None
+        timeoutMs = None
+        redirects = None
+        retry = None
         originHeaders = []
         decompress = false }
 
@@ -172,10 +172,10 @@ module Request =
       req.originHeaders
       |> List.filterMap(fun h ->
         let (o, name, value) = h
-        if Option.isSome(origin) && Option.Some(o) == origin && Bool.not(has(name)) then
-          Option.Some((name, value))
+        if Option.isSome(origin) && Some(o) == origin && Bool.not(has(name)) then
+          Some((name, value))
         else
-          Option.None)
+          None)
 
     { req with headers = List.flatten([ req.headers, added ]) }
 
@@ -224,7 +224,7 @@ module Response =
     response.headers
     |> List.filterMap(fun pair ->
       let (k, v) = pair
-      if String.toLowercase(k) == wanted then Option.Some(v) else Option.None)
+      if String.toLowercase(k) == wanted then Some(v) else None)
 
 
   /// The value of the response header <param name>, matched case-insensitively, so a lookup of
@@ -237,14 +237,14 @@ module Response =
   /// The body as UTF-8 text, or {{Decode}} saying why it is not.
   let text(response: Response<Bytes>): Result<String, RequestError> =
     match Utf8.decode(response.body) with
-    | Ok(s) -> Result.Ok(s)
-    | Error(e) -> Result.Error(RequestError.Decode(e))
+    | Ok(s) -> Ok(s)
+    | Error(e) -> Error(RequestError.Decode(e))
 
 
   let __json(body: Bytes): Result<'a, RequestError> =
     match Utf8.decode(body) with
     | Ok(s) -> Json.parse<'a>(s) |> Result.mapError(fun e -> RequestError.BadJson(e))
-    | Error(e) -> Result.Error(RequestError.Decode(e))
+    | Error(e) -> Error(RequestError.Decode(e))
 
 
   /// The body as JSON of type <typeParam a>, or {{BadJson}} saying where it is not:
@@ -360,11 +360,11 @@ module Middleware =
             | Ok(r) ->
               match f(r.body) with
               | Ok(body) ->
-                Result.Ok(
+                Ok(
                   Response
                     { statusCode = r.statusCode, headers = r.headers, body = body, url = r.url })
-              | Error(e) -> Result.Error(e)
-            | Error(e) -> Result.Error(e))))
+              | Error(e) -> Error(e)
+            | Error(e) -> Error(e))))
 
 
   /// A middleware that turns every response's body into another type with <param f>, or
@@ -405,7 +405,7 @@ module Middleware =
     (fun next ->
        (fun req ->
           if __hasEmptyName(req) then
-            Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
+            Error(RequestError.BadHeader(BadHeader.EmptyKey))
           else
             next(req)))
 
@@ -425,7 +425,7 @@ module Middleware =
   /// which the host enforces: past it the answer is {{Timeout}}. For a stream it covers the
   /// headers, not the body. 0 is no limit. Listed after another, it wins.
   let timeout(ms: Int64): Middleware<'body, 'body> =
-    onRequest(fun req -> { req with timeoutMs = Option.Some(ms) })
+    onRequest(fun req -> { req with timeoutMs = Some(ms) })
 
 
   /// Adds the header <param name>: <param value> to every request that does not already carry
@@ -465,9 +465,9 @@ module Middleware =
           | Some(p) -> p
           | None -> if scheme == "https" then 443 else 80
 
-        Option.Some(scheme + "://" + String.toLowercase(host) + ":" + display(port))
-      | _ -> Option.None
-    | Error(_) -> Option.None
+        Some(scheme + "://" + String.toLowercase(host) + ":" + display(port))
+      | _ -> None
+    | Error(_) -> None
 
 
   /// The header <param name>: <param value> on every request to <param origin> (a url; only
@@ -497,7 +497,7 @@ module Middleware =
   /// network guard again for each hop, so a GET through it is still in flight. In the default
   /// stack, with 10; listed after it, `followRedirects(0)` turns them off.
   let followRedirects(max: Int64): Middleware<'body, 'body> =
-    onRequest(fun req -> { req with redirects = Option.Some(max) })
+    onRequest(fun req -> { req with redirects = Some(max) })
 
 
   let __decompressed(req: Request): Request =
@@ -536,7 +536,7 @@ module Middleware =
   /// another, it wins.
   let retry(attempts: Int64, delayMs: Int64): Middleware<'body, 'body> =
     onRequest(fun req ->
-      { req with retry = Option.Some(RetryPolicy { attempts = attempts, delayMs = delayMs }) })
+      { req with retry = Some(RetryPolicy { attempts = attempts, delayMs = delayMs }) })
 
 
   /// The stack <fn request>, <fn get> and the rest send through: trim header names, refuse an
@@ -553,12 +553,12 @@ module Middleware =
 let __defaults(req: Request): Result<Request, RequestError> =
   let req = Middleware.__trimmed(req)
   if Middleware.__hasEmptyName(req) then
-    Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
+    Error(RequestError.BadHeader(BadHeader.EmptyKey))
   else
     let req = Middleware.__decompressed(req)
     match req.redirects with
-    | Some(_) -> Result.Ok(req)
-    | None -> Result.Ok({ req with redirects = Option.Some(Middleware.defaultRedirects) })
+    | Some(_) -> Ok(req)
+    | None -> Ok({ req with redirects = Some(Middleware.defaultRedirects) })
 
 
 /// A <type Send> through <param middlewares>, over <fn sendRaw>:
@@ -605,7 +605,7 @@ let request(
   : Result<Response<Bytes>, RequestError> =
   match __defaults(Request.make(method, uri, headers, body)) with
   | Ok(req) -> sendRaw(req)
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
 
 
 let get(uri: String, headers: List<(String * String)>): Result<Response<Bytes>, RequestError> =
@@ -656,16 +656,16 @@ let stream(
   : Result<Response<Stream<Bytes>>, RequestError> =
   match __defaults(Request.make(method, uri, headers, body)) with
   | Ok(req) -> streamRaw(req)
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
 
 
 /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
 let basicAuth(username: String, password: String): Result<(String * String), String> =
   if String.contains(username, "-") then
-    Result.Error("Username cannot contain a hyphen")
+    Error("Username cannot contain a hyphen")
   else
     let encoded = Base64.encodeText($"{username}:{password}")
-    Result.Ok(("authorization", $"basic {encoded}"))
+    Ok(("authorization", $"basic {encoded}"))
 
 
 /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
@@ -769,9 +769,9 @@ module Sse =
       __applyLine(d, e, i, h, line))
 
     if hasData then
-      Option.Some(Event { data = data, eventType = eventType, id = id })
+      Some(Event { data = data, eventType = eventType, id = id })
     else
-      Option.None
+      None
 
 
   let __decodeLine(bytes: Bytes): String =
@@ -796,7 +796,7 @@ module Sse =
         match __tryEmitBlock(state.currentLines, state.lastId) with
         | Some(event) ->
           let nextState = ParseState { lastId = event.id, currentLines = [], pending = pending }
-          Option.Some((event, (chunks, nextState)))
+          Some((event, (chunks, nextState)))
         | None ->
           // Block had no data; reset and keep reading.
           __pullNextEvent(
@@ -823,15 +823,15 @@ module Sse =
             List.append(state.currentLines, __decodeLine(state.pending))
 
         if List.isEmpty(lines) then
-          Option.None
+          None
         else
           match __tryEmitBlock(lines, state.lastId) with
           | Some(event) ->
             let nextState =
               ParseState { lastId = event.id, currentLines = [], pending = Bytes.empty }
 
-            Option.Some((event, (chunks, nextState)))
-          | None -> Option.None
+            Some((event, (chunks, nextState)))
+          | None -> None
 
 
   /// Parse an SSE body into a stream of Events. Lazy: events

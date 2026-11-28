@@ -129,7 +129,7 @@ module InvalidType =
     let branch = SCM.PackageOps.currentBranch()
     let source = "MyNonExistantType { col1 = 2 }"
     match Cli.Eval.evaluateRaw(
-            Stdlib.Option.Option.None,
+            None,
             branch,
             source,
             [],
@@ -148,12 +148,12 @@ module InvalidType =
       "let f(x: Int, y: Float): Int64 = x + Stdlib.Float64.round(y)\nf(1, 2.0)"
 
     match Cli.Eval.evaluateRaw(
-            Stdlib.Option.Option.None,
+            None,
             branch,
             source,
             [],
             Cli.Eval.Harmful.Halt) with
-    | Ok(out) -> out |> Stdlib.Test.equal(Stdlib.Option.Option.Some("3"))
+    | Ok(out) -> out |> Stdlib.Test.equal(Some("3"))
     | Error(_) -> Stdlib.Test.fail("expected `Int` and `Float` to parse")
 
 
@@ -172,11 +172,8 @@ module Polymorphism =
     Stdlib.Test.all(
       [ (MyRecord { col1 = (), col2 = 1 }).col2 |> Stdlib.Test.equal(1)
 
-        (MyRecord
-           { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok(1))
-             col2 = 1 }).col1
-        |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok(1))) ])
+        (MyRecord { col1 = Some(Ok(1)), col2 = 1 }).col1
+        |> Stdlib.Test.equal(Some(Ok(1))) ])
 
 
 module Nested =

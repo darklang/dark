@@ -71,7 +71,7 @@ module Ansi =
 
 /// Create a stopped session with no retained view.
 let init(): State =
-  State { status = Status.Stopped, previousView = Option.None, terminalSize = Option.None }
+  State { status = Status.Stopped, previousView = None, terminalSize = None }
 
 
 let armRestoreGuard(sequence: String): Unit =
@@ -180,19 +180,19 @@ let normalizeView(size: Size, view: View): View =
 let preparePresentAtSize(state: State, size: Size, next: View): Prepared =
   let next = normalizeView(size, next)
   let surfaceChanged = changesSurface(state.status, next.mode)
-  let sizeChanged = state.terminalSize != Option.Some(size)
+  let sizeChanged = state.terminalSize != Some(size)
   let frameOutput =
     match next.mode with
     | Fullscreen ->
       if surfaceChanged then
-        Frame.renderAtWidth(size.width, Option.None, next)
+        Frame.renderAtWidth(size.width, None, next)
       else if sizeChanged then
         Frame.renderFullAtWidth(size.width, state.previousView, next)
       else
         Frame.renderAtWidth(size.width, state.previousView, next)
     | Inline ->
       if surfaceChanged then
-        InlineFrame.renderAtWidth(size.width, Option.None, next)
+        InlineFrame.renderAtWidth(size.width, None, next)
       else if sizeChanged then
         InlineFrame.renderFullAtWidth(size.width, state.previousView, next)
       else
@@ -203,8 +203,8 @@ let preparePresentAtSize(state: State, size: Size, next: View): Prepared =
     { state =
         State
           { status = statusForMode(next.mode)
-            previousView = Option.Some(next)
-            terminalSize = Option.Some(size) }
+            previousView = Some(next)
+            terminalSize = Some(size) }
       output = output }
 
 

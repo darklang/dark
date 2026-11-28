@@ -28,7 +28,7 @@ test aDependentRepointsWhenItsDependencyMoves =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       v2 |> Stdlib.Test.notEqual(v1)
-      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "dep" ]))
+      repointed |> Stdlib.Test.equal(Ok([ "dep" ]))
       Authoring.moved(depBefore, Authoring.fnHash(m, "dep")) ])
 
 
@@ -48,7 +48,7 @@ test aFunctionCalledOnlyInADictionaryKeyFollowsEdits =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "pairs" ]))
+      repointed |> Stdlib.Test.equal(Ok([ "pairs" ]))
       Authoring.moved(pairsBefore, Authoring.fnHash(m, "pairs")) ])
 
 
@@ -68,7 +68,7 @@ test theCascadeIsTransitive =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "b", "c" ]))
+      repointed |> Stdlib.Test.equal(Ok([ "b", "c" ]))
       Authoring.moved(cBefore, Authoring.fnHash(m, "c")) ])
 
 
@@ -85,8 +85,7 @@ test everyDependentMovesNotJustTheFirst =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       Authoring.cascade(m, "shared", v1, Authoring.fnHash(m, "shared"))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok([ "one", "three", "two" ])) ])
+      |> Stdlib.Test.equal(Ok([ "one", "three", "two" ])) ])
 
 
 // A caller under another owner follows too, and so does what calls it back from ours.
@@ -118,8 +117,7 @@ test theCascadeCrossesOwners =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok([ "bridge", "mine", "theirs" ]))
+      |> Stdlib.Test.equal(Ok([ "bridge", "mine", "theirs" ]))
 
       Authoring.moved(theirsBefore, Authoring.hashIn(fn, theirs))
       Authoring.moved(bridgeBefore, Authoring.fnHash(m, "bridge")) ])
@@ -139,9 +137,7 @@ test aSourceThatDidNotMoveRepointsNothing =
   let v1 = Authoring.fnHash(m, "base'")
   Stdlib.Test.all(
     [ Authoring.ok(setup)
-      Authoring.cascade(m, "base'", v1, v1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
-
+      Authoring.cascade(m, "base'", v1, v1) |> Stdlib.Test.equal(Ok([]))
       Authoring.fnHash(m, "dep") |> Stdlib.Test.equal(depBefore) ])
 
 
@@ -194,10 +190,7 @@ test afterSeveralEditsTheDependentLandsOnTheFinalVersion =
     | Some(h) -> SCM.Deps.dependenciesOf(h) |> Stdlib.List.map(fun((d, _)) -> d)
     | None -> []
 
-  let earlier =
-    versions
-    |> Stdlib.List.filter(fun h -> Stdlib.Option.Option.Some(h) != final)
-
+  let earlier = versions |> Stdlib.List.filter(fun h -> Some(h) != final)
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Stdlib.List.length(versions) |> Stdlib.Test.equal(4)
@@ -205,7 +198,7 @@ test afterSeveralEditsTheDependentLandsOnTheFinalVersion =
       Authoring.fnHash(m, "r") |> Stdlib.Test.equal(final)
 
       (final |> Stdlib.Option.map(fun f -> Stdlib.List.contains(rdDeps, f)))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
+      |> Stdlib.Test.equal(Some(true))
 
       (earlier |> Stdlib.List.filter(fun h -> Stdlib.List.contains(rdDeps, h)))
       |> Stdlib.Test.equal([]) ])
@@ -236,7 +229,7 @@ test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
       v1 |> Stdlib.Test.equal(sh2Before)
 
       Authoring.cascade(m, "sh1", v1, Authoring.fnHash(m, "sh1"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "d1" ]))
+      |> Stdlib.Test.equal(Ok([ "d1" ]))
 
       Authoring.moved(d1Before, Authoring.fnHash(m, "d1"))
       Authoring.fnHash(m, "d2") |> Stdlib.Test.equal(d2Before)
@@ -263,12 +256,12 @@ test editingAnItemThatSharedACallersOldDependencyLeavesTheCallerAlone =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(gEdit)
-      gCascade |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "f" ]))
+      gCascade |> Stdlib.Test.equal(Ok([ "f" ]))
       Authoring.ok(twin)
       same1 |> Stdlib.Test.equal(g1)
       Authoring.ok(edit)
       Authoring.cascade(m, "same", same1, Authoring.fnHash(m, "same"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+      |> Stdlib.Test.equal(Ok([]))
 
       Authoring.fnHash(m, "f") |> Stdlib.Test.equal(fBefore) ])
 
@@ -293,7 +286,7 @@ let repointIsReportedAsFollowedOnMain(unit: Unit): Stdlib.Test.Result =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "dependent" ]))
+      repointed |> Stdlib.Test.equal(Ok([ "dependent" ]))
 
       Stdlib.List.contains(followedBefore, "Tests.PropTestProv.dependent")
       |> Stdlib.Test.equal(false)
@@ -308,10 +301,7 @@ let repointIsReportedAsFollowedOnMain(unit: Unit): Stdlib.Test.Result =
 test aRepointIsReportedAsFollowed =
   // Run on main because the fixtures write to main.
   let defaults = Stdlib.Test.Process.defaults()
-  let options =
-    { defaults with
-        branch = Stdlib.Option.Option.Some(SCM.Branch.mainBranchId) }
-
+  let options = { defaults with branch = Some(SCM.Branch.mainBranchId) }
   match Stdlib.Test.Process.run(
           options,
           repointIsReportedAsFollowedOnMain,
@@ -343,8 +333,8 @@ test propagatingAnAlreadyPropagatedEditAuthorsNothing =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      first |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "dep" ]))
-      second |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+      first |> Stdlib.Test.equal(Ok([ "dep" ]))
+      second |> Stdlib.Test.equal(Ok([]))
       Authoring.fnHash(m, "dep") |> Stdlib.Test.equal(depAfterFirst) ])
 
 
@@ -367,7 +357,7 @@ test aFnUsingATypeRepointsWhenTheTypeMoves =
       Authoring.ok(edit)
       v2 |> Stdlib.Test.notEqual(v1)
       Authoring.cascadeKind(ty, Authoring.loc(m, "Rec"), v1, v2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "mk" ]))
+      |> Stdlib.Test.equal(Ok([ "mk" ]))
 
       Authoring.moved(mkBefore, Authoring.fnHash(m, "mk")) ])
 
@@ -390,7 +380,7 @@ test aFnReadingAValueRepointsWhenTheValueMoves =
       Authoring.ok(edit)
       v2 |> Stdlib.Test.notEqual(v1)
       Authoring.cascadeKind(vk, Authoring.loc(m, "basis"), v1, v2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "reads" ]))
+      |> Stdlib.Test.equal(Ok([ "reads" ]))
 
       Authoring.moved(readsBefore, Authoring.fnHash(m, "reads")) ])
 
@@ -412,7 +402,7 @@ test aTestGetsANewHashWhenAFnItUsesMoves =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "usesBase" ]))
+      |> Stdlib.Test.equal(Ok([ "usesBase" ]))
 
       Authoring.moved(
         testBefore,
@@ -433,8 +423,8 @@ test aSetNameAtANewNameLeavesTheOldNameBound =
         [ LanguageTools.ProgramTypes.PackageOp.SetName(
             Authoring.loc(m, "new"),
             LanguageTools.ProgramTypes.Reference.PackageFn(hash),
-            Stdlib.Option.Option.None) ])
-    | None -> Stdlib.Result.Result.Error("old is not bound")
+            None) ])
+    | None -> Error("old is not bound")
 
   Stdlib.Test.all(
     [ Authoring.ok(setup)

@@ -26,19 +26,19 @@ let requestTarget(url: String): Url.Url =
 
   let (beforeFragment, fragment) =
     match String.splitFirst(target, "#") with
-    | Some((a, f)) -> (a, Option.Some(f))
-    | None -> (target, Option.None)
+    | Some((a, f)) -> (a, Some(f))
+    | None -> (target, None)
 
   let (path, query) =
     match String.splitFirst(beforeFragment, "?") with
-    | Some((p, q)) -> (p, Option.Some(q))
-    | None -> (beforeFragment, Option.None)
+    | Some((p, q)) -> (p, Some(q))
+    | None -> (beforeFragment, None)
 
   Url.Url
-    { scheme = Option.None
-      userinfo = Option.None
-      host = Option.None
-      port = Option.None
+    { scheme = None
+      userinfo = None
+      host = None
+      port = None
       path = path
       query = query
       fragment = fragment }
@@ -65,14 +65,14 @@ let parseHeaders(s: String): Dict<String, String> =
   |> List.filterMap(fun line ->
     let trimmed = String.trim(line)
     if trimmed == "" then
-      Option.None
+      None
     else
       match String.split(trimmed, ":") with
-      | [] -> Option.None
-      | [_] -> Option.None
+      | [] -> None
+      | [_] -> None
       | [name, ...rest] ->
         let value = String.join(rest, ":") |> String.trim
-        Option.Some((String.trim(name), value)))
+        Some((String.trim(name), value)))
   |> Dict.fromEntries
 
 
@@ -118,7 +118,7 @@ module Request =
     req.headers
     |> List.filterMap(fun pair ->
       let (k, v) = pair
-      if String.toLowercase(k) == wanted then Option.Some(v) else Option.None)
+      if String.toLowercase(k) == wanted then Some(v) else None)
     |> List.head
 
 
@@ -127,12 +127,12 @@ module Request =
       queryParams(req)
       |> List.filterMap(fun pair ->
         match pair with
-        | k, v -> if k == key then Option.Some(v) else Option.None)
+        | k, v -> if k == key then Some(v) else None)
 
     match found with
-    | [] -> Option.None
-    | [v] -> Option.Some(v)
-    | items -> Option.Some(String.join(items, ","))
+    | [] -> None
+    | [v] -> Some(v)
+    | items -> Some(String.join(items, ","))
 
 
 /// An HTTP response status, 100 to 599. Build one with <fn Status.fromInt64>, or name a

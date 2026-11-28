@@ -20,8 +20,8 @@ let sourceNameWithoutInternalPrefix(originalName: List<String>): String =
 
 let splitLast(parts: List<String>): Option<(List<String> * String)> =
   match Stdlib.List.reverse(parts) with
-  | [] -> Option.None
-  | [name, ...reversedModules] -> Option.Some((Stdlib.List.reverse(reversedModules), name))
+  | [] -> None
+  | [name, ...reversedModules] -> Some((Stdlib.List.reverse(reversedModules), name))
 
 
 /// One place a name could live in the standard library: how the user would write it, and where it is.
@@ -54,29 +54,29 @@ let enclosingModules(modules: List<String>): List<List<String>> =
 /// and `Int64.absoluteValue` is the generic `abs`.
 let otherLanguageName(name: String): Option<String> =
   match name with
-  | "toString" -> Option.Some("display")
-  | "toRepr" -> Option.Some("inspect")
-  | "absoluteValue" | "absolute" -> Option.Some("abs")
-  | _ -> Option.None
+  | "toString" -> Some("display")
+  | "toRepr" -> Some("inspect")
+  | "absoluteValue" | "absolute" -> Some("abs")
+  | _ -> None
 
 
 /// The conversion written from the other side: `UInt8.toInt64` is `Int64.fromUInt8`, and
 /// `Int64.fromUInt8` is `UInt8.toInt64`. Each as (the module it is in, its name).
 let conversionName(modules: List<String>, name: String): Option<(List<String> * String)> =
   match splitLast(modules) with
-  | None -> Option.None
+  | None -> None
   | Some((outer, from)) ->
     let other = fun prefix ->
       let rest = Stdlib.String.dropFirst(name, Stdlib.String.length(prefix))
       match Stdlib.String.toList(rest) with
       | [c, ...] when Stdlib.String.startsWith(name, prefix) && Stdlib.Char.isUppercase(c) ->
-        Option.Some(rest)
-      | _ -> Option.None
+        Some(rest)
+      | _ -> None
 
     match other("to"), other("from") with
-    | Some(target), _ -> Option.Some((Stdlib.List.append(outer, target), "from" + from))
-    | _, Some(source) -> Option.Some((Stdlib.List.append(outer, source), "to" + from))
-    | _ -> Option.None
+    | Some(target), _ -> Some((Stdlib.List.append(outer, target), "from" + from))
+    | _, Some(source) -> Some((Stdlib.List.append(outer, source), "to" + from))
+    | _ -> None
 
 
 /// Where an unresolved name might really be, in the order <fn stdlibSuggestion> tries them.
@@ -179,14 +179,14 @@ let guessedName(originalName: List<String>): Option<String> =
     |> Stdlib.List.findFirst(fun((m, names, _)) ->
       Stdlib.String.toLowercase(m) == moduleName && Stdlib.List.contains(names, name))
     |> Stdlib.Option.map(fun((_, _, instead)) -> instead)
-  | _ -> Option.None
+  | _ -> None
 
 
 /// Suggest the standard-library name an unresolved name probably meant, when an item exists there:
 /// a <fn guessedName>, or else the first of <fn stdlibSuggestionCandidates> that is on the branch.
 let stdlibSuggestion(branchId: Uuid, originalName: List<String>): Option<String> =
   match guessedName(originalName) with
-  | Some(name) -> Option.Some(name)
+  | Some(name) -> Some(name)
   | None ->
     stdlibSuggestionCandidates(originalName)
     |> Stdlib.List.findFirst(fun((_, location)) ->
@@ -210,51 +210,9 @@ let closestNameModules(modules: List<String>): List<(List<String> * List<String>
         Stdlib.List.flatten([ [ "Darklang", "Stdlib" ], modules ])) ]
 
 
-/// How far <param candidate> is from the <param name> that was written, when it is near enough to
-/// suggest: a few edits, ignoring case, or one name inside the other (`toUpper` for
-/// `toUppercase`).
-let nameDistance(name: String, candidate: String): Option<Int64> =
-  let a = Stdlib.String.toLowercase(name)
-  let b = Stdlib.String.toLowercase(candidate)
-  let d = Config.editDistance(a, b)
-  let shorter = Config.smaller(Stdlib.String.length(a), Stdlib.String.length(b))
-
-  let allowed =
-    Config.smaller(
-      3,
-      Stdlib.max(
-        1,
-        Stdlib.Int64.checkedDivide(Stdlib.String.length(a), 3) |> Stdlib.Result.withDefault(0)))
-
-  if d <= allowed then
-    Option.Some(d)
-  else if shorter >= 4 && (Stdlib.String.contains(a, b) || Stdlib.String.contains(b, a)) then
-    Option.Some(d)
-  else
-    Option.None
-
-
-/// <fn nameDistance>, or 0 when <param candidate> is what Stdlib calls the word written: `size`
-/// is `length` (<fn Search.wordSynonyms>).
-let nearness(name: String, candidate: String): Option<Int64> =
-  let synonyms = Search.wordSynonyms(name) |> Stdlib.List.map(Stdlib.String.toLowercase)
-  if Stdlib.List.contains(synonyms, Stdlib.String.toLowercase(candidate)) then
-    Option.Some(0)
-  else
-    nameDistance(name, candidate)
-
-
-/// The (distance, name) pairs of <param sorted> no more than one edit further than the first: a
-/// name that differs only in case leaves out the ones three edits away.
-let nearestOnly(sorted: List<(Int64 * String)>): List<(Int64 * String)> =
-  match sorted with
-  | [] -> []
-  | [(best, _), ...] -> sorted |> Stdlib.List.filter(fun((d, _)) -> d <= best + 1)
-
-
 /// Up to three existing names in the module <param originalName> names that are spelled close to
-/// it or are Stdlib's word for it, nearest first: `Stdlib.List.lenght` and `Stdlib.List.size` give
-/// `Stdlib.List.length`.
+/// it or are Stdlib's word for it (<fn Search.wordSynonyms>): `Stdlib.List.lenght` and
+/// `Stdlib.List.size` give `Stdlib.List.length`.
 let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
   match splitLast(originalName) with
   | None -> []
@@ -262,15 +220,13 @@ let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
     closestNameModules(modules)
     |> Stdlib.List.map(fun((written, location)) ->
       let (_, types, values, fns, _, _, _) = Query.allDirectDescendantNames(branchId, location)
-      Stdlib.List.flatten([ fns, values, types ])
-      |> Stdlib.List.filterMap(fun candidate ->
-        nearness(name, candidate)
-        |> Stdlib.Option.map(fun d ->
-          (d, Stdlib.String.join(Stdlib.List.flatten([ written, [ candidate ] ]), ".")))))
+      LanguageTools.Suggest.near(
+        name,
+        Stdlib.List.flatten([ fns, values, types ]),
+        Search.wordSynonyms(name))
+      |> Stdlib.List.map(fun candidate ->
+        Stdlib.String.join(Stdlib.List.append(written, candidate), ".")))
     |> Stdlib.List.flatten
-    |> Stdlib.List.sort
-    |> nearestOnly
-    |> Stdlib.List.map(fun((_, full)) -> full)
     |> Stdlib.List.unique
     |> Stdlib.List.take(3)
 
@@ -279,22 +235,22 @@ let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
 /// written), when the name is that method or a usual word for it: `mod` and `modulo` are `%`.
 let operatorOfName(name: String): Option<(String * String * String)> =
   match Stdlib.String.toLowercase(name) with
-  | "add" | "plus" -> Option.Some(("Add", "add", "a + b"))
-  | "sub" | "subtract" | "minus" -> Option.Some(("Subtract", "subtract", "a - b"))
-  | "mul" | "multiply" | "times" -> Option.Some(("Multiply", "multiply", "a * b"))
-  | "div" | "divide" -> Option.Some(("Divide", "divide", "a / b"))
-  | "mod" | "modulo" -> Option.Some(("Modulo", "modulo", "a % b"))
-  | "pow" | "power" -> Option.Some(("Power", "power", "a ** b"))
-  | "neg" | "negate" -> Option.Some(("Negate", "negate", "-a"))
-  | "shiftleft" -> Option.Some(("ShiftLeft", "shiftLeft", "a << b"))
-  | "shiftright" -> Option.Some(("ShiftRight", "shiftRight", "a >> b"))
-  | "bitwiseand" -> Option.Some(("BitwiseAnd", "bitwiseAnd", "a & b"))
-  | "bitwiseor" -> Option.Some(("BitwiseOr", "bitwiseOr", "a | b"))
-  | "bitwisexor" | "xor" -> Option.Some(("BitwiseXor", "bitwiseXor", "a ^ b"))
-  | "bitwisenot" -> Option.Some(("BitwiseNot", "bitwiseNot", "~a"))
-  | "lessthan" -> Option.Some(("Compare", "lessThan", "a < b"))
-  | "greaterthan" -> Option.Some(("Compare", "greaterThan", "a > b"))
-  | _ -> Option.None
+  | "add" | "plus" -> Some(("Add", "add", "a + b"))
+  | "sub" | "subtract" | "minus" -> Some(("Subtract", "subtract", "a - b"))
+  | "mul" | "multiply" | "times" -> Some(("Multiply", "multiply", "a * b"))
+  | "div" | "divide" -> Some(("Divide", "divide", "a / b"))
+  | "mod" | "modulo" -> Some(("Modulo", "modulo", "a % b"))
+  | "pow" | "power" -> Some(("Power", "power", "a ** b"))
+  | "neg" | "negate" -> Some(("Negate", "negate", "-a"))
+  | "shiftleft" -> Some(("ShiftLeft", "shiftLeft", "a << b"))
+  | "shiftright" -> Some(("ShiftRight", "shiftRight", "a >> b"))
+  | "bitwiseand" -> Some(("BitwiseAnd", "bitwiseAnd", "a & b"))
+  | "bitwiseor" -> Some(("BitwiseOr", "bitwiseOr", "a | b"))
+  | "bitwisexor" | "xor" -> Some(("BitwiseXor", "bitwiseXor", "a ^ b"))
+  | "bitwisenot" -> Some(("BitwiseNot", "bitwiseNot", "~a"))
+  | "lessthan" -> Some(("Compare", "lessThan", "a < b"))
+  | "greaterthan" -> Some(("Compare", "greaterThan", "a > b"))
+  | _ -> None
 
 
 /// The operator an unresolved name was reaching for, written out (`a % b`), when its module is a
@@ -302,10 +258,10 @@ let operatorOfName(name: String): Option<(String * String * String)> =
 /// without it gets nothing, so `Stdlib.String.mod` is not sent to `%`.
 let operatorSuggestion(branchId: Uuid, originalName: List<String>): Option<String> =
   match splitLast(originalName) with
-  | None -> Option.None
+  | None -> None
   | Some((modules, name)) ->
     match operatorOfName(name) with
-    | None -> Option.None
+    | None -> None
     | Some((traitName, methodName, written)) ->
       let implemented =
         closestNameModules(modules)
@@ -319,7 +275,7 @@ let operatorSuggestion(branchId: Uuid, originalName: List<String>): Option<Strin
 
             Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, method)))
 
-      if implemented then Option.Some(written) else Option.None
+      if implemented then Some(written) else None
 
 
 /// The overflow-checked function next to an operator's name, when its module has one:
@@ -336,9 +292,9 @@ let checkedSibling(branchId: Uuid, originalName: List<String>): List<String> =
       |> Stdlib.List.filterMap(fun((written, location)) ->
         let (_, _, _, fns, _, _, _) = Query.allDirectDescendantNames(branchId, location)
         if Stdlib.List.contains(fns, checked) then
-          Option.Some(Stdlib.String.join(Stdlib.List.append(written, checked), "."))
+          Some(Stdlib.String.join(Stdlib.List.append(written, checked), "."))
         else
-          Option.None)
+          None)
       |> Stdlib.List.take(1)
 
 
@@ -375,17 +331,6 @@ let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
       match namesOneModuleDown(branchId, originalName) with
       | [] -> closestNames(branchId, originalName)
       | names -> names
-
-
-/// `Did you mean `A`?`, or `Did you mean `A`, `B` or `C`?`, or "" for no names.
-let didYouMeanText(names: List<String>): String =
-  let quoted = names |> Stdlib.List.map(fun n -> $"`{n}`")
-  match Stdlib.List.reverse(quoted) with
-  | [] -> ""
-  | [only] -> $"Did you mean {only}?"
-  | [last, ...restReversed] ->
-    let rest = Stdlib.String.join(Stdlib.List.reverse(restReversed), ", ")
-    $"Did you mean {rest} or {last}?"
 
 
 /// Prints every parse diagnostic, so one save shows all there is to fix. Returns true when
@@ -460,9 +405,9 @@ let nearbyNames(branchId: Uuid, home: List<String>, originalName: List<String>):
             name = name }
 
       if Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, location)) then
-        Option.Some(Stdlib.String.join(Stdlib.List.flatten([ place, modules, [ name ] ]), "."))
+        Some(Stdlib.String.join(Stdlib.List.flatten([ place, modules, [ name ] ]), "."))
       else
-        Option.None)
+        None)
     |> Stdlib.List.take(3)
   | _ -> []
 
@@ -515,7 +460,7 @@ let reportUnresolvedNames(
           | [] -> nearbyNames(branchId, home, originalName)
           | names -> names
 
-        match didYouMeanText(names) with
+        match LanguageTools.Suggest.sentence(names) with
         | "" -> ""
         | text -> " " + text
 
@@ -532,7 +477,7 @@ let reportUnresolvedNames(
       let colNum = range.start.column |> Stdlib.display
       let nameStr = Stdlib.String.join(originalName, ".")
       let suggestion =
-        match didYouMeanText(didYouMean(branchId, originalName)) with
+        match LanguageTools.Suggest.sentence(didYouMean(branchId, originalName)) with
         | "" -> ""
         | text -> " " + text
 

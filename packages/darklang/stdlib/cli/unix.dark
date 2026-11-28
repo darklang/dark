@@ -15,7 +15,7 @@ let removeFile(path: String): Result<Unit, String> =
 /// Quoted, and never "" or "/".
 let removeDirectory(path: String): Result<Unit, String> =
   if path == "" || path == "/" then
-    Result.Error($"refusing to remove '{path}'")
+    Error($"refusing to remove '{path}'")
   else
     executeWithUnitOrStdErr($"rm -rf -- {quote(path)}")
 
@@ -127,6 +127,6 @@ let getHomeDirectory(): Result<String, String> =
   let dir = execute("echo $HOME")
   if dir.exitCode == 0 then
     let dir = dir.stdout |> String.trim
-    Result.Ok(dir)
+    Ok(dir)
   else
-    Result.Error(dir.stderr)
+    Error(dir.stderr)

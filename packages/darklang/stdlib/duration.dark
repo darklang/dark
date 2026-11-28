@@ -53,20 +53,20 @@ let parse(s: String): Result<Duration, ParseError> =
 
   let unit = String.dropFirst(s, String.length(number))
   if String.isEmpty(unit) then
-    Result.Error(ParseError.MissingUnit)
+    Error(ParseError.MissingUnit)
   else
     match Int64.parse(number) with
     | Ok(n) ->
       // a count of seconds past Int64 is refused rather than wrapped
       let times(factor: Int64): Result<Duration, ParseError> =
         match Int64.checkedMultiply(n, factor) with
-        | Ok(s) -> Result.Ok(fromSeconds(s))
-        | Error(_) -> Result.Error(ParseError.InvalidNumber)
+        | Ok(s) -> Ok(fromSeconds(s))
+        | Error(_) -> Error(ParseError.InvalidNumber)
 
       match unit with
       | "s" -> times(1)
       | "m" -> times(60)
       | "h" -> times(3600)
       | "d" -> times(86400)
-      | _ -> Result.Error(ParseError.UnknownUnit)
-    | Error(_) -> Result.Error(ParseError.InvalidNumber)
+      | _ -> Error(ParseError.UnknownUnit)
+    | Error(_) -> Error(ParseError.InvalidNumber)

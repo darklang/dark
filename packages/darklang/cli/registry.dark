@@ -981,20 +981,32 @@ module Registry =
           complete = complete })
 
 
-  let findCommandIn(commands: List<CommandHandler>, name: String): CommandHandler =
-    let allMatches =
-      let nameMatches = commands |> Stdlib.List.filter(fun cmd -> cmd.name == name)
-
-      let aliasMatches =
+  /// The command called <param name>, or with it as an alias, or else the names near it. No two
+  /// commands share a name or an alias (`commandNamesAreUnique`), so the first match is the only one.
+  let findCommand(
+    commands: List<CommandHandler>,
+    name: String)
+    : Result<CommandHandler, List<String>> =
+    match commands
+          |> Stdlib.List.findFirst(fun cmd ->
+            cmd.name == name || Stdlib.List.contains(cmd.aliases, name)) with
+    | Some(handler) -> Ok(handler)
+    | None ->
+      let names =
         commands
-        |> Stdlib.List.filter(fun cmd -> Stdlib.List.any(cmd.aliases, fun alias -> alias == name))
+        |> Stdlib.List.map(fun cmd -> Stdlib.List.prepend(cmd.aliases, cmd.name))
+        |> Stdlib.List.flatten
 
-      Stdlib.List.concat(nameMatches, aliasMatches)
+      // `import` used to be `module`, too far apart for an edit-distance match
+      let means = if name == "module" then [ "import" ] else []
+      Error(LanguageTools.Suggest.near(name, names, means))
 
-    match allMatches with
-    | [handler] -> handler
-    | [handler, ...] -> handler
-    | [] ->
+
+  /// <fn findCommand>, with a command that refuses to run in place of a name that is none.
+  let findCommandIn(commands: List<CommandHandler>, name: String): CommandHandler =
+    match findCommand(commands, name) with
+    | Ok(handler) -> handler
+    | Error(near) ->
       CommandHandler
         { name = name
           description = "Unknown command"
@@ -1003,19 +1015,9 @@ module Registry =
           accepts = (fun () -> Accepts.text(0))
           execute =
             (fun(state, args) ->
-               let names =
-                 commands
-                 |> Stdlib.List.map(fun cmd -> Stdlib.List.prepend(cmd.aliases, cmd.name))
-                 |> Stdlib.List.flatten
+               Stdlib.printErrorLine(
+                 View.formatError($"Unknown command: {name}.{Accepts.nearHint(near)}"))
 
-               // `import` used to be `module`, too far apart for an edit-distance match
-               let hint =
-                 if name == "module" then
-                   " Did you mean `import`?"
-                 else
-                   Accepts.didYouMean(name, names)
-
-               Stdlib.printErrorLine(View.formatError($"Unknown command: {name}.{hint}"))
                Stdlib.printErrorLine("Use 'help' to see available commands.")
                { state with exitCode = 1 })
           help = (fun _state -> $"No help available for command: {name}")
@@ -1192,11 +1194,11 @@ module Registry =
         match Stdlib.List.findFirst(commands, fun cmd -> cmd.name == name) with
         | Some(cmd) ->
           match cmd.aliases with
-          | [] -> Option.Some($"  {cmd.name} - {cmd.description}")
+          | [] -> Some($"  {cmd.name} - {cmd.description}")
           | aliases ->
             let aliasText = Stdlib.String.join(aliases, ", ")
-            Option.Some($"  {cmd.name} ({aliasText}) - {cmd.description}")
-        | None -> Option.None)
+            Some($"  {cmd.name} ({aliasText}) - {cmd.description}")
+        | None -> None)
 
     let commandLines = Stdlib.String.join(formattedCommands, "\n")
     $"{groupName}:\n{commandLines}"

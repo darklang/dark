@@ -152,52 +152,50 @@ test negate =
 test clamp =
   Stdlib.Test.all(
     [ Stdlib.Float64.clampRefusingNaN(infinity(), -1.0, 0.5)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5))
+      |> Stdlib.Test.equal(Ok(0.5))
 
       Stdlib.Float64.clampRefusingNaN(negativeInfinity(), -1.0, 0.5)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.0))
+      |> Stdlib.Test.equal(Ok(-1.0))
 
       // NaN never equals itself; check it with isNaN.
       Stdlib.Float64.clampRefusingNaN(nan(), -1.0, 1.0)
       |> Stdlib.Result.map(Stdlib.Float64.isNaN)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Test.equal(Ok(true))
 
       Stdlib.Float64.clampRefusingNaN(0.5, infinity(), 1.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+      |> Stdlib.Test.equal(Ok(1.0))
 
       Stdlib.Float64.clampRefusingNaN(0.5, negativeInfinity(), 1.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5))
+      |> Stdlib.Test.equal(Ok(0.5))
 
       Stdlib.Float64.clampRefusingNaN(0.5, nan(), 1.0)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          "clampRefusingNaN requires limits that are numbers"))
+        Error("clampRefusingNaN requires limits that are numbers"))
 
       Stdlib.Float64.clampRefusingNaN(-1.0, 0.5, infinity())
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5))
+      |> Stdlib.Test.equal(Ok(0.5))
 
       Stdlib.Float64.clampRefusingNaN(-1.0, 0.5, negativeInfinity())
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.0))
+      |> Stdlib.Test.equal(Ok(-1.0))
 
       Stdlib.Float64.clampRefusingNaN(0.5, 1.0, nan())
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          "clampRefusingNaN requires limits that are numbers"))
+        Error("clampRefusingNaN requires limits that are numbers"))
 
       Stdlib.Float64.clampRefusingNaN(-2.0, -5.0, 5.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2.0))
+      |> Stdlib.Test.equal(Ok(-2.0))
 
       Stdlib.Float64.clampRefusingNaN(-3.0, -2.0, 1.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2.0))
+      |> Stdlib.Test.equal(Ok(-2.0))
 
       Stdlib.Float64.clampRefusingNaN(-5.0, 1.0, 1.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+      |> Stdlib.Test.equal(Ok(1.0))
 
       Stdlib.Float64.clampRefusingNaN(1.0, 2.0, 1.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+      |> Stdlib.Test.equal(Ok(1.0))
 
       Stdlib.Float64.clampRefusingNaN(3.0, 0.0, 2.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.0)) ])
+      |> Stdlib.Test.equal(Ok(2.0)) ])
 
 
 test divide =
@@ -274,54 +272,45 @@ test multiply = 26.0 * 0.5 |> Stdlib.Test.equal(13.0)
 
 test parse =
   Stdlib.Test.all(
-    [ Stdlib.Float64.parse("1.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5))
+    [ Stdlib.Float64.parse("1.5") |> Stdlib.Test.equal(Ok(1.5))
 
-      Stdlib.Float64.parse("0.0")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.0))
+      Stdlib.Float64.parse("0.0") |> Stdlib.Test.equal(Ok(0.0))
 
-      Stdlib.Float64.parse("-0.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-0.5))
+      Stdlib.Float64.parse("-0.5") |> Stdlib.Test.equal(Ok(-0.5))
 
-      Stdlib.Float64.parse("+0.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5))
+      Stdlib.Float64.parse("+0.5") |> Stdlib.Test.equal(Ok(0.5))
 
-      Stdlib.Float64.parse(".5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5))
+      Stdlib.Float64.parse(".5") |> Stdlib.Test.equal(Ok(0.5))
 
       Stdlib.Float64.parse(
         "0.6999999999999999555910790149937383830547332763671875")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.7))
+      |> Stdlib.Test.equal(Ok(0.7))
 
       Stdlib.Float64.parse(
         "-0.6999999999999999555910790149937383830547332763671875")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-0.7))
+      |> Stdlib.Test.equal(Ok(-0.7))
 
       Stdlib.Float64.parse("0.7999999999")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.7999999999))
+      |> Stdlib.Test.equal(Ok(0.7999999999))
 
-      Stdlib.Float64.parse("0.79999")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.79999))
+      Stdlib.Float64.parse("0.79999") |> Stdlib.Test.equal(Ok(0.79999))
 
       Stdlib.Float64.parse("-55555555555555555555555555555.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-5.555555555555555e28))
+      |> Stdlib.Test.equal(Ok(-5.555555555555555e28))
 
       Stdlib.Float64.parse("-141s")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat))
 
       Stdlib.Float64.parse("")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat))
 
       Stdlib.Float64.parse("-5.55555555556e+28")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-5.55555555556e28))
+      |> Stdlib.Test.equal(Ok(-5.55555555556e28))
 
       Stdlib.Float64.parse("-1.8E+308")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(negativeInfinity()))
+      |> Stdlib.Test.equal(Ok(negativeInfinity()))
 
-      Stdlib.Float64.parse("1.8E+308")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(infinity())) ])
+      Stdlib.Float64.parse("1.8E+308") |> Stdlib.Test.equal(Ok(infinity())) ])
 
 
 test power =
@@ -451,17 +440,17 @@ test toString =
 test toStringRoundTrips =
   Stdlib.Test.all(
     [ Stdlib.Float64.parse(Stdlib.display(1.0 / 3.0))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0 / 3.0))
+      |> Stdlib.Test.equal(Ok(1.0 / 3.0))
 
       Stdlib.Float64.parse(Stdlib.display(1.2345678901234568e17))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.2345678901234568e17))
+      |> Stdlib.Test.equal(Ok(1.2345678901234568e17))
 
       Stdlib.Float64.parse(Stdlib.display(-0.00001))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-0.00001))
+      |> Stdlib.Test.equal(Ok(-0.00001))
 
       Stdlib.Float64.parse("5e-324")
       |> Stdlib.Result.map(fun f -> Stdlib.display(f))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("5e-324")) ])
+      |> Stdlib.Test.equal(Ok("5e-324")) ])
 
 
 // toInt64 truncates toward zero.
@@ -550,8 +539,7 @@ test toBitsDistinguishesSignedZero =
 // Check parsing a hexadecimal float.
 test parseRejectsHexadecimalNotation =
   Stdlib.Float64.parse("0xffffffffffffffff")
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat))
+  |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat))
 
 
 test isNaN =
@@ -594,59 +582,45 @@ test roundTowardsZeroRejectsNan =
 // checked arithmetic: Error wherever the operator gives NaN or an infinity
 test checkedArithmetic =
   Stdlib.Test.all(
-    [ Stdlib.Float64.checkedAdd(1.5, 2.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3.5))
+    [ Stdlib.Float64.checkedAdd(1.5, 2.0) |> Stdlib.Test.equal(Ok(3.5))
 
       Stdlib.Float64.checkedAdd(1.7e308, 1.7e308)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Float64.checkedSubtract(1.0, 2.5)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.5))
+      Stdlib.Float64.checkedSubtract(1.0, 2.5) |> Stdlib.Test.equal(Ok(-1.5))
 
       Stdlib.Float64.checkedSubtract(-1.7e308, 1.7e308)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Float64.checkedMultiply(3.0, -2.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-6.0))
+      Stdlib.Float64.checkedMultiply(3.0, -2.0) |> Stdlib.Test.equal(Ok(-6.0))
 
       Stdlib.Float64.checkedMultiply(1e200, 1e200)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.Float64.checkedMultiply(nan(), 1.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])
 
 
 test checkedDivide =
   Stdlib.Test.all(
-    [ Stdlib.Float64.checkedDivide(1.0, 4.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.25))
+    [ Stdlib.Float64.checkedDivide(1.0, 4.0) |> Stdlib.Test.equal(Ok(0.25))
 
-      Stdlib.Float64.checkedDivide(0.0, 5.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.0))
+      Stdlib.Float64.checkedDivide(0.0, 5.0) |> Stdlib.Test.equal(Ok(0.0))
 
       Stdlib.Float64.checkedDivide(1.0, 0.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
 
       Stdlib.Float64.checkedDivide(1.0, -0.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
 
       Stdlib.Float64.checkedDivide(0.0, 0.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
 
       Stdlib.Float64.checkedDivide(1e200, 1.0 / 1e200)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Float64.checkedDivide(nan(), 2.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber))
 
       // The plain operator is unchanged
       Stdlib.Float64.isFinite(1.0 / 0.0) |> Stdlib.Test.equal(false) ])
@@ -654,75 +628,57 @@ test checkedDivide =
 
 test checkedPower =
   Stdlib.Test.all(
-    [ Stdlib.Float64.checkedPower(2.0, 3.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(8.0))
+    [ Stdlib.Float64.checkedPower(2.0, 3.0) |> Stdlib.Test.equal(Ok(8.0))
 
-      Stdlib.Float64.checkedPower(4.0, -0.5)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5))
+      Stdlib.Float64.checkedPower(4.0, -0.5) |> Stdlib.Test.equal(Ok(0.5))
 
-      Stdlib.Float64.checkedPower(0.0, 0.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+      Stdlib.Float64.checkedPower(0.0, 0.0) |> Stdlib.Test.equal(Ok(1.0))
 
-      Stdlib.Float64.checkedPower(-8.0, 2.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(64.0))
+      Stdlib.Float64.checkedPower(-8.0, 2.0) |> Stdlib.Test.equal(Ok(64.0))
 
       Stdlib.Float64.checkedPower(0.0, -1.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
 
       Stdlib.Float64.checkedPower(-8.0, 0.5)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber))
 
       Stdlib.Float64.checkedPower(10.0, 400.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Float64.checkedPower(0.5, -2000.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow)) ])
 
 
 test checkedSqrt =
   Stdlib.Test.all(
-    [ Stdlib.Float64.checkedSqrt(9.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3.0))
+    [ Stdlib.Float64.checkedSqrt(9.0) |> Stdlib.Test.equal(Ok(3.0))
 
-      Stdlib.Float64.checkedSqrt(0.0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.0))
+      Stdlib.Float64.checkedSqrt(0.0) |> Stdlib.Test.equal(Ok(0.0))
 
       Stdlib.Float64.checkedSqrt(-1.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber)) ])
 
 
 test checkedParse =
   Stdlib.Test.all(
-    [ Stdlib.Float64.checkedParse("1.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5))
+    [ Stdlib.Float64.checkedParse("1.5") |> Stdlib.Test.equal(Ok(1.5))
 
-      Stdlib.Float64.checkedParse("-2e3")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2000.0))
+      Stdlib.Float64.checkedParse("-2e3") |> Stdlib.Test.equal(Ok(-2000.0))
 
       Stdlib.Float64.checkedParse("NaN")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat))
 
       Stdlib.Float64.checkedParse("Infinity")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat))
 
       Stdlib.Float64.checkedParse("-Infinity")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat))
 
       Stdlib.Float64.checkedParse("1e400")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat))
 
       Stdlib.Float64.checkedParse("abc")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Float64.ParseError.BadFormat)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Float64.ParseError.BadFormat)) ])
 
 
 test namedValues =
@@ -919,35 +875,28 @@ test scaleByPowerOfTwo =
 
 test binaryExponent =
   Stdlib.Test.all(
-    [ Stdlib.Float64.binaryExponent(10.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+    [ Stdlib.Float64.binaryExponent(10.0) |> Stdlib.Test.equal(Some(3))
 
-      Stdlib.Float64.binaryExponent(-10.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      Stdlib.Float64.binaryExponent(-10.0) |> Stdlib.Test.equal(Some(3))
 
-      Stdlib.Float64.binaryExponent(0.75)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1))
+      Stdlib.Float64.binaryExponent(0.75) |> Stdlib.Test.equal(Some(-1))
 
-      Stdlib.Float64.binaryExponent(1.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.Float64.binaryExponent(1.0) |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.Float64.binaryExponent(0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Float64.binaryExponent(0.0) |> Stdlib.Test.equal(None)
 
-      Stdlib.Float64.binaryExponent(infinity())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Float64.binaryExponent(infinity()) |> Stdlib.Test.equal(None)
 
-      Stdlib.Float64.binaryExponent(nan())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Float64.binaryExponent(nan()) |> Stdlib.Test.equal(None)
 
       Stdlib.Float64.binaryExponent(smallest())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1074))
+      |> Stdlib.Test.equal(Some(-1074))
 
       Stdlib.Float64.binaryExponent(smallestNormal())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1022))
+      |> Stdlib.Test.equal(Some(-1022))
 
       Stdlib.Float64.binaryExponent(1.7976931348623157e308)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1023)) ])
+      |> Stdlib.Test.equal(Some(1023)) ])
 
 
 /// The smallest positive Float64, 2^-1074, written so that formatting cannot expand it

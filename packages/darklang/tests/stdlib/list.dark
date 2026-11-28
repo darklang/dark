@@ -207,10 +207,7 @@ test filter =
 test filterMap =
   Stdlib.Test.all(
     [ Stdlib.List.filterMap([ 1, 2, 3 ], fun item ->
-        if item == 2 then
-          Stdlib.Option.Option.None
-        else
-          Stdlib.Option.Option.Some(item * 2))
+        if item == 2 then None else Some(item * 2))
       |> Stdlib.Test.equal([ 2, 6 ])
 
       Stdlib.List.filterMap([], fun _ -> 0) |> Stdlib.Test.equal([]) ])
@@ -219,60 +216,54 @@ test filterMap =
 test findFirst =
   Stdlib.Test.all(
     [ Stdlib.List.findFirst([ 1, 2, 3 ], fun x -> x > 5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
-      Stdlib.List.findFirst([], fun x -> x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.List.findFirst([], fun x -> x) |> Stdlib.Test.equal(None)
 
       Stdlib.List.findFirst([ 1, 2, 3, 1, 4 ], fun x -> x > 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      |> Stdlib.Test.equal(Some(2))
 
       Stdlib.List.findFirst([ 0, 5, -6, -10 ], fun x -> x < 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-6))
+      |> Stdlib.Test.equal(Some(-6))
 
       Stdlib.List.findFirst([ 1, -33, 3, -2, 12 ], fun x -> x < 0 && x % 2 == 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2)) ])
+      |> Stdlib.Test.equal(Some(-2)) ])
 
 
 test findFirstIndex =
   Stdlib.Test.all(
     [ Stdlib.List.findFirstIndex([ 1, 2, 3 ], fun x -> x == 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      |> Stdlib.Test.equal(Some(1))
 
       Stdlib.List.findFirstIndex([ 1, 2, 3 ], fun x -> x > 5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
-      Stdlib.List.findFirstIndex([], fun _ -> true)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.List.findFirstIndex([], fun _ -> true) |> Stdlib.Test.equal(None)
 
       Stdlib.List.findFirstIndex([ 10, 20, 30, 20 ], fun x -> x == 20)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      |> Stdlib.Test.equal(Some(1))
 
       Stdlib.List.findFirstIndex([ "a", "b", "c" ], fun x -> x == "c")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      |> Stdlib.Test.equal(Some(2))
 
       Stdlib.List.findFirstIndex([ 1, 2, 3 ], fun x -> x == 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0)) ])
+      |> Stdlib.Test.equal(Some(0)) ])
 
 
 test indexOf =
   Stdlib.Test.all(
-    [ Stdlib.List.indexOf([], 1) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+    [ Stdlib.List.indexOf([], 1) |> Stdlib.Test.equal(None)
 
-      Stdlib.List.indexOf([ 1, 2, 3 ], 4)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.List.indexOf([ 1, 2, 3 ], 4) |> Stdlib.Test.equal(None)
 
-      Stdlib.List.indexOf([ 1, 2, 3 ], 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+      Stdlib.List.indexOf([ 1, 2, 3 ], 1) |> Stdlib.Test.equal(Some(0))
 
-      Stdlib.List.indexOf([ 10, 20, 30, 20 ], 20)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.List.indexOf([ 10, 20, 30, 20 ], 20) |> Stdlib.Test.equal(Some(1))
 
-      Stdlib.List.indexOf([ "a", "b", "c" ], "c")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      Stdlib.List.indexOf([ "a", "b", "c" ], "c") |> Stdlib.Test.equal(Some(2))
 
       Stdlib.List.indexOf([ [ 1 ], [ 2, 3 ] ], [ 2, 3 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1)) ])
+      |> Stdlib.Test.equal(Some(1)) ])
 
 
 test remove =
@@ -297,63 +288,51 @@ test remove =
 test removeAt =
   Stdlib.Test.all(
     [ Stdlib.List.removeAt([], 0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.removeAt([ 1, 2, 3 ], -1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.removeAt([ 1, 2, 3 ], 3)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.removeAt([ 1, 2, 3 ], 9223372036854775807)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
-      Stdlib.List.removeAt([ 1, 2, 3 ], 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 2, 3 ]))
+      Stdlib.List.removeAt([ 1, 2, 3 ], 0) |> Stdlib.Test.equal(Ok([ 2, 3 ]))
 
-      Stdlib.List.removeAt([ 1, 2, 3 ], 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 3 ]))
+      Stdlib.List.removeAt([ 1, 2, 3 ], 1) |> Stdlib.Test.equal(Ok([ 1, 3 ]))
 
       Stdlib.List.removeAt([ "a", "b", "c" ], 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "b" ]))
+      |> Stdlib.Test.equal(Ok([ "a", "b" ]))
 
-      Stdlib.List.removeAt([ 1 ], 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
+      Stdlib.List.removeAt([ 1 ], 0) |> Stdlib.Test.equal(Ok([])) ])
 
 
 test insertAt =
   Stdlib.Test.all(
-    [ Stdlib.List.insertAt([], 0, 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1 ]))
+    [ Stdlib.List.insertAt([], 0, 1) |> Stdlib.Test.equal(Ok([ 1 ]))
 
       Stdlib.List.insertAt([ 1, 2, 3 ], 0, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 0, 1, 2, 3 ]))
+      |> Stdlib.Test.equal(Ok([ 0, 1, 2, 3 ]))
 
       Stdlib.List.insertAt([ 1, 2, 3 ], 1, 9)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 9, 2, 3 ]))
+      |> Stdlib.Test.equal(Ok([ 1, 9, 2, 3 ]))
 
       Stdlib.List.insertAt([ "a", "b" ], 2, "c")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "b", "c" ]))
+      |> Stdlib.Test.equal(Ok([ "a", "b", "c" ]))
 
       Stdlib.List.insertAt([], 1, 1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.insertAt([ 1, 2, 3 ], -1, 0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.insertAt([ 1, 2, 3 ], 4, 0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.insertAt([ 1, 2, 3 ], 9223372036854775807, 0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds)) ])
 
 
 test flatten =
@@ -419,84 +398,66 @@ test twoArgumentCallbacksSeeEveryElementInOrder =
 
 test getAt =
   Stdlib.Test.all(
-    [ Stdlib.List.getAt([ "a", "b", "c", "d" ], -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+    [ Stdlib.List.getAt([ "a", "b", "c", "d" ], -1) |> Stdlib.Test.equal(None)
 
-      Stdlib.List.getAt([ 0 ], 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.List.getAt([ 0 ], 1) |> Stdlib.Test.equal(None)
 
-      Stdlib.List.getAt([], 1) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.List.getAt([], 1) |> Stdlib.Test.equal(None)
 
       Stdlib.List.getAt([ 1, 2, 3, 4 ], 6018427387902)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
-      Stdlib.List.getAt([ 1, 2, 3, 4 ], 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+      Stdlib.List.getAt([ 1, 2, 3, 4 ], 0) |> Stdlib.Test.equal(Some(1))
 
-      Stdlib.List.getAt([ 1, 2, 3 ], 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      Stdlib.List.getAt([ 1, 2, 3 ], 2) |> Stdlib.Test.equal(Some(3))
 
-      Stdlib.List.getAt([ 3, 3, 3 ], -5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.List.getAt([ 3, 3, 3 ], -5) |> Stdlib.Test.equal(None)
 
-      Stdlib.List.getAt([ 3, 3, 3 ], 2147483648)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.List.getAt([ 3, 3, 3 ], 2147483648) |> Stdlib.Test.equal(None) ])
 
 
 test setAt =
   Stdlib.Test.all(
-    [ Stdlib.List.setAt([ 1, 2, 3 ], 0, 9)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 9, 2, 3 ]))
+    [ Stdlib.List.setAt([ 1, 2, 3 ], 0, 9) |> Stdlib.Test.equal(Ok([ 9, 2, 3 ]))
 
-      Stdlib.List.setAt([ 1, 2, 3 ], 2, 9)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 2, 9 ]))
+      Stdlib.List.setAt([ 1, 2, 3 ], 2, 9) |> Stdlib.Test.equal(Ok([ 1, 2, 9 ]))
 
       Stdlib.List.setAt([ "a", "b" ], 1, "z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "z" ]))
+      |> Stdlib.Test.equal(Ok([ "a", "z" ]))
 
       Stdlib.List.setAt([ 1, 2, 3 ], 3, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], 2147483648, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([], 0, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -1, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -2, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -3, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -4, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([], -1, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2 ], 9223372036854775807, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2 ], -9223372036854775807, 9)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt(Stdlib.List.range(0, 99), 70, -1)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
+        Ok(
           Stdlib.List.flatten(
             [ Stdlib.List.range(0, 69)
               [ -1 ]
@@ -505,18 +466,14 @@ test setAt =
 
 test head =
   Stdlib.Test.all(
-    [ Stdlib.List.head([ 1, 2, 3 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
-
-      Stdlib.List.head([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.List.head([ 1, 2, 3 ]) |> Stdlib.Test.equal(Some(1))
+      Stdlib.List.head([]) |> Stdlib.Test.equal(None) ])
 
 
 test last =
   Stdlib.Test.all(
-    [ Stdlib.List.last([ 1, 2, 3 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
-
-      Stdlib.List.last([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.List.last([ 1, 2, 3 ]) |> Stdlib.Test.equal(Some(3))
+      Stdlib.List.last([]) |> Stdlib.Test.equal(None) ])
 
 
 test indexedMap =
@@ -562,20 +519,18 @@ test interpose =
 test map2 =
   Stdlib.Test.all(
     [ Stdlib.List.map2([ 10, 20, 30 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 9, 18, 27 ]))
+      |> Stdlib.Test.equal(Ok([ 9, 18, 27 ]))
 
       Stdlib.List.map2([ 10, 20 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+        Error(Stdlib.List.LengthMismatch { left = 2, right = 3 }))
 
       Stdlib.List.map2([ 10, 20, 30 ], [ 1 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.List.LengthMismatch { left = 3, right = 1 }))
+        Error(Stdlib.List.LengthMismatch { left = 3, right = 1 }))
 
       Stdlib.List.map2([], [], fun(a, b) -> a - b)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
+      |> Stdlib.Test.equal(Ok([])) ])
 
 
 test map2Shortest =
@@ -661,11 +616,8 @@ test shuffle =
 
 test randomElementOfSingletonOrEmptyList =
   Stdlib.Test.all(
-    [ Stdlib.List.randomElement([ 1 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
-
-      Stdlib.List.randomElement([])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ Stdlib.List.randomElement([ 1 ]) |> Stdlib.Test.equal(Some(1))
+      Stdlib.List.randomElement([]) |> Stdlib.Test.equal(None) ])
 
 
 test range =
@@ -680,19 +632,15 @@ test range =
 
 test checkedRange =
   Stdlib.Test.all(
-    [ Stdlib.List.checkedRange(-1, 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ -1, 0, 1 ]))
+    [ Stdlib.List.checkedRange(-1, 1) |> Stdlib.Test.equal(Ok([ -1, 0, 1 ]))
 
-      Stdlib.List.checkedRange(5, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+      Stdlib.List.checkedRange(5, 0) |> Stdlib.Test.equal(Ok([]))
 
       Stdlib.List.checkedRange(0, 3000000000)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.RangeError.TooLong))
+      |> Stdlib.Test.equal(Error(Stdlib.List.RangeError.TooLong))
 
       Stdlib.List.checkedRange(-9223372036854775808, 9223372036854775807)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.RangeError.TooLong)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.List.RangeError.TooLong)) ])
 
 
 test repeat =
@@ -723,23 +671,19 @@ test repeat =
 
 test checkedRepeat =
   Stdlib.Test.all(
-    [ Stdlib.List.checkedRepeat(0, 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+    [ Stdlib.List.checkedRepeat(0, 1) |> Stdlib.Test.equal(Ok([]))
 
       Stdlib.List.checkedRepeat(3, "a")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "a", "a" ]))
+      |> Stdlib.Test.equal(Ok([ "a", "a", "a" ]))
 
       Stdlib.List.checkedRepeat(-1, "a")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.RepeatError.NegativeCount))
+      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount))
 
       Stdlib.List.checkedRepeat(-4, "a")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.RepeatError.NegativeCount))
+      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount))
 
       Stdlib.List.checkedRepeat(3000000000, "a")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.List.RepeatError.TooLong)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.TooLong)) ])
 
 
 test reverse =
@@ -755,72 +699,58 @@ test reverse =
 
 test min =
   Stdlib.Test.all(
-    [ Stdlib.List.min<Int64>([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.List.min([ 7 ]) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7))
-
-      Stdlib.List.min([ 3, 1, 2 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
-
-      Stdlib.List.min([ 2, 2 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
-
-      Stdlib.List.min([ "b", "a", "c" ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a")) ])
+    [ Stdlib.List.min<Int64>([]) |> Stdlib.Test.equal(None)
+      Stdlib.List.min([ 7 ]) |> Stdlib.Test.equal(Some(7))
+      Stdlib.List.min([ 3, 1, 2 ]) |> Stdlib.Test.equal(Some(1))
+      Stdlib.List.min([ 2, 2 ]) |> Stdlib.Test.equal(Some(2))
+      Stdlib.List.min([ "b", "a", "c" ]) |> Stdlib.Test.equal(Some("a")) ])
 
 
 test max =
   Stdlib.Test.all(
-    [ Stdlib.List.max<Int64>([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      Stdlib.List.max([ 7 ]) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7))
-
-      Stdlib.List.max([ 3, 1, 2 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
-
-      Stdlib.List.max([ 2, 2 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
-
-      Stdlib.List.max([ "b", "a", "c" ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("c")) ])
+    [ Stdlib.List.max<Int64>([]) |> Stdlib.Test.equal(None)
+      Stdlib.List.max([ 7 ]) |> Stdlib.Test.equal(Some(7))
+      Stdlib.List.max([ 3, 1, 2 ]) |> Stdlib.Test.equal(Some(3))
+      Stdlib.List.max([ 2, 2 ]) |> Stdlib.Test.equal(Some(2))
+      Stdlib.List.max([ "b", "a", "c" ]) |> Stdlib.Test.equal(Some("c")) ])
 
 
 test maxBy =
   Stdlib.Test.all(
     [ Stdlib.List.maxBy([], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.List.maxBy([ "only" ], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("only"))
+      |> Stdlib.Test.equal(Some("only"))
 
       Stdlib.List.maxBy([ "a", "bbb", "cc", "ddd" ], fun x ->
         Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("bbb"))
+      |> Stdlib.Test.equal(Some("bbb"))
 
       Stdlib.List.maxBy([ 6, 2, 8, 3 ], fun x -> 0 - x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      |> Stdlib.Test.equal(Some(2))
 
       Stdlib.List.maxBy([ "b", "c", "a" ], fun x -> x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("c")) ])
+      |> Stdlib.Test.equal(Some("c")) ])
 
 
 test minBy =
   Stdlib.Test.all(
     [ Stdlib.List.minBy([], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.List.minBy([ "only" ], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("only"))
+      |> Stdlib.Test.equal(Some("only"))
 
       Stdlib.List.minBy([ "bbb", "a", "cc", "d" ], fun x ->
         Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a"))
+      |> Stdlib.Test.equal(Some("a"))
 
       Stdlib.List.minBy([ 6, 2, 8, 3 ], fun x -> 0 - x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(8))
+      |> Stdlib.Test.equal(Some(8))
 
       Stdlib.List.minBy([ "b", "a", "c" ], fun x -> x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a")) ])
+      |> Stdlib.Test.equal(Some("a")) ])
 
 
 test maxByEvaluatesKeysOnce =
@@ -828,7 +758,7 @@ test maxByEvaluatesKeysOnce =
     Stdlib.List.maxBy([ 3, 1, 2 ], fun x -> Stdlib.Test.incrementCounter(x))
 
   Stdlib.Test.all(
-    [ result |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+    [ result |> Stdlib.Test.equal(Some(3))
       Stdlib.Test.counterValue() |> Stdlib.Test.equal(3) ])
 
 
@@ -837,7 +767,7 @@ test minByEvaluatesKeysOnce =
     Stdlib.List.minBy([ 1, 3, 2 ], fun x -> Stdlib.Test.incrementCounter(x))
 
   Stdlib.Test.all(
-    [ result |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+    [ result |> Stdlib.Test.equal(Some(1))
       Stdlib.Test.counterValue() |> Stdlib.Test.equal(3) ])
 
 
@@ -921,9 +851,9 @@ test sortWith =
 test tail =
   Stdlib.Test.all(
     [ Stdlib.List.tail([ 10, 20, 30, 40 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ 20, 30, 40 ]))
+      |> Stdlib.Test.equal(Some([ 20, 30, 40 ]))
 
-      Stdlib.List.tail([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.List.tail([]) |> Stdlib.Test.equal(None) ])
 
 
 test take =
@@ -1071,21 +1001,17 @@ test zipShortest =
 test zip =
   Stdlib.Test.all(
     [ Stdlib.List.zip([ 10, 20, 30 ], [ 1, 2, 3 ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok([ (10, 1), (20, 2), (30, 3) ]))
+      |> Stdlib.Test.equal(Ok([ (10, 1), (20, 2), (30, 3) ]))
 
       Stdlib.List.zip([ 10, 20 ], [ 1, 2, 3 ])
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+        Error(Stdlib.List.LengthMismatch { left = 2, right = 3 }))
 
       Stdlib.List.zip([ 10, 20, 30 ], [ 1 ])
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.List.LengthMismatch { left = 3, right = 1 }))
+        Error(Stdlib.List.LengthMismatch { left = 3, right = 1 }))
 
-      Stdlib.List.zip([], [])
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
+      Stdlib.List.zip([], []) |> Stdlib.Test.equal(Ok([])) ])
 
 
 test groupBy =
@@ -1137,45 +1063,38 @@ test dropLast =
 test chunkBySize =
   Stdlib.Test.all(
     [ Stdlib.List.chunkBySize([ 1, 2, 3, 4, 5 ], 2)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok([ [ 1, 2 ], [ 3, 4 ], [ 5 ] ]))
+      |> Stdlib.Test.equal(Ok([ [ 1, 2 ], [ 3, 4 ], [ 5 ] ]))
 
       Stdlib.List.chunkBySize([ 1, 2, 3, 4, 5, 6 ], 3)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok([ [ 1, 2, 3 ], [ 4, 5, 6 ] ]))
+      |> Stdlib.Test.equal(Ok([ [ 1, 2, 3 ], [ 4, 5, 6 ] ]))
 
       Stdlib.List.chunkBySize([ 1, 2, 3 ], 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ 1 ], [ 2 ], [ 3 ] ]))
+      |> Stdlib.Test.equal(Ok([ [ 1 ], [ 2 ], [ 3 ] ]))
 
       Stdlib.List.chunkBySize([ 1, 2 ], 3)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ 1, 2 ] ]))
+      |> Stdlib.Test.equal(Ok([ [ 1, 2 ] ]))
 
-      Stdlib.List.chunkBySize([], 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+      Stdlib.List.chunkBySize([], 4) |> Stdlib.Test.equal(Ok([]))
 
       Stdlib.List.chunkBySize([ 1, 2, 3, 4 ], 0)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero))
+        Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero))
 
       Stdlib.List.chunkBySize([ 1, 2, 3, 4 ], -1)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)) ])
+        Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)) ])
 
 
 test splitLast =
   Stdlib.Test.all(
-    [ Stdlib.List.splitLast([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+    [ Stdlib.List.splitLast([]) |> Stdlib.Test.equal(None)
 
-      Stdlib.List.splitLast([ 1 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(([], 1)))
+      Stdlib.List.splitLast([ 1 ]) |> Stdlib.Test.equal(Some(([], 1)))
 
-      Stdlib.List.splitLast([ 1, 2 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(([ 1 ], 2)))
+      Stdlib.List.splitLast([ 1, 2 ]) |> Stdlib.Test.equal(Some(([ 1 ], 2)))
 
       Stdlib.List.splitLast([ 1, 2, 3 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(([ 1, 2 ], 3))) ])
+      |> Stdlib.Test.equal(Some(([ 1, 2 ], 3))) ])
 
 
 test rejectsMixedListElements =
@@ -1201,7 +1120,7 @@ test dropWhileRejectsNonBoolCondition =
 test filterRejectsOptionCondition =
   Stdlib.List.filter([ 1, 2, 3 ], fun item ->
     match item with
-    | 1 -> Stdlib.Option.Option.None
+    | 1 -> None
     | 2 -> false
     | 3 -> true)
   => raises "Darklang.Stdlib.List.filter's 2nd parameter `f` returned Darklang.Stdlib.Option.Option<_> (None), but should return Bool"
@@ -1249,7 +1168,7 @@ test anyStopsAtTheFirstTrue =
 
 test findFirstStopsAtTheFirstMatch =
   Stdlib.List.findFirst([ 1, 0 ], fun x -> 10 / x > 5)
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+  |> Stdlib.Test.equal(Some(1))
 
 
 test allRejectsStringCondition =
@@ -1280,7 +1199,7 @@ test partitionRejectsStringCondition =
 test partitionRejectsOptionCondition =
   Stdlib.List.partition([ 1, 2, 3 ], fun item ->
     match item with
-    | 1 -> Stdlib.Option.Option.None
+    | 1 -> None
     | 2 -> false
     | 3 -> true)
   => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned Darklang.Stdlib.Option.Option<_> (None), but should return Bool"
@@ -1344,9 +1263,7 @@ test randomElementEvaluatesElements =
 
 
 test zipEvaluatesElements =
-  Stdlib.List.zip(
-    [ Language.Tests.raiseRuntimeError("msg") ],
-    [ Stdlib.Option.Option.Some("") ])
+  Stdlib.List.zip([ Language.Tests.raiseRuntimeError("msg") ], [ Some("") ])
   => raises "Uncaught exception: msg"
 
 
@@ -1395,13 +1312,9 @@ test comparatorRejectsWrongArity =
 
 test uniqueBySupportsNestedKeys =
   Stdlib.List.uniqueBy(
-    [ ([ 1, 2 ], Stdlib.Option.Option.Some("a"))
-      ([ 1, 2 ], Stdlib.Option.Option.Some("a"))
-      ([ 2, 1 ], Stdlib.Option.Option.None) ],
+    [ ([ 1, 2 ], Some("a")), ([ 1, 2 ], Some("a")), ([ 2, 1 ], None) ],
     fun x -> x)
-  |> Stdlib.Test.equal(
-    [ ([ 1, 2 ], Stdlib.Option.Option.Some("a"))
-      ([ 2, 1 ], Stdlib.Option.Option.None) ])
+  |> Stdlib.Test.equal([ ([ 1, 2 ], Some("a")), ([ 2, 1 ], None) ])
 
 
 // Over enough draws every element turns up, and nothing else does: 400 draws from four miss one
@@ -1420,8 +1333,7 @@ test randomElementReachesEveryElement =
       |> Stdlib.List.sort
       |> Stdlib.Test.equal(items)
 
-      Stdlib.List.randomElement([ 7, 7 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7)) ])
+      Stdlib.List.randomElement([ 7, 7 ]) |> Stdlib.Test.equal(Some(7)) ])
 
 
 // Every order of three is reachable (600 shuffles miss one with probability about 1e-47), and a

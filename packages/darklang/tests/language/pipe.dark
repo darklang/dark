@@ -78,67 +78,62 @@ test constructorsAndOptions =
   Stdlib.Test.all(
     [ (33 |> MyEnum.A(21, 42)) |> Stdlib.Test.equal(MyEnum.A(33, 21, 42))
 
-      (3 |> Stdlib.Result.Result.Ok)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
+      (3 |> Stdlib.Result.Result.Ok) |> Stdlib.Test.equal(Ok(3))
 
       (4
        |> (fun v -> v + 3)
        |> Stdlib.Option.Option.Some)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7))
+      |> Stdlib.Test.equal(Some(7))
 
-      (Stdlib.Option.Option.None |> Stdlib.Option.Option.Some)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(Stdlib.Option.Option.None))
+      (None |> Stdlib.Option.Option.Some) |> Stdlib.Test.equal(Some(None))
 
-      (let x = Stdlib.Option.Option.Some(3)
+      (let x = Some(3)
        x
        |> Stdlib.Option.map(fun a -> a)
        |> Stdlib.Option.map(fun a -> a + 1))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      |> Stdlib.Test.equal(Some(4))
 
       (let x = fun x -> Stdlib.Option.map(x, fun a -> a)
-       Stdlib.Option.Option.Some(3)
+       Some(3)
        |> x
        |> Stdlib.Option.map(fun a -> a + 1))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      |> Stdlib.Test.equal(Some(4))
 
-      (Stdlib.Option.Option.Some(3)
+      (Some(3)
        |> Stdlib.Option.withDefault(0)
        |> (fun v -> v + 3))
       |> Stdlib.Test.equal(6)
 
-      (Stdlib.Result.Result.Ok(3)
+      (Ok(3)
        |> Stdlib.Result.withDefault(0)
        |> (fun v -> v + 3))
       |> Stdlib.Test.equal(6)
 
-      (Stdlib.Result.Result.Error("err")
+      (Error("err")
        |> Stdlib.Result.withDefault(0)
        |> (fun v -> v + 3))
       |> Stdlib.Test.equal(3)
 
       (let x = fun a -> Stdlib.Result.withDefault(a, 1)
-       Stdlib.Result.Result.Error("err")
+       Error("err")
        |> x
        |> (fun v -> v + 3))
       |> Stdlib.Test.equal(4)
 
-      (let x = fun x ->
-         Stdlib.Option.andThen(Stdlib.Option.Option.Some(x), fun x ->
-           Stdlib.Option.Option.Some(1 + x))
+      (let x = fun x -> Stdlib.Option.andThen(Some(x), fun x -> Some(1 + x))
        3 |> x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      |> Stdlib.Test.equal(Some(4))
 
-      (let x = fun x ->
-         Stdlib.Option.andThen(x, fun x -> Stdlib.Option.Option.Some(1 + x))
+      (let x = fun x -> Stdlib.Option.andThen(x, fun x -> Some(1 + x))
        3
        |> Stdlib.Option.Option.Some
        |> x)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      |> Stdlib.Test.equal(Some(4))
 
       (3
        |> Stdlib.Option.Option.Some
        |> Stdlib.Result.fromOption("test"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
+      |> Stdlib.Test.equal(Ok(3))
 
-      (Stdlib.Option.Option.None |> Stdlib.Result.fromOption("test"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("test")) ])
+      (None |> Stdlib.Result.fromOption("test"))
+      |> Stdlib.Test.equal(Error("test")) ])

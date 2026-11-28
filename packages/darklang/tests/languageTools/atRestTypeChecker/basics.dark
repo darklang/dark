@@ -71,7 +71,7 @@ module BindingIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(2u64),
+              Some(2u64),
               "Multiple let bindings share a pattern node ID; their types cannot be checked") ]) ])
 
 
@@ -128,7 +128,7 @@ module InferenceIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(10u64),
+              Some(10u64),
               "Multiple inference nodes share an ID; their types cannot be checked") ]) ])
 
 
@@ -367,13 +367,9 @@ module StringInterpolation =
     LanguageTools.AtRestTypeChecker.issueToString(
       LanguageTools.AtRestTypeChecker.Issue
         { code = LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch
-          nodeId = Stdlib.Option.Option.None
-          expected =
-            Stdlib.Option.Option.Some(
-              LanguageTools.AtRestTypeChecker.StaticType.TString)
-          actual =
-            Stdlib.Option.Option.Some(
-              LanguageTools.AtRestTypeChecker.StaticType.TInt64)
+          nodeId = None
+          expected = Some(LanguageTools.AtRestTypeChecker.StaticType.TString)
+          actual = Some(LanguageTools.AtRestTypeChecker.StaticType.TInt64)
           context =
             LanguageTools.AtRestTypeChecker.Context.At(
               LanguageTools.AtRestTypeChecker.Site.InterpolatedSegment) })

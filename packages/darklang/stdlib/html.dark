@@ -204,7 +204,7 @@ let comment(s: String): Node =
 ///
 /// Example: `classes ["btn", "btn-primary"]` produces `("class", Some "btn btn-primary")`
 let classes(classList: List<String>): (String * Option<String>) =
-  ("class", Option.Some(String.join(classList, " ")))
+  ("class", Some(String.join(classList, " ")))
 
 
 /// Creates a style attribute from a list of CSS property-value pairs.
@@ -214,12 +214,12 @@ let style(properties: List<(String * String)>): (String * Option<String>) =
     |> List.map(fun((prop, value)) -> $"{prop}: {value}")
     |> String.join("; ")
 
-  ("style", Option.Some(styleString))
+  ("style", Some(styleString))
 
 
 /// Creates a data attribute with the given name and value.
 let dataAttr(name: String, value: String): (String * Option<String>) =
-  ($"data-{name}", Option.Some(value))
+  ($"data-{name}", Some(value))
 
 
 let br(): Node =

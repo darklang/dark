@@ -105,7 +105,7 @@ let collectTransitiveDependents(
   : Result<List<Item>, String> =
   let fqn = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
   match pending with
-  | [] -> Result.Ok(accumulated)
+  | [] -> Ok(accumulated)
   | _ ->
     let toProcess =
       pending
@@ -114,10 +114,10 @@ let collectTransitiveDependents(
         Stdlib.Bool.not(Stdlib.List.contains(processed, key)))
 
     match toProcess with
-    | [] -> Result.Ok(accumulated)
+    | [] -> Ok(accumulated)
     | targets ->
       match SCM.Deps.dependents(SCM.PackageOps.currentBranch(), targets) with
-      | Error(e) -> Result.Error(e)
+      | Error(e) -> Error(e)
       | Ok(batchResults) ->
         // Each result already carries its own location, so this level's dependents are
         // next level's targets with no hash -> location round-trip in between.
@@ -246,7 +246,7 @@ let resolvePath(
    LanguageTools.ProgramTypes.ItemKind),
   String> =
   match Packages.Traversal.traverse(branchId, currentLocation, pathArg) with
-  | Error(errMsg) -> Result.Error(errMsg)
+  | Error(errMsg) -> Error(errMsg)
   | Ok(loc) ->
     // Traits and impls carry dependency rows like anything else (`DependencyExtractor`), so all
     // five kinds are real questions here. Written once: four copies of this is how the two newest
@@ -263,14 +263,14 @@ let resolvePath(
       String> =
       let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(itemLoc)
       match hashOpt with
-      | Some(hash) -> Result.Ok((hash, itemLoc, name, kind))
+      | Some(hash) -> Ok((hash, itemLoc, name, kind))
       | None ->
         let kindName = LanguageTools.ProgramTypes.ItemKind.toString(kind)
-        Result.Error($"No {kindName} found at {name}")
+        Error($"No {kindName} found at {name}")
 
     match loc with
     | Module(_) ->
-      Result.Error(
+      Error(
         "Cannot show dependencies for a module, only for a fn, type, value, trait, impl or test")
     | Function(l) ->
       resolved(
@@ -339,7 +339,7 @@ let answerOf(
   : Result<ScmJson.DepsJson, String> =
   let dependencies =
     if direction == Direction.UsedBy then
-      Result.Ok([])
+      Ok([])
     else
       SCM.Deps.dependencyEdges(
         branchId,
@@ -350,7 +350,7 @@ let answerOf(
 
   let dependents =
     if direction == Direction.Uses then
-      Result.Ok([])
+      Ok([])
     else if deep then
       getTransitiveDependents(branchId, loc, kind)
       |> Stdlib.Result.map(fun items ->
@@ -375,10 +375,10 @@ let answerOf(
       |> Stdlib.Result.mapError(fun e -> $"Couldn't read the dependents of {entityName}: {e}")
 
   match dependencies, dependents with
-  | Error(e), _ -> Result.Error(e)
-  | _, Error(e) -> Result.Error(e)
+  | Error(e), _ -> Error(e)
+  | _, Error(e) -> Error(e)
   | Ok(uses), Ok(usedBy) ->
-    Result.Ok(ScmJson.DepsJson { item = entityName, dependencies = uses, dependents = usedBy })
+    Ok(ScmJson.DepsJson { item = entityName, dependencies = uses, dependents = usedBy })
 
 
 let execute(state: AppState, args: List<String>): AppState =

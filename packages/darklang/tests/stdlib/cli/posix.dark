@@ -20,31 +20,21 @@ let darwin(code: Int64): Stdlib.Cli.Posix.Errno =
 // Raw syscalls refuse bad descriptors and arguments with their errno
 test syscallErrnos =
   Stdlib.Test.all(
-    [ Builtin.syscallRead(-1z, 1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
-
-      Builtin.syscallRead(-1z, -1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22))
-
-      Builtin.syscallClose(-1z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
-
-      Builtin.syscallLseek(-1z, 0, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
-
-      Builtin.syscallFlock(-1z, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
-
+    [ Builtin.syscallRead(-1z, 1) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallRead(-1z, -1) |> Stdlib.Test.equal(Error(22))
+      Builtin.syscallClose(-1z) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallLseek(-1z, 0, 0) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallFlock(-1z, 2) |> Stdlib.Test.equal(Error(9))
       Stdlib.Test.expect(Builtin.syscallGetpid() > 0, "getpid is positive")
       Stdlib.Test.expect(Builtin.syscallGetuid() >= 0, "getuid is not negative")
       Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(2))
+      |> Stdlib.Test.equal(Error(2))
 
       Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 64)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22))
+      |> Stdlib.Test.equal(Error(22))
 
       Builtin.syscallReadlinkAt("/definitely/missing/dark-link", 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(2))
+      |> Stdlib.Test.equal(Error(2))
 
       match Builtin.syscallGetcwd(1) with
       | Error(e) -> e |> Stdlib.Test.equal(errnoOr(34))
@@ -62,9 +52,7 @@ test unlinkAtRemovesDirectory =
       Builtin.syscallUnlinkAt(path, Stdlib.Cli.Posix.__abiRemoveDirectory())
 
     (created, removed, Stdlib.Cli.File.exists(path)))
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      (Stdlib.Result.Result.Ok(), Stdlib.Result.Result.Ok(), false)))
+  |> Stdlib.Test.equal(Ok((Ok(), Ok(), false)))
 
 
 // flock takes the exclusive lock and lets it go; withLock runs its fn holding it
@@ -83,17 +71,8 @@ test flockLocksAndUnlocks =
       let unlocked = Stdlib.Cli.Posix.flock(fd, Stdlib.Cli.Posix.Lock.Unlock)
       let _ = Stdlib.Cli.Posix.fdClose(fd)
       (locked, unlocked, Stdlib.Cli.File.withLock(path, fun _ -> 42))
-    | Error(e) ->
-      (
-        Stdlib.Result.Result.Error(e),
-        Stdlib.Result.Result.Error(e),
-        Stdlib.Result.Result.Error(e)))
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      (
-        Stdlib.Result.Result.Ok(),
-        Stdlib.Result.Result.Ok(),
-        Stdlib.Result.Result.Ok(42))))
+    | Error(e) -> (Error(e), Error(e), Error(e)))
+  |> Stdlib.Test.equal(Ok((Ok(), Ok(), Ok(42))))
 
 
 // readlinkat truncates to the buffer it is given
@@ -103,8 +82,7 @@ test readlinkAtTruncates =
     let _ = Stdlib.Cli.Posix.symlink("abcdef", link)
     Builtin.syscallReadlinkAt(link, 2)
     |> Stdlib.Result.map(Stdlib.Bytes.toList))
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok([ 97u8, 98u8 ])))
+  |> Stdlib.Test.equal(Ok(Ok([ 97u8, 98u8 ])))
 
 
 // The cwd and readlink wrappers grow their buffer until the result fits
@@ -112,30 +90,25 @@ test bufferGrowth =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__pathCwdWith(
         (fun count ->
-           if count == 2 then
-             Stdlib.Result.Result.Error(34)
-           else
-             Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("/x\0"))),
+           if count == 2 then Error(34) else Ok(Stdlib.Utf8.encode("/x\0"))),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 47u8, 120u8, 0u8 ]))
+      |> Stdlib.Test.equal(Ok([ 47u8, 120u8, 0u8 ]))
 
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun count ->
            if count == 2 then
-             Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("ab"))
+             Ok(Stdlib.Utf8.encode("ab"))
            else if count == 4 then
-             Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("abc"))
+             Ok(Stdlib.Utf8.encode("abc"))
            else
-             Stdlib.Result.Result.Error(22)),
+             Error(22)),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 97u8, 98u8, 99u8 ]))
+      |> Stdlib.Test.equal(Ok([ 97u8, 98u8, 99u8 ]))
 
-      Stdlib.Cli.Posix.__pathReadlinkWith(
-        (fun _ -> Stdlib.Result.Result.Ok(Stdlib.Bytes.empty)),
-        0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(22))) ])
+      Stdlib.Cli.Posix.__pathReadlinkWith((fun _ -> Ok(Stdlib.Bytes.empty)), 0)
+      |> Stdlib.Test.equal(Error(posixError(22))) ])
 
 
 // Account parsing handles missing users and malformed rows
@@ -149,42 +122,40 @@ test kernelSignedField =
 
   Stdlib.Test.all(
     [ field([ 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8 ], 8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
+      |> Stdlib.Test.equal(Ok(-1))
 
       field([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 128u8 ], 8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
+      |> Stdlib.Test.equal(Ok(-9223372036854775808))
 
       field([ 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 127u8 ], 8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9223372036854775807))
+      |> Stdlib.Test.equal(Ok(9223372036854775807))
 
-      field([ 255u8, 255u8, 255u8, 255u8 ], 4)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
+      field([ 255u8, 255u8, 255u8, 255u8 ], 4) |> Stdlib.Test.equal(Ok(-1))
 
       field([ 1u8, 2u8, 3u8 ], 8)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
 
 
 test accountFieldFromPasswd =
   let alice = "alice:x:1000:1000::/home/alice:/bin/sh"
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__accountFieldFromPasswd([], "1000", 5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Cli.Posix.__accountFieldFromPasswd([ "bad", alice ], "1000", 5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("/home/alice"))
+      |> Stdlib.Test.equal(Some("/home/alice"))
 
       Stdlib.Cli.Posix.__accountFieldFromPasswd([ alice ], "1000", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("alice"))
+      |> Stdlib.Test.equal(Some("alice"))
 
       Stdlib.Cli.Posix.__accountFieldFromPasswd([ alice ], "100", 5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Cli.Posix.__accountFieldFromPasswd(
         [ "short:x:1000", alice ],
         "1000",
         5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("/home/alice")) ])
+      |> Stdlib.Test.equal(Some("/home/alice")) ])
 
 
 // One table per OS gives each number its kind, name and text
@@ -215,14 +186,12 @@ test errnoTables =
 
       kind(linux(999)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.Other)
 
-      Stdlib.Cli.Posix.Errno.name(linux(2))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("ENOENT"))
+      Stdlib.Cli.Posix.Errno.name(linux(2)) |> Stdlib.Test.equal(Some("ENOENT"))
 
       Stdlib.Cli.Posix.Errno.name(darwin(102))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("EOPNOTSUPP"))
+      |> Stdlib.Test.equal(Some("EOPNOTSUPP"))
 
-      Stdlib.Cli.Posix.Errno.name(linux(41))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.Cli.Posix.Errno.name(linux(41)) |> Stdlib.Test.equal(None) ])
 
 
 // EAGAIN and the not-supported numbers differ by OS; each OS reads only its own
@@ -286,27 +255,21 @@ test tempRetry =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__tempRetry(
         (fun remaining ->
-           if remaining > 0 then
-             Stdlib.Result.Result.Error(posixError(17))
-           else
-             Stdlib.Result.Result.Ok("created")),
+           if remaining > 0 then Error(posixError(17)) else Ok("created")),
         2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("created"))
+      |> Stdlib.Test.equal(Ok("created"))
 
       // EINVAL on the first try (2 left) stops at once
       Stdlib.Cli.Posix.__tempRetry(
-        (fun remaining ->
-           Stdlib.Result.Result.Error(posixError(20 + remaining))),
+        (fun remaining -> Error(posixError(20 + remaining))),
         2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(22)))
+      |> Stdlib.Test.equal(Error(posixError(22)))
 
       // EEXIST every time: the last try, with none left, is the answer
       Stdlib.Cli.Posix.__tempRetry(
-        (fun remaining ->
-           Stdlib.Result.Result.Error(
-             posixError(if remaining == 0 then 28 else 17))),
+        (fun remaining -> Error(posixError(if remaining == 0 then 28 else 17))),
         2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(28))) ])
+      |> Stdlib.Test.equal(Error(posixError(28))) ])
 
 
 // Partial writes complete, zero-progress writes fail, and errors propagate
@@ -314,33 +277,29 @@ test writeAll =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__writeAll(
         (fun bytes ->
-           Stdlib.Result.Result.Ok(
+           Ok(
              if Stdlib.Bytes.length(bytes) > 1 then
                1
              else
                Stdlib.Bytes.length(bytes))),
         Stdlib.Utf8.encode("abcd"),
         0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
+      |> Stdlib.Test.equal(Ok(4))
 
       Stdlib.Cli.Posix.__writeAll(
-        (fun _ -> Stdlib.Result.Result.Ok(0)),
+        (fun _ -> Ok(0)),
         Stdlib.Utf8.encode("abc"),
         0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply))
+      |> Stdlib.Test.equal(Error(Stdlib.Cli.Posix.Error.BadKernelReply))
+
+      Stdlib.Cli.Posix.__writeAll((fun _ -> Ok(0)), Stdlib.Utf8.encode(""), 0)
+      |> Stdlib.Test.equal(Ok(0))
 
       Stdlib.Cli.Posix.__writeAll(
-        (fun _ -> Stdlib.Result.Result.Ok(0)),
-        Stdlib.Utf8.encode(""),
-        0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
-
-      Stdlib.Cli.Posix.__writeAll(
-        (fun _ -> Stdlib.Result.Result.Error(posixError(9))),
+        (fun _ -> Error(posixError(9))),
         Stdlib.Utf8.encode("abc"),
         0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(9))) ])
+      |> Stdlib.Test.equal(Error(posixError(9))) ])
 
 
 // The public wrappers reach the host and format their results
@@ -349,15 +308,15 @@ test publicWrappers =
     [ Stdlib.Cli.Posix.uname()
       |> Stdlib.Result.map(fun((sysname, nodename, machine)) ->
         sysname != "" && nodename != "" && machine != "")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Test.equal(Ok(true))
 
       Stdlib.Cli.Posix.getCwd()
       |> Stdlib.Result.map(fun path -> Stdlib.String.startsWith(path, "/"))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Test.equal(Ok(true))
 
       Stdlib.Cli.Posix.fdRead(Stdlib.Cli.Posix.Fd { __fd = -1z }, 1)
       |> Stdlib.Result.mapError(Stdlib.display)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Bad file descriptor")) ])
+      |> Stdlib.Test.equal(Error("Bad file descriptor")) ])
 
 
 // Setting a file's times through the platform syscall shows up in stat
@@ -377,40 +336,34 @@ test setFileTimes =
     |> Stdlib.Result.map(fun record -> record.mtimeSec))
 
   Stdlib.Test.all(
-    [ setTimes(missing, 0, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(2))
-
-      stamped
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok(5678))) ])
+    [ setTimes(missing, 0, 0) |> Stdlib.Test.equal(Error(2))
+      stamped |> Stdlib.Test.equal(Ok(Ok(5678))) ])
 
 
 test pidFromInt64 =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.Pid.fromInt64(1)
       |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+      |> Stdlib.Test.equal(Ok(1))
 
       Stdlib.Cli.Posix.Pid.fromInt64(2147483647)
       |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483647))
+      |> Stdlib.Test.equal(Ok(2147483647))
 
       // 0 and negatives name process groups to kill(2), not a process.
       Stdlib.Cli.Posix.Pid.fromInt64(0)
       |> Stdlib.Result.mapError(Stdlib.display)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          "0 is not a valid process ID (1 to 2147483647)"))
+        Error("0 is not a valid process ID (1 to 2147483647)"))
 
       Stdlib.Cli.Posix.Pid.fromInt64(-1)
       |> Stdlib.Result.mapError(Stdlib.display)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          "-1 is not a valid process ID (1 to 2147483647)"))
+        Error("-1 is not a valid process ID (1 to 2147483647)"))
 
       Stdlib.Cli.Posix.Pid.fromInt64(2147483648)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           Stdlib.Math.OutOfRange
             { what = "process ID"
               value = 2147483648
@@ -422,7 +375,7 @@ test pidAndExitCodeInspect =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.Pid.fromInt64(4242)
       |> Stdlib.Result.map(Stdlib.inspect)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("Pid(4242)"))
+      |> Stdlib.Test.equal(Ok("Pid(4242)"))
 
       Stdlib.inspect(Stdlib.Cli.Posix.ExitCode.failure)
       |> Stdlib.Test.equal("ExitCode(1)")
@@ -430,28 +383,25 @@ test pidAndExitCodeInspect =
       Stdlib.inspect([ Stdlib.Cli.Posix.ExitCode.success ])
       |> Stdlib.Test.equal("[ExitCode(0)]")
 
-      $"{Stdlib.Option.Option.Some(Stdlib.Cli.Posix.ExitCode.failure)}"
+      $"{Some(Stdlib.Cli.Posix.ExitCode.failure)}"
       |> Stdlib.Test.equal("Some(ExitCode(1))") ])
 
 
 test exitCodeFromInt64 =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.ExitCode.fromInt64(0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ExitCode.success))
+      |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.success))
 
       Stdlib.Cli.Posix.ExitCode.fromInt64(1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ExitCode.failure))
+      |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.failure))
 
       Stdlib.Cli.Posix.ExitCode.fromInt64(255)
       |> Stdlib.Result.map(Stdlib.Cli.Posix.ExitCode.toInt64)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255))
+      |> Stdlib.Test.equal(Ok(255))
 
       Stdlib.Cli.Posix.ExitCode.fromInt64(256)
       |> Stdlib.Result.mapError(Stdlib.display)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error("256 is not a valid exit code (0 to 255)"))
+      |> Stdlib.Test.equal(Error("256 is not a valid exit code (0 to 255)"))
 
       Stdlib.Cli.Posix.ExitCode.isSuccess(Stdlib.Cli.Posix.ExitCode.success)
       |> Stdlib.Test.equal(true)
@@ -466,14 +416,11 @@ test exitCodeFromInt64 =
 test fileModes =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.FileMode.fromInt64(420)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.Modes.defaultFile))
+      |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.Modes.defaultFile))
 
       Stdlib.Cli.Posix.FileMode.fromInt64(65536)
       |> Stdlib.Result.mapError(Stdlib.display)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          "65536 is not a valid file mode (0 to 65535)"))
+      |> Stdlib.Test.equal(Error("65536 is not a valid file mode (0 to 65535)"))
 
       Stdlib.display(Stdlib.Cli.Posix.Modes.defaultDir)
       |> Stdlib.Test.equal("0755")
@@ -489,7 +436,7 @@ test fileModes =
           == Stdlib.Cli.Posix.StatMode.ifdir,
           Stdlib.Cli.Posix.FileMode.permissions(mode)
           == Stdlib.Cli.Posix.Modes.defaultDir))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true))) ])
+      |> Stdlib.Test.equal(Ok((true, true))) ])
 
 
 // A signal is sent as its number, the same on Linux and macOS

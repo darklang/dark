@@ -31,7 +31,7 @@ let execute(state: AppState, args: List<String>): AppState =
     | Ok(location) ->
       let found =
         match location with
-        | Module(_) -> Option.None
+        | Module(_) -> None
         | Type(loc) ->
           LanguageTools.PackageManager.Type.find(branchId, loc)
           |> Stdlib.Option.map(fun h -> ("type", h))

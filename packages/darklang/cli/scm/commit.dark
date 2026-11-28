@@ -289,9 +289,9 @@ let selectedReview(state: AppState, all: Review, names: List<String>): Review =
             words
             |> Stdlib.List.filterMap(fun word ->
               if Stdlib.Option.isNone(word.binding) then
-                Option.Some(SCM.Conflicts.fqn(word.owner, word.modules, word.name))
+                Some(SCM.Conflicts.fqn(word.owner, word.modules, word.name))
               else
-                Option.None) }
+                None) }
 
 
 /// Validate the versions selected for this commit, including historical callers
@@ -334,11 +334,10 @@ let commitSelected(
   names: List<String>)
   : Result<(String * Int64 * Int64), String> =
   match SCM.PartialCommit.plan(names) with
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
   | Ok((opIds, pulledIn)) ->
     if Stdlib.List.isEmpty(opIds) then
-      Result.Error(
-        "that selection has nothing to commit -- `dark status` shows what the draft holds.")
+      Error("that selection has nothing to commit -- `dark status` shows what the draft holds.")
     else
       let moved = propagateAll(state, r)
 
@@ -357,8 +356,8 @@ let commitSelected(
       // A selection that matched rows and then committed none of them means the ids went stale between
       // planning and stamping. Say so rather than report a commit that holds nothing.
       | Error(Refused(NothingToCommit)) ->
-        Result.Error("nothing was committed -- the draft moved while this ran. Try again.")
-      | Error(e) -> Result.Error(SCM.Actions.failureMessage(e))
+        Error("nothing was committed -- the draft moved while this ran. Try again.")
+      | Error(e) -> Error(SCM.Actions.failureMessage(e))
       | Ok(c) ->
         let _ =
           if Stdlib.List.isEmpty(pulledIn) then
@@ -368,7 +367,7 @@ let commitSelected(
             Stderr.ok(
               $"  also committed (needed by what you named): {Stdlib.String.join(pulledIn, ", ")}")
 
-        Result.Ok((c.hash, c.stamped, moved))
+        Ok((c.hash, c.stamped, moved))
 
 
 /// Commit the whole draft. Propagate FIRST, so the repoint ops land in this commit rather than dangling as
@@ -385,8 +384,8 @@ let commit(state: AppState, r: Review, message: String): Result<(String * Int64 
           message,
           SCM.Actions.CommitScope.Whole,
           SCM.PackageOps.Namings.Collapse) with
-  | Ok(c) -> Result.Ok((c.hash, c.stamped, moved))
-  | Error(e) -> Result.Error(SCM.Actions.failureMessage(e))
+  | Ok(c) -> Ok((c.hash, c.stamped, moved))
+  | Error(e) -> Error(SCM.Actions.failureMessage(e))
 
 
 let executeJson(state: AppState, args: List<String>): AppState =

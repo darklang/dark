@@ -100,8 +100,7 @@ test scaleIsKeptButIgnoredByEquality =
 
 
 test oneDictKeyAcrossScales =
-  Stdlib.Dict.get(Dict { 1.10dec: "a" }, 1.1dec)
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a"))
+  Stdlib.Dict.get(Dict { 1.10dec: "a" }, 1.1dec) |> Stdlib.Test.equal(Some("a"))
 
 
 test matchIgnoresScale =
@@ -134,144 +133,109 @@ test parts =
 
       Stdlib.Decimal.toParts(-0.5dec) |> Stdlib.Test.equal((-5z, 1))
 
-      Stdlib.Decimal.fromParts(1999z, 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(19.99dec))
+      Stdlib.Decimal.fromParts(1999z, 2) |> Stdlib.Test.equal(Some(19.99dec))
 
-      Stdlib.Decimal.fromParts(1z, 29)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Decimal.fromParts(1z, 29) |> Stdlib.Test.equal(None)
 
-      Stdlib.Decimal.fromParts(1z, -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Decimal.fromParts(1z, -1) |> Stdlib.Test.equal(None)
 
       Stdlib.Decimal.fromParts(79228162514264337593543950336z, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 test parse =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.parse("19.99")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(19.99dec))
+    [ Stdlib.Decimal.parse("19.99") |> Stdlib.Test.equal(Ok(19.99dec))
 
       Stdlib.Decimal.parse("-1.10")
       |> Stdlib.Result.map(Stdlib.display)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("-1.10"))
+      |> Stdlib.Test.equal(Ok("-1.10"))
 
-      Stdlib.Decimal.parse("1.5e3")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1500dec))
+      Stdlib.Decimal.parse("1.5e3") |> Stdlib.Test.equal(Ok(1500dec))
 
-      Stdlib.Decimal.parse("1e-5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.00001dec))
+      Stdlib.Decimal.parse("1e-5") |> Stdlib.Test.equal(Ok(0.00001dec))
 
       Stdlib.Decimal.parse("1e+16")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(10000000000000000dec))
+      |> Stdlib.Test.equal(Ok(10000000000000000dec))
 
       Stdlib.Decimal.parse("")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.BadFormat))
 
       Stdlib.Decimal.parse("1.")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.BadFormat))
 
-      Stdlib.Decimal.parse(".5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5dec))
+      Stdlib.Decimal.parse(".5") |> Stdlib.Test.equal(Ok(0.5dec))
 
-      Stdlib.Decimal.parse("-.25")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-0.25dec))
+      Stdlib.Decimal.parse("-.25") |> Stdlib.Test.equal(Ok(-0.25dec))
 
-      Stdlib.Decimal.parse("+1.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5dec))
+      Stdlib.Decimal.parse("+1.5") |> Stdlib.Test.equal(Ok(1.5dec))
 
       Stdlib.Decimal.parse(".")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.BadFormat))
 
       Stdlib.Decimal.parse("+-1")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.BadFormat))
 
       Stdlib.Decimal.parse("abc")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.BadFormat))
 
       // 29 places would have to be rounded, so it is refused
       Stdlib.Decimal.parse("0.00000000000000000000000000001")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.OutOfRange))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.OutOfRange))
 
       Stdlib.Decimal.parse("79228162514264337593543950336")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.OutOfRange))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.OutOfRange))
 
       Stdlib.Decimal.parse("1e999999999")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.OutOfRange)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.ParseError.OutOfRange)) ])
 
 
 test round =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.round(2.345dec, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.35dec))
+    [ Stdlib.Decimal.round(2.345dec, 2) |> Stdlib.Test.equal(Ok(2.35dec))
 
-      Stdlib.Decimal.round(-2.345dec, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2.35dec))
+      Stdlib.Decimal.round(-2.345dec, 2) |> Stdlib.Test.equal(Ok(-2.35dec))
 
-      Stdlib.Decimal.round(2.344dec, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.34dec))
+      Stdlib.Decimal.round(2.344dec, 2) |> Stdlib.Test.equal(Ok(2.34dec))
 
-      Stdlib.Decimal.round(0.5dec, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1dec))
+      Stdlib.Decimal.round(0.5dec, 0) |> Stdlib.Test.equal(Ok(1dec))
 
       Stdlib.Decimal.round(5dec, 2)
       |> Stdlib.Result.map(Stdlib.display)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("5.00"))
+      |> Stdlib.Test.equal(Ok("5.00"))
 
       Stdlib.Decimal.round(10dec / 3dec, 2)
       |> Stdlib.Result.map(Stdlib.display)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("3.33")) ])
+      |> Stdlib.Test.equal(Ok("3.33")) ])
 
 
 test roundRefusesBadPlaces =
   Stdlib.Test.all(
     [ Stdlib.Decimal.round(1dec, 29)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.RoundError.PlacesOutOfRange))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.RoundError.PlacesOutOfRange))
 
       Stdlib.Decimal.round(1dec, -1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Decimal.RoundError.PlacesOutOfRange))
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.RoundError.PlacesOutOfRange))
 
       Stdlib.Decimal.truncate(1dec, 29)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.Decimal.RoundError.PlacesOutOfRange)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Decimal.RoundError.PlacesOutOfRange)) ])
 
 
 test truncate =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.truncate(2.349dec, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.34dec))
-
+    [ Stdlib.Decimal.truncate(2.349dec, 2) |> Stdlib.Test.equal(Ok(2.34dec))
       Stdlib.Decimal.truncate(-2.349dec, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2.34dec)) ])
+      |> Stdlib.Test.equal(Ok(-2.34dec)) ])
 
 
 test conversions =
   Stdlib.Test.all(
     [ Stdlib.Decimal.toBigInt(-2.9dec) |> Stdlib.Test.equal(-2z)
-
       Stdlib.Decimal.toBigInt(19.99dec) |> Stdlib.Test.equal(19z)
-
-      Stdlib.Decimal.fromBigInt(42z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(42dec))
-
+      Stdlib.Decimal.fromBigInt(42z) |> Stdlib.Test.equal(Some(42dec))
       Stdlib.Decimal.toFloat64(0.5dec) |> Stdlib.Test.equal(0.5)
-
-      Stdlib.Decimal.fromFloat64(0.1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.1dec))
-
-      Stdlib.Decimal.fromFloat64(0.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.Decimal.fromFloat64(0.1) |> Stdlib.Test.equal(Some(0.1dec))
+      Stdlib.Decimal.fromFloat64(0.0 / 0.0) |> Stdlib.Test.equal(None) ])
 
 
 test sumOfPrices =
@@ -285,11 +249,11 @@ test json =
 
       Stdlib.Json.parse<Decimal>("19.90")
       |> Stdlib.Result.map(Stdlib.display)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("19.90"))
+      |> Stdlib.Test.equal(Ok("19.90"))
 
       // a number Float64 would round past 2^53 comes through whole
       Stdlib.Json.parse<Decimal>("9007199254740993.01")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9007199254740993.01dec)) ])
+      |> Stdlib.Test.equal(Ok(9007199254740993.01dec)) ])
 
 
 test jsonRefusesWhatItWouldRound =
@@ -297,7 +261,7 @@ test jsonRefusesWhatItWouldRound =
   |> Stdlib.Result.mapError(fun e ->
     Stdlib.Json.ParseError.toString(SCM.Branch.mainBranchId, e))
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(
+    Error(
       "Can't parse JSON `0.00000000000000000000000000001` as type `Decimal` at path: `root`"))
 
 
@@ -387,18 +351,16 @@ test roundWith =
         2.345dec,
         2,
         Stdlib.Decimal.RoundingMode.HalfEven)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.34dec))
+      |> Stdlib.Test.equal(Ok(2.34dec))
 
       Stdlib.Decimal.roundWith(1dec, 28, Stdlib.Decimal.RoundingMode.Floor)
       |> Stdlib.Result.map(Stdlib.display)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok("1.0000000000000000000000000000")) ])
+      |> Stdlib.Test.equal(Ok("1.0000000000000000000000000000")) ])
 
 
 test roundWithRefusesWhatCannotBePadded =
   Stdlib.Decimal.round(79228162514264337593543950335dec, 1)
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Error(Stdlib.Decimal.RoundError.OutOfRange))
+  |> Stdlib.Test.equal(Error(Stdlib.Decimal.RoundError.OutOfRange))
 
 
 test floorAndCeiling =
@@ -483,40 +445,34 @@ test moduloByNegativeRaises =
 test remainder =
   Stdlib.Test.all(
     [ Stdlib.Decimal.checkedRemainder(5.5dec, 2dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5dec))
+      |> Stdlib.Test.equal(Ok(1.5dec))
 
       Stdlib.Decimal.checkedRemainder(-5.5dec, 2dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.5dec))
+      |> Stdlib.Test.equal(Ok(-1.5dec))
 
       Stdlib.Decimal.checkedRemainder(5.5dec, -2dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5dec))
+      |> Stdlib.Test.equal(Ok(1.5dec))
 
       Stdlib.Decimal.checkedRemainder(1dec, 0dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
 
 
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where
 /// they raise.
 test divisionResults =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.checkedDivide(1dec, 4dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.25dec))
+    [ Stdlib.Decimal.checkedDivide(1dec, 4dec) |> Stdlib.Test.equal(Ok(0.25dec))
 
       Stdlib.Decimal.checkedDivide(1dec, 0dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
 
-      Stdlib.Decimal.checkedMod(-0.5dec, 2dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5dec))
+      Stdlib.Decimal.checkedMod(-0.5dec, 2dec) |> Stdlib.Test.equal(Ok(1.5dec))
 
       Stdlib.Decimal.checkedMod(1dec, 0dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
 
       Stdlib.Decimal.checkedMod(1dec, -2dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
 
 
 /// The checked operators return what the operator computes, and {{Error}} where it raises past
@@ -524,54 +480,43 @@ test divisionResults =
 test checkedArithmetic =
   let max = 79228162514264337593543950335dec
   Stdlib.Test.all(
-    [ Stdlib.Decimal.checkedAdd(1.5dec, 2dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3.5dec))
+    [ Stdlib.Decimal.checkedAdd(1.5dec, 2dec) |> Stdlib.Test.equal(Ok(3.5dec))
 
       Stdlib.Decimal.checkedAdd(max, 1dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.Decimal.checkedSubtract(1dec, 2.5dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.5dec))
+      |> Stdlib.Test.equal(Ok(-1.5dec))
 
       Stdlib.Decimal.checkedSubtract(-max, 1dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.Decimal.checkedMultiply(1.5dec, 3dec)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4.5dec))
+      |> Stdlib.Test.equal(Ok(4.5dec))
 
       Stdlib.Decimal.checkedMultiply(max, 2dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
 
       Stdlib.Decimal.checkedDivide(max, 0.5dec)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.Overflow)) ])
 
 
 test checkedPower =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.checkedPower(1.1dec, 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.21dec))
+    [ Stdlib.Decimal.checkedPower(1.1dec, 2) |> Stdlib.Test.equal(Ok(1.21dec))
 
-      Stdlib.Decimal.checkedPower(2dec, -2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.25dec))
+      Stdlib.Decimal.checkedPower(2dec, -2) |> Stdlib.Test.equal(Ok(0.25dec))
 
-      Stdlib.Decimal.checkedPower(5dec, 0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1dec))
+      Stdlib.Decimal.checkedPower(5dec, 0) |> Stdlib.Test.equal(Ok(1dec))
 
       Stdlib.Decimal.checkedPower(10dec, 28)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(10000000000000000000000000000dec))
+      |> Stdlib.Test.equal(Ok(10000000000000000000000000000dec))
 
       Stdlib.Decimal.checkedPower(10dec, 29)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.Overflow))
 
       Stdlib.Decimal.checkedPower(0dec, -1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
 
 
 test int64Conversions =
@@ -584,37 +529,30 @@ test int64Conversions =
       Stdlib.Decimal.fromInt64(-9223372036854775808)
       |> Stdlib.Test.equal(-9223372036854775808dec)
 
-      Stdlib.Decimal.toInt64(-2.9dec)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2))
+      Stdlib.Decimal.toInt64(-2.9dec) |> Stdlib.Test.equal(Some(-2))
 
       Stdlib.Decimal.toInt64(9223372036854775807.9dec)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9223372036854775807))
+      |> Stdlib.Test.equal(Some(9223372036854775807))
 
-      Stdlib.Decimal.toInt64(9223372036854775808dec)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Decimal.toInt64(9223372036854775808dec) |> Stdlib.Test.equal(None)
 
       Stdlib.Decimal.fromBigInt(79228162514264337593543950336z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 test float32Conversions =
   Stdlib.Test.all(
     [ // the Float32 nearest a tenth prints as 0.1, so that is the decimal it becomes
-      Stdlib.Decimal.fromFloat32(0.1f32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.1dec))
+      Stdlib.Decimal.fromFloat32(0.1f32) |> Stdlib.Test.equal(Some(0.1dec))
 
-      Stdlib.Decimal.fromFloat32(-2.5f32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2.5dec))
+      Stdlib.Decimal.fromFloat32(-2.5f32) |> Stdlib.Test.equal(Some(-2.5dec))
 
-      Stdlib.Decimal.fromFloat32(0.0f32 / 0.0f32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Decimal.fromFloat32(0.0f32 / 0.0f32) |> Stdlib.Test.equal(None)
 
-      Stdlib.Decimal.fromFloat32(1.0f32 / 0.0f32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Decimal.fromFloat32(1.0f32 / 0.0f32) |> Stdlib.Test.equal(None)
 
       // past 96 bits
-      Stdlib.Decimal.fromFloat32(3.4028235e38f32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Decimal.fromFloat32(3.4028235e38f32) |> Stdlib.Test.equal(None)
 
       Stdlib.Decimal.toFloat32(0.1dec) |> Stdlib.Test.equal(0.1f32)
 
@@ -626,15 +564,12 @@ test float32Conversions =
 
 test floatConversionEdges =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.fromFloat64(1.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+    [ Stdlib.Decimal.fromFloat64(1.0 / 0.0) |> Stdlib.Test.equal(None)
 
-      Stdlib.Decimal.fromFloat64(1e300)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Decimal.fromFloat64(1e300) |> Stdlib.Test.equal(None)
 
       // 1e-5 prints with an exponent, which parse takes
-      Stdlib.Decimal.fromFloat64(0.00001)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.00001dec))
+      Stdlib.Decimal.fromFloat64(0.00001) |> Stdlib.Test.equal(Some(0.00001dec))
 
       Stdlib.Decimal.toFloat64(0.1dec) |> Stdlib.Test.equal(0.1)
 

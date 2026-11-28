@@ -98,7 +98,7 @@ let createFnInline(
             $"Rename it to `let {location.name} ...`, or change the " + "fn target."))
 
         // Nothing was saved: an agent's authoring loop branches on the exit.
-        Option.Some(failed(state))
+        Some(failed(state))
       | Function(writtenFn) ->
         let writtenFn =
           { writtenFn with
@@ -107,7 +107,7 @@ let createFnInline(
         // the short form is parsed behind `let <name> `, so a column on its first line is off by that
         let wrapped = fnSource(location.name, definition)
         let shift = Stdlib.String.length(wrapped) - Stdlib.String.length(definition)
-        Option.Some(
+        Some(
           saveAuthored(
             state,
             location,
@@ -129,8 +129,8 @@ let createFnInline(
                 packageFn.bounds
                 |> Stdlib.List.filterMap(fun b ->
                   match b.trait_.trait_.resolved with
-                  | Ok(_) -> Option.None
-                  | Error(_) -> Option.Some(Stdlib.String.join(b.trait_.trait_.originalName, ".")))
+                  | Ok(_) -> None
+                  | Error(_) -> Some(Stdlib.String.join(b.trait_.trait_.originalName, ".")))
                 |> Stdlib.List.unique
 
               unresolvedBoundNames
@@ -155,17 +155,17 @@ let createFnInline(
                 Stdlib.printLine(""))
 
               if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedBoundNames)) then
-                Option.None
+                None
               else
                 let ops =
                   [ LanguageTools.ProgramTypes.PackageOp.AddFn(packageFn)
                     LanguageTools.ProgramTypes.PackageOp.SetName(
                       location,
                       LanguageTools.ProgramTypes.Reference.PackageFn(packageFn.hash),
-                      Option.None) ]
+                      None) ]
 
-                Option.Some((ops, packageFn.hash, unresolvedNames))))
-      | _ -> Option.None)
+                Some((ops, packageFn.hash, unresolvedNames))))
+      | _ -> None)
 
 
 let help(_state: AppState): String =

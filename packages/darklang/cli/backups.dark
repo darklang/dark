@@ -133,10 +133,10 @@ let executePrune(state: AppState, keepArg: String, confirm: Confirm): AppState =
             |> Stdlib.List.filterMap(fun name ->
               match LanguageTools.LocalStore.backups(
                       LanguageTools.LocalStore.BackupAction.Delete(name)) with
-              | Ok(_) -> Option.Some(name)
+              | Ok(_) -> Some(name)
               | Error(_) ->
                 printErr($"  couldn't delete {name}")
-                Option.None)
+                None)
 
           Stderr.ok(
             $"""deleted {Text.plural(Stdlib.List.length(deleted), "backup")}, kept {keepArg}.""")

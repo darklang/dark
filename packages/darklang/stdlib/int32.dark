@@ -113,9 +113,9 @@ let parse(s: String): Result<Int32, ParseError> =
   match BigInt.parse(s) with
   | Ok(n) ->
     match BigInt.toInt32(n) with
-    | Some(i) -> Result.Ok(i)
-    | None -> Result.Error(ParseError.OutOfRange)
-  | Error(_) -> Result.Error(ParseError.BadFormat)
+    | Some(i) -> Ok(i)
+    | None -> Error(ParseError.OutOfRange)
+  | Error(_) -> Error(ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to a <type Int32>.
@@ -277,60 +277,57 @@ impl One for Int32 =
 let checkedAdd(a: Int32, b: Int32): Result<Int32, Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0s32 then sum > a else sum < a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(a: Int32, b: Int32): Result<Int32, Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0s32 then difference < a else difference > a
-  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
+  if wrapped then Error(Math.Overflow.Overflow) else Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(a: Int32, b: Int32): Result<Int32, Math.Overflow> =
   let product = BigInt.fromInt32(a) * BigInt.fromInt32(b)
   match BigInt.toInt32(product) with
-  | Some(fits) -> Result.Ok(fits)
-  | None -> Result.Error(Math.Overflow.Overflow)
+  | Some(fits) -> Ok(fits)
+  | None -> Error(Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int32): Result<Int32, Math.Overflow> =
-  if a == -2147483648s32 then
-    Result.Error(Math.Overflow.Overflow)
-  else
-    Result.Ok(-a)
+  if a == -2147483648s32 then Error(Math.Overflow.Overflow) else Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int32): Result<Int32, Math.Overflow> =
   if a == -2147483648s32 then
-    Result.Error(Math.Overflow.Overflow)
+    Error(Math.Overflow.Overflow)
   else if a < 0s32 then
-    Result.Ok(-a)
+    Ok(-a)
   else
-    Result.Ok(a)
+    Ok(a)
 
 
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(base: Int32, exponent: Int32): Result<Int32, Math.PowerError> =
   if exponent < 0s32 then
-    Result.Error(Math.PowerError.NegativeExponent)
+    Error(Math.PowerError.NegativeExponent)
   else if base == 0s32 || base == 1s32 || base == -1s32 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Result.Ok(base ** exponent)
+    Ok(base ** exponent)
   else if exponent >= 32s32 then
     // any other base is at least 2 from zero, and 2 ** 32 is past the Int32 range
-    Result.Error(Math.PowerError.Overflow)
+    Error(Math.PowerError.Overflow)
   else
     let result = BigInt.fromInt32(base) ** BigInt.fromInt32(exponent)
     match BigInt.toInt32(result) with
-    | Some(fits) -> Result.Ok(fits)
-    | None -> Result.Error(Math.PowerError.Overflow)
+    | Some(fits) -> Ok(fits)
+    | None -> Error(Math.PowerError.Overflow)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -341,11 +338,11 @@ let checkedPower(base: Int32, exponent: Int32): Result<Int32, Math.PowerError> =
 /// minimum value divided by -1, where `/` wraps back to the minimum.
 let checkedDivide(a: Int32, b: Int32): Result<Int32, Math.DivisionError> =
   if b == 0s32 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else if b == -1s32 && a == -2147483648s32 then
-    Result.Error(Math.DivisionError.Overflow)
+    Error(Math.DivisionError.Overflow)
   else
-    Result.Ok(a / b)
+    Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
@@ -354,17 +351,17 @@ let checkedDivide(a: Int32, b: Int32): Result<Int32, Math.DivisionError> =
 /// Use <fn Int32.checkedMod> to wrap around into {{0 <= res < b}} instead.
 let checkedRemainder(value: Int32, divisor: Int32): Result<Int32, Math.DivisionError> =
   if divisor == 0s32 then
-    Result.Error(Math.DivisionError.DivisionByZero)
+    Error(Math.DivisionError.DivisionByZero)
   else
-    Result.Ok(value - value / divisor * divisor)
+    Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: Int32, b: Int32): Result<Int32, Math.ModulusError> =
   if b == 0s32 then
-    Result.Error(Math.ModulusError.ZeroModulus)
+    Error(Math.ModulusError.ZeroModulus)
   else if b < 0s32 then
-    Result.Error(Math.ModulusError.NegativeModulus)
+    Error(Math.ModulusError.NegativeModulus)
   else
-    Result.Ok(a % b)
+    Ok(a % b)

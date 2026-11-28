@@ -46,14 +46,14 @@ let addToPath(dir: String): Result<Unit, String> =
     if FileSystem.pathExists("$HOME/.config/fish/config.fish") then
       readFishConfig()
     else
-      Result.Ok("")
+      Ok("")
 
   match existing with
   | Ok(content) ->
     // Check if PATH addition for this dir already exists (not just any reference to the dir)
     if String.contains(content, exportLine) then
-      Result.Ok()
+      Ok()
     else
       let updatedContent = content + "\n" + exportLine
       overwriteFishConfig(updatedContent)
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)

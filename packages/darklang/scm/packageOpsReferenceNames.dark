@@ -7,7 +7,7 @@ let referenceSnapshots(
   sources:
     List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>)
   : List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot> =
-  referenceSnapshotsAt(branch, sources, Option.None)
+  referenceSnapshotsAt(branch, sources, None)
 
 
 type ReferenceNamesBySource =
@@ -106,16 +106,16 @@ let prepareRename(
             reference,
             if
               LanguageTools.ProgramTypes.Reference.kind(reference) == kind
-              && name == Option.Some(oldLocation)
+              && name == Some(oldLocation)
             then
-              Option.Some(newLocation)
+              Some(newLocation)
             else
               name))
 
       { snapshot with
           location = if snapshot.location == oldLocation then newLocation else snapshot.location
           names = names
-          restating = Option.Some(stamp) })
+          restating = Some(stamp) })
 
   [ LanguageTools.ProgramTypes.PackageOp.Rename(
       oldLocation,
@@ -143,4 +143,4 @@ let restoreRevision(
              snapshot.target,
              snapshot.names)) ]))?
 
-  Result.Ok()
+  Ok()

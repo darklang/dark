@@ -55,13 +55,11 @@ test recordJsonRoundtrip =
     [ json
       |> Stdlib.Test.equal("{\"id\":7,\"name\":\"ada\",\"tags\":[\"x\",\"y\"]}")
 
-      Stdlib.Json.parse<Acct>(json)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(acct)) ])
+      Stdlib.Json.parse<Acct>(json) |> Stdlib.Test.equal(Ok(acct)) ])
 
 
 // Compare the whole parsed list.
 test recursiveEnumJsonRoundtrip =
   let original = shapes()
   let json = Stdlib.Json.serialize<List<Shape>>(original)
-  Stdlib.Json.parse<List<Shape>>(json)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(original))
+  Stdlib.Json.parse<List<Shape>>(json) |> Stdlib.Test.equal(Ok(original))

@@ -111,17 +111,14 @@ let runScript(
   script: String)
   : Stdlib.Result.Result<String, String> =
   match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(script)) with
-  | Error(e) -> Stdlib.Result.Result.Error($"could not write {path}: {e}")
+  | Error(e) -> Error($"could not write {path}: {e}")
   | Ok(_) ->
     let outcome =
       Stdlib.Cli.Unix.executeInDirectoryWithOutput(
         ".",
         $"expect -f {path} 2>&1")
 
-    if outcome.exitCode == 0 then
-      Stdlib.Result.Result.Ok(outcome.stdout)
-    else
-      Stdlib.Result.Result.Error(outcome.stdout)
+    if outcome.exitCode == 0 then Ok(outcome.stdout) else Error(outcome.stdout)
 
 
 /// Run `dark <args>` on a real terminal in `i`, walk `steps`, return the transcript.
@@ -139,7 +136,7 @@ let drive(
   timeoutSeconds: Int64)
   : Stdlib.Result.Result<String, String> =
   if Stdlib.Bool.not(available()) then
-    Stdlib.Result.Result.Error("expect is not installed")
+    Error("expect is not installed")
   else
     // Parenthesised: Dark parses pipes greedily, so `Instance.env i |> ...` reads the
     // qualified name as the pipe's left-hand side and fails. Telemetry is on because its

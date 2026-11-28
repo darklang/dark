@@ -53,12 +53,12 @@ let boundBy(
   |> Stdlib.List.filterMap(fun op ->
     match op with
     | SetName(loc, reference, _) ->
-      Option.Some(
+      Some(
         (
           loc,
           LanguageTools.ProgramTypes.Reference.kind(reference),
           LanguageTools.ProgramTypes.Reference.hash(reference)))
-    | _ -> Option.None)
+    | _ -> None)
   |> Stdlib.List.last
 
 
@@ -307,7 +307,7 @@ let openNewEditor(state: State, kind: String, targetModule: List<String>): Step 
   Step.Continue(
     { state with
         editing =
-          Option.Some(
+          Some(
             EditingState
               { kind = kind
                 nameStr = titleBase + where
@@ -327,7 +327,7 @@ let startNew(state: State, kind: String): Step =
     Step.Continue(
       { state with
           input =
-            Option.Some(
+            Some(
               InputState
                 { prompt = "save under (Owner or Owner.Module): "
                   field = Stdlib.Cli.UI.TextField.fromText("Me")
@@ -344,37 +344,37 @@ let openEditExisting(state: State, item: BodyItem): Step =
   let kindAndSrc =
     if item.kind == "type" then
       match results.types with
-      | [i, ...] -> Option.Some(("type", PrettyPrinter.ProgramTypes.packageType(ctx, i.entity)))
-      | [] -> Option.None
+      | [i, ...] -> Some(("type", PrettyPrinter.ProgramTypes.packageType(ctx, i.entity)))
+      | [] -> None
     else if item.kind == "val" then
       match results.values with
-      | [i, ...] -> Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue(ctx, i.entity)))
-      | [] -> Option.None
+      | [i, ...] -> Some(("value", PrettyPrinter.ProgramTypes.packageValue(ctx, i.entity)))
+      | [] -> None
     else if item.kind == "test" then
       match results.tests with
-      | [i, ...] -> Option.Some(("test", PrettyPrinter.ProgramTypes.packageTest(ctx, i.entity)))
-      | [] -> Option.None
+      | [i, ...] -> Some(("test", PrettyPrinter.ProgramTypes.packageTest(ctx, i.entity)))
+      | [] -> None
     else if item.kind == "fn" then
       match results.fns with
-      | [i, ...] -> Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn(ctx, i.entity)))
-      | [] -> Option.None
+      | [i, ...] -> Some(("fn", PrettyPrinter.ProgramTypes.packageFn(ctx, i.entity)))
+      | [] -> None
     else if item.kind == "trait" then
       match results.traits with
-      | [i, ...] -> Option.Some(("trait", PrettyPrinter.ProgramTypes.packageTrait(ctx, i.entity)))
-      | [] -> Option.None
+      | [i, ...] -> Some(("trait", PrettyPrinter.ProgramTypes.packageTrait(ctx, i.entity)))
+      | [] -> None
     else if item.kind == "impl" then
       match results.impls with
-      | [i, ...] -> Option.Some(("impl", PrettyPrinter.ProgramTypes.packageImpl(ctx, i.entity)))
-      | [] -> Option.None
+      | [i, ...] -> Some(("impl", PrettyPrinter.ProgramTypes.packageImpl(ctx, i.entity)))
+      | [] -> None
     else
-      Option.None
+      None
 
   match kindAndSrc with
   | Some((kind, src)) ->
     Step.Continue(
       { state with
           editing =
-            Option.Some(
+            Some(
               EditingState
                 { kind = kind
                   nameStr = "Editing " + fullName

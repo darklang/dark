@@ -10,10 +10,10 @@ let __loop(
   fn: Unit -> Result<'a, String>)
   : Result<'a, String> =
   match fn() with
-  | Ok(result) -> Result.Ok(result)
+  | Ok(result) -> Ok(result)
   | Error(e) ->
     if attempt >= maxAttempts then
-      Result.Error(e)
+      Error(e)
     else
       let _ = Cli.Posix.sleep(delayMs)
       __loop(maxAttempts, attempt + 1, delayMs * factor, factor, fn)

@@ -116,8 +116,7 @@ let execute(state: AppState, args: List<String>): AppState =
       let inferred =
         Deprecate.allItemKinds
         |> Stdlib.List.filter(fun((kind, _)) ->
-          Deprecate.resolveTarget(branchId, state.packageData.currentLocation, kind, first)
-          != Option.None)
+          Deprecate.resolveTarget(branchId, state.packageData.currentLocation, kind, first) != None)
 
       match inferred with
       | [] -> deleteModule(state, first, parsed)
@@ -188,7 +187,7 @@ let discardItem(
   if parsed.json then
     let written =
       if dryRun then
-        Result.Ok(0)
+        Ok(0)
       else
         SCM.PackageOps.discardDraftName(location.owner, location.modules, location.name)
 
@@ -255,8 +254,8 @@ let moduleItems(
 /// <param name> as a module path, owner first.
 let modulePath(state: AppState, name: String): Option<List<String>> =
   match Location.parseRelativeTo(state.packageData.currentLocation, name + ".__module__") with
-  | Ok(location) -> Option.Some(Stdlib.List.prepend(location.modules, location.owner))
-  | Error(_) -> Option.None
+  | Ok(location) -> Some(Stdlib.List.prepend(location.modules, location.owner))
+  | Error(_) -> None
 
 
 /// Look for declarations or submodules regardless of deprecation status.
@@ -392,16 +391,16 @@ let deleteModuleItems(
             reference,
             LanguageTools.ProgramTypes.DeprecationKind.Deprecated,
             parsed.reason,
-            Option.None))
+            None))
 
       let written =
         fresh
-        |> Stdlib.List.fold(Result.Ok(0), fun(acc, item) ->
+        |> Stdlib.List.fold(Ok(0), fun(acc, item) ->
           let (l, _) = item
           Stdlib.Result.andThen(acc, fun _ ->
             SCM.PackageOps.discardDraftName(l.owner, l.modules, l.name)))
         |> Stdlib.Result.andThen(fun _ ->
-          if ops == [] then Result.Ok(0) else SCM.PackageOps.add(branchId, ops))
+          if ops == [] then Ok(0) else SCM.PackageOps.add(branchId, ops))
 
       match written with
       | Ok(_) when parsed.json -> reportJson()

@@ -77,41 +77,33 @@ test toStringAndParse =
       |> Stdlib.Test.equal("9223372036854775808")
 
       Stdlib.BigInt.parse("9223372036854775808")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9223372036854775808z))
+      |> Stdlib.Test.equal(Ok(9223372036854775808z))
 
-      Stdlib.BigInt.parse("5") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5z))
+      Stdlib.BigInt.parse("5") |> Stdlib.Test.equal(Ok(5z))
 
       Stdlib.BigInt.parse("not a number")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.BigInt.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
 
       Stdlib.BigInt.parse("")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.BigInt.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
 
       Stdlib.BigInt.parse("5.0")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.BigInt.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
 
       Stdlib.BigInt.parse("5_000")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.BigInt.ParseError.BadFormat))
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
 
       // arbitrary precision: a value past Int64.MinValue still parses
       Stdlib.BigInt.parse("-9223372036854775809")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775809z)) ])
+      |> Stdlib.Test.equal(Ok(-9223372036854775809z)) ])
 
 
 // toInt64 relies on the invariant: a small BigInt always fits, a big BigInt never does
 test int64Conversions =
   Stdlib.Test.all(
     [ Stdlib.BigInt.fromInt64(5) |> Stdlib.Test.equal(5z)
-
-      Stdlib.BigInt.toInt64(5z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
-
-      Stdlib.BigInt.toInt64(9223372036854775808z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.BigInt.toInt64(5z) |> Stdlib.Test.equal(Some(5))
+      Stdlib.BigInt.toInt64(9223372036854775808z) |> Stdlib.Test.equal(None) ])
 
 
 // --- conversions from the fixed-width types (always succeed) ---
@@ -136,25 +128,20 @@ test fromFixedWidth =
 // --- conversions into the fixed-width types (Some if it fits, else None) ---
 test toFixedWidth =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.toInt8(100z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(100s8))
+    [ Stdlib.BigInt.toInt8(100z) |> Stdlib.Test.equal(Some(100s8))
 
-      Stdlib.BigInt.toInt8(200z) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.BigInt.toInt8(200z) |> Stdlib.Test.equal(None)
 
-      Stdlib.BigInt.toUInt8(-1z) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.BigInt.toUInt8(-1z) |> Stdlib.Test.equal(None)
 
-      Stdlib.BigInt.toInt32(2z ** 40z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.BigInt.toInt32(2z ** 40z) |> Stdlib.Test.equal(None)
 
       Stdlib.BigInt.toInt128(2z ** 100z)
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(1267650600228229401496703205376s128))
+      |> Stdlib.Test.equal(Some(1267650600228229401496703205376s128))
 
-      Stdlib.BigInt.toInt128(2z ** 200z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.BigInt.toInt128(2z ** 200z) |> Stdlib.Test.equal(None)
 
-      Stdlib.BigInt.toUInt128(2z ** 200z)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.BigInt.toUInt128(2z ** 200z) |> Stdlib.Test.equal(None) ])
 
 
 // --- fromFloat64: truncates toward zero; NaN/Infinity have no BigInt, so OutOfRange ---
@@ -168,20 +155,16 @@ test fromFloatTruncatesTowardZero =
 
 test checkedFromFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.checkedFromFloat64(-3.9)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3z))
+    [ Stdlib.BigInt.checkedFromFloat64(-3.9) |> Stdlib.Test.equal(Ok(-3z))
 
       Stdlib.BigInt.checkedFromFloat64(1e30)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(1000000000000000019884624838656z))
+      |> Stdlib.Test.equal(Ok(1000000000000000019884624838656z))
 
       Stdlib.BigInt.checkedFromFloat64(0.0 / 0.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber))
 
       Stdlib.BigInt.checkedFromFloat64(-1.0 / 0.0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow)) ])
 
 
 test fromFloatRejectsNaN =
@@ -203,28 +186,22 @@ test fromFloatRejectsNegativeInfinity =
 // is 0 ---
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.checkedRemainder(15z, 6z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3z))
+    [ Stdlib.BigInt.checkedRemainder(15z, 6z) |> Stdlib.Test.equal(Ok(3z))
 
-      Stdlib.BigInt.checkedRemainder(20z, 8z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4z))
+      Stdlib.BigInt.checkedRemainder(20z, 8z) |> Stdlib.Test.equal(Ok(4z))
 
-      Stdlib.BigInt.checkedRemainder(-20z, 8z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4z))
+      Stdlib.BigInt.checkedRemainder(-20z, 8z) |> Stdlib.Test.equal(Ok(-4z))
 
-      Stdlib.BigInt.checkedRemainder(-20z, -8z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4z))
+      Stdlib.BigInt.checkedRemainder(-20z, -8z) |> Stdlib.Test.equal(Ok(-4z))
 
-      Stdlib.BigInt.checkedRemainder(-15z, 6z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3z))
+      Stdlib.BigInt.checkedRemainder(-15z, 6z) |> Stdlib.Test.equal(Ok(-3z))
 
       Stdlib.BigInt.checkedRemainder(5z, 0z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
 
       // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
       Stdlib.BigInt.checkedRemainder(2z ** 100z, 7z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2z)) ])
+      |> Stdlib.Test.equal(Ok(2z)) ])
 
 
 // The % operator dispatches to mod, which wraps into [0, b) and rejects b <= 0.
@@ -273,55 +250,44 @@ test shiftRightRejectsHugeCount =
 
 test checkedShiftLeft =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.checkedShiftLeft(1z, 4z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16z))
+    [ Stdlib.BigInt.checkedShiftLeft(1z, 4z) |> Stdlib.Test.equal(Ok(16z))
 
-      Stdlib.BigInt.checkedShiftLeft(-3z, 2z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-12z))
+      Stdlib.BigInt.checkedShiftLeft(-3z, 2z) |> Stdlib.Test.equal(Ok(-12z))
 
-      Stdlib.BigInt.checkedShiftLeft(5z, 0z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5z))
+      Stdlib.BigInt.checkedShiftLeft(5z, 0z) |> Stdlib.Test.equal(Ok(5z))
 
-      Stdlib.BigInt.checkedShiftLeft(0z, 2z ** 40z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0z))
+      Stdlib.BigInt.checkedShiftLeft(0z, 2z ** 40z) |> Stdlib.Test.equal(Ok(0z))
 
       Stdlib.BigInt.checkedShiftLeft(1z, -1z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ShiftError.NegativeCount))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.NegativeCount))
 
       Stdlib.BigInt.checkedShiftLeft(1z, 8388607z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1z << 8388607z))
+      |> Stdlib.Test.equal(Ok(1z << 8388607z))
 
       Stdlib.BigInt.checkedShiftLeft(1z, 8388608z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ShiftError.ResultTooLarge))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.ResultTooLarge))
 
       Stdlib.BigInt.checkedShiftLeft(-2z, 8388607z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ShiftError.ResultTooLarge))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.ResultTooLarge))
 
       Stdlib.BigInt.checkedShiftLeft(1z, 2z ** 40z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ShiftError.ResultTooLarge)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.ResultTooLarge)) ])
 
 
 test checkedShiftRight =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.checkedShiftRight(256z, 4z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(16z))
+    [ Stdlib.BigInt.checkedShiftRight(256z, 4z) |> Stdlib.Test.equal(Ok(16z))
 
-      Stdlib.BigInt.checkedShiftRight(-5z, 1z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3z))
+      Stdlib.BigInt.checkedShiftRight(-5z, 1z) |> Stdlib.Test.equal(Ok(-3z))
 
       Stdlib.BigInt.checkedShiftRight(1z, 2z ** 40z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0z))
+      |> Stdlib.Test.equal(Ok(0z))
 
       Stdlib.BigInt.checkedShiftRight(-1z, 2z ** 40z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1z))
+      |> Stdlib.Test.equal(Ok(-1z))
 
       Stdlib.BigInt.checkedShiftRight(1z, -1z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ShiftError.NegativeCount)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.NegativeCount)) ])
 
 
 // --- random ---
@@ -405,29 +371,22 @@ test randomFullRangeEveryWidth =
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.checkedDivide(17z, 3z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5z))
+    [ Stdlib.BigInt.checkedDivide(17z, 3z) |> Stdlib.Test.equal(Ok(5z))
 
-      Stdlib.BigInt.checkedDivide(-8z, 5z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1z))
+      Stdlib.BigInt.checkedDivide(-8z, 5z) |> Stdlib.Test.equal(Ok(-1z))
 
       Stdlib.BigInt.checkedDivide(5z, 0z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
 
-      Stdlib.BigInt.checkedMod(15z, 6z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3z))
+      Stdlib.BigInt.checkedMod(15z, 6z) |> Stdlib.Test.equal(Ok(3z))
 
-      Stdlib.BigInt.checkedMod(-1z, 2z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1z))
+      Stdlib.BigInt.checkedMod(-1z, 2z) |> Stdlib.Test.equal(Ok(1z))
 
       Stdlib.BigInt.checkedMod(5z, 0z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
 
       Stdlib.BigInt.checkedMod(5z, -1z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
 
 
 test divideRejectsZero =
@@ -445,91 +404,78 @@ test sqrt =
 test checkedSqrt =
   Stdlib.Test.all(
     [ Stdlib.BigInt.checkedSqrt(Stdlib.BigInt.fromInt64(4))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.0))
+      |> Stdlib.Test.equal(Ok(2.0))
 
       Stdlib.BigInt.checkedSqrt(Stdlib.BigInt.fromInt64(-4))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber))
 
       Stdlib.BigInt.checkedSqrt(
         Stdlib.BigInt.fromInt64(10) ** Stdlib.BigInt.fromInt64(400))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow)) ])
 
 
 test checkedToFloat64 =
   Stdlib.Test.all(
     [ Stdlib.BigInt.checkedToFloat64(Stdlib.BigInt.fromInt64(-3))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3.0))
+      |> Stdlib.Test.equal(Ok(-3.0))
 
       Stdlib.BigInt.checkedToFloat64(
         Stdlib.BigInt.fromInt64(10) ** Stdlib.BigInt.fromInt64(400))
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])
 
 
 /// `checkedPower` estimates the result as the exponent times the bits in the base,
 /// and refuses past `maxPowerBits` (1 MB) before computing anything.
 test checkedPower =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.checkedPower(2z, 10z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1024z))
+    [ Stdlib.BigInt.checkedPower(2z, 10z) |> Stdlib.Test.equal(Ok(1024z))
 
-      Stdlib.BigInt.checkedPower(-3z, 3z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-27z))
+      Stdlib.BigInt.checkedPower(-3z, 3z) |> Stdlib.Test.equal(Ok(-27z))
 
       Stdlib.BigInt.checkedPower(10z, 30z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(1000000000000000000000000000000z))
+      |> Stdlib.Test.equal(Ok(1000000000000000000000000000000z))
 
-      Stdlib.BigInt.checkedPower(7z, 0z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1z))
+      Stdlib.BigInt.checkedPower(7z, 0z) |> Stdlib.Test.equal(Ok(1z))
 
       Stdlib.BigInt.checkedPower(2z, -1z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
 
       Stdlib.BigInt.checkedPower(0z, -1z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent)) ])
 
 
 test checkedPowerTrivialBases =
   Stdlib.Test.all(
     [ Stdlib.BigInt.checkedPower(0z, 100000000000000000000z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0z))
+      |> Stdlib.Test.equal(Ok(0z))
 
       Stdlib.BigInt.checkedPower(1z, 100000000000000000000z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1z))
+      |> Stdlib.Test.equal(Ok(1z))
 
       Stdlib.BigInt.checkedPower(-1z, 100000000000000000001z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1z))
+      |> Stdlib.Test.equal(Ok(-1z))
 
       Stdlib.BigInt.checkedPower(1z << 10000000z, 0z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1z)) ])
+      |> Stdlib.Test.equal(Ok(1z)) ])
 
 
 /// 2 has 2 bits, so 2 ** 4194304 is estimated at exactly 8388608 bits.
 test checkedPowerAtTheLimit =
   Stdlib.Test.all(
     [ Stdlib.BigInt.checkedPower(2z, 4194304z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1z << 4194304z))
+      |> Stdlib.Test.equal(Ok(1z << 4194304z))
 
       Stdlib.BigInt.checkedPower(2z, 4194305z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.ResultTooLarge))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge))
 
       Stdlib.BigInt.checkedPower(-2z, 4194305z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.ResultTooLarge))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge))
 
       Stdlib.BigInt.checkedPower(1z << 8388607z, 1z)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1z << 8388607z))
+      |> Stdlib.Test.equal(Ok(1z << 8388607z))
 
       Stdlib.BigInt.checkedPower(1z << 8388608z, 1z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.ResultTooLarge))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge))
 
       Stdlib.BigInt.checkedPower(2z, 100000000000000000000z)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.ResultTooLarge)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge)) ])

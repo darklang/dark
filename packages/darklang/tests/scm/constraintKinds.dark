@@ -48,15 +48,13 @@ module Naming =
         |> Stdlib.Test.equal("kind-changed")
 
         SCM.Constraints.kindFromString("kind-changed")
-        |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(SCM.Constraints.Kind.KindChanged))
+        |> Stdlib.Test.equal(Some(SCM.Constraints.Kind.KindChanged))
 
         SCM.Constraints.kindFromString("stale-usage")
-        |> Stdlib.Test.equal(
-          Stdlib.Option.Option.Some(SCM.Constraints.Kind.StaleUsage))
+        |> Stdlib.Test.equal(Some(SCM.Constraints.Kind.StaleUsage))
 
         SCM.Constraints.kindFromString("not-a-kind")
-        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+        |> Stdlib.Test.equal(None) ])
 
 
 module RivalPairs =

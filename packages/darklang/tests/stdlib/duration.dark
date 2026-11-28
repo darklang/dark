@@ -11,29 +11,27 @@ test parseUnits =
   Stdlib.Test.group(
     "units",
     Stdlib.Test.all(
-      [ seconds("30s") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(30))
-        seconds("5m") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(300))
-        seconds("1h") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3600))
-        seconds("2d") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(172800))
-        seconds("0s") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0)) ]))
+      [ seconds("30s") |> Stdlib.Test.equal(Ok(30))
+        seconds("5m") |> Stdlib.Test.equal(Ok(300))
+        seconds("1h") |> Stdlib.Test.equal(Ok(3600))
+        seconds("2d") |> Stdlib.Test.equal(Ok(172800))
+        seconds("0s") |> Stdlib.Test.equal(Ok(0)) ]))
 
 
 test parseReturnsDuration =
   Stdlib.Test.group(
     "units",
     Stdlib.Duration.parse("5m")
-    |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Ok(Stdlib.Duration.fromSeconds(300))))
+    |> Stdlib.Test.equal(Ok(Stdlib.Duration.fromSeconds(300))))
 
 
 test parseNegative =
   Stdlib.Test.group(
     "units",
     Stdlib.Test.all(
-      [ seconds("-30s") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-30))
-        seconds("-5m") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-300))
-        seconds("-2d")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-172800)) ]))
+      [ seconds("-30s") |> Stdlib.Test.equal(Ok(-30))
+        seconds("-5m") |> Stdlib.Test.equal(Ok(-300))
+        seconds("-2d") |> Stdlib.Test.equal(Ok(-172800)) ]))
 
 
 // A duration is an Int64 of seconds; past that it is refused, not wrapped.
@@ -42,16 +40,14 @@ test parseBeyondInt64 =
     "units",
     Stdlib.Test.all(
       [ seconds("9223372036854775807s")
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9223372036854775807))
+        |> Stdlib.Test.equal(Ok(9223372036854775807))
 
         seconds("9223372036854775808s")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.InvalidNumber))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber))
 
         seconds("106751991167301d")
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(
-            Stdlib.Duration.ParseError.InvalidNumber)) ]))
+          Error(Stdlib.Duration.ParseError.InvalidNumber)) ]))
 
 
 test parseRejectsMissingUnit =
@@ -59,17 +55,13 @@ test parseRejectsMissingUnit =
     "errors",
     Stdlib.Test.all(
       [ Stdlib.Duration.parse("5")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.MissingUnit))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.MissingUnit))
 
         Stdlib.Duration.parse("-5")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.MissingUnit))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.MissingUnit))
 
         Stdlib.Duration.parse("")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(
-            Stdlib.Duration.ParseError.MissingUnit)) ]))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.MissingUnit)) ]))
 
 
 test parseRejectsInvalidNumber =
@@ -77,17 +69,14 @@ test parseRejectsInvalidNumber =
     "errors",
     Stdlib.Test.all(
       [ Stdlib.Duration.parse("xm")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.InvalidNumber))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber))
 
         Stdlib.Duration.parse("s")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.InvalidNumber))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber))
 
         Stdlib.Duration.parse("1.5h")
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(
-            Stdlib.Duration.ParseError.InvalidNumber)) ]))
+          Error(Stdlib.Duration.ParseError.InvalidNumber)) ]))
 
 
 test parseRejectsUnknownUnit =
@@ -95,17 +84,13 @@ test parseRejectsUnknownUnit =
     "errors",
     Stdlib.Test.all(
       [ Stdlib.Duration.parse("5x")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.UnknownUnit))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit))
 
         Stdlib.Duration.parse("5ms")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Duration.ParseError.UnknownUnit))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit))
 
         Stdlib.Duration.parse("5s5")
-        |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(
-            Stdlib.Duration.ParseError.UnknownUnit)) ]))
+        |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit)) ]))
 
 
 test display =
@@ -138,4 +123,4 @@ test displayParsesBack =
     |> Stdlib.Result.map(Stdlib.Duration.toSeconds))
   |> Stdlib.Test.equal(
     [ 0, 1, 59, 60, 61, 3600, 5400, 86400, 90000, -60, -86400 ]
-    |> Stdlib.List.map(fun n -> Stdlib.Result.Result.Ok(n)))
+    |> Stdlib.List.map(fun n -> Ok(n)))

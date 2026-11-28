@@ -163,7 +163,7 @@ let inOp(op: ProgramTypes.PackageOp): Option<(String * List<String>)> =
   let found =
     match op with
     | AddFn(fn) ->
-      Option.Some(
+      Some(
         (
           fn.hash,
           Stdlib.List.flatten(
@@ -171,13 +171,13 @@ let inOp(op: ProgramTypes.PackageOp): Option<(String * List<String>)> =
               inParameters(fn.parameters)
               inTypeRef(fn.returnType)
               inBounds(fn.bounds) ])))
-    | AddValue(v) -> Option.Some((v.hash, inExpr(v.body)))
-    | AddType(t) -> Option.Some((t.hash, inTypeDeclaration(t.declaration)))
+    | AddValue(v) -> Some((v.hash, inExpr(v.body)))
+    | AddType(t) -> Some((t.hash, inTypeDeclaration(t.declaration)))
     | AddTrait(t) ->
       let names = Stdlib.List.concat(inMethods(t.methods), inBounds(t.bounds))
-      Option.Some((t.hash, names))
+      Some((t.hash, names))
     | AddTraitImpl(i) ->
-      Option.Some(
+      Some(
         (
           i.hash,
           Stdlib.List.flatten(
@@ -186,15 +186,15 @@ let inOp(op: ProgramTypes.PackageOp): Option<(String * List<String>)> =
               inTypeRefs(i.traitTypeArgs)
               Stdlib.List.flatten(Stdlib.List.map(i.methods, fun((_, m)) -> inName(m)))
               inBounds(i.bounds) ])))
-    | AddTest(test) -> Option.Some((test.hash, inExpr(test.body)))
-    | _ -> Option.None
+    | AddTest(test) -> Some((test.hash, inExpr(test.body)))
+    | _ -> None
 
   match found with
-  | Some((_, [])) -> Option.None
+  | Some((_, [])) -> None
   | Some((hash, names)) ->
     let hash = ProgramTypes.hashToString(hash)
-    Option.Some((hash, Stdlib.List.unique(names)))
-  | None -> Option.None
+    Some((hash, Stdlib.List.unique(names)))
+  | None -> None
 
 
 /// For each op still holding unresolved name references, its content hash and those

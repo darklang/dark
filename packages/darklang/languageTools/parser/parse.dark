@@ -63,9 +63,9 @@ let initialParse(code: String): Result<WrittenTypes.ParsedFile, ParseError> =
 /// tests are allowed.
 let initialParseAs(kind: FileKind, code: String): Result<WrittenTypes.ParsedFile, ParseError> =
   match parse(kind, code) with
-  | Some(parsedFile), [] -> Result.Ok(parsedFile)
-  | None, [] -> Result.Error(ParseError.NoTree)
-  | _, diagnostics -> Result.Error(ParseError.Syntax(diagnostics))
+  | Some(parsedFile), [] -> Ok(parsedFile)
+  | None, [] -> Error(ParseError.NoTree)
+  | _, diagnostics -> Error(ParseError.Syntax(diagnostics))
 
 
 let parsePTExpr(code: String): Result<ProgramTypes.Expr, ParseError> =
@@ -140,14 +140,14 @@ let parsePTSourceFileWithOps(
       WrittenTypesToProgramTypes.parsedFileAsSourceFile(branchId, parsedFile)
 
     (sourceFile, ops) |> Result.Ok
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Error(e)
 
 
 /// Parse package declarations into written types, or return syntax diagnostics.
 let packageToWrittenTypes(source: String): Result<WrittenTypes.ParsedFile, List<(Range * String)>> =
   match parse(FileKind.Package, source) with
-  | Some(parsedFile), [] -> Result.Ok(parsedFile)
-  | _, diagnostics -> Result.Error(diagnostics)
+  | Some(parsedFile), [] -> Ok(parsedFile)
+  | _, diagnostics -> Error(diagnostics)
 
 
 /// Convert a top-level declaration to a module member for shared lowering.
@@ -197,7 +197,7 @@ let packageSourceToOps(
   match packageToWrittenTypes(source) with
   | Error(diagnostics) ->
     let messages = Stdlib.List.map(diagnostics, fun((_, message)) -> message)
-    Result.Error(Stdlib.String.join(messages, "; "))
+    Error(Stdlib.String.join(messages, "; "))
   | Ok(SourceFile(sourceFile)) ->
     let rootModule =
       WrittenTypes.ModuleDeclaration.ModuleDeclaration
@@ -216,11 +216,11 @@ let packageSourceToOps(
 
     let (ops, unresolvedNames) = moduleToPackageOps(context, rootModule)
     if Stdlib.List.isEmpty(unresolvedNames) then
-      Result.Ok(ops)
+      Ok(ops)
     else
       let names =
         unresolvedNames
         |> Stdlib.List.map(fun((_, parts, _)) -> Stdlib.String.join(parts, "."))
         |> Stdlib.List.unique
 
-      Result.Error("unresolved: " + Stdlib.String.join(names, ", "))
+      Error("unresolved: " + Stdlib.String.join(names, ", "))

@@ -74,11 +74,7 @@ test filterMap =
 
       Stdlib.Dict.filterMap(
         Dict { "a": "x", "b": "y", "c": "z" },
-        fun(key, value) ->
-          if value == "y" then
-            Stdlib.Option.Option.None
-          else
-            Stdlib.Option.Option.Some(key + value))
+        fun(key, value) -> if value == "y" then None else Some(key + value))
       |> Stdlib.Test.equal(Dict { "c": "cz", "a": "ax" }) ])
 
 
@@ -121,41 +117,34 @@ test fromEntriesRejectsNonTuples =
 
 test fromEntriesUnique =
   Stdlib.Test.all(
-    [ Stdlib.Dict.fromEntriesUnique([])
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Dict {}))
+    [ Stdlib.Dict.fromEntriesUnique([]) |> Stdlib.Test.equal(Ok(Dict {}))
 
       Stdlib.Dict.fromEntriesUnique([ ("a", 1), ("b", 2), ("c", 3) ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Dict { "c": 3, "b": 2, "a": 1 }))
+      |> Stdlib.Test.equal(Ok(Dict { "c": 3, "b": 2, "a": 1 }))
 
       Stdlib.Dict.fromEntriesUnique(
         [ ("duplicate_key", 1), ("b", 2), ("duplicate_key", 3) ])
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.Dict.DuplicateKey.DuplicateKey("duplicate_key")))
+        Error(Stdlib.Dict.DuplicateKey.DuplicateKey("duplicate_key")))
 
       // Report the first repeated key encountered in list order.
       Stdlib.Dict.fromEntriesUnique([ ("z", 1), ("a", 2), ("a", 3), ("z", 4) ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey("a")))
+      |> Stdlib.Test.equal(Error(Stdlib.Dict.DuplicateKey.DuplicateKey("a")))
 
       Stdlib.Dict.fromEntriesUnique(
         [ ("Content-Length", "0"), ("Server", "dark") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          Dict { "Content-Length": "0", "Server": "dark" }))
+      |> Stdlib.Test.equal(Ok(Dict { "Content-Length": "0", "Server": "dark" }))
 
       Stdlib.Dict.fromEntriesUnique([ (1, 1) ])
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Dict { 1: 1 })) ])
+      |> Stdlib.Test.equal(Ok(Dict { 1: 1 })) ])
 
 
 test get =
   Stdlib.Test.all(
     [ Stdlib.Dict.get(Dict { "key1": "val1" }, "key1")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("val1"))
+      |> Stdlib.Test.equal(Some("val1"))
 
-      Stdlib.Dict.get(Dict { "key1": "val1" }, "")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.Dict.get(Dict { "key1": "val1" }, "") |> Stdlib.Test.equal(None) ])
 
 
 test isEmpty =
@@ -233,18 +222,16 @@ test merge =
 test mergeUnique =
   Stdlib.Test.all(
     [ Stdlib.Dict.mergeUnique(Dict {}, Dict {})
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Dict {}))
+      |> Stdlib.Test.equal(Ok(Dict {}))
 
       Stdlib.Dict.mergeUnique(Dict { "key1": "val1" }, Dict { "key2": "val2" })
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Dict { "key2": "val2", "key1": "val1" }))
+      |> Stdlib.Test.equal(Ok(Dict { "key2": "val2", "key1": "val1" }))
 
       Stdlib.Dict.mergeUnique(
         Dict { "key1": "val_l", "key2": "val_l" },
         Dict { "key2": "val_r", "key3": "val_r" })
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.Dict.DuplicateKey.DuplicateKey("key2"))) ])
+        Error(Stdlib.Dict.DuplicateKey.DuplicateKey("key2"))) ])
 
 
 test mergeWith =
@@ -349,36 +336,33 @@ test update =
     [ // Present key: the callback sees Some and its result replaces the value.
       Stdlib.Dict.update(Dict { "a": 1, "b": 2 }, "a", fun v ->
         match v with
-        | Some(n) -> Stdlib.Option.Option.Some(n + 10)
-        | None -> Stdlib.Option.Option.Some(0))
+        | Some(n) -> Some(n + 10)
+        | None -> Some(0))
       |> Stdlib.Test.equal(Dict { "a": 11, "b": 2 })
 
       // Absent key: the callback sees None, and Some adds the key.
       Stdlib.Dict.update(Dict { "a": 1 }, "b", fun v ->
         match v with
-        | Some(n) -> Stdlib.Option.Option.Some(n + 10)
-        | None -> Stdlib.Option.Option.Some(0))
+        | Some(n) -> Some(n + 10)
+        | None -> Some(0))
       |> Stdlib.Test.equal(Dict { "a": 1, "b": 0 })
 
       // Returning None removes a present key.
-      Stdlib.Dict.update(Dict { "a": 1, "b": 2 }, "a", fun _ ->
-        Stdlib.Option.Option.None)
+      Stdlib.Dict.update(Dict { "a": 1, "b": 2 }, "a", fun _ -> None)
       |> Stdlib.Test.equal(Dict { "b": 2 })
 
       // Returning None for an absent key leaves the dict unchanged.
-      Stdlib.Dict.update(Dict { "a": 1 }, "z", fun _ ->
-        Stdlib.Option.Option.None)
+      Stdlib.Dict.update(Dict { "a": 1 }, "z", fun _ -> None)
       |> Stdlib.Test.equal(Dict { "a": 1 })
 
       // Any key type works: Int64 and tuple keys.
       Stdlib.Dict.update(Dict { 1: "one", 2: "two" }, 1, fun v ->
         match v with
-        | Some(s) -> Stdlib.Option.Option.Some(s + "!")
-        | None -> Stdlib.Option.Option.Some("new"))
+        | Some(s) -> Some(s + "!")
+        | None -> Some("new"))
       |> Stdlib.Test.equal(Dict { 1: "one!", 2: "two" })
 
-      Stdlib.Dict.update(Dict { (1, "a"): "first" }, (1, "a"), fun _ ->
-        Stdlib.Option.Option.None)
+      Stdlib.Dict.update(Dict { (1, "a"): "first" }, (1, "a"), fun _ -> None)
       |> Stdlib.Test.equal(Dict {}) ])
 
 
@@ -411,16 +395,14 @@ test updateRejectsNonOptionResult =
 test insert =
   Stdlib.Test.all(
     [ Stdlib.Dict.insert(Dict { "key1": "val1" }, "key2", "val2")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Dict { "key1": "val1", "key2": "val2" }))
+      |> Stdlib.Test.equal(Ok(Dict { "key1": "val1", "key2": "val2" }))
 
       Stdlib.Dict.insert(Dict {}, "key1", 2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Dict { "key1": 2 }))
+      |> Stdlib.Test.equal(Ok(Dict { "key1": 2 }))
 
       Stdlib.Dict.insert(Dict { "key1": "val1before" }, "key1", "val1after")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.Dict.DuplicateKey.DuplicateKey("key1"))) ])
+        Error(Stdlib.Dict.DuplicateKey.DuplicateKey("key1"))) ])
 
 
 test set =
@@ -506,8 +488,7 @@ test fromListPastTwentyFourKeepsKeyOrder =
   Stdlib.Test.all(
     [ Stdlib.Dict.keys(ints) |> Stdlib.Test.equal(Stdlib.List.range(1, 30))
 
-      Stdlib.Dict.get(ints, 5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(99))
+      Stdlib.Dict.get(ints, 5) |> Stdlib.Test.equal(Some(99))
 
       Stdlib.List.take(Stdlib.Dict.keys(strings), 4)
       |> Stdlib.Test.equal([ "k1", "k10", "k11", "k12" ])
@@ -559,10 +540,9 @@ test remove =
 test nonStringKeysInt =
   Stdlib.Test.all(
     [ Stdlib.Dict.get(Dict { 1: "one", 2: "two" }, 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("two"))
+      |> Stdlib.Test.equal(Some("two"))
 
-      Stdlib.Dict.get(Dict { 1: "one" }, 9)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Dict.get(Dict { 1: "one" }, 9) |> Stdlib.Test.equal(None)
 
       Stdlib.Dict.containsKey(Dict { 1: "one" }, 1) |> Stdlib.Test.equal(true)
 
@@ -576,22 +556,20 @@ test nonStringKeysInt =
 test nonStringKeysTuple =
   Stdlib.Test.all(
     [ Stdlib.Dict.get(Dict { (1, "a"): "first" }, (1, "a"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("first"))
+      |> Stdlib.Test.equal(Some("first"))
 
       Stdlib.Dict.get(Dict { (1, "a"): "first" }, (1, "b"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(None) ])
 
 
 test nonStringKeysList =
   Stdlib.Dict.get(Dict { [ 1, 2 ]: "onetwo" }, [ 1, 2 ])
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("onetwo"))
+  |> Stdlib.Test.equal(Some("onetwo"))
 
 
 test nonStringKeysEnum =
-  Stdlib.Dict.get(
-    Dict { Stdlib.Option.Option.Some(1): "some" },
-    Stdlib.Option.Option.Some(1))
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("some"))
+  Stdlib.Dict.get(Dict { Some(1): "some" }, Some(1))
+  |> Stdlib.Test.equal(Some("some"))
 
 
 test nonStringKeysOrdering =
@@ -616,7 +594,7 @@ test traversalsPastTwentyFourGoInKeyOrder =
       |> Stdlib.Test.equal([ 1, 11, 13 ])
 
       Stdlib.List.last(Stdlib.Dict.toList(d))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(((true, "k8"), 8)))
+      |> Stdlib.Test.equal(Some(((true, "k8"), 8)))
 
       Stdlib.Dict.fold(d, [], fun(acc, k, v) -> Stdlib.List.append(acc, v))
       |> Stdlib.Test.equal(Stdlib.Dict.values(d))
@@ -629,7 +607,7 @@ test traversalsPastTwentyFourGoInKeyOrder =
 test nonStringKeysComputedKeys =
   Stdlib.Test.all(
     [ Stdlib.Dict.get(Dict { 1 + 1: "two" }, 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("two"))
+      |> Stdlib.Test.equal(Some("two"))
 
       (let x = "hello"
        Stdlib.Dict.keys(Dict { x: 1 }))
@@ -643,7 +621,7 @@ test nonStringKeysComputedKeys =
 test nonStringKeysFloatKeys =
   Stdlib.Test.all(
     [ Stdlib.Dict.get(Dict { 0.0: "zero" }, -0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("zero"))
+      |> Stdlib.Test.equal(Some("zero"))
 
       (let nan = Stdlib.Float64.sqrt(-1.0)
        nan == nan)
@@ -651,7 +629,7 @@ test nonStringKeysFloatKeys =
 
       (let inf = 1.0 / 0.0
        Stdlib.Dict.get(Dict { inf: "inf" }, inf))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("inf"))
+      |> Stdlib.Test.equal(Some("inf"))
 
       (let inf = 1.0 / 0.0
        let ninf = -1.0 / 0.0
@@ -695,86 +673,80 @@ test nanKeyLookupRaises =
 test nonStringKeysEveryKeyType =
   Stdlib.Test.all(
     [ Stdlib.Dict.get(Dict { (): "unit" }, ())
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("unit"))
+      |> Stdlib.Test.equal(Some("unit"))
 
       Stdlib.Dict.get(Dict { true: "t", false: "f" }, true)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("t"))
+      |> Stdlib.Test.equal(Some("t"))
 
-      Stdlib.Dict.get(Dict { 1s8: "i8" }, 1s8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("i8"))
+      Stdlib.Dict.get(Dict { 1s8: "i8" }, 1s8) |> Stdlib.Test.equal(Some("i8"))
 
-      Stdlib.Dict.get(Dict { 1u8: "u8" }, 1u8)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("u8"))
+      Stdlib.Dict.get(Dict { 1u8: "u8" }, 1u8) |> Stdlib.Test.equal(Some("u8"))
 
       Stdlib.Dict.get(Dict { 1s16: "i16" }, 1s16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("i16"))
+      |> Stdlib.Test.equal(Some("i16"))
 
       Stdlib.Dict.get(Dict { 1u16: "u16" }, 1u16)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("u16"))
+      |> Stdlib.Test.equal(Some("u16"))
 
       Stdlib.Dict.get(Dict { 1s32: "i32" }, 1s32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("i32"))
+      |> Stdlib.Test.equal(Some("i32"))
 
       Stdlib.Dict.get(Dict { 1u32: "u32" }, 1u32)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("u32"))
+      |> Stdlib.Test.equal(Some("u32"))
 
-      Stdlib.Dict.get(Dict { 1: "i64" }, 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("i64"))
+      Stdlib.Dict.get(Dict { 1: "i64" }, 1) |> Stdlib.Test.equal(Some("i64"))
 
       Stdlib.Dict.get(Dict { 1u64: "u64" }, 1u64)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("u64"))
+      |> Stdlib.Test.equal(Some("u64"))
 
       Stdlib.Dict.get(Dict { 1s128: "i128" }, 1s128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("i128"))
+      |> Stdlib.Test.equal(Some("i128"))
 
       Stdlib.Dict.get(Dict { 1u128: "u128" }, 1u128)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("u128"))
+      |> Stdlib.Test.equal(Some("u128"))
 
-      Stdlib.Dict.get(Dict { 1: "int" }, 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("int"))
+      Stdlib.Dict.get(Dict { 1: "int" }, 1) |> Stdlib.Test.equal(Some("int"))
 
       Stdlib.Dict.get(Dict { 1.5: "float" }, 1.5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("float"))
+      |> Stdlib.Test.equal(Some("float"))
 
       Stdlib.Dict.get(Dict { 'a': "char" }, 'a')
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("char"))
+      |> Stdlib.Test.equal(Some("char"))
 
       Stdlib.Dict.get(Dict { "s": "string" }, "s")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("string"))
+      |> Stdlib.Test.equal(Some("string"))
 
       (let u =
          Builtin.unwrap(
            Stdlib.Uuid.parse("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
        Stdlib.Dict.get(Dict { u: "uuid" }, u))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("uuid"))
+      |> Stdlib.Test.equal(Some("uuid"))
 
       (let d = Builtin.unwrap(Stdlib.DateTime.parse("2026-08-31T00:00:00Z"))
        Stdlib.Dict.get(Dict { d: "datetime" }, d))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("datetime"))
+      |> Stdlib.Test.equal(Some("datetime"))
 
       Stdlib.Dict.get(Dict { [ 1, 2 ]: "list" }, [ 1, 2 ])
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("list"))
+      |> Stdlib.Test.equal(Some("list"))
 
       Stdlib.Dict.get(Dict { (1, 'c', "s"): "tuple" }, (1, 'c', "s"))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("tuple"))
+      |> Stdlib.Test.equal(Some("tuple"))
 
-      Stdlib.Dict.get(
-        Dict { Stdlib.Option.Option.Some(1): "enum" },
-        Stdlib.Option.Option.Some(1))
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("enum"))
+      Stdlib.Dict.get(Dict { Some(1): "enum" }, Some(1))
+      |> Stdlib.Test.equal(Some("enum"))
 
       Stdlib.Dict.get(
         Dict { Point { px = 1, py = 2 }: "record" },
         Point { px = 1, py = 2 })
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("record"))
+      |> Stdlib.Test.equal(Some("record"))
 
       Stdlib.Dict.get(
         Dict { Point { px = 1, py = 2 }: "record" },
         Point { px = 1, py = 9 })
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(None)
 
       Stdlib.Dict.get(Dict { Dict { 1: "inner" }: "dict" }, Dict { 1: "inner" })
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("dict")) ])
+      |> Stdlib.Test.equal(Some("dict")) ])
 
 
 test nonStringKeysKeyOrdering =
@@ -802,11 +774,10 @@ test nonStringKeysKeyOrdering =
 test nonStringKeysFromEntriesUniqueInfersTypes =
   Stdlib.Test.all(
     [ Stdlib.Dict.fromEntriesUnique([ (1, "a"), (1, "b") ])
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey(1)))
+      |> Stdlib.Test.equal(Error(Stdlib.Dict.DuplicateKey.DuplicateKey(1)))
 
       Stdlib.Dict.fromEntriesUnique([ (2, "b"), (1, "a") ])
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Dict { 1: "a", 2: "b" })) ])
+      |> Stdlib.Test.equal(Ok(Dict { 1: "a", 2: "b" })) ])
 
 
 test nonStringKeysFromEntriesUniqueInfersKeyType =
@@ -918,7 +889,7 @@ test nonStringKeysRejectsLambdaInTuple =
 
 
 test nonStringKeysRejectsLambdaInEnum =
-  Dict { Stdlib.Option.Option.Some(fun x -> x): 1 }
+  Dict { Some(fun x -> x): 1 }
   => raises "Cannot use Some((lambda)) as a dict key. Functions, streams, and values containing them cannot be keys."
 
 
@@ -960,7 +931,7 @@ test nonStringKeysRemoveRejectsLambdaKey =
 // Supply the dict so the callback executes and its invalid Bool result is rejected.
 test filterMapRejectsNonOptionResult =
   Stdlib.Dict.filterMap(Dict { "a": "x", "b": "y", "c": "z" }, fun(key, value) ->
-    if value == "y" then false else Stdlib.Option.Option.Some(key + value))
+    if value == "y" then false else Some(key + value))
   => raises "Darklang.Stdlib.Dict.filterMap's 2nd parameter `fn` returned Bool (false), but should return Darklang.Stdlib.Option.Option<String>"
 
 
