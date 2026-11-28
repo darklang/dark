@@ -791,7 +791,7 @@ let private builtinRaiseSites (names : List<string>) : Map<string, List<string>>
   // `fn "name" 0` in a record, or a constructor such as `make "name"` or `policyFn` above it.
   // Both patterns need the quoted name, so a file without it is not searched.
   let declaration (name : string) =
-    // an extern's provider is declared by its symbol: `kernel "open"`
+    // an extern's provider is declared by its symbol: `provider "open" 3`, `poll "ppoll" Op…`
     let name, prefix =
       if name.StartsWith "kernel." then name.Substring 7, "kernel" else name, "fn"
     let quoted = $"\"{name}\""
@@ -804,7 +804,7 @@ let private builtinRaiseSites (names : List<string>) : Map<string, List<string>>
           let m = Regex.Match(text, pattern, RegexOptions.Multiline)
           if m.Success then Some(path, m.Index) else None)
     if prefix = "kernel" then
-      find $@"\bkernel\s+""{name}"""
+      find $@"\b[a-z]\w*\s+""{name}""\s+(?:\d|Op\.)"
     else
       find $@"\bfn\s+""{name}""\s+\d"
       |> Option.orElse (
