@@ -6062,12 +6062,12 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         // hasn't run, so the error gives its type as unknown.
         | Or(createTo, operand, skipRhs) ->
           match registers[operand] with
-          | DBool true ->
-            Registers.set registers createTo (DBool true)
+          | DBool true as b ->
+            Registers.set registers createTo b
             match skipRhs with
             | Some skip -> counter <- counter + skip
             | None -> ()
-          | DBool false -> Registers.set registers createTo (DBool false)
+          | DBool false as b -> Registers.set registers createTo b
           | DPromise p -> parkOnRead vm registers operand p &retry &force &forceReg
           | v ->
             let err =
@@ -6078,12 +6078,12 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
             raiseRTE (RTE.Bool err)
         | And(createTo, operand, skipRhs) ->
           match registers[operand] with
-          | DBool false ->
-            Registers.set registers createTo (DBool false)
+          | DBool false as b ->
+            Registers.set registers createTo b
             match skipRhs with
             | Some skip -> counter <- counter + skip
             | None -> ()
-          | DBool true -> Registers.set registers createTo (DBool true)
+          | DBool true as b -> Registers.set registers createTo b
           | DPromise p -> parkOnRead vm registers operand p &retry &force &forceReg
           | v ->
             let err =
