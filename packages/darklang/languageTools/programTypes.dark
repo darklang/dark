@@ -117,7 +117,6 @@ type NameResolution<'a> =
 type TypeReference =
   // A named variable, eg `a` in `List<a>`, matches anything
   | TVariable(String)
-
   | TUnit
   | TBool
   | TInt8
@@ -140,16 +139,10 @@ type TypeReference =
   | TUuid
   | TBytes
   | TStream(TypeReference)
-
   | TList(TypeReference)
   | TTuple(TypeReference, TypeReference, List<TypeReference>)
   | TDict(key: TypeReference, value: TypeReference)
-
-  | TCustomType(
-    NameResolution<FQTypeName.FQTypeName>,
-    typeArgs: List<TypeReference>)
-
-
+  | TCustomType(NameResolution<FQTypeName.FQTypeName>, typeArgs: List<TypeReference>)
   | TFn(List<TypeReference>, TypeReference)
 
 
@@ -269,9 +262,7 @@ type Expr =
   | EUnit(ID)
 
   // simple data
-
   | EBool(ID, Bool)
-
   | EInt8(ID, Int8)
   | EUInt8(ID, UInt8)
   | EInt16(ID, Int16)
@@ -290,34 +281,26 @@ type Expr =
   | EFloat64(ID, Sign, String, String)
   /// A decimal literal, `19.99dec`; the value keeps its written scale
   | EDecimal(ID, Decimal)
-
   /// Single precision, written `1.5f32`. Same shape as `EFloat64`.
   | EFloat32(ID, Sign, String, String)
-
   /// A character is an Extended Grapheme Cluster (hence why we use a String). This
   /// is equivalent to one screen-visible "character" in Unicode.
   | EChar(ID, String)
-
   | EString(ID, List<StringSegment>)
-
 
   // structures of data
   | EList(ID, List<Expr>)
-
-  | EDict(ID, List<Expr * Expr>)
-
+  | EDict(ID, List<(Expr * Expr)>)
   | ETuple(ID, Expr, Expr, List<Expr>)
-
   | ERecord(
     ID,
     typeName: NameResolution<FQTypeName.FQTypeName>,
     typeArgs: List<TypeReference>,
-    fields: List<String * Expr>)
-
+    fields: List<(String * Expr)>)
   | EEnum(
     ID,
     typeName: NameResolution<FQTypeName.FQTypeName>,
-    typeArgs : List<TypeReference>,
+    typeArgs: List<TypeReference>,
     caseName: String,
     fields: List<Expr>)
 
@@ -330,33 +313,18 @@ type Expr =
 
   // control flow
   | EUnwrap(ID, Expr)
-  | EIf(
-    ID,
-    cond: Expr,
-    thenExpr: Expr,
-    elseExpr: Stdlib.Option.Option<Expr>)
-
+  | EIf(ID, cond: Expr, thenExpr: Expr, elseExpr: Option<Expr>)
   | EMatch(ID, arg: Expr, cases: List<MatchCase>)
-
   | EPipe(ID, Expr, List<PipeExpr>)
-
 
   // function calls
   /// `a + b`. `implFn` is what a trait-method name carries: the fn the implementation chosen
   /// when this was SAVED names for the operator's method, so the operator goes on meaning what
   /// it meant. `Unknown` for the operators that are no trait method (`==`, `!=`, `&&`, `||`)
   /// and where the operand type is only known at run time.
-  | EInfix(
-    ID,
-    Infix,
-    Expr,
-    Expr,
-    implFn: FQFnName.ImplChoice)
-
+  | EInfix(ID, Infix, Expr, Expr, implFn: FQFnName.ImplChoice)
   | ELambda(ID, List<LetPattern>, Expr)
-
   | EApply(ID, Expr, typeArgs: List<TypeReference>, args: List<Expr>)
-
   /// A fn by name. `typeArgs` are for a reference that is not called:
   /// `let h = Stdlib.List.map<Int64, Int64>` is the fn as a value, specialised to them.
   /// A call keeps its type args on the `EApply`, so they are empty for every call.
@@ -365,11 +333,8 @@ type Expr =
     NameResolution<FQFnName.FQFnName>,
     List<FQFnName.BoundImpl>,
     typeArgs: List<TypeReference>)
-
-  | ERecordUpdate(ID, record: Expr, updates: List<String * Expr>)
-
+  | ERecordUpdate(ID, record: Expr, updates: List<(String * Expr)>)
   | EStatement(ID, first: Expr, next: Expr)
-
   | ESelf(ID)
 
 
@@ -932,13 +897,13 @@ module Search =
 
   /// Results from a package search
   type SearchResults =
-    { submodules: List<List<String>> // [ [ "List"], ["String", "List"] ]
-      types : List<LocatedItem<ProgramTypes.PackageType.PackageType>>
-      values : List<LocatedItem<ProgramTypes.PackageValue.PackageValue>>
-      fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>>
-      traits : List<LocatedItem<ProgramTypes.Trait.Trait>>
-      impls : List<LocatedItem<ProgramTypes.TraitImpl.TraitImpl>>
-      tests : List<LocatedItem<ProgramTypes.PackageTest.PackageTest>> }
+    { submodules: List<List<String>>  // [ [ "List"], ["String", "List"] ]
+      types: List<LocatedItem<PackageType.PackageType>>
+      values: List<LocatedItem<PackageValue.PackageValue>>
+      fns: List<LocatedItem<PackageFn.PackageFn>>
+      traits: List<LocatedItem<Trait.Trait>>
+      impls: List<LocatedItem<TraitImpl.TraitImpl>>
+      tests: List<LocatedItem<PackageTest.PackageTest>> }
 
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -1168,7 +1133,7 @@ module SourceFile =
     | Impl(TraitImpl.TraitImpl)
     | Test(PackageTest.PackageTest)
     // db and handlers
-    | Module(Definitions) // re-evaluate if this makes sense to be here
+    | Module(Definitions)  // re-evaluate if this makes sense to be here
 
 
   type SourceFile =

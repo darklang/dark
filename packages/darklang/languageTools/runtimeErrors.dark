@@ -128,7 +128,7 @@ module Records =
       declaredType: Stdlib.Option.Option<TypeReference>,
       expectedType: ValueType,
       actualType: ValueType,
-      actualValue : Dval)
+      actualValue: Dval)
 
     // -- Field Access --
     | FieldAccessEmptyFieldName

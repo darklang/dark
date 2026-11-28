@@ -336,30 +336,24 @@ type Dval =
   | DString(String)
   | DDateTime(DateTime)
   | DUuid(Uuid)
-
   | DTuple(Dval, Dval, List<Dval>)
   | DList(ValueType, List<Dval>)
   | DDict(keyType: ValueType, valueType: ValueType, entries: DictMap)
-
   | DRecord(
     sourceTypeName: FQTypeName.FQTypeName,
     runtimeTypeName: FQTypeName.FQTypeName,
     typeArgs: List<ValueType>,
     fields: DvalMap)
-
   | DEnum(
     sourceTypeName: FQTypeName.FQTypeName,
     runtimeTypeName: FQTypeName.FQTypeName,
     typeArgs: List<ValueType>,
     caseName: String,
     fields: List<Dval>)
-
   | DApplicable(Applicable)
 
   // References
-
   | DBytes(Bytes)
-
   | DStreamStub(elemType: ValueType)
 
 

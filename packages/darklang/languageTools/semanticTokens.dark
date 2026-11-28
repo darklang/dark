@@ -25,12 +25,10 @@ type TokenType =
 
   // FUTURE: these are not yet used
   | Comment
-
   | TypeParameter
-
-  | EnumMember // in Option.Some, this would be `Some`
-  | Property // ? maybe this should be used for fields
-  | Method // ? or maybe this should be used for fields
+  | EnumMember  // in Option.Some, this would be `Some`
+  | Property  // ? maybe this should be used for fields
+  | Method  // ? or maybe this should be used for fields
   | RegularExpression
 
 
