@@ -1532,6 +1532,28 @@ test slice =
       |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds)) ])
 
 
+test sliceInLongText =
+  let plain = Stdlib.String.repeat("ab", 40)
+  let text = plain + "q́" + plain + "\r\n" + plain + "–" + plain + "👱🏽" + plain
+  Stdlib.Test.all(
+    [ Stdlib.String.length(text) |> Stdlib.Test.equal(404)
+
+      Stdlib.String.slice(text, 10, 12) |> Stdlib.Test.equal(Ok("ab"))
+
+      Stdlib.String.slice(text, 78, 82) |> Stdlib.Test.equal(Ok("abq́a"))
+
+      Stdlib.String.slice(text, 160, 163) |> Stdlib.Test.equal(Ok("b\r\na"))
+
+      Stdlib.String.slice(text, 241, 244) |> Stdlib.Test.equal(Ok("b–a"))
+
+      Stdlib.String.slice(text, 322, 325) |> Stdlib.Test.equal(Ok("b👱🏽a"))
+
+      Stdlib.String.slice(text, 400, 404) |> Stdlib.Test.equal(Ok("abab"))
+
+      Stdlib.String.slice(text, 400, 405)
+      |> Stdlib.Test.equal(Error(Stdlib.String.IndexError.IndexOutOfBounds)) ])
+
+
 test first =
   Stdlib.Test.all(
     [ Stdlib.String.first("abcd", -3) |> Stdlib.Test.equal("")

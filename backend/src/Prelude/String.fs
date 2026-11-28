@@ -156,21 +156,29 @@ let private clampToChars (s : string) (i : int64) : int =
 /// The clusters of `s` from index `first` up to `last`, or None unless
 /// `0 <= first <= last <= ` the number of clusters.
 ///
-/// The walk stops at `last`, so only a slice that reaches the end of the text counts the
-/// clusters to check it isn't past it.
+/// Reads the text only up to the slice's end, plus one char: what comes after can't move it. The
+/// walk stops at `last`, so only a slice that reaches the end of the text counts the clusters to
+/// check it isn't past it.
 let sliceEgcs (s : string) (first : int64) (last : int64) : Option<string> =
   // No string has more clusters than chars.
   if first < 0L || last < first || last > int64 s.Length then
     None
-  elif isCharwise s then
-    Some(s.Substring(int first, int (last - first)))
   else
-    let start = clusterOffset s 0 (int first)
-    let stop = clusterOffset s start (int (last - first))
-    if stop = s.Length && int64 (lengthInEgcs s) < last then
-      None
+    // ASCII with no CR up to and including the char after the slice: every char before it is a
+    // cluster of its own.
+    let reach = System.MemoryExtensions.AsSpan(s, 0, min s.Length (int last + 1))
+    if
+      System.Text.Ascii.IsValid reach
+      && System.MemoryExtensions.IndexOf(reach, '\r') < 0
+    then
+      Some(s.Substring(int first, int (last - first)))
     else
-      Some(s.Substring(start, stop - start))
+      let start = clusterOffset s 0 (int first)
+      let stop = clusterOffset s start (int (last - first))
+      if stop = s.Length && int64 (lengthInEgcs s) < last then
+        None
+      else
+        Some(s.Substring(start, stop - start))
 
 /// `s` without its first `count` clusters, or all of it when `count` is negative.
 let dropFirstEgcs (s : string) (count : int64) : string =
