@@ -26,7 +26,7 @@ module ParseError =
     let display = Stdlib.AltJson.ParseError.toString
 
 
-/// Formats <param j> as JSON text, with no whitespace between tokens.
+/// Formats <param j> as JSON text, with no whitespace between tokens: {{[1,null]}}
 let format(j: Json): String =
   match j with
   | Null -> "null"
@@ -41,7 +41,6 @@ let format(j: Json): String =
 
 
 impl Display for Json =
-  /// The JSON text, as <fn format> writes it: {{[1,null]}}
   let display = Stdlib.AltJson.format
 
 
