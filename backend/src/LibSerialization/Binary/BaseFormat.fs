@@ -74,9 +74,6 @@ exception BinaryFormatException of BinaryFormatError with
 /// Varint: small values in fewer bytes; high bit marks continuation.
 module Varint =
   [<Literal>]
-  let MaxSingleByteValue = 127
-
-  [<Literal>]
   let ContinuationBit = 0x80uy
 
   [<Literal>]

@@ -1022,13 +1022,6 @@ let implMethodDecls (impl : ImplDecl) : List<FnDecl> =
             bounds = impl.bounds @ fn.bounds }
     | IAlias _ -> None)
 
-let implMethodFns
-  (owner : string)
-  (memberPath : List<string>)
-  (impl : ImplDecl)
-  : List<PackageFn.PackageFn> =
-  implMethodDecls impl |> List.map (packageFn owner memberPath)
-
 /// The impl item itself. Its location is the member path: the module the method
 /// fns live in IS the impl's name.
 let packageImpl
