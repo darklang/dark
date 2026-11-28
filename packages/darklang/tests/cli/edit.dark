@@ -44,7 +44,7 @@ test stdinAndPatchRoundTrip = Instance.withInstance(fun instance ->
   let name = "Me.AgentEdit.greeting"
   let before = "let greeting(name: String): String =\n  \"Hello, \" + name\n"
   let (createExitCode, _) =
-    Instance.runWithStdin(instance, [ "module", "/Me.AgentEdit", "-" ], before)
+    Instance.runWithStdin(instance, [ "import", "-", "/Me.AgentEdit" ], before)
 
   let (stdinExitCode, _) =
     Instance.runWithStdin(
@@ -100,7 +100,7 @@ test failedPatchesLeaveRawSourceUnchanged =
     let _ =
       Instance.runWithStdin(
         instance,
-        [ "module", "/Me.AgentFailure", "-" ],
+        [ "import", "-", "/Me.AgentFailure" ],
         "let f(): String =\n  \"kept\"\n")
 
     let before = Instance.said(instance, [ "view", name, "--raw" ])
@@ -142,7 +142,7 @@ test ambiguousPatchDoesNotSave = Instance.withInstance(fun instance ->
   let _ =
     Instance.runWithStdin(
       instance,
-      [ "module", "/Me.AgentAmbiguous", "-" ],
+      [ "import", "-", "/Me.AgentAmbiguous" ],
       "let f(): String =\n  Stdlib.printLine(\"same\")\n  Stdlib.printLine(\"same\")\n  \"kept\"\n")
 
   let before = Instance.said(instance, [ "view", name, "--raw" ])
@@ -167,10 +167,10 @@ test ambiguousPatchDoesNotSave = Instance.withInstance(fun instance ->
 test matchedPatchesFollowNormalEditRules = Instance.withInstance(fun instance ->
   let source = "let f(): String =\n  \"kept\"\n"
   let _ =
-    Instance.runWithStdin(instance, [ "module", "/Me.PatchRules", "-" ], source)
+    Instance.runWithStdin(instance, [ "import", "-", "/Me.PatchRules" ], source)
 
   let _ =
-    Instance.runWithStdin(instance, [ "module", "/Me.EditRules", "-" ], source)
+    Instance.runWithStdin(instance, [ "import", "-", "/Me.EditRules" ], source)
 
   let (patchExitCode, patchOutput) =
     Instance.runWithStdin(
@@ -227,7 +227,7 @@ test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
   let (createExitCode, _) =
     Instance.runWithStdin(
       instance,
-      [ "module", "/Me.PatchNormalization", "-" ],
+      [ "import", "-", "/Me.PatchNormalization" ],
       "let f(): Result<Int64, String> =\n  Error(\"before\")\n")
 
   let before = Instance.said(instance, [ "view", name, "--raw" ])
@@ -294,13 +294,13 @@ test moduleSaveNamesWhatItLeftBehind = Instance.withInstance(fun instance ->
   let _ =
     Instance.runWithStdin(
       instance,
-      [ "module", "/Me.LeftBehind", "-" ],
+      [ "import", "-", "/Me.LeftBehind" ],
       "let kept(): Int64 = 1\nlet dropped(): Int64 = 2\n")
 
   let (_, again) =
     Instance.runWithStdin(
       instance,
-      [ "module", "/Me.LeftBehind", "-" ],
+      [ "import", "-", "/Me.LeftBehind" ],
       "let kept(): Int64 = 3\n")
 
   Stdlib.Test.all(
@@ -320,7 +320,7 @@ test editDoesNotListSiblingsAsLeftBehind = Instance.withInstance(fun instance ->
   let _ =
     Instance.runWithStdin(
       instance,
-      [ "module", "/Me.EditOne", "-" ],
+      [ "import", "-", "/Me.EditOne" ],
       "let one(): Int64 = 1\nlet two(): Int64 = 2\n")
 
   let (code, out) =
@@ -343,7 +343,7 @@ test editReportsUpdatedFunctionAndDependents =
     let (_, _) =
       Instance.runWithStdin(
         instance,
-        [ "module", "/Me.Follow", "-" ],
+        [ "import", "-", "/Me.Follow" ],
         "let helper(): Int64 = 1\n"
         + "let b(): Int64 = helper() + 20\n"
         + "let a(): Int64 = helper() + 10\n")
@@ -385,7 +385,7 @@ test editReportsBrokenCallers = Instance.withInstance(fun instance ->
   let (setupCode, setup) =
     Instance.runWithStdin(
       instance,
-      [ "module", "/Me.BrokenCallers", "-" ],
+      [ "import", "-", "/Me.BrokenCallers" ],
       "let helper(): Int64 = 1\n"
       + "let first(): Int64 = helper()\n"
       + "let second(): Int64 = helper()\n"

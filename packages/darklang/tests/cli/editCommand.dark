@@ -215,7 +215,7 @@ test editRefusesWhatItCannotEdit = Instance.withInstance(fun i ->
     && Stdlib.String.contains(tooMany, "does not take `c`")
     && Stdlib.String.contains(tooMany, "dark edit --help")
     && Stdlib.String.contains(aModule, "is a module")
-    && Stdlib.String.contains(aModule, "dark module")
+    && Stdlib.String.contains(aModule, "dark import")
     && Stdlib.String.contains(unknown, "Cannot edit Zz.NoSuch.thing")
   then
     Stdlib.Test.Result.Pass

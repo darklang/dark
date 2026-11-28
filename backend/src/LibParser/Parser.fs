@@ -5018,7 +5018,7 @@ let parseScript (source : string) : ParseResult =
 let parsePackage (source : string) : ParseResult =
   parseRecovering ItemScope.Module (withPurpose Validation.Package) source
 
-/// Parse source for `dark module`. Keep declarations that pass syntax and package
+/// Parse source for `dark import`. Keep declarations that pass syntax and package
 /// checks, and return diagnostics for the whole source.
 let parsePackagePartialSave (source : string) : ParseResult =
   try

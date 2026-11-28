@@ -43,7 +43,7 @@ starts there. `--branch` is for a one-off.
   fn <name> "<body>"      create or update a function
   type <name> "<body>"    create or update a type
   val <name> "<expr>"     create or update a value (`let` is an alias)
-  module <path> -         several declarations at once, from stdin
+  import <file|-> <path>  several declarations at once, from a file or stdin
   edit <name> [<file|->] apply a file/stdin, or open $EDITOR
   edit <name> --patch -  apply exact patch blocks from stdin
   typecheck               audit the declarations on this branch

@@ -145,7 +145,7 @@ module Denials =
         source,
         "let readAt(path: String): String =\n  match Stdlib.Cli.File.readText(path) with\n  | Ok(t) -> t\n  | Error(e) -> Stdlib.display(e)\n")
 
-    let (saved, _) = Instance.ran(i, [ "module", "Tests.Denied", source ])
+    let (saved, _) = Instance.ran(i, [ "import", source, "Tests.Denied" ])
     let call =
       "Tests.Denied.readAt(Stdlib.String.reverse(\"txt.terces/deined/\"))"
 
@@ -168,7 +168,7 @@ module Denials =
         source,
         "let copy(path: String): Unit =\n  match Stdlib.Cli.File.readText(path) with\n  | Ok(t) ->\n    let _ = Stdlib.Cli.File.writeText(path + \".out\", t)\n    ()\n  | Error(_) -> ()\n")
 
-    let (saved, _) = Instance.ran(i, [ "module", "Tests.Copy", source ])
+    let (saved, _) = Instance.ran(i, [ "import", source, "Tests.Copy" ])
     let (_, out) =
       deny(
         i,

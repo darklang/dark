@@ -9,7 +9,7 @@ let hashOf(dark: Cli.Tests.Instance.T, name: String): String =
   Stdlib.String.trim(out)
 
 
-/// `dark view <name> --raw`, which is what `dark edit` and `dark module` round-trip.
+/// `dark view <name> --raw`, which is what `dark edit` and `dark import` round-trip.
 let raw(name: String): List<String> =
   [ "view", name, "--raw" ]
 

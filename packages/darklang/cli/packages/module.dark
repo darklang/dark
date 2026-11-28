@@ -99,8 +99,10 @@ let landDocEdits(branchId: Uuid, ops: List<LanguageTools.ProgramTypes.PackageOp>
 
 /// Save rules for module input.
 type SaveMode =
-  /// `dark module` can save the declarations that passed parsing.
-  | Module
+  /// `dark import` can save the declarations that passed parsing, and refuses a script.
+  | Import
+  /// `dark import --skip-expressions`, which leaves a script's expressions out.
+  | ImportSkippingExpressions
   /// `dark edit`, which saves one declaration through its module.
   | Edit
   /// `defineBundled`, for the dev build.
@@ -154,9 +156,45 @@ let unparsedNames(
   | _ -> []
 
 
+/// Where the expressions a script runs are, when <param source> is a script.
+let scriptExpressions(source: String): List<LanguageTools.Parser.Range> =
+  match LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Script, source) with
+  | Some(SourceFile(file)), [] ->
+    file.exprsToEval |> Stdlib.List.map(LanguageTools.WrittenTypes.Expr.range)
+  | _ -> []
+
+
+/// Name each expression an import left out of <param source>, and how to run `main`.
+let printLeftOut(
+  source: String,
+  leftOut: List<LanguageTools.Parser.Range>,
+  home: String,
+  definedNames: List<String>)
+  : Unit =
+  let lines = Stdlib.String.split(source, "\n")
+  leftOut
+  |> Stdlib.List.iter(fun range ->
+    let text =
+      Stdlib.List.getAt(lines, range.start.row)
+      |> Stdlib.Option.withDefault("")
+      |> Stdlib.String.dropFirst(range.start.column)
+      |> Stdlib.String.trim
+
+    let line = Stdlib.display(range.start.row + 1)
+    printHint(
+      $"  left out line {line}, `{Text.oneLineAt(60, text)}`: a module holds declarations, not expressions"))
+
+  if
+    Stdlib.Bool.not(Stdlib.List.isEmpty(leftOut)) && Stdlib.List.contains(definedNames, "main")
+  then
+    printHint($"  run it with `dark run {home}.main`")
+  else
+    ()
+
+
 let save(state: AppState, modulePath: String, source: String, mode: SaveMode): AppState =
   let bundled = mode == SaveMode.DevBuild
-  let moduleCommand = mode == SaveMode.Module
+  let moduleCommand = mode == SaveMode.Import || mode == SaveMode.ImportSkippingExpressions
   let kind =
     if moduleCommand then
       LanguageTools.Parser.FileKind.PackagePartialSave
@@ -164,10 +202,29 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
       LanguageTools.Parser.FileKind.Package
 
   let (parsed, diagnostics) = LanguageTools.Parser.Parse.parse(kind, source)
+  let scriptLines =
+    if moduleCommand then
+      scriptExpressions(source)
+      |> Stdlib.List.filter(fun range -> Stdlib.List.any(diagnostics, fun((r, _)) -> r == range))
+    else
+      []
+
+  let leftOut = if mode == SaveMode.ImportSkippingExpressions then scriptLines else []
+  let diagnostics =
+    diagnostics
+    |> Stdlib.List.filter(fun((range, _)) -> Stdlib.Bool.not(Stdlib.List.contains(leftOut, range)))
+
   let parseFailed = Errors.reportParseErrors(diagnostics)
+  let refusedScript = mode == SaveMode.Import && Stdlib.Bool.not(Stdlib.List.isEmpty(scriptLines))
+  if refusedScript then
+    printHint("  `--skip-expressions` saves the declarations and leaves the expressions out")
+  else
+    ()
+
   let state = if parseFailed then failed(state) else state
+  let saves = Stdlib.Bool.not(refusedScript) && (moduleCommand || Stdlib.Bool.not(parseFailed))
   match parsed with
-  | Some(SourceFile(sourceFile)) when moduleCommand || Stdlib.Bool.not(parseFailed) ->
+  | Some(SourceFile(sourceFile)) when saves ->
     let declarations =
       let moduleDecls =
         sourceFile.declarations |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
@@ -358,11 +415,12 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
 
             if parseFailed then
               printHint("  Fix and resend only the declarations that failed to parse.")
-              printHint("  Use `module` for one or more declarations or `fn` for a function.")
+              printHint("  Use `import` for one or more declarations or `fn` for a function.")
               printHint("  Use `edit` only if the item already had a saved version.")
             else
               ()
 
+            printLeftOut(source, leftOut, Stdlib.String.join(home, "."), definedNames)
             AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0u64)
 
             // main's at-rest type check reports on every save; keep it ahead of propagation
@@ -453,15 +511,7 @@ let readAndSaveEdit(state: AppState, modulePath: String, sourcePath: String): Ap
   readAndSave(state, modulePath, sourcePath, SaveMode.Edit)
 
 
-let execute(state: AppState, args: List<String>): AppState =
-  match args with
-  | [modulePath, sourcePath] -> readAndSave(state, modulePath, sourcePath, SaveMode.Module)
-  | _ ->
-    printErr("Usage: module <module> <source-file|->")
-    failed(state)
-
-
-/// `module` for `LocalExec apply-package-edits`, which lands the dev build's edits to `packages/` on
+/// `import` for `LocalExec apply-package-edits`, which lands the dev build's edits to `packages/` on
 /// main in place of a reload. An unresolved name fails it, leaving that to the reload. The dependents
 /// that follow are not type-checked: for a core function that is most of the time, and a reload
 /// doesn't check them either.
@@ -470,33 +520,3 @@ let defineBundled(modulePath: String, source: String): Int64 =
     { Cli.initState() with nonInteractive = true, currentBranchId = SCM.Branch.mainBranchId }
 
   (save(state, modulePath, source, SaveMode.DevBuild)).exitCode
-
-
-let help(_state: AppState): String =
-  [ "Define a module from multiple package declarations"
-    ""
-    "Usage: module <module> <source-file|->"
-    ""
-    "The source may contain functions, types, values, tests, and nested modules."
-    "Valid declarations are saved as WIP in one batch; the at-rest"
-    "type check is reported and `commit` refuses definite type errors."
-    "Parse errors exit 1. Declarations the parser can recover and validate are"
-    "still saved. Fix the rejected declarations and send only those."
-    "Definite type errors and unresolved names exit 1; declarations remain saved"
-    "as drafts. Other incomplete checks warn and exit 0."
-    "Saving again replaces what the source has; names it no longer has stay and"
-    "are listed, for `delete`."
-    ""
-    "Example:"
-    "  dark module /Me.Example - <<'EOF'"
-    "  val greeting: String = \"hello\""
-    "  let double(n: Int64): Int64 = n * 2"
-    "  let quadruple(n: Int64): Int64 = double(double(n))"
-    "  test doubles = double(4) |> Stdlib.Test.equal(8)"
-    "  EOF"
-    "  dark eval 'Me.Example.quadruple(5)'" ]
-  |> Stdlib.String.join("\n")
-
-
-let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
-  []

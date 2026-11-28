@@ -7,7 +7,7 @@ test isolatedTestsRunWithAnUnwritableTempDir = Instance.withInstance(fun i ->
     "let main(): Int64 =\n  Stdlib.printLine(\"hi\")\n  0\n\ntest prints = main() |> Stdlib.Test.equal(0)\n"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.Printer", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.Printer" ])
   // a file, not a directory: no user, root included, can make a directory in it
   let notADir = Instance.home(i) + "/not-a-dir"
   let _ = Stdlib.Cli.File.writeAtomic(notADir, "") |> Builtin.unwrap

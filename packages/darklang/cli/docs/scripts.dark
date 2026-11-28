@@ -29,9 +29,9 @@ Then run it:
   dark run greet.dark
   # prints usage on stderr; exits 2
 
-No import or commit is needed. Declarations in the file can use each other and
+No commit is needed. Declarations in the file can use each other and
 packages on the selected branch. Running the file does not save its declarations
-into your package tree.
+into your package tree; `dark import <file> <module> --skip-expressions` does.
 
 ## Arguments
 

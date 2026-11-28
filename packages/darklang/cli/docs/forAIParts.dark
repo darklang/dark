@@ -15,15 +15,15 @@ refuses a save.
 
 Create several declarations in one batch:
 
-  module /Me.Example - <<'EOF'
+  import - /Me.Example <<'EOF'
   type State = { count: Int64 }
   let double(n: Int64): Int64 = n * 2
   let main(n: Int64): Int64 = double(n)
   EOF
 
-A module save reports parse errors and exits 1. Declarations the parser can
+An import reports parse errors and exits 1. Declarations the parser can
 recover and validate are still saved as WIP. Send a corrected declaration with
-`edit` for an existing item, `fn` for a new function, or `module` for any subset.
+`edit` for an existing item, `fn` for a new function, or `import` for any subset.
 
 For one function, stdin accepts a complete declaration; the shorter signature
 and body fragment remains valid:
@@ -43,7 +43,7 @@ type is checked); `let` declares functions. Inside a function, local values use
 `let`. Nested helpers annotate every parameter
 (the return type is optional; neither is checked): `let helper(x: Int64): Int64 = ...`.
 
-`fn`, `type`, `val` and `module` run the at-rest type checker on what they save
+`fn`, `type`, `val` and `import` run the at-rest type checker on what they save
 and print its findings; the save goes through regardless (WIP is yours to break).
 Updating existing items also re-checks their visible transitive dependents after
 all propagation finishes and lists any that have definite type errors. Reports
@@ -113,7 +113,7 @@ Once every block matches, the result follows the usual edit rules: syntax errors
 stop the save; type errors can be saved as drafts with a nonzero exit code.
 Errors return the current declaration on stdout, including any draft that was saved.
 
-`view --raw` prints code you can pass to `edit` or `module`. Plain `view` adds
+`view --raw` prints code you can pass to `edit` or `import`. Plain `view` adds
 information for a person reading the code. `edit <name>` with no file opens
 $EDITOR; the file and stdin forms work without a terminal.
 
@@ -166,7 +166,7 @@ let tests(): String =
 Tests are ordinary Dark declarations stored separately from production
 functions. They must return `Stdlib.Test.Result`:
 
-  module /Me.Example.Tests - <<'EOF'
+  import - /Me.Example.Tests <<'EOF'
   test doubles =
     Me.Example.double(4)
     |> Stdlib.Test.equal(8)

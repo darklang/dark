@@ -1,4 +1,4 @@
-/// CLI tests: saving with `module` and `fn`.
+/// CLI tests: saving with `import` and `fn`.
 module Darklang.Cli.Tests.Save
 
 /// Create, update, and what happens to a module that does not type-check.
@@ -58,7 +58,7 @@ test moduleCommand = Instance.withInstance(fun i ->
   let moduleOutput =
     Instance.output(
       i,
-      [ "--branch", branchName, "module", "/" + moduleName, initialPath ])
+      [ "--branch", branchName, "import", initialPath, "/" + moduleName ])
 
   let initialEval =
     Instance.output(
@@ -68,7 +68,7 @@ test moduleCommand = Instance.withInstance(fun i ->
   let updateOutput =
     Instance.output(
       i,
-      [ "--branch", branchName, "module", "/" + moduleName, updatedPath ])
+      [ "--branch", branchName, "import", updatedPath, "/" + moduleName ])
 
   let updatedEval =
     Instance.output(
@@ -78,7 +78,7 @@ test moduleCommand = Instance.withInstance(fun i ->
   let invalidOutput =
     Instance.said(
       i,
-      [ "--branch", branchName, "module", "/" + moduleName, invalidPath ])
+      [ "--branch", branchName, "import", invalidPath, "/" + moduleName ])
 
   let searchOutput =
     Instance.output(
@@ -140,7 +140,7 @@ test moduleRejectsDuplicateNames = Instance.withInstance(fun i ->
   let moduleOutput =
     Instance.output(
       i,
-      [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
+      [ "--branch", branchName, "import", sourcePath, "/" + moduleName ])
 
   let searchOutput =
     Instance.output(
@@ -183,7 +183,7 @@ test moduleSaveNamesTheFunctionsWithTypeErrors = Instance.withInstance(fun i ->
   let output =
     Instance.said(
       i,
-      [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
+      [ "--branch", branchName, "import", sourcePath, "/" + moduleName ])
 
   let _ = Stdlib.Cli.File.delete(sourcePath)
   let namedAboveItsError(fnName: String): Bool =
@@ -221,7 +221,7 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
     let output =
       Instance.said(
         i,
-        [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
+        [ "--branch", branchName, "import", sourcePath, "/" + moduleName ])
 
     let _ = Stdlib.Cli.File.delete(sourcePath)
     if
@@ -319,7 +319,7 @@ module ModuleSave =
   let save(i: Instance.T, source: String): Stdlib.Cli.Process.Output =
     let path = Instance.home(i) + "/probe.dark"
     let _ = Stdlib.Cli.File.writeText(path, source) |> Builtin.unwrap
-    Instance.run(i, [ "module", "/Tests.ModuleSaveProbe", path ])
+    Instance.run(i, [ "import", path, "/Tests.ModuleSaveProbe" ])
     |> Builtin.unwrap
 
 

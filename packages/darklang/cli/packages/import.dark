@@ -1,0 +1,47 @@
+module Darklang.Cli.Packages.Import
+
+let execute(state: AppState, args: List<String>): AppState =
+  let mode =
+    if Stdlib.List.contains(args, "--skip-expressions") then
+      ModuleCommand.SaveMode.ImportSkippingExpressions
+    else
+      ModuleCommand.SaveMode.Import
+
+  match Stdlib.List.filter(args, fun arg -> arg != "--skip-expressions") with
+  | [sourcePath, modulePath] -> ModuleCommand.readAndSave(state, modulePath, sourcePath, mode)
+  | _ ->
+    printErr("Usage: import <file|-> <module> [--skip-expressions]")
+    failed(state)
+
+
+let help(_state: AppState): String =
+  [ "Import a file of declarations into a module"
+    ""
+    "Usage: import <file|-> <module> [--skip-expressions]"
+    ""
+    "The file may contain functions, types, values, tests, and nested modules."
+    "Valid declarations are saved as WIP in one batch; the at-rest"
+    "type check is reported and `commit` refuses definite type errors."
+    "Parse errors exit 1. Declarations the parser can recover and validate are"
+    "still saved. Fix the rejected declarations and send only those."
+    "Definite type errors and unresolved names exit 1; declarations remain saved"
+    "as drafts. Other incomplete checks warn and exit 0."
+    "Saving again replaces what the file has; names it no longer has stay and"
+    "are listed, for `delete`."
+    ""
+    "A script's top-level expressions, such as a `main([])` call, are refused."
+    "  --skip-expressions   save the declarations and name each expression left out"
+    ""
+    "Example:"
+    "  dark import - /Me.Example <<'EOF'"
+    "  val greeting: String = \"hello\""
+    "  let double(n: Int64): Int64 = n * 2"
+    "  let quadruple(n: Int64): Int64 = double(double(n))"
+    "  test doubles = double(4) |> Stdlib.Test.equal(8)"
+    "  EOF"
+    "  dark eval 'Me.Example.quadruple(5)'" ]
+  |> Stdlib.String.join("\n")
+
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
+  []

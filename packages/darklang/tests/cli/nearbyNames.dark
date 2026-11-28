@@ -12,8 +12,8 @@ test siblingModuleIsSuggested = Instance.withInstance(fun i ->
     Stdlib.Cli.File.writeAtomic(lexer, "let first(k: TokKind): Bool = true\n")
     |> Builtin.unwrap
 
-  let _ = Instance.ran(i, [ "module", "/Me.Tiny.Types", types ])
-  let (_, out) = Instance.ran(i, [ "module", "/Me.Tiny.Lexer", lexer ])
+  let _ = Instance.ran(i, [ "import", types, "/Me.Tiny.Types" ])
+  let (_, out) = Instance.ran(i, [ "import", lexer, "/Me.Tiny.Lexer" ])
   Instance.says(
     out,
     "Did you mean `Me.Tiny.Types.TokKind`?",

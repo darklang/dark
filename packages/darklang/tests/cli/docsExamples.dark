@@ -161,7 +161,7 @@ let firstColumn(line: String): String =
 
 
 /// The heredoc bodies in <param lines>, each with how to parse it: the body of a
-/// `run - <<'EOF'` is a script, any other (`module /X - <<'EOF'`) is a package file.
+/// `run - <<'EOF'` is a script, any other (`import - /X <<'EOF'`) is a package file.
 let heredocs(
   lines: List<String>)
   : List<(LanguageTools.Parser.FileKind * String)> =
@@ -317,7 +317,7 @@ test theCheckFindsBrokenExamples =
           failures(
             "t",
             page(
-              [ "module /Me.A - <<'EOF'", "let f(): Int64 = 1 # x", "EOF" ])))
+              [ "import - /Me.A <<'EOF'", "let f(): Int64 = 1 # x", "EOF" ])))
         == 1,
         "a heredoc's body is checked")
 

@@ -273,7 +273,7 @@ test aTypeErrorRefusalNamesTheItemAndAFixUnblocksIt = scenario(fun dark ->
   [ writeSource(path, source)
     says(
       dark,
-      [ "module", "Tests.ArityGate", path ],
+      [ "import", path, "Tests.ArityGate" ],
       "Type check failed",
       "saving reports the error rather than hiding it")
 
@@ -351,12 +351,12 @@ test aCommitRefusesAReferenceThatNeverResolvesButNotAForwardOne =
       writeSource(path, source("Tests.UnresFix.notThere(x)"))
       says(
         dark,
-        [ "module", "/Tests.UnresFix", path ],
+        [ "import", path, "/Tests.UnresFix" ],
         "saved anyway",
         "the broken module is saved")
 
       writeSource(path, source("x + 1"))
-      run(dark, [ "module", "/Tests.UnresFix", path ])
+      run(dark, [ "import", path, "/Tests.UnresFix" ])
       commit(dark, "fixed")
       same(
         commits(dark),

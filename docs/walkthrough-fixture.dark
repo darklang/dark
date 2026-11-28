@@ -1,7 +1,7 @@
 // The fixtures the concurrency/tracing/live walkthrough reads. One file, one command, from the
 // repo root:
 //
-//   dark module /Demo.Walk - < docs/walkthrough-fixture.dark
+//   dark import docs/walkthrough-fixture.dark /Demo.Walk
 //
 // It lives in the repo rather than beside the walkthrough so that anyone who has cloned has it.
 // It is NOT under `packages/`, on purpose: everything there is authored into the store on every
@@ -17,15 +17,18 @@ let scale(n: Int64): Int64 =
   let doubled = n * 2
   doubled + 1
 
+
 /// A second loop, so `--iteration` has more than one thing to pick.
 let total(xs: List<Int64>): Int64 =
   Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)
+
 
 /// A one-line lambda whose work is a CALL: nothing per-iteration on the line to change.
 let reportCall(xs: List<Int64>): String =
   let scaled = Stdlib.List.map(xs, fun x -> scale(x))
   let sum = total(scaled)
   "sum=" + (Stdlib.display(sum))
+
 
 /// A multi-line lambda, so `--iteration` visibly changes the lines.
 let reportInline(xs: List<Int64>): String =
@@ -35,6 +38,7 @@ let reportInline(xs: List<Int64>): String =
       doubled + 1)
 
   "sum=" + (Stdlib.display(Stdlib.List.length(scaled)))
+
 
 /// Two loops in one body, for `--iteration map:2,fold:2`.
 let reportTwo(xs: List<Int64>): String =
@@ -50,6 +54,7 @@ let reportTwo(xs: List<Int64>): String =
 
   "sum=" + (Stdlib.display(summed))
 
+
 /// NOT tail-recursive: the multiply happens after the call returns.
 let fact(n: Int64): Int64 =
   if n <= 1 then
@@ -57,6 +62,7 @@ let fact(n: Int64): Int64 =
   else
     let sub = fact(n - 1)
     n * sub
+
 
 /// Tail-recursive. Steps anyway: this interpreter does no tail-call optimisation.
 let countdown(n: Int64, acc: Int64): Int64 =
@@ -66,10 +72,12 @@ let countdown(n: Int64, acc: Int64): Int64 =
     let step = acc + n
     countdown(n - 1, step)
 
+
 let inner(x: Int64): Int64 =
   let a = x * 3
   let b = a + 7
   b - 1
+
 
 /// For the big-trace steps. A flat loop, so it stays fast to open.
 let big(n: Int64): Int64 =
@@ -97,6 +105,7 @@ let serial(): Int64 =
   Stdlib.List.repeat(8, 24)
   |> Stdlib.List.map(fun n -> fib(n))
   |> Stdlib.List.length
+
 
 /// The same eight, one scheduler per core.
 let cores(): Int64 =

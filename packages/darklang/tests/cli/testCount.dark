@@ -59,8 +59,8 @@ let define(i: Instance.T): Unit =
   let innerPath = Instance.home(i) + "/inner.dark"
   let _ = Stdlib.Cli.File.writeAtomic(outerPath, outer) |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(innerPath, inner) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.Counted", outerPath ])
-  let _ = Instance.ran(i, [ "module", "/Me.Counted.Inner", innerPath ])
+  let _ = Instance.ran(i, [ "import", outerPath, "/Me.Counted" ])
+  let _ = Instance.ran(i, [ "import", innerPath, "/Me.Counted.Inner" ])
   ()
 
 

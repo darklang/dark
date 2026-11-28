@@ -341,7 +341,7 @@ trusting the build.
 
 **A build wipes anything you authored by hand, and the next measurement looks like a fast pass.**
 `reload-packages` re-authors the store from the `.dark` files on disk, so a module you made with
-`dark module /Demo.X -` is gone after any build, including the one inside
+`dark import - /Demo.X` is gone after any build, including the one inside
 `scripts/dev/build --optimize --test`. That part is expected. The trap is what it does to timing
 work: `dark eval 'Demo.X.f 16'` then fails in milliseconds, the trace it leaves is a FAILED one,
 and timing `traces show` against it reports the startup baseline, which looks like a win rather
@@ -351,7 +351,7 @@ intend to keep belongs in a file the walkthrough pipes in (`docs/walkthrough-fix
 re-authoring it is one command rather than remembering what it was.
 
 **A doc-only edit keeps the item's hash.** Doc comments are excluded from the content hash
-(`Canonical.fs`), so `dark fn`, `dark module` and `dark edit` write the change as an `UpdateDoc`
+(`Canonical.fs`), so `dark fn`, `dark import` and `dark edit` write the change as an `UpdateDoc`
 op and add "; updated N doc comments" to the output. If a doc edit seems not to land, that line
 says whether it was written.
 

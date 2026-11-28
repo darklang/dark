@@ -122,7 +122,7 @@ module private Managed =
 
   /// Descriptors over `FileStream`, so the descriptor half of the Posix builtins
   /// works against the in-memory filesystem. `Stdlib.Cli.File.readText` reads through
-  /// open/read/close; with these refusing, `dark run <file>` and `dark module <file>`
+  /// open/read/close; with these refusing, `dark run <file>` and `dark import <file>`
   /// could not see a file the same tab had just written through
   /// `Stdlib.Cli.FileSystem`. 0 to 2 are the terminal's and stay refused; the browser
   /// builtins own stdin and output.

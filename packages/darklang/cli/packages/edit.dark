@@ -22,7 +22,7 @@ let editorCommand(): String =
     | _ -> "vi"
 
 
-/// The `/Owner.Mod` form `dark module` takes, built from the item's own location.
+/// The `/Owner.Mod` form `dark import` takes, built from the item's own location.
 let moduleArgFor(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   let parts = Stdlib.List.prepend(loc.modules, loc.owner)
   "/" + Stdlib.String.join(parts, ".")
@@ -234,7 +234,7 @@ let execute(state: AppState, args: List<String>): AppState =
         printErr($"{name} is a module. `dark edit` takes one fn, type, value, trait, impl or test.")
         Stdlib.printErrorLine(
           Stdlib.Cli.UI.Colors.dimText(
-            "  `dark module /Some.Module <file>` edits a whole module at once."))
+            "  `dark import <file> /Some.Module` edits a whole module at once."))
 
         failed(state)
       | Some(loc) ->
@@ -352,7 +352,7 @@ let help(_state: AppState): String =
     "  dark edit <name> <file|-> apply a file or full declaration from stdin"
     "  dark edit <name> --patch - apply a context patch from stdin"
     ""
-    "  The file holds one declaration, the same form `dark module` takes."
+    "  The file holds one declaration, the same form `dark import` takes."
     "  `dark view <name> --raw` prints exactly that form, so reading an item,"
     "  changing it and writing it back is a pipe:"
     ""

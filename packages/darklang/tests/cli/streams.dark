@@ -502,7 +502,7 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Says("discarded"))
 
     ([ "ack" ], 1, Stream.Silent, Stream.Says("dark ack --all"))
-    ([ "module" ], 1, Stream.Silent, Stream.Says("needs 2 arguments"))
+    ([ "import" ], 1, Stream.Silent, Stream.Says("needs 2 arguments"))
     ([ "workbench" ], 1, Stream.Silent, Stream.Says("unavailable"))
     ([], 1, Stream.Silent, Stream.Says("unavailable"))
     ([ "uninstall" ], 1, Stream.Silent, Stream.Says("`dark uninstall -y`"))
