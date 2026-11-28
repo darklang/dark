@@ -404,10 +404,25 @@ let applyPathFrom(
   | _ -> applyPath(branchId, start, segments)
 
 
-// Main traverse function
+/// Where <param path> leads from <param start>. A dotted name that leads nowhere says which code
+/// names are near it, the way an unresolved name in code does (<fn Errors.didYouMean>).
 let traverse(
   branchId: Uuid,
   start: PackageLocation,
   path: String)
   : Result<PackageLocation, String> =
-  applyPathFrom(branchId, start, parsePath(path))
+  match applyPathFrom(branchId, start, parsePath(path)) with
+  | Ok(loc) -> Result.Ok(loc)
+  | Error(e) ->
+    let dotted =
+      Stdlib.Bool.not(Stdlib.String.contains(path, "/") || Stdlib.String.contains(path, ".."))
+
+    let hint =
+      if dotted && Stdlib.String.startsWith(e, "Not found") then
+        Accepts.nearHint(Errors.didYouMean(branchId, Stdlib.String.split(path, ".")))
+      else
+        ""
+
+    match hint with
+    | "" -> Result.Error(e)
+    | hint -> Result.Error(e + "." + hint)

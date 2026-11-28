@@ -210,51 +210,9 @@ let closestNameModules(modules: List<String>): List<(List<String> * List<String>
         Stdlib.List.flatten([ [ "Darklang", "Stdlib" ], modules ])) ]
 
 
-/// How far <param candidate> is from the <param name> that was written, when it is near enough to
-/// suggest: a few edits, ignoring case, or one name inside the other (`toUpper` for
-/// `toUppercase`).
-let nameDistance(name: String, candidate: String): Option<Int64> =
-  let a = Stdlib.String.toLowercase(name)
-  let b = Stdlib.String.toLowercase(candidate)
-  let d = Config.editDistance(a, b)
-  let shorter = Config.smaller(Stdlib.String.length(a), Stdlib.String.length(b))
-
-  let allowed =
-    Config.smaller(
-      3,
-      Stdlib.max(
-        1,
-        Stdlib.Int64.checkedDivide(Stdlib.String.length(a), 3) |> Stdlib.Result.withDefault(0)))
-
-  if d <= allowed then
-    Option.Some(d)
-  else if shorter >= 4 && (Stdlib.String.contains(a, b) || Stdlib.String.contains(b, a)) then
-    Option.Some(d)
-  else
-    Option.None
-
-
-/// <fn nameDistance>, or 0 when <param candidate> is what Stdlib calls the word written: `size`
-/// is `length` (<fn Search.wordSynonyms>).
-let nearness(name: String, candidate: String): Option<Int64> =
-  let synonyms = Search.wordSynonyms(name) |> Stdlib.List.map(Stdlib.String.toLowercase)
-  if Stdlib.List.contains(synonyms, Stdlib.String.toLowercase(candidate)) then
-    Option.Some(0)
-  else
-    nameDistance(name, candidate)
-
-
-/// The (distance, name) pairs of <param sorted> no more than one edit further than the first: a
-/// name that differs only in case leaves out the ones three edits away.
-let nearestOnly(sorted: List<(Int64 * String)>): List<(Int64 * String)> =
-  match sorted with
-  | [] -> []
-  | [(best, _), ...] -> sorted |> Stdlib.List.filter(fun((d, _)) -> d <= best + 1)
-
-
 /// Up to three existing names in the module <param originalName> names that are spelled close to
-/// it or are Stdlib's word for it, nearest first: `Stdlib.List.lenght` and `Stdlib.List.size` give
-/// `Stdlib.List.length`.
+/// it or are Stdlib's word for it (<fn Search.wordSynonyms>): `Stdlib.List.lenght` and
+/// `Stdlib.List.size` give `Stdlib.List.length`.
 let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
   match splitLast(originalName) with
   | None -> []
@@ -262,15 +220,12 @@ let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
     closestNameModules(modules)
     |> Stdlib.List.map(fun((written, location)) ->
       let (_, types, values, fns, _, _, _) = Query.allDirectDescendantNames(branchId, location)
-      Stdlib.List.flatten([ fns, values, types ])
-      |> Stdlib.List.filterMap(fun candidate ->
-        nearness(name, candidate)
-        |> Stdlib.Option.map(fun d ->
-          (d, Stdlib.String.join(Stdlib.List.flatten([ written, [ candidate ] ]), ".")))))
+      LanguageTools.Suggest.near(
+        name,
+        Stdlib.List.flatten([ fns, values, types ]),
+        Search.wordSynonyms(name))
+      |> Stdlib.List.map(fun candidate -> Stdlib.String.join(Stdlib.List.append(written, candidate), ".")))
     |> Stdlib.List.flatten
-    |> Stdlib.List.sort
-    |> nearestOnly
-    |> Stdlib.List.map(fun((_, full)) -> full)
     |> Stdlib.List.unique
     |> Stdlib.List.take(3)
 
@@ -375,17 +330,6 @@ let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
       match namesOneModuleDown(branchId, originalName) with
       | [] -> closestNames(branchId, originalName)
       | names -> names
-
-
-/// `Did you mean `A`?`, or `Did you mean `A`, `B` or `C`?`, or "" for no names.
-let didYouMeanText(names: List<String>): String =
-  let quoted = names |> Stdlib.List.map(fun n -> $"`{n}`")
-  match Stdlib.List.reverse(quoted) with
-  | [] -> ""
-  | [only] -> $"Did you mean {only}?"
-  | [last, ...restReversed] ->
-    let rest = Stdlib.String.join(Stdlib.List.reverse(restReversed), ", ")
-    $"Did you mean {rest} or {last}?"
 
 
 /// Prints every parse diagnostic, so one save shows all there is to fix. Returns true when
@@ -515,7 +459,7 @@ let reportUnresolvedNames(
           | [] -> nearbyNames(branchId, home, originalName)
           | names -> names
 
-        match didYouMeanText(names) with
+        match LanguageTools.Suggest.sentence(names) with
         | "" -> ""
         | text -> " " + text
 
@@ -532,7 +476,7 @@ let reportUnresolvedNames(
       let colNum = range.start.column |> Stdlib.display
       let nameStr = Stdlib.String.join(originalName, ".")
       let suggestion =
-        match didYouMeanText(didYouMean(branchId, originalName)) with
+        match LanguageTools.Suggest.sentence(didYouMean(branchId, originalName)) with
         | "" -> ""
         | text -> " " + text
 

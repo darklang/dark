@@ -654,30 +654,6 @@ let byType(
 
 
 // ---- When nothing matched ----
-// Names within a couple of typos of <param word>, closest first: `lenght` is
-// `length`. One edit for a short word, two for a longer one, so a short word does
-// not suggest every other short word. Only names starting with the same letter are
-// measured: a typo rarely starts a word, and measuring every name is slow.
-let nearNames(word: String, names: List<String>): List<String> =
-  let w = Stdlib.String.toLowercase(word)
-  let len = Stdlib.String.length(w)
-  let limit = if len <= 4 then 1 else 2
-  let initial = Stdlib.String.first(w, 1)
-  names
-  |> Stdlib.List.filter(fun n ->
-    let diff = Stdlib.String.length(n) - len
-    diff <= limit
-    && diff >= 0 - limit
-    && Stdlib.String.toLowercase(Stdlib.String.first(n, 1)) == initial)
-  |> Stdlib.List.unique
-  |> Stdlib.List.filterMap(fun n ->
-    let d = Config.editDistance(w, Stdlib.String.toLowercase(n))
-    if d <= limit && d > 0 then Option.Some((d, n)) else Option.None)
-  |> Stdlib.List.sortBy(fun((d, n)) -> $"{Stdlib.display(d)}{n}")
-  |> Stdlib.List.map(fun((_, n)) -> n)
-  |> Stdlib.List.take(3)
-
-
 // The names of everything a search from <param currentModule> could find.
 let namesUnder(branchId: Uuid, currentModule: List<String>): List<String> =
   let query =
@@ -826,7 +802,7 @@ let nothingFound(
         let names = namesUnder(branchId, query.currentModule)
         missing
         |> Stdlib.List.filterMap(fun((w, _)) ->
-          match nearNames(w, names) with
+          match LanguageTools.Suggest.near(w, names, []) with
           | [] -> Option.None
           | near -> Option.Some((w, near)))
 
@@ -1270,7 +1246,7 @@ let shallowScope(
         || Stdlib.String.contains(p, "/")))
 
   let moduleAt = fun path ->
-    match Traversal.traverse(branchId, location, Stdlib.String.join(path, ".")) with
+    match Traversal.applyPathFrom(branchId, location, Traversal.parsePath(Stdlib.String.join(path, "."))) with
     | Ok(Module(m)) -> Option.Some(m)
     | _ -> Option.None
 

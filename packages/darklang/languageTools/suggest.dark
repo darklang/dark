@@ -1,0 +1,106 @@
+/// "Did you mean": which names to offer for a word that matched none of them. One rule for
+/// every place that suggests, from code names to commands. Nothing here decides what a name
+/// means; it is only read once a lookup has missed.
+module Darklang.LanguageTools.Suggest
+
+/// Edits between two words, ignoring case: inserting, deleting or changing a letter, or
+/// swapping two neighbours, so `lenght` is one edit from `length`.
+let distance(a: String, b: String): Int64 =
+  let xs = Stdlib.String.toList(Stdlib.String.toLowercase(a))
+  let ys = Stdlib.String.toList(Stdlib.String.toLowercase(b))
+  let cell(row: List<Int64>, j: Int64): Int64 =
+    Stdlib.Option.withDefault(Stdlib.List.getAt(row, j), 0)
+
+  let firstRow =
+    Stdlib.List.checkedRange(0, Stdlib.List.length(ys)) |> Stdlib.Result.withDefault([])
+
+  // Each row keeps the one before the last, which a swap reads.
+  let (_, lastRow, _, _) =
+    xs
+    |> Stdlib.List.fold((1, firstRow, [], Option.None), fun(acc, x) ->
+      let (i, prev, before, lastX) = acc
+      let (reversed, _, _) =
+        ys
+        |> Stdlib.List.fold(([ i ], 0, Option.None), fun(rowAcc, y) ->
+          let (row, j, lastY) = rowAcc
+          let cost = if x == y then 0 else 1
+          let plain =
+            Stdlib.min(Stdlib.min(cell(row, 0) + 1, cell(prev, j + 1) + 1), cell(prev, j) + cost)
+
+          let d =
+            match lastX, lastY with
+            | Some(px), Some(py) when px == y && py == x -> Stdlib.min(plain, cell(before, j - 1) + 1)
+            | _ -> plain
+
+          (Stdlib.List.prepend(row, d), j + 1, Option.Some(y)))
+
+      (i + 1, Stdlib.List.reverse(reversed), prev, Option.Some(x)))
+
+  Stdlib.Option.withDefault(Stdlib.List.last(lastRow), 0)
+
+
+/// The names to offer for <param word>, which matched none of <param names>: the nearest ones,
+/// ties kept in the order given, at most three. Nearest, in order:
+/// - a name <param means> holds (what the word is another word for: `size` means `length`)
+/// - the same name in another case
+/// - a few edits away: a third of the word's length, less one letter, so a three-letter word
+///   gets no guesses
+/// - a name that starts or holds the word, from four letters and up to twice as long
+///   (`toUpper` for `toUppercase`)
+/// The word itself is never offered.
+let near(word: String, names: List<String>, means: List<String>): List<String> =
+  let w = Stdlib.String.toLowercase(word)
+  let len = Stdlib.String.length(w)
+  let meant = means |> Stdlib.List.map(Stdlib.String.toLowercase)
+  let allowed =
+    Stdlib.min(3, Stdlib.Int64.checkedDivide(len - 1, 3) |> Stdlib.Result.withDefault(0))
+
+  let nearness(name: String): Option<Int64> =
+    let n = Stdlib.String.toLowercase(name)
+    if name == word then
+      Option.None
+    else if n == w || Stdlib.List.contains(meant, n) then
+      Option.Some(0)
+    else
+      // Only a name about as long as the word is worth measuring, and one that holds the word is
+      // as many edits away as it has letters more.
+      let more = Stdlib.String.length(n) - len
+      let edits =
+        if Stdlib.abs(more) <= allowed then
+          let d = distance(w, n)
+          if d <= allowed then Option.Some(d) else Option.None
+        else
+          Option.None
+
+      match edits with
+      | Some(d) -> Option.Some(d)
+      | None ->
+        if len >= 4 && more > 0 && more <= len && Stdlib.String.contains(n, w) then
+          Option.Some(more)
+        else
+          Option.None
+
+  let scored =
+    names
+    |> Stdlib.List.unique
+    |> Stdlib.List.filterMap(fun name ->
+      nearness(name) |> Stdlib.Option.map(fun d -> (d, name)))
+
+  match scored |> Stdlib.List.map(fun((d, _)) -> d) |> Stdlib.List.min with
+  | None -> []
+  | Some(best) ->
+    scored
+    |> Stdlib.List.filter(fun((d, _)) -> d == best)
+    |> Stdlib.List.map(fun((_, name)) -> name)
+    |> Stdlib.List.take(3)
+
+
+/// `Did you mean `a`?`, `Did you mean `a`, `b` or `c`?`, or "" for no names.
+let sentence(names: List<String>): String =
+  let quoted = names |> Stdlib.List.map(fun n -> $"`{n}`")
+  match Stdlib.List.reverse(quoted) with
+  | [] -> ""
+  | [only] -> $"Did you mean {only}?"
+  | [last, ...restReversed] ->
+    let rest = Stdlib.String.join(Stdlib.List.reverse(restReversed), ", ")
+    $"Did you mean {rest} or {last}?"

@@ -197,3 +197,13 @@ test listedFunctionsExist =
         Stdlib.Test.expect(
           Stdlib.List.all(names, fun n -> Stdlib.String.contains(page, n)),
           "the page names each one") ]))
+
+
+test unknownTopicSuggestsTheNearest =
+  let near = fun name -> Cli.Docs.Command.Topics.near(Cli.Docs.Command.Topics.allTopics(), name)
+  Stdlib.Test.all(
+    [ near("recrods") |> Stdlib.Test.equal([ "records" ])
+      near("sytnax") |> Stdlib.Test.equal([ "syntax" ])
+      near("for-ia") |> Stdlib.Test.equal([ "for-ai" ])
+      near("HttpClient") |> Stdlib.Test.equal([ "http-client" ])
+      near("zzzzzz") |> Stdlib.Test.equal([]) ])

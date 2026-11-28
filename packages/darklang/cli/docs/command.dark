@@ -317,17 +317,17 @@ module Topics =
 
 
   let findTopic(name: String): Option<DocTopic> =
-    let topics = allTopics()
-    let lowerName = Stdlib.String.toLowercase(name)
-    let byName =
-      topics |> Stdlib.List.findFirst(fun t -> Stdlib.String.toLowercase(t.name) == lowerName)
+    findIn(allTopics(), name)
 
-    match byName with
-    | Some(t) -> Option.Some(t)
-    | None ->
+
+  /// The names and aliases in <param topics> nearest <param name>, which is none of them.
+  let near(topics: List<DocTopic>, name: String): List<String> =
+    let names =
       topics
-      |> Stdlib.List.findFirst(fun t ->
-        t.aliases |> Stdlib.List.any(fun a -> Stdlib.String.toLowercase(a) == lowerName))
+      |> Stdlib.List.map(fun t -> Stdlib.List.prepend(t.aliases, t.name))
+      |> Stdlib.List.flatten
+
+    LanguageTools.Suggest.near(name, names, [])
 
 
   /// A topic printed from its text, so it can be read together with others.
@@ -380,6 +380,19 @@ let dispatchLive(state: AppState, name: String, rest: List<String>): Option<AppS
   | "stdlib" -> Option.Some(StdlibOverview.execute(state, rest))
   | "lib" -> Option.Some(StdlibOverview.execute(state, rest))
   | _ -> Option.None
+
+
+/// ". Did you mean …?" for the <param names> that are none of <param topics>, or "".
+let nearHint(topics: List<Topics.DocTopic>, names: List<String>): String =
+  let near =
+    names
+    |> Stdlib.List.map(fun n -> Topics.near(topics, n))
+    |> Stdlib.List.flatten
+    |> Stdlib.List.unique
+
+  match Accepts.nearHint(near) with
+  | "" -> ""
+  | hint -> "." + hint
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -443,13 +456,15 @@ let execute(state: AppState, args: List<String>): AppState =
             match topic.subtopics with
             | [] ->
               let noun = if plural then "topics" else "topic"
-              Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown {noun}: {names}"))
+              let hint = nearHint(Topics.allTopics(), unknown)
+              Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown {noun}: {names}{hint}"))
               Stdlib.printErrorLine("")
               Stdlib.printErrorLine(Topics.formatTopicList())
             | _ ->
               let noun = if plural then "parts" else "part"
+              let hint = nearHint(Stdlib.List.concat(topic.subtopics, Topics.allTopics()), unknown)
               Stdlib.printErrorLine(
-                Stdlib.Cli.UI.Colors.error($"Unknown {noun} of docs {topic.name}: {names}"))
+                Stdlib.Cli.UI.Colors.error($"Unknown {noun} of docs {topic.name}: {names}{hint}"))
 
               Stdlib.printErrorLine("")
 
@@ -459,7 +474,8 @@ let execute(state: AppState, args: List<String>): AppState =
 
             failed(state)
       | None ->
-        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown topic: {topicName}"))
+        let hint = nearHint(Topics.allTopics(), [ topicName ])
+        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown topic: {topicName}{hint}"))
         Stdlib.printErrorLine("")
         Stdlib.printErrorLine(Topics.formatTopicList())
         failed(state)

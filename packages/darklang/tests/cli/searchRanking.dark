@@ -315,21 +315,6 @@ test byTypeMatches =
       |> Stdlib.Test.equal(false) ])
 
 
-// A typo finds the name it misspells; a short word allows one edit, not two.
-test nearNamesForTypos =
-  Stdlib.Test.all(
-    [ Cli.Packages.Search.nearNames(
-        "lenght",
-        [ "length", "left", "height", "lengthy" ])
-      |> Stdlib.Test.equal([ "length", "lengthy" ])
-
-      Cli.Packages.Search.nearNames("mpa", [ "map", "max" ])
-      |> Stdlib.Test.equal([])
-
-      Cli.Packages.Search.nearNames("mapp", [ "map", "max", "mapping" ])
-      |> Stdlib.Test.equal([ "map" ]) ])
-
-
 // Plain words find what they describe: a plural matches the singular inside a camelCase name,
 // and a doc that says "Unix timestamp" answers that query.
 test plainWordsFindTheObviousFn = Instance.withInstance(fun i ->

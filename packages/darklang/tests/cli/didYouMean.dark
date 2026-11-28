@@ -301,17 +301,6 @@ test int64AddSuggestsCheckedToo = Instance.withInstance(fun i ->
       $"Expected `a + b` and checkedAdd; eval={evaluated.stderr}"))
 
 
-test didYouMeanText =
-  let text = Cli.Packages.Errors.didYouMeanText
-  Stdlib.Test.all(
-    [ text([]) |> Stdlib.Test.equal("")
-
-      text([ "A.a" ]) |> Stdlib.Test.equal("Did you mean `A.a`?")
-
-      text([ "A.a", "A.b", "A.c" ])
-      |> Stdlib.Test.equal("Did you mean `A.a`, `A.b` or `A.c`?") ])
-
-
 // A misspelt name gets the names spelled near it, on eval and on save.
 test notFoundSuggestsNamesSpelledNear = Instance.withInstance(fun i ->
   let evaluated = evalOutcome(i, "Stdlib.List.lenght([1])")

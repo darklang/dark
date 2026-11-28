@@ -141,3 +141,23 @@ test createdFullNamesAfterNav =
 
       at(darklang, "Stdlib.List.made")
       |> Stdlib.Test.equal(at(root, "Darklang.Stdlib.List.made")) ])
+
+
+// A path that names nothing gets the same "did you mean" as a name in code.
+test missedPathSuggestsCodeNames =
+  let branch = SCM.Branch.mainBranchId
+  let root = Cli.Packages.PackageLocation.Module([])
+  let walk = fun path -> Cli.Packages.Traversal.traverse(branch, root, path)
+  Stdlib.Test.all(
+    [ walk("Stdlib.List.lenght")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Not found: Stdlib.List.lenght. Did you mean `Stdlib.List.length`?"))
+
+      walk("Stdlib.Int64.toString")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Not found: Stdlib.Int64.toString. Did you mean `Stdlib.display`?"))
+
+      walk("Zzz.Nope.nope")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Not found: Zzz")) ])

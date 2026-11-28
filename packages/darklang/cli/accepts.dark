@@ -149,21 +149,17 @@ let everywhere(flags: List<String>, valueFlags: List<String>, accepts: Accepts):
       add(s))
 
 
-/// " Did you mean `x`?" for the one of <param candidates> nearest <param word>, or "" when none is
+/// " Did you mean `x`?" for the <param candidates> nearest <param word>, or "" when none is
 /// close. Only ever called on the way to a refusal, so a start that succeeds never fetches it.
 let didYouMean(word: String, candidates: List<String>): String =
-  let w = Stdlib.String.toLowercase(word)
-  let allowed = if Stdlib.String.length(w) >= 4 then 2 else 1
-  if Stdlib.String.length(w) < 3 then
-    ""
-  else
-    candidates
-    |> Stdlib.List.map(fun c -> (Config.editDistance(w, Stdlib.String.toLowercase(c)), c))
-    |> Stdlib.List.filter(fun((d, _)) -> d <= allowed)
-    |> Stdlib.List.sortBy(fun((d, _)) -> d)
-    |> Stdlib.List.head
-    |> Stdlib.Option.map(fun((_, c)) -> $" Did you mean `{c}`?")
-    |> Stdlib.Option.withDefault("")
+  nearHint(LanguageTools.Suggest.near(word, candidates, []))
+
+
+/// " Did you mean `x`?" for names a lookup found near what was asked, or "" for none.
+let nearHint(near: List<String>): String =
+  match near with
+  | [] -> ""
+  | near -> " " + LanguageTools.Suggest.sentence(near)
 
 
 /// Why <param args> are not what <param accepts> declares, or None if they are. <param name> is how

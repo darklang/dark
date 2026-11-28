@@ -6,21 +6,10 @@ let execute(state: AppState, args: List<String>): AppState =
     Stdlib.printLine(Registry.getDetailedCommandList())
     state
   | [commandName] ->
-    let known =
-      state.allCommandsCache
-      |> Stdlib.List.any(fun cmd ->
-        cmd.name == commandName || Stdlib.List.contains(cmd.aliases, commandName))
-
-    if known then
-      Registry.executeCommandHelp(commandName, state)
-    else
-      let names =
-        state.allCommandsCache
-        |> Stdlib.List.map(fun cmd -> Stdlib.List.prepend(cmd.aliases, cmd.name))
-        |> Stdlib.List.flatten
-
-      let hint = Accepts.didYouMean(commandName, names)
-      printErr($"No command called `{commandName}`.{hint}")
+    match Registry.findCommand(state.allCommandsCache, commandName) with
+    | Ok(_) -> Registry.executeCommandHelp(commandName, state)
+    | Error(near) ->
+      printErr($"No command called `{commandName}`.{Accepts.nearHint(near)}")
       printHint("  `dark help` lists them.")
       failed(state)
   | _ ->
