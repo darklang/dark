@@ -140,14 +140,6 @@ type HttpProfile = | Guest
 /// One host action, with everything needed to both check and perform it.
 [<RequireQualifiedAccess>]
 type Operation =
-  | FileRead of path : string
-  | FileWrite of path : string * contents : byte[]
-  | FileAppendText of path : string * content : string
-  | FileDelete of path : string
-  /// Metadata read: existence and directory-ness in one query.
-  | FileStat of path : string
-  | DirectoryCurrent
-  | DirectoryList of path : string
   /// The running binary's path: a read of that path, routed through the door
   /// so builtin assemblies never call host subsystems directly.
   | CurrentExecutablePath
@@ -260,7 +252,6 @@ type Response =
   | Bytes of byte[]
   | KernelSleep of rc : int * remaining : byte[]
   | Unit
-  | Stat of exists : bool * isDirectory : bool
   | Path of string
   | Entries of List<string>
   | EnvValue of Option<string>
@@ -396,13 +387,6 @@ let describeOperation (op : Operation) : string =
     | PosixOp.FileOwner path -> $"file-owner {path}"
     | PosixOp.HomeDir path -> $"home-dir {path}"
   match op with
-  | Operation.FileRead path -> $"file-read {path}"
-  | Operation.FileWrite(path, _) -> $"file-write {path}"
-  | Operation.FileAppendText(path, _) -> $"file-append {path}"
-  | Operation.FileDelete path -> $"file-delete {path}"
-  | Operation.FileStat path -> $"file-stat {path}"
-  | Operation.DirectoryCurrent -> "cwd"
-  | Operation.DirectoryList path -> $"dir-list {path}"
   | Operation.CurrentExecutablePath -> "current-executable-path"
   | Operation.ProcessLauncherPath _ -> "process-launcher-path"
   | Operation.RuntimeHash -> "runtime-hash"

@@ -28,9 +28,13 @@ let private request (method : string) (url : string) : Permission.Request =
 let auditRecordsOperationsAndDecisions =
   test "the audit summary names the operation, redacting payloads and queries" {
     Expect.equal
-      (HT.describeOperation (HT.Operation.FileWrite("/tmp/x", [| 1uy |])))
-      "file-write /tmp/x"
-      "file-write is summarized without its payload"
+      (HT.describeOperation (
+        HT.Operation.Posix(
+          HT.PosixOp.FdWrite(HT.FileDescriptor.Scoped 7I, [| 1uy |])
+        )
+      ))
+      "posix fd-write Scoped 7"
+      "fd-write is summarized without its payload"
     Expect.equal
       (HT.describeOperation (HT.Operation.Posix(HT.PosixOp.Kill(42, 9))))
       "posix kill 42 9"
@@ -99,7 +103,7 @@ let auditLineIsJsonWithTheLoggedFields =
     Expect.equal (field "op") "http GET https://x/y?<redacted>" "op"
     Expect.equal (field "ts") (now.ToString "o") "timestamp"
     let rejected =
-      HT.auditLine now HT.Operation.DirectoryCurrent (HT.Outcome.Rejected "no")
+      HT.auditLine now HT.Operation.RuntimeHash (HT.Outcome.Rejected "no")
     let doc = System.Text.Json.JsonDocument.Parse rejected
     Expect.equal
       (doc.RootElement.GetProperty("decision").GetString())
@@ -209,11 +213,6 @@ let workingDirectoryDiscoveryDoesNotGrantFileAccess =
     let access = Permission.Access.start Permission.Policy.denyAll
     let perform op = LibExecution.Host.perform access op
     let cwd = System.IO.Directory.GetCurrentDirectory()
-    let! current = perform HT.Operation.DirectoryCurrent
-    match current with
-    | HT.Outcome.Success(HT.Response.Path path) ->
-      Expect.equal path cwd "the process working directory"
-    | other -> failtest $"expected working directory without a grant, got {other}"
     if LibExecution.HostPosix.isPosix then
       let! raw = perform (HT.Operation.Posix(HT.PosixOp.GetcwdBytes 65536))
       match raw with
@@ -221,7 +220,9 @@ let workingDirectoryDiscoveryDoesNotGrantFileAccess =
         let path = System.Text.Encoding.UTF8.GetString(bytes).TrimEnd(char 0)
         Expect.equal path cwd "the kernel working directory"
       | other -> failtest $"expected kernel cwd without a grant, got {other}"
-    for op in [ HT.Operation.DirectoryList cwd; HT.Operation.FileRead cwd ] do
+    for op in
+      [ HT.Operation.Posix(HT.PosixOp.ListDir cwd)
+        HT.Operation.Posix(HT.PosixOp.Open(cwd, 0, 0)) ] do
       let! outcome = perform op
       match outcome with
       | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _, _) -> ()
@@ -1133,9 +1134,9 @@ let posixWalkRefusesALinkMetAtOperationTime =
         Expect.isError
           (LibExecution.HostPosix.listDir link)
           "listing a linked directory entry is refused"
-        Expect.throws
-          (fun () -> LibExecution.HostPosix.readAllBytes viaLink |> ignore<byte[]>)
-          "reading through a linked ancestor is refused"
+        Expect.isError
+          (LibExecution.HostPosix.openFile viaLink 0 0)
+          "opening through a linked ancestor is refused"
         let originalMode = System.IO.File.GetUnixFileMode file
         let originalMtime = System.DateTime.UnixEpoch.AddDays 1.0
         System.IO.File.SetLastWriteTimeUtc(file, originalMtime)
@@ -1175,14 +1176,6 @@ let posixWalkRefusesALinkMetAtOperationTime =
             real
             "mkstemp created it in the walked directory"
         | Error(_, message) -> failtest $"mkstemp failed: {message}"
-        Expect.equal
-          (LibExecution.HostPosix.statEntry (System.IO.Path.Combine(real, "missing")))
-          (Ok(false, false))
-          "a missing entry is reported, not an error"
-        Expect.equal
-          (LibExecution.HostPosix.statEntry real)
-          (Ok(true, true))
-          "a directory is reported as one"
         Expect.isOk (LibExecution.HostPosix.unlink file) "unlink on the real path"
         Expect.isFalse (System.IO.File.Exists file) "and it is gone"
       finally
@@ -1285,12 +1278,11 @@ let packageStoreAncestorsAreProtected =
       expectSuccess "rename an unrelated sibling directory" sibling
       let! beside =
         perform (
-          HT.Operation.FileWrite(
-            System.IO.Path.Combine(rundir, "notes.txt"),
-            [| 1uy |]
+          HT.Operation.Posix(
+            HT.PosixOp.Mkdir(System.IO.Path.Combine(rundir, "notes"), 0o755)
           )
         )
-      expectSuccess "write a file beside the store" beside
+      expectSuccess "make a directory beside the store" beside
       // An existing store directory must reach the OS (EEXIST), not the guard.
       let! mkdirExisting =
         perform (HT.Operation.Posix(HT.PosixOp.Mkdir(rundir, 0o755)))
@@ -1313,15 +1305,14 @@ let rootDirectoryIsReadable =
     if LibExecution.HostPosix.isPosix then
       let access = Permission.Access.start Permission.Policy.allowAll
       let perform op = LibExecution.Host.perform access op
-      let! listed = perform (HT.Operation.DirectoryList "/")
+      let! listed = perform (HT.Operation.Posix(HT.PosixOp.ListDir "/"))
       match listed with
       | HT.Outcome.Success _ -> ()
       | other -> failtest $"listing / failed: {other}"
-      let! stat = perform (HT.Operation.FileStat "/")
+      let! stat = perform (HT.Operation.Posix(HT.PosixOp.Stat "/"))
       match stat with
-      | HT.Outcome.Success(HT.Response.Stat(exists, isDirectory)) ->
-        Expect.isTrue exists "/ exists"
-        Expect.isTrue isDirectory "/ is a directory"
+      | HT.Outcome.Success(HT.Response.StatInfo(mode, _, _)) ->
+        Expect.equal (mode &&& 0xF000) 0x4000 "/ is a directory"
       | other -> failtest $"stat of / failed: {other}"
       // Creating AT the root is refused before the kernel is reached: `/` is an
       // ancestor of the policy directory, so the boundary's guard answers.

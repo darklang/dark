@@ -182,10 +182,9 @@ let private bindHttpServer
     else
       Error(e.ErrorCode, $"couldn't listen on port {port}: {e.Message}")
 
-/// An exception out of an execution. `HostPosix.openSafely` reports an open
-/// failure as a `Win32Exception` carrying the errno, so on Linux every file
-/// read that fails comes through here that way; read the kind off the errno
-/// as `failureOfErrno` does, or ENOENT and EACCES both collapse into `Other`.
+/// An exception out of an execution. A `Win32Exception` carries the errno; read
+/// the kind off it as `failureOfErrno` does, or ENOENT and EACCES both collapse
+/// into `Other`.
 /// A .NET exception has no errno to report.
 let private classify (e : exn) : Failure =
   match e with
@@ -474,16 +473,6 @@ let private resolveFile
   : Result<Resolved, string> =
   guarded (access = Permission.AccessKind.Write) rawPath (fun path ->
     withChecks [ fileCheck access path ] (execute path))
-
-/// A .NET file mutation: the write request, then a unit result.
-let private unitFile
-  (rawPath : string)
-  (action : string -> unit)
-  : Result<Resolved, string> =
-  resolveFile Permission.AccessKind.Write rawPath (fun path ->
-    produce (fun () ->
-      action path
-      Response.Unit))
 
 let private posixPath
   (access : Permission.AccessKind)
@@ -857,58 +846,6 @@ let private resolvePosix
 let private resolve (op : Operation) : Result<Resolved, string> =
   let read = Permission.AccessKind.Read
   match op with
-  | Operation.FileRead path ->
-    // Symlink rejection is atomic with the open: openat2(RESOLVE_NO_SYMLINKS)
-    // on Linux, the O_NOFOLLOW directory walk elsewhere on POSIX.
-    resolveFile read path (fun path ->
-      produce (fun () -> Response.Bytes(HostPosix.readAllBytes path)))
-  | Operation.FileWrite(path, contents) ->
-    unitFile path (fun path -> HostPosix.writeAllBytes path contents)
-  | Operation.FileAppendText(path, content) ->
-    unitFile path (fun path -> HostPosix.appendAllText path content)
-  | Operation.FileDelete path ->
-    mutatingEntry path (fun () ->
-      if HostPosix.isPosix then
-        resolveFile Permission.AccessKind.Write path (fun path ->
-          attempt (fun () -> HostPosix.unlink path |> unitOk))
-      else
-        unitFile path System.IO.File.Delete)
-  | Operation.FileStat path ->
-    resolveFile read path (fun path ->
-      if HostPosix.isPosix then
-        attempt (fun () ->
-          HostPosix.statEntry path
-          |> Result.map (fun (exists, isDirectory) ->
-            Response.Stat(exists, isDirectory)))
-      else
-        produce (fun () ->
-          let isDirectory =
-            try
-              (System.IO.File.GetAttributes path)
-                .HasFlag(System.IO.FileAttributes.Directory)
-            with _ ->
-              false
-          let exists =
-            System.IO.File.Exists path || System.IO.Directory.Exists path
-          Response.Stat(exists, isDirectory)))
-  | Operation.DirectoryCurrent ->
-    unchecked (
-      produce (fun () -> Response.Path(System.IO.Directory.GetCurrentDirectory()))
-    )
-  | Operation.DirectoryList path ->
-    resolveFile read path (fun path ->
-      if HostPosix.isPosix then
-        attempt (fun () ->
-          HostPosix.listDir path
-          |> Result.map (fun names ->
-            names
-            |> List.map (fun name -> System.IO.Path.Combine(path, name))
-            |> Response.Entries))
-      else
-        produce (fun () ->
-          System.IO.Directory.EnumerateFileSystemEntries path
-          |> Seq.toList
-          |> Response.Entries))
   | Operation.CurrentExecutablePath ->
     // The answer is a path, so it is a read of that path.
     let path = HostProcess.currentExecutablePath ()
