@@ -690,7 +690,7 @@ let testAddAuthorsATest =
           [ "test"; "add"; "Tests.AddT.other"; "test doubles = Stdlib.Test.pass()" ]
           1L
           "a declaration named differently from its target is refused"
-      do! exits state [ "test"; "add" ] 1L "and so is a bare `test add`"
+      do! exits state [ "test"; "add" ] 2L "and so is a bare `test add`"
       do! discardAll state
     })
 
@@ -1033,7 +1033,7 @@ let packageTestsRequireRun =
           [ "test"; "--force" ]
           [ "test"; "--jobs"; "2" ] ] do
         let! output, code = runCliWithStatus state args
-        Expect.equal code 1 "running tests requires the run subcommand"
+        Expect.equal code 2 "running tests requires the run subcommand"
         Expect.isFalse
           (output.Contains "Running:")
           "invalid commands start no tests"
@@ -1056,7 +1056,10 @@ let packageTestJobsRejectInvalidCounts =
           [ "--jobs"; "no" ]
           [ "--jobs=0" ] ] do
         let! output, code = runCliWithStatus state ("test" :: "run" :: args)
-        Expect.equal code 1 "invalid limits fail the command"
+        Expect.equal
+          code
+          (if args = [ "--jobs" ] then 2 else 1)
+          "invalid limits fail the command"
         Expect.stringContains
           output
           (if args = [ "--jobs" ] then
