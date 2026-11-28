@@ -764,10 +764,11 @@ jobs:
     resource_class: xlarge
     steps:
       - darkcheckout
+      # A release always builds: it gates publish-release-clis.
       - run:
           name: Would this build be deployed?
           command: |
-            backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || circleci-agent step halt
+            [[ -n "${CIRCLE_TAG:-}" ]] || backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || circleci-agent step halt
       - setup-app
       - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
       - run:
@@ -794,11 +795,16 @@ jobs:
   deploy-preview:
     executor: simple-executor
     steps:
+      - run:
+          name: Install deploy dependencies
+          # ci-deploy.sh and host.sh are bash and use curl, jq, gzip and git; alpine has none of
+          # them, and without bash every step here would fail with 127.
+          command: apk add --no-cache bash git openssh-client curl jq gzip
       - checkout
       - run:
           name: Was this build published?
           command: |
-            backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || circleci-agent step halt
+            backend/src/Wasm/deploy/preview/ci-deploy.sh --decide || { rc=$?; [[ $rc == 3 ]] || exit $rc; circleci-agent step halt; }
       - attach_workspace: { at: "." }
       - run:
           name: Install flyctl
@@ -905,12 +911,13 @@ workflows:
       # release, and without a tag it has no version to give it. Main gets
       # its releases by scripts/deployment/release pushing one, not through
       # this filter.
-      # latest/ on the preview host: the newest release, from its tag.
+      # The browser build gates the release. Its deploy, to latest/ on the preview host,
+      # follows the release and does not gate it, so a Fly outage cannot hold back the CLIs.
       - build-wasm:
           filters: *release-filters
       - deploy-preview:
           filters: *release-filters
-          requires: [build-wasm]
+          requires: [publish-release-clis]
 
       - publish-release-clis:
           context: github-release
@@ -923,3 +930,4 @@ workflows:
             - build-cli-linux-musl
             - build-cli-macos
             - build-cli-r2r-extras
+            - build-wasm

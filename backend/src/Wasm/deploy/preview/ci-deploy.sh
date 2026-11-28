@@ -16,6 +16,11 @@ REPO="${PREVIEW_REPO:-darklang/dark}"
 DECIDE=false; [[ "${1:-}" == "--decide" ]] && { DECIDE=true; shift; }
 skip() { echo "$1; not deploying a preview"; $DECIDE && exit 3 || exit 0; }
 
+# A release from darklang's CI must deploy latest/, so a missing token fails it.
+if [[ -n "${CIRCLE_TAG:-}" && "${CIRCLE_PROJECT_USERNAME:-}" == darklang && -z "${PREVIEW_FLY_API_TOKEN:-}" ]]; then
+  echo "a release deploys the browser CLI to latest/ on the dark-preview Fly app, but PREVIEW_FLY_API_TOKEN is not set: add it to the darklang/dark CircleCI project's environment variables (fly tokens create deploy -a dark-preview)" >&2
+  exit 1
+fi
 [[ -n "${PREVIEW_FLY_API_TOKEN:-}" ]] \
   || skip "PREVIEW_FLY_API_TOKEN is not in this project's environment (a forked PR's build never has it)"
 [[ -z "${CIRCLE_PR_NUMBER:-}" ]] || skip "this is a forked PR's build"
