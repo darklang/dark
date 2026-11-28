@@ -2,7 +2,7 @@
 module Darklang.Cli.Effects
 
 let reasons(hash: String): (Bool * List<(LanguageTools.Permissions.Effect * List<String>)>) =
-  Builtin.pmFnEffectReasons(hash)
+  LanguageTools.Permissions.effectReasons(hash)
 
 
 /// The effects `effects <fn>` finds, by name, and whether every call was followed.

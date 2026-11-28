@@ -131,6 +131,7 @@ val notSweepable: List<String> =
     "update"  // ditto, and fetches a build
     "install-status"  // reports on the machine's install, which an instance is not
     "serve"  // binds a port and blocks; its refusals are in refusals.dark
+    "compile"  // needs the native compiler binary, which CI does not build, and binds a port
     "typecheck"  // audits every declaration; swept with a module in jsonShapes.dark
     "clear" ]  // clears the screen, taking the sweep's own output with it
 

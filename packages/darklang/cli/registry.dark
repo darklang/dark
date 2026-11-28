@@ -69,6 +69,8 @@ module Registry =
 
   let acceptsEval(): Accepts.Accepts = Accepts.text(1)
 
+  let acceptsCompile(): Accepts.Accepts = Accepts.text(1)
+
 
   let acceptsView(): Accepts.Accepts =
     Accepts.freeText(0, [ "--raw", "--ast", "--instructions", "--instrs", "--include-tests" ])
@@ -542,6 +544,15 @@ module Registry =
         Eval.execute,
         Eval.help,
         Eval.complete)
+
+      (
+        "compile",
+        "Compile a package fn to a native executable (experimental)",
+        [],
+        acceptsCompile,
+        Compile.execute,
+        Compile.help,
+        Compile.complete)
 
       (
         "view",
@@ -1175,7 +1186,10 @@ module Registry =
           "ops" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
-      ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "request", "format" ])
+      (
+        "Execution",
+        [ "run-script", "eval", "compile", "ps", "traces", "serve", "request", "format" ])
+
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "effects", "permissions" ])
       (

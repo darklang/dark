@@ -1,0 +1,296 @@
+// What `dark compile` asks the compiler to build, and what it refuses first. Needs no compiler.
+module Darklang.Cli.Compile.Tests
+
+module Fixtures =
+  let echo(args: List<String>): Int64 =
+    Stdlib.List.iter(args, fun a -> Stdlib.printLine(a))
+    0
+
+
+  let exitWith(args: List<String>): Int64 =
+    match args with
+    | [code] -> Stdlib.Int64.parse(code) |> Stdlib.Result.withDefault(2)
+    | _ -> 2
+
+
+  let hello(): Unit =
+    Stdlib.printLine("hello")
+
+
+  let countsFns(_args: List<String>): Int64 =
+    match LanguageTools.PackageManager.Function.find(
+            SCM.Branch.mainBranchId,
+            LanguageTools.ProgramTypes.parsePackageLocation(
+              "Darklang.Stdlib.List.map")) with
+    | Some(_) -> 0
+    | None -> 1
+
+
+  let catFile(args: List<String>): Int64 =
+    match args with
+    | [path] ->
+      match Stdlib.Cli.File.readText(path) with
+      | Ok(text) ->
+        Stdlib.print(text)
+        0
+      | Error(_) -> 1
+    | _ -> 2
+
+
+val fixtures = "Darklang.Cli.Compile.Tests.Fixtures"
+
+
+let entryOf(name: String): Result<Cli.Run.EntryParameters, Cli.Run.EntryError> =
+  Cli.Run.entry(SCM.Branch.mainBranchId, name)
+  |> Stdlib.Result.map(fun e -> e.parameters)
+
+
+test entryTakesWordsOrNothing =
+  [ entryOf($"{fixtures}.echo"), entryOf($"{fixtures}.hello") ]
+  |> Stdlib.Test.equal(
+    [ Ok(Cli.Run.EntryParameters.Words), Ok(Cli.Run.EntryParameters.Nothing) ])
+
+
+test entryRefusesOtherParameters =
+  entryOf("Stdlib.String.padStart")
+  |> Stdlib.Test.equal(
+    Error(
+      Cli.Run.EntryError.OtherParameters(
+        "string: String, padWith: Char, goalLength: Int64")))
+
+
+test entryOfNoFn =
+  entryOf("Stdlib.NoSuch.fn")
+  |> Stdlib.Test.equal(Error(Cli.Run.EntryError.NoFn))
+
+
+test executablesTakeWhatRunTakes =
+  Cli.Compile.entry("Stdlib.String.padStart")
+  |> Stdlib.Test.equal(
+    Error(
+      "Stdlib.String.padStart takes (string: String, padWith: Char, goalLength: Int64); an executable's fn takes List<String> or nothing, as for `dark run`."))
+
+
+test executablesReturnAnExitCode =
+  Cli.Compile.entry("Stdlib.Cli.Path.join")
+  |> Stdlib.Test.equal(
+    Error(
+      "Stdlib.Cli.Path.join returns String; an executable's fn returns Int64, the exit code, or Unit, as for `dark run`."))
+
+
+test unknownFn =
+  Cli.Compile.entry("Stdlib.NoSuch.fn")
+  |> Stdlib.Test.equal(Error("No package fn named Stdlib.NoSuch.fn."))
+
+
+test aFnThatNeedsTheStoreIsRefusedWithItsPath =
+  let name = $"{fixtures}.countsFns"
+  match Cli.Compile.entry(name) with
+  | Error(message) ->
+    Stdlib.String.splitOnNewline(message)
+    |> Stdlib.Test.equal(
+      [ $"{name} can't be an executable: it reads the package store, which only a Dark instance has."
+        $"  {name} -> Darklang.LanguageTools.PackageManager.Function.find -> Darklang.LanguageTools.PackageManager.findItem -> Builtin.pmFind"
+        $"`dark run {name}` runs it here." ])
+  | Ok(_) -> Stdlib.Test.fail("expected a refusal")
+
+
+test accessCompiledCodeCantLimitIsRefused =
+  let name = $"{fixtures}.catFile"
+  match Cli.Compile.entry(name) with
+  | Error(message) ->
+    Stdlib.String.splitOnNewline(message)
+    |> Stdlib.List.head
+    |> Stdlib.Test.equal(
+      Some(
+        $"{name} can't be an executable yet: it reads files, and compiled code can't limit that access yet."))
+  | Ok(_) -> Stdlib.Test.fail("expected a refusal")
+
+
+test stdoutIsAllowed =
+  Cli.Compile.entry($"{fixtures}.echo")
+  |> Stdlib.Result.map(fun e -> e.parameters)
+  |> Stdlib.Test.equal(Ok(Cli.Run.EntryParameters.Words))
+
+
+test describesSeveralEffects =
+  [ LanguageTools.Permissions.Effect.FileRead
+    LanguageTools.Permissions.Effect.FileWrite
+    LanguageTools.Permissions.Effect.Process ]
+  |> Stdlib.List.map(fun effect ->
+    Compiler.Access.Reason { effect = effect, path = [] })
+  |> Compiler.Access.describeAll
+  |> Stdlib.Test.equal("reads files, writes files and starts programs")
+
+
+let argumentsFor(job: Compiler.Darkc.Job, verbosity: Int64): List<String> =
+  Compiler.Darkc.arguments(
+    Compiler.Darkc.Invocation
+      { job = job, verbosity = verbosity, packageServer = "http://s" })
+
+
+test anExecutableIsNamedByItsHash =
+  let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
+  argumentsFor(Compiler.Darkc.Job.Executable(hash, "./echo", None), 1)
+  |> Stdlib.List.drop(4)
+  |> Stdlib.Test.equal([ "-v", "--json", "--entry", "abc123", "-o", "./echo" ])
+
+
+test theApprovedAccessGoesToDarkc =
+  let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
+  argumentsFor(
+    Compiler.Darkc.Job.Executable(hash, "./cat", Some("/p/abc123.json")),
+    -1)
+  |> Stdlib.List.drop(4)
+  |> Stdlib.Test.equal(
+    [ "-q"
+      "--json"
+      "--entry"
+      "abc123"
+      "-o"
+      "./cat"
+      "--policy"
+      "/p/abc123.json" ])
+
+
+test theCacheAndServerAreSaidEveryTime =
+  argumentsFor(Compiler.Darkc.Job.Run("1 + 2"), -1)
+  |> Stdlib.Test.equal(
+    [ "--cache-dir"
+      Compiler.Darkc.cacheDir()
+      "--package-server"
+      "http://s"
+      "-q"
+      "-r"
+      "-e"
+      "--"
+      "1 + 2" ])
+
+
+test checkAsksForJson =
+  argumentsFor(Compiler.Darkc.Job.Check([ "A.b", "A.c" ]), 2)
+  |> Stdlib.List.drop(4)
+  |> Stdlib.Test.equal([ "--check", "--json", "A.b", "A.c" ])
+
+
+test checkReportsAreRead =
+  [ "{\"name\":\"A.b\",\"status\":\"compiles\",\"typeArguments\":null,\"diagnostic\":null}"
+    ""
+    "{\"name\":\"A.c\",\"status\":\"failed\",\"typeArguments\":null,\"diagnostic\":{\"reason\":{\"kind\":\"missing-builtin\",\"name\":\"Builtin.x\"},\"location\":null,\"path\":[\"A.c\",\"Builtin.x\"],\"message\":\"m\"}}" ]
+  |> Stdlib.String.join("\n")
+  |> Compiler.Darkc.parseCheckReports
+  |> Stdlib.List.map(fun r ->
+    (r.name, r.status, Stdlib.Option.map(r.diagnostic, fun d -> d.reason)))
+  |> Stdlib.Test.equal(
+    [ ("A.b", "compiles", None)
+      (
+        "A.c",
+        "failed",
+        Some(Compiler.Darkc.Reason.MissingBuiltin("Builtin.x"))) ])
+
+
+test aCompilerGapNamesWhatIsMissing =
+  Cli.Compile.renderFailure(
+    "Me.report",
+    "progress text\n{\"reason\":{\"kind\":\"missing-builtin\",\"name\":\"Builtin.decimalScale\"},\"location\":null,\"path\":[\"Me.report\",\"Stdlib.Decimal.scale\",\"Builtin.decimalScale\"],\"message\":\"m\"}\n")
+  |> Stdlib.Test.equal(
+    "Me.report can't be compiled yet: compiled code doesn't have Builtin.decimalScale.\n  Me.report -> Stdlib.Decimal.scale -> Builtin.decimalScale\n")
+
+
+test checkAnswersInstanceOnlyFnsItself =
+  [ Cli.Compile.precheck($"{fixtures}.countsFns")
+    Cli.Compile.precheck("Stdlib.NoSuch.fn") ]
+  |> Stdlib.List.map(fun row ->
+    Stdlib.Tuple2.first(Cli.Compile.rowColumns(row)))
+  |> Stdlib.Test.equal([ "needs dark", "not found" ])
+
+
+test checkLinesLineUp =
+  [ Cli.Compile.CheckRow
+      { name = "A.long.name"
+        verdict = Cli.Compile.Verdict.Compiles
+        effects = [] }
+
+    Cli.Compile.CheckRow
+      { name = "A.b", verdict = Cli.Compile.Verdict.NotFound, effects = [] } ]
+  |> Cli.Compile.checkLines
+  |> Stdlib.Test.equal(
+    [ "compiles      A.long.name  no effects"
+      "not found     A.b          no package fn or value by that name" ])
+
+
+test noOutputIsNamedAfterTheFn =
+  Cli.Compile.parse([ "Me.Tools.wc" ])
+  |> Stdlib.Test.equal(
+    Ok(Cli.Compile.Request.Executable("Me.Tools.wc", "./wc")))
+
+
+test checkTakesJson =
+  Cli.Compile.parse([ "--check", "--json", "A.b" ])
+  |> Stdlib.Test.equal(Ok(Cli.Compile.Request.Check([ "A.b" ], true)))
+
+
+test runTakesAnExpression =
+  Cli.Compile.verbosityOf([ "--run", "-1 + 2", "-v" ])
+  |> Stdlib.Test.equal(([ "--run", "-1 + 2" ], 1))
+
+
+test verbosityLevels =
+  [ [ "Me.Tools.wc" ], [ "-q", "Me.Tools.wc" ], [ "Me.Tools.wc", "-vvv" ] ]
+  |> Stdlib.List.map(fun args ->
+    Stdlib.Tuple2.second(Cli.Compile.verbosityOf(args)))
+  |> Stdlib.Test.equal([ 0, -1, 3 ])
+
+
+test bareExpressionIsRefused =
+  Cli.Compile.parse([ "-1 + 2" ]) |> Stdlib.Test.equal(Error(Cli.Compile.usage))
+
+
+test seconds =
+  [ 400, 2449, 81234 ]
+  |> Stdlib.List.map(fun ms -> Cli.Compile.seconds(ms))
+  |> Stdlib.Test.equal([ "0.4 s", "2.4 s", "81 s" ])
+
+
+test freeMemoryIsRead =
+  "MemTotal:       65536000 kB\nMemFree:         1000 kB\nMemAvailable:    2048 kB\n"
+  |> Compiler.Prepare.memAvailable
+  |> Stdlib.Test.equal(Some(2097152))
+
+
+test aScopedRuleCountsForItsWholeEffect =
+  Cli.Compile.Approval.uncovered(
+    LanguageTools.Permissions.Policy
+      { allow =
+          [ LanguageTools.Permissions.Rule.FileRead(
+              LanguageTools.Permissions.Scope.Only("/tmp")) ]
+        deny = [] },
+    [ LanguageTools.Permissions.Effect.FileRead
+      LanguageTools.Permissions.Effect.Http ])
+  |> Stdlib.Test.equal([ LanguageTools.Permissions.Effect.Http ])
+
+
+test withNobodyToAskItSaysHowToApprove =
+  let name = $"{fixtures}.catFile"
+  let hash =
+    match LanguageTools.PackageManager.Function.find(
+            SCM.Branch.mainBranchId,
+            LanguageTools.ProgramTypes.parsePackageLocation(name)) with
+    | Some(Hash(h)) -> h
+    | None -> ""
+
+  let reasons =
+    Compiler.Access.reasons(name, LanguageTools.ProgramTypes.Hash.Hash(hash))
+
+  match Cli.Compile.Approval.decide(None, name, hash, "./catFile", reasons) with
+  | Refused(message) ->
+    message
+    |> Stdlib.Test.equal(
+      $"{name} needs access that isn't approved: file-read.\nApprove it first: dark permissions approve --for {name} 'file-read' --yes")
+  | Approved(_) -> Stdlib.Test.fail("expected a refusal")
+
+
+test freeDiskIsRead =
+  "Filesystem     1024-blocks      Used Available Capacity Mounted on\n/dev/sda1        1000000    400000    512000      44% /\n"
+  |> Compiler.Prepare.dfAvailable
+  |> Stdlib.Test.equal(Some(524288000))

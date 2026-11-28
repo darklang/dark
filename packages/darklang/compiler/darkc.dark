@@ -1,0 +1,210 @@
+/// The native compiler, darkc (darklang/compiler): where it and its cache live, and the
+/// command line each job becomes. Every darkc flag `dark compile` passes is in <fn arguments>.
+module Darklang.Compiler.Darkc
+
+/// The compiler commit this CLI is tested against. `scripts/compiler/build` reads it from here.
+val pinnedCommit = "edc9251939267bba015f8ceb2ef3f2d26fd0c72a"
+
+
+let shortPin(): String =
+  Stdlib.String.slice(pinnedCommit, 0, 9) |> Stdlib.Result.withDefault(pinnedCommit)
+
+
+/// `~/.darklang/compiler/<first 9 of the pin>`: darkc and its prepared stdlib. The first
+/// compile downloads darkc here; `scripts/compiler/build` builds one here.
+let directory(): String =
+  let home = Stdlib.Cli.Env.home() |> Stdlib.Option.withDefault("")
+  $"{home}/.darklang/compiler/{shortPin()}"
+
+
+let path(): String =
+  $"{directory()}/darkc"
+
+
+/// darklang/compiler's release of the pinned commit: a static Linux build per architecture,
+/// named after `uname -m`, and their SHA256SUMS.
+let releaseUrl(): String =
+  $"https://github.com/darklang/compiler/releases/download/darkc-{shortPin()}"
+
+
+/// The release's build for this machine, if it has one.
+let releaseAsset(): Option<String> =
+  match Stdlib.Cli.OS.getOS(), Stdlib.Cli.Architecture.getArchitecture() with
+  | Ok(Linux), Ok(X86_64) -> Some("darkc-linux-x86_64")
+  | Ok(Linux), Ok(Aarch64) -> Some("darkc-linux-aarch64")
+  | _ -> None
+
+
+let cacheDir(): String =
+  $"{directory()}/cache"
+
+
+/// darkc writes its prepared stdlib as `stdlib-<target>-<digest>.bin`, and a `.partial`
+/// beside it while it works.
+let stdlibPrepared(): Bool =
+  Stdlib.Cli.FileSystem.listDirectory(cacheDir())
+  |> Stdlib.Result.withDefault([])
+  |> Stdlib.List.any(fun file ->
+    let name = Stdlib.Cli.Path.basename(file)
+    Stdlib.String.startsWith(name, "stdlib-") && Stdlib.String.endsWith(name, ".bin"))
+
+
+/// Where darkc has a backend: Linux x86-64 and arm64, macOS arm64. Elsewhere, the host's
+/// name as the message says it.
+let unsupportedHost(): Option<String> =
+  match Stdlib.Cli.OS.getOS(), Stdlib.Cli.Architecture.getArchitecture() with
+  | Ok(Linux), Ok(X86_64) -> None
+  | Ok(Linux), Ok(Aarch64) -> None
+  | Ok(MacOS), Ok(Arm64) -> None
+  | Ok(Linux), Ok(Arm) -> Some("linux-arm (32-bit)")
+  | Ok(MacOS), Ok(X86_64) -> Some("macOS x86-64")
+  | _ -> Some("this platform")
+
+
+/// Whether the pinned darkc limits a compiled program to the access in its `--policy`. Until
+/// it does, a fn that needs more than stdin, stdout, the clock and randomness isn't compiled.
+val enforcesAccess = false
+
+
+/// Where the access approved for the fn <param hash> is written for darkc.
+let policyPath(hash: String): String =
+  $"{directory()}/policies/{hash}.json"
+
+
+type Job =
+  /// Write an executable at <param output> that runs the package fn <param entry> as
+  /// `dark run` does: darkc passes it the command-line words and turns its result into the
+  /// exit code.
+  | Executable(entry: LanguageTools.ProgramTypes.Hash, output: String, policy: Option<String>)
+  /// Compile <param expr>, run it, and print what it prints.
+  | Run(expr: String)
+  /// Whether each package fn or value compiles: one JSON object per name on stdout.
+  | Check(names: List<String>)
+
+
+type Invocation =
+  { job: Job
+    /// -1 for `-q`, 0 by default, 1 to 3 for `-v` to `-vvv`
+    verbosity: Int64
+    packageServer: String }
+
+
+let verbosityFlag(verbosity: Int64): List<String> =
+  match verbosity with
+  | 1 -> [ "-v" ]
+  | 2 -> [ "-vv" ]
+  | 3 -> [ "-vvv" ]
+  // darkc's own default prints a line per compile, which `dark compile` says itself
+  | _ -> [ "-q" ]
+
+
+let arguments(invocation: Invocation): List<String> =
+  let common = [ "--cache-dir", cacheDir(), "--package-server", invocation.packageServer ]
+  let job =
+    match invocation.job with
+    | Executable(Hash(hash), output, policy) ->
+      let policyFlag =
+        match policy with
+        | Some(file) -> [ "--policy", file ]
+        | None -> []
+
+      Stdlib.List.flatten(
+        [ verbosityFlag(invocation.verbosity)
+          [ "--json", "--entry", hash, "-o", output ]
+          policyFlag ])
+    | Run(expr) ->
+      Stdlib.List.concat(verbosityFlag(invocation.verbosity), [ "-r", "-e", "--", expr ])
+    | Check(names) -> Stdlib.List.concat([ "--check", "--json" ], names)
+
+  Stdlib.List.concat(common, job)
+
+
+/// Why darkc couldn't compile something, from its `--json` diagnostics.
+type Reason =
+  | MissingBuiltin(name: String)
+  | MissingFunction(name: String)
+  | MissingType(name: String)
+  | UnsupportedFeature(feature: String)
+  | NeedsTypeArguments(name: Option<String>)
+  | NotAnEntry
+  | EntryNotFound
+  /// a bad command line, or anything else; the diagnostic's message says what
+  | Other(kind: String)
+
+
+type Diagnostic =
+  { reason: Reason
+    /// from the entry or checked name, through package references, to what failed
+    path: List<String>
+    /// darkc's own text, for when <param reason> is `Other`
+    message: String }
+
+
+/// One line of `darkc --check --json`.
+type CheckReport =
+  { name: String
+    /// "compiles", "failed" or "undetermined"
+    status: String
+    diagnostic: Option<Diagnostic> }
+
+
+let reasonOf(fields: List<(String * Stdlib.AltJson.Json)>): Reason =
+  let named = Stdlib.AltJson.Helpers.getString("name", fields) |> Stdlib.Option.withDefault("")
+  match Stdlib.AltJson.Helpers.getString("kind", fields) |> Stdlib.Option.withDefault("") with
+  | "missing-builtin" -> Reason.MissingBuiltin(named)
+  | "missing-function" -> Reason.MissingFunction(named)
+  | "missing-type" -> Reason.MissingType(named)
+  | "unsupported-feature" ->
+    Reason.UnsupportedFeature(
+      Stdlib.AltJson.Helpers.getString("feature", fields) |> Stdlib.Option.withDefault(""))
+  | "needs-type-arguments" ->
+    Reason.NeedsTypeArguments(Stdlib.AltJson.Helpers.getString("name", fields))
+  | "not-an-entry" -> Reason.NotAnEntry
+  | "entry-not-found" -> Reason.EntryNotFound
+  | kind -> Reason.Other(kind)
+
+
+let diagnosticOf(fields: List<(String * Stdlib.AltJson.Json)>): Diagnostic =
+  Diagnostic
+    { reason = reasonOf(Stdlib.AltJson.Helpers.getObject("reason", fields))
+      path =
+        Stdlib.AltJson.Helpers.getArray("path", fields)
+        |> Stdlib.List.filterMap(fun step ->
+          match step with
+          | String(text) -> Some(text)
+          | _ -> None)
+      message =
+        Stdlib.AltJson.Helpers.getString("message", fields) |> Stdlib.Option.withDefault("") }
+
+
+let objects(text: String): List<List<(String * Stdlib.AltJson.Json)>> =
+  text
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.filterMap(fun line ->
+    match Stdlib.AltJson.parse(line) with
+    | Ok(Object(fields)) -> Some(fields)
+    | _ -> None)
+
+
+/// The diagnostics darkc wrote to stderr with `--json`. Other lines are skipped.
+let parseDiagnostics(stderr: String): List<Diagnostic> =
+  objects(stderr)
+  |> Stdlib.List.filter(fun fields ->
+    Stdlib.Option.isSome(Stdlib.AltJson.Helpers.getValue("reason", fields)))
+  |> Stdlib.List.map(diagnosticOf)
+
+
+let parseCheckReports(stdout: String): List<CheckReport> =
+  objects(stdout)
+  |> Stdlib.List.filterMap(fun fields ->
+    match Stdlib.AltJson.Helpers.getString("name", fields), Stdlib.AltJson.Helpers.getString(
+            "status",
+            fields) with
+    | Some(name), Some(status) ->
+      let diagnostic =
+        match Stdlib.AltJson.Helpers.getValue("diagnostic", fields) with
+        | Some(Object(d)) -> Some(diagnosticOf(d))
+        | _ -> None
+
+      Some(CheckReport { name = name, status = status, diagnostic = diagnostic })
+    | _ -> None)

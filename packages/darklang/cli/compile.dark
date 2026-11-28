@@ -1,0 +1,664 @@
+/// `dark compile <fn>`: write a native executable of a package fn with the Darklang compiler
+/// (darklang/compiler) that runs as `dark run <fn>` does. `dark compile --run <expression>`:
+/// compile an expression, run it and print what it prints, as `dark eval` does. Package items
+/// are read from this instance's main branch through `Darklang.Compiler.PackageServer`,
+/// served on a free loopback port for as long as the compile takes.
+module Darklang.Cli.Compile
+
+let div(a: Int64, b: Int64): Int64 =
+  Stdlib.Int64.checkedDivide(a, b) |> Stdlib.Result.withDefault(0)
+
+
+/// "0.4 s", "2.4 s", "81 s".
+let seconds(ms: Int64): String =
+  if ms >= 10000 then
+    $"{Stdlib.display(div(ms, 1000))} s"
+  else
+    let tenths = div(ms, 100)
+    $"{Stdlib.display(div(tenths, 10))}.{Stdlib.display(tenths - div(tenths, 10) * 10)} s"
+
+
+val preparing = "Preparing the compiler's stdlib"
+
+
+/// " It needs about 6 GB of memory, and 2.1 GB is free." when that's so.
+let memoryNote(): String =
+  match Compiler.Prepare.availableMemory() with
+  | Some(bytes) when bytes < Compiler.Prepare.memoryNeeded ->
+    let tenths = div(bytes, 100000000)
+    $" It needs about 6 GB of memory, and {Stdlib.display(div(tenths, 10))}.{Stdlib.display(tenths - div(tenths, 10) * 10)} GB is free."
+  | _ -> ""
+
+
+/// Before darkc is downloaded or builds its stdlib cache, ask; with nobody to ask, go ahead
+/// and say so.
+let confirmFirstCompile(verbosity: Int64, withDownload: Bool): Bool =
+  if Stdlib.Cli.UI.Prompt.canAsk() then
+    let work =
+      if withDownload then
+        "The first compile downloads the compiler (about 50 MB) and prepares its stdlib: about a minute and 150 MB."
+      else
+        "The first compile prepares the compiler's stdlib: about a minute and 150 MB."
+
+    Stdlib.printError($"{work}{memoryNote()} Continue? [Y/n] ")
+    match Stdlib.Cli.Stdin.checkedReadLine() with
+    | Ok(Some(typed)) ->
+      let answer = Stdlib.String.toLowercase(Stdlib.String.trim(typed))
+      answer == "" || answer == "y" || answer == "yes"
+    | _ -> false
+  else
+    if verbosity >= 0 then
+      let downloading =
+        if withDownload then "Downloading the compiler (about 50 MB), then: " else ""
+
+      Stdlib.printErrorLine(
+        $"{downloading}{preparing} (once per compiler: about a minute and 150 MB).{memoryNote()}")
+    else
+      ()
+
+    true
+
+
+/// Download the pinned compiler's build <param asset> to where `dark compile` runs it, checked
+/// against its release's SHA256SUMS. Written beside it first, so a cut-off download is never run.
+let download(asset: String): Result<Unit, String> =
+  let target = Compiler.Darkc.path()
+  let partial = $"{target}.partial-{Stdlib.display(Stdlib.Uuid.generate())}"
+  let sums = $"{partial}.sums"
+  let url = Compiler.Darkc.releaseUrl()
+  let result =
+    Stdlib.Cli.Dir.createRecursive(Compiler.Darkc.directory())
+    |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Curl.downloadFileToPath($"{url}/SHA256SUMS", sums))
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Curl.downloadFileToPath($"{url}/{asset}", partial))
+    |> Stdlib.Result.andThen(fun _ ->
+      match Stdlib.Cli.File.readText(sums), Stdlib.Cli.File.readBytes(partial) with
+      | Ok(listed), Ok(bytes) ->
+        let actual =
+          bytes
+          |> Stdlib.Crypto.sha256
+          |> Stdlib.Base16.encode
+          |> Stdlib.String.toLowercase
+
+        if Installation.Download.expectedSha256(listed, asset) == Some(actual) then
+          Ok()
+        else
+          Error($"{asset} doesn't match the sha256 in its release's SHA256SUMS.")
+      | Error(e), _ -> Error(Stdlib.display(e))
+      | _, Error(e) -> Error(Stdlib.display(e)))
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Unix.grantExecutePermission(partial))
+    |> Stdlib.Result.andThen(fun _ ->
+      Stdlib.Cli.File.move(partial, target) |> Stdlib.Result.mapError(fun e -> Stdlib.display(e)))
+
+  let _ = Stdlib.Cli.File.delete(sums)
+  let _ = Stdlib.Cli.File.delete(partial)
+  result
+  |> Stdlib.Result.mapError(fun e -> $"Could not download the compiler from {url}/{asset}: {e}")
+
+
+/// Wait for <param run>, counting seconds after <param label> on stderr until the stdlib
+/// cache appears.
+let waitShowingProgress(
+  run: Stdlib.Exec.Handle<Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error>>,
+  label: String,
+  started: Int64)
+  : Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error> =
+  match Stdlib.Exec.awaitWithin(1000, run) with
+  | Some(result) ->
+    Stdlib.printError("\r\x1b[K")
+    result
+  | None ->
+    if Compiler.Darkc.stdlibPrepared() then
+      Stdlib.printError("\r\x1b[K")
+      Stdlib.Exec.await(run)
+    else
+      Stdlib.printError($"\r{label}... {Stdlib.display(div(Telemetry.elapsedMs(started), 1000))} s")
+      waitShowingProgress(run, label, started)
+
+
+let runCompiler(
+  args: List<String>,
+  verbosity: Int64,
+  preparingStdlib: Bool)
+  : Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error> =
+  let compiler = Compiler.Darkc.path()
+  if preparingStdlib && verbosity >= 0 && Stdlib.Cli.Sys.isTerminal(2) then
+    let run = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Process.run(compiler, args))
+    waitShowingProgress(run, preparing, Telemetry.now())
+  else
+    Stdlib.Cli.Process.run(compiler, args)
+
+
+/// Serve this instance's packages on a random high port, retrying a few ports when one is
+/// taken. `serve` only returns if it could not bind, so a server still running after a
+/// second is listening. (`HttpClient` refuses loopback addresses, so it cannot be asked.)
+let startServer(
+  token: String,
+  attempts: Int64)
+  : Result<(Stdlib.Exec.Handle<Result<Unit, String>> * Int64), String> =
+  let port = Stdlib.Int64.random(49152, 65535)
+  match Stdlib.Net.Port.fromInt64(port) with
+  | Error(e) -> Error(Stdlib.display(e))
+  | Ok(p) ->
+    let defaults = Stdlib.HttpServer.Config.defaults(p)
+    let config = { defaults with middleware = [ Stdlib.HttpServer.Middleware.standardHeaders() ] }
+    let server =
+      Stdlib.Exec.spawn(fun () ->
+        Stdlib.HttpServer.serve(
+          config,
+          (fun req -> Compiler.PackageServer.guardedRouter(token, req)),
+          fun () -> ()))
+
+    match Stdlib.Exec.awaitWithin(1000, server) with
+    | None -> Ok((server, port))
+    | Some(Error(e)) ->
+      if attempts > 1 then
+        startServer(token, attempts - 1)
+      else
+        Error($"The package server could not start: {e}")
+    | Some(Ok(_)) -> Error("The package server stopped before the compile.")
+
+
+/// Why compiling can't start here, before anything is downloaded, served or run.
+let unavailable(): Option<String> =
+  match Compiler.Darkc.unsupportedHost() with
+  | Some(host) ->
+    Some(
+      $"dark compile isn't available on {host}. The compiler runs on Linux x86-64 and arm64, and macOS arm64.")
+  | None ->
+    let compiler = Compiler.Darkc.path()
+    if Stdlib.Cli.File.exists(compiler) || Stdlib.Option.isSome(Compiler.Darkc.releaseAsset()) then
+      None
+    else
+      Some(
+        $"No compiler at {compiler}, and the compiler's releases have only Linux builds. Build darklang/compiler at {Compiler.Darkc.pinnedCommit} and put its darkc there.")
+
+
+/// Why the compiler or its stdlib can't be written to this disk, when they can't.
+let lowDiskMessage(): Option<String> =
+  match Compiler.Prepare.availableDisk() with
+  | Some(bytes) when bytes < Compiler.Prepare.diskNeeded ->
+    Some(
+      $"The first compile needs about 1 GB free in {Compiler.Darkc.directory()}, for the compiler and its stdlib, and {Text.bytes(bytes)} is free.")
+  | _ -> None
+
+
+/// The compiler, downloaded if it isn't here yet, and whether this compile prepares its stdlib.
+let ready(verbosity: Int64): Result<Bool, String> =
+  match unavailable() with
+  | Some(message) -> Error(message)
+  | None ->
+    let asset =
+      if Stdlib.Cli.File.exists(Compiler.Darkc.path()) then
+        None
+      else
+        Compiler.Darkc.releaseAsset()
+
+    let preparingStdlib = Stdlib.Bool.not(Compiler.Darkc.stdlibPrepared())
+    let lowDisk = if preparingStdlib then lowDiskMessage() else None
+    match lowDisk with
+    | Some(message) -> Error(message)
+    | None ->
+      let confirmed =
+        Stdlib.Bool.not(preparingStdlib)
+        || confirmFirstCompile(verbosity, Stdlib.Option.isSome(asset))
+
+      if Stdlib.Bool.not(confirmed) then
+        Error("Not compiling.")
+      else
+        match asset with
+        | Some(a) -> download(a) |> Stdlib.Result.map(fun _ -> preparingStdlib)
+        | None -> Ok(preparingStdlib)
+
+
+/// Run darkc on <param job> while this instance's packages are served to it.
+let withServer(
+  job: Compiler.Darkc.Job,
+  verbosity: Int64)
+  : Result<Stdlib.Cli.Process.Output, String> =
+  match ready(verbosity) with
+  | Error(message) -> Error(message)
+  | Ok(preparingStdlib) ->
+    // darkc sends the URL's user and password as basic auth on every request
+    let token = Stdlib.String.replaceAll(Stdlib.display(Stdlib.Uuid.generate()), "-", "")
+    match startServer(token, 5) with
+    | Error(e) -> Error(e)
+    | Ok((server, port)) ->
+      if verbosity > 0 then
+        Stdlib.printErrorLine($"serving packages on 127.0.0.1:{Stdlib.display(port)}")
+        Stdlib.printErrorLine($"running {Compiler.Darkc.path()}")
+      else
+        ()
+
+      let invocation =
+        Compiler.Darkc.Invocation
+          { job = job
+            verbosity = verbosity
+            packageServer = $"http://dark:{token}@127.0.0.1:{Stdlib.display(port)}" }
+
+      let result =
+        runCompiler(Compiler.Darkc.arguments(invocation), verbosity, preparingStdlib)
+        |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+
+      let _ = Stdlib.Exec.stop(server, Stdlib.Exec.Stop.Kill)
+      // darkc names the URL when a fetch fails
+      result
+      |> Stdlib.Result.map(fun output ->
+        { output with stderr = Stdlib.String.replaceAll(output.stderr, $"dark:{token}@", "") })
+
+
+/// The package fn <param name> as an executable's entry, or why it can't be one. Takes and
+/// returns what `dark run <fn>` takes and returns, and does nothing only an instance can do.
+let entry(name: String): Result<Run.Entry, String> =
+  let branchId = Compiler.PackageServer.branchId
+  match Run.entry(branchId, name) with
+  | Error(NoFn) -> Error($"No package fn named {name}.")
+  | Error(OtherParameters(shown)) ->
+    Error(
+      $"{name} takes ({shown}); an executable's fn takes List<String> or nothing, as for `dark run`.")
+  | Ok(found) ->
+    match found.returnType with
+    | Some(typ) when Stdlib.Bool.not(Run.givesExitCode(typ)) ->
+      let ctx = Packages.Signatures.rootContext(branchId, [])
+      let shown = PrettyPrinter.ProgramTypes.typeReference(ctx, typ)
+      Error(
+        $"{name} returns {shown}; an executable's fn returns Int64, the exit code, or Unit, as for `dark run`.")
+    | _ ->
+      match Compiler.Access.refusal(name, Compiler.Access.reasons(name, found.hash)) with
+      | Some(message) -> Error(message)
+      | None -> Ok(found)
+
+
+/// The access approved for the executable of <param found>, written where darkc reads it, or
+/// None when it needs nothing past what every executable has.
+let approvedPolicy(
+  accountID: Option<Uuid>,
+  name: String,
+  found: Run.Entry,
+  output: String)
+  : Result<Option<String>, String> =
+  let hash =
+    match found.hash with
+    | Hash(h) -> h
+
+  match Approval.decide(
+          accountID,
+          found.name,
+          hash,
+          output,
+          Compiler.Access.reasons(name, found.hash)) with
+  | Refused(message) -> Error(message)
+  | Approved(policy) when Stdlib.List.isEmpty(policy.allow) -> Ok(None)
+  | Approved(policy) ->
+    let path = Compiler.Darkc.policyPath(hash)
+    let _ = Stdlib.Cli.Dir.createRecursive(Stdlib.Cli.Path.parent(path))
+    Stdlib.Json.checkedSerialize<LanguageTools.Permissions.Policy>(policy)
+    |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+    |> Stdlib.Result.andThen(fun text ->
+      Stdlib.Cli.File.writeText(path, text) |> Stdlib.Result.mapError(fun e -> Stdlib.display(e)))
+    |> Stdlib.Result.map(fun _ -> Some(path))
+    |> Stdlib.Result.mapError(fun e -> $"Could not write {path}: {e}")
+
+
+/// What darkc's <param reason> means, as the end of a sentence.
+let describeReason(diagnostic: Compiler.Darkc.Diagnostic): String =
+  match diagnostic.reason with
+  | MissingBuiltin(name) -> $"compiled code doesn't have {name}"
+  | MissingFunction(name) -> $"the compiler can't find {name}"
+  | MissingType(name) -> $"the compiler can't find the type {name}"
+  | UnsupportedFeature(feature) -> $"compiled code doesn't support {feature} yet"
+  | NeedsTypeArguments(_) -> "it needs type arguments to compile"
+  | NotAnEntry -> "it isn't a program's fn"
+  | EntryNotFound -> "the compiler couldn't read it"
+  | Other(_) -> diagnostic.message
+
+
+/// darkc's `--json` diagnostics on <param stderr> as text, or <param stderr> as it is.
+let renderFailure(name: String, stderr: String): String =
+  match Compiler.Darkc.parseDiagnostics(stderr) with
+  | [] -> stderr
+  | diagnostics ->
+    let lines =
+      diagnostics
+      |> Stdlib.List.map(fun d ->
+        let first = $"{name} can't be compiled yet: {describeReason(d)}."
+        match d.path with
+        | [] -> first
+        | path -> $"{first}\n  {Stdlib.String.join(path, " -> ")}")
+
+    Stdlib.String.join(lines, "\n") + "\n"
+
+
+/// Where an executable of <param name> goes with no `-o`: its last segment, here.
+let defaultOutput(name: String): String =
+  let leaf =
+    Stdlib.String.split(name, ".")
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault(name)
+
+  $"./{leaf}"
+
+
+/// Compile the package fn <param name> to an executable at <param output>.
+let executable(
+  accountID: Option<Uuid>,
+  name: String,
+  output: String,
+  verbosity: Int64)
+  : Result<Stdlib.Cli.Process.Output, String> =
+  let started = Telemetry.now()
+  if Stdlib.Cli.FileSystem.isDirectory(output) then
+    Error($"{output} is a directory. Give -o a file to write.")
+  else
+    entry(name)
+    |> Stdlib.Result.andThen(fun found ->
+      approvedPolicy(accountID, name, found, output)
+      |> Stdlib.Result.andThen(fun policy ->
+        withServer(Compiler.Darkc.Job.Executable(found.hash, output, policy), verbosity)))
+    |> Stdlib.Result.map(fun result ->
+      // stdout is the executable's path and nothing else, so a script can use it
+      if result.exitCode == 0 && verbosity >= 0 then
+        let size =
+          Stdlib.Cli.File.size(output)
+          |> Stdlib.Result.map(fun n -> $"{Text.bytes(n)}, ")
+          |> Stdlib.Result.withDefault("")
+
+        { result with
+            stdout = $"{output}\n"
+            stderr = result.stderr + $"{size}{seconds(Telemetry.elapsedMs(started))}\n" }
+      else if result.exitCode == 0 then
+        { result with stdout = $"{output}\n" }
+      else
+        { result with stderr = renderFailure(name, result.stderr) })
+
+
+/// What `--check` says about one name.
+type Verdict =
+  | Compiles
+  /// It reaches something only an instance has, or access compiled code can't limit yet.
+  | Refused(blocker: Compiler.Access.Blocker, reasons: List<Compiler.Access.Reason>)
+  | Fails(diagnostic: Option<Compiler.Darkc.Diagnostic>)
+  | NotFound
+
+
+type CheckRow =
+  { name: String
+    verdict: Verdict
+    /// what the fn may do that an executable allows: may raise, reads the clock
+    effects: List<Compiler.Access.Reason> }
+
+
+/// <param name>'s row as far as the effect analysis answers it. A row left at `Compiles` goes
+/// to darkc.
+let precheck(name: String): CheckRow =
+  let branchId = Compiler.PackageServer.branchId
+  let location =
+    LanguageTools.ProgramTypes.parsePackageLocation(TraceVerbs.canonicalFnName(branchId, name))
+
+  match LanguageTools.PackageManager.Function.find(branchId, location) with
+  | None ->
+    match LanguageTools.PackageManager.Value.find(branchId, location) with
+    | Some(_) -> CheckRow { name = name, verdict = Verdict.Compiles, effects = [] }
+    | None -> CheckRow { name = name, verdict = Verdict.NotFound, effects = [] }
+  | Some(hash) ->
+    let reasons = Compiler.Access.reasons(name, hash)
+    let instance = Compiler.Access.blocking(reasons, Compiler.Access.Blocker.NeedsInstance)
+    let unenforced = Compiler.Access.blocking(reasons, Compiler.Access.Blocker.NotEnforced)
+    let allowed =
+      reasons
+      |> Stdlib.List.filter(fun r -> Stdlib.Option.isNone(Compiler.Access.blocker(r.effect)))
+
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(instance)) then
+      CheckRow
+        { name = name
+          verdict = Verdict.Refused(Compiler.Access.Blocker.NeedsInstance, instance)
+          effects = allowed }
+    else if Stdlib.Bool.not(Stdlib.List.isEmpty(unenforced)) then
+      CheckRow
+        { name = name
+          verdict = Verdict.Refused(Compiler.Access.Blocker.NotEnforced, unenforced)
+          effects = allowed }
+    else
+      CheckRow { name = name, verdict = Verdict.Compiles, effects = allowed }
+
+
+/// <param row> with darkc's answer for it.
+let withReport(row: CheckRow, reports: List<Compiler.Darkc.CheckReport>): CheckRow =
+  match row.verdict with
+  | Compiles ->
+    match reports |> Stdlib.List.findFirst(fun r -> r.name == row.name) with
+    | Some(report) when report.status == "compiles" -> row
+    | Some(report) -> { row with verdict = Verdict.Fails(report.diagnostic) }
+    | None -> { row with verdict = Verdict.Fails(None) }
+  | _ -> row
+
+
+let via(reason: Compiler.Access.Reason): String =
+  // the path starts at the fn itself, which the row already names
+  match reason.path with
+  | [_, ...rest] when Stdlib.Bool.not(Stdlib.List.isEmpty(rest)) ->
+    $"{Compiler.Access.describe(reason.effect)}, via {Stdlib.String.join(rest, " -> ")}"
+  | _ -> Compiler.Access.describe(reason.effect)
+
+
+let rowColumns(row: CheckRow): (String * String) =
+  let effects =
+    match row.effects with
+    | [] -> "no effects"
+    | reasons ->
+      reasons
+      |> Stdlib.List.map(via)
+      |> Stdlib.String.join("; ")
+
+  match row.verdict with
+  | Compiles -> ("compiles", effects)
+  | Refused(NeedsInstance, reasons) ->
+    (
+      "needs dark",
+      reasons
+      |> Stdlib.List.map(via)
+      |> Stdlib.String.join("; "))
+  | Refused(NotEnforced, reasons) ->
+    (
+      "not yet",
+      reasons
+      |> Stdlib.List.map(via)
+      |> Stdlib.String.join("; "))
+  | Fails(Some(diagnostic)) ->
+    match diagnostic.path with
+    | [_, ...rest] when Stdlib.Bool.not(Stdlib.List.isEmpty(rest)) ->
+      ("not yet", $"{describeReason(diagnostic)}, via {Stdlib.String.join(rest, " -> ")}")
+    | _ -> ("not yet", describeReason(diagnostic))
+  | Fails(None) -> ("not yet", "the compiler said nothing about it")
+  | NotFound -> ("not found", "no package fn or value by that name")
+
+
+let pad(text: String, width: Int64): String =
+  Stdlib.String.padEnd(text, ' ', width)
+
+
+let checkLines(rows: List<CheckRow>): List<String> =
+  let width =
+    rows
+    |> Stdlib.List.map(fun r -> Stdlib.String.length(r.name))
+    |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
+
+  rows
+  |> Stdlib.List.map(fun row ->
+    let (status, detail) = rowColumns(row)
+    $"{pad(status, 12)}  {pad(row.name, width)}  {detail}")
+
+
+/// One JSON object per name: `{name, status, detail}`.
+type CheckJson =
+  { name: String
+    status: String
+    detail: String }
+
+
+let checkJsonLines(rows: List<CheckRow>): List<String> =
+  rows
+  |> Stdlib.List.map(fun row ->
+    let (status, detail) = rowColumns(row)
+    Stdlib.Json.serialize<CheckJson>(
+      CheckJson { name = row.name, status = status, detail = detail }))
+
+
+let checkOk(row: CheckRow): Bool =
+  match row.verdict with
+  | Compiles -> true
+  | _ -> false
+
+
+/// Whether each package fn or value in <param names> compiles, and why not. Fns that need an
+/// instance are answered without starting darkc.
+let check(names: List<String>, json: Bool): Result<Stdlib.Cli.Process.Output, String> =
+  let rows = names |> Stdlib.List.map(precheck)
+
+  let toCompiler =
+    rows
+    |> Stdlib.List.filter(checkOk)
+    |> Stdlib.List.map(fun r -> r.name)
+
+  let answered =
+    match toCompiler with
+    | [] -> Ok(rows)
+    | _ ->
+      withServer(Compiler.Darkc.Job.Check(toCompiler), -1)
+      |> Stdlib.Result.map(fun output ->
+        let reports = Compiler.Darkc.parseCheckReports(output.stdout)
+        rows |> Stdlib.List.map(fun row -> withReport(row, reports)))
+
+  answered
+  |> Stdlib.Result.map(fun rows ->
+    let lines = if json then checkJsonLines(rows) else checkLines(rows)
+    Stdlib.Cli.Process.Output
+      { exitCode = if Stdlib.List.all(rows, checkOk) then 0 else 1
+        stdout = Stdlib.String.join(lines, "\n") + "\n"
+        stderr = "" })
+
+
+/// What the command line asks for, once the verbosity flags are taken out.
+type Request =
+  | Executable(name: String, output: String)
+  | Run(expr: String)
+  | Check(names: List<String>, json: Bool)
+
+
+val usage =
+  "Usage: compile <fn> [-o <file>] | compile --run <expression> | compile --check [--json] <fn>..."
+
+
+let parse(args: List<String>): Result<Request, String> =
+  match args with
+  | ["--run", expr] -> Ok(Request.Run(expr))
+  | ["--check"] | ["--check", "--json"] -> Error("Usage: compile --check [--json] <fn>...")
+  | ["--check", "--json", ...names] -> Ok(Request.Check(names, true))
+  | ["--check", ...names] -> Ok(Request.Check(names, false))
+  | [name] when Stdlib.Bool.not(Stdlib.String.startsWith(name, "-")) ->
+    Ok(Request.Executable(name, defaultOutput(name)))
+  | [name, "-o", output] -> Ok(Request.Executable(name, output))
+  | ["-o", output, name] -> Ok(Request.Executable(name, output))
+  | _ -> Error(usage)
+
+
+let verbosityFlag(arg: String): Option<Int64> =
+  match arg with
+  | "-q" -> Some(-1)
+  | "-v" -> Some(1)
+  | "-vv" -> Some(2)
+  | "-vvv" -> Some(3)
+  | _ -> None
+
+
+let withoutVerbosity(args: List<String>): List<String> =
+  args |> Stdlib.List.filter(fun a -> Stdlib.Option.isNone(verbosityFlag(a)))
+
+
+/// <param args> without the verbosity flags, and the level they ask for. `--run`'s
+/// expression is left alone, whatever it looks like.
+let verbosityOf(args: List<String>): (List<String> * Int64) =
+  let (flags, rest) =
+    match args with
+    | ["--run", expr, ...after] ->
+      (after, Stdlib.List.concat([ "--run", expr ], withoutVerbosity(after)))
+    | _ -> (args, withoutVerbosity(args))
+
+  let level =
+    flags
+    |> Stdlib.List.filterMap(fun a -> verbosityFlag(a))
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault(0)
+
+  (rest, level)
+
+
+let execute(state: AppState, args: List<String>): AppState =
+  let (rest, verbosity) = verbosityOf(args)
+  let result =
+    parse(rest)
+    |> Stdlib.Result.andThen(fun request ->
+      match request with
+      | Executable(name, output) -> executable(state.accountID, name, output, verbosity)
+      | Run(expr) -> withServer(Compiler.Darkc.Job.Run(expr), verbosity)
+      | Check(names, json) -> check(names, json))
+
+  match result with
+  | Ok(output) ->
+    Stdlib.print(output.stdout)
+    if Stdlib.String.isEmpty(output.stderr) then
+      ()
+    else
+      Stdlib.printError(output.stderr)
+
+    { state with exitCode = output.exitCode }
+  | Error(message) ->
+    printErr(message)
+    { state with exitCode = 1 }
+
+
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  let partial =
+    match args with
+    | [] -> Some("")
+    | [one] when Stdlib.Bool.not(Stdlib.String.startsWith(one, "-")) -> Some(one)
+    | ["--check", ...names] -> Stdlib.List.last(names)
+    | _ -> None
+
+  match partial with
+  | Some(text) ->
+    Packages.Traversal.completePartialPath(
+      state.currentBranchId,
+      state.packageData.currentLocation,
+      text)
+  | None -> []
+
+
+let help(_state: AppState): String =
+  [ "Compile a package fn to a native executable with the Darklang compiler. Experimental."
+    ""
+    "Usage: compile <fn>                       write an executable named after the fn: ./wc"
+    "       compile <fn> -o <file>             write it to <file>"
+    "       compile --run <expression>         compile an expression, run it, print what it prints"
+    "       compile --check [--json] <fn>...   does each fn compile, and if not, why not"
+    ""
+    "The fn is what `dark run <fn>` runs: it takes List<String>, the command-line"
+    "arguments, or nothing, and returns Int64, the exit code, or Unit. `./wc a b` does"
+    "what `dark run Me.Tools.wc a b` does. `--run` prints what `dark eval` prints."
+    "Package fns come from this instance's main branch."
+    ""
+    "An executable has no store, traces or DB. It gets stdin, stdout, the clock and"
+    "randomness; a fn that needs other access isn't compiled yet."
+    ""
+    "Options:"
+    "  -q              nothing on stderr"
+    "  -v, -vv, -vvv   also what the compiler did, each pass's time, each intermediate form"
+    ""
+    "See `dark docs compile`."
+    ""
+    "Example:"
+    "  compile Me.Tools.wc"
+    "  compile Me.Tools.wc -o bin/wc"
+    "  compile --run 'Stdlib.English.toOrdinal(22)'"
+    "  compile --check Stdlib.English.toOrdinal Stdlib.Decimal.scale" ]
+  |> Stdlib.String.join("\n")

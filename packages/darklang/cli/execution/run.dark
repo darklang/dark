@@ -29,6 +29,14 @@ let exitCode(value: LanguageTools.RuntimeTypes.Dval): Result<Int64, ExecutionErr
         []))
 
 
+/// Whether a fn that returns <param typ> gives the exit code <fn exitCode> reads: Unit is 0,
+/// an Int64 is the code. What `dark compile` asks of an executable's fn before compiling it.
+let givesExitCode(typ: LanguageTools.ProgramTypes.TypeReference): Bool =
+  match typ with
+  | TUnit | TInt64 -> true
+  | _ -> false
+
+
 /// Run a script under its permissions and return its exit code.
 let parseAndExecute(
   accountID: Option<Uuid>,
@@ -222,6 +230,63 @@ let executeScript(
       ExecutionError.Entry.Script)
 
 
+/// What a package fn takes when `run` or `compile` uses it as a program's entry.
+type EntryParameters =
+  /// the words after its name, as a List<String>
+  | Words
+  | Nothing
+
+
+type Entry =
+  { name: String
+    hash: LanguageTools.ProgramTypes.Hash
+    parameters: EntryParameters
+    /// None when the store has no signature for it
+    returnType: Option<LanguageTools.ProgramTypes.TypeReference> }
+
+
+type EntryError =
+  | NoFn
+  /// <param shown> is the parameter list as written: `string: String, padWith: Char`
+  | OtherParameters(shown: String)
+
+
+/// The package fn <param name> as an entry: it takes a List<String> or nothing. The one rule
+/// for `dark run <fn>` and `dark compile <fn>`.
+let entry(branchId: Uuid, name: String): Result<Entry, EntryError> =
+  let fnName = TraceVerbs.canonicalFnName(branchId, name)
+  let location = LanguageTools.ProgramTypes.parsePackageLocation(fnName)
+  match LanguageTools.PackageManager.Function.find(branchId, location) with
+  | None -> Error(EntryError.NoFn)
+  | Some(hash) ->
+    match LanguageTools.PackageManager.Function.getSignature(hash) with
+    | None ->
+      Ok(
+        Entry { name = fnName, hash = hash, parameters = EntryParameters.Words, returnType = None })
+    | Some(fn) ->
+      let entryOf = fun parameters ->
+        Ok(
+          Entry
+            { name = fnName
+              hash = hash
+              parameters = parameters
+              returnType = Some(fn.returnType) })
+
+      match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
+      | [] | [TUnit] -> entryOf(EntryParameters.Nothing)
+      | [TList(TString)] -> entryOf(EntryParameters.Words)
+      | _ ->
+        let modulePath = Stdlib.List.prepend(location.modules, location.owner)
+        let ctx = Packages.Signatures.rootContext(branchId, modulePath)
+        let shown =
+          fn.parameters
+          |> Stdlib.List.map(fun p ->
+            $"{p.name}: {PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)}")
+          |> Stdlib.String.join(", ")
+
+        Error(EntryError.OtherParameters(shown))
+
+
 /// Run the package function <param name> the way a script runs: under the same policy, with
 /// <param args> as its argument, and its Int64 result as the exit code. A function that takes
 /// nothing is called with `()`; one with other parameters is refused with its signature.
@@ -232,19 +297,23 @@ let executePackageFn(
   options: Options,
   stats: Bool)
   : AppState =
-  let branchId = state.currentBranchId
-  let fnName = TraceVerbs.canonicalFnName(branchId, name)
-  let location = LanguageTools.ProgramTypes.parsePackageLocation(fnName)
-  match LanguageTools.PackageManager.Function.find(branchId, location) with
-  | None ->
+  match entry(state.currentBranchId, name) with
+  | Error(NoFn) ->
     Stdlib.printErrorLine($"No script file or function named {name}")
     { state with exitCode = 1 }
-  | Some(hash) ->
+  | Error(OtherParameters(shown)) ->
+    Stdlib.printErrorLine(
+      $"{name} takes ({shown}); `run` passes the words as a List<String>. Call it with: dark eval '{name}(…)'")
+
+    { state with exitCode = 1 }
+  | Ok(found) ->
+    let branchId = state.currentBranchId
+    let location = LanguageTools.ProgramTypes.parsePackageLocation(found.name)
     let deprecation =
       LanguageTools.PackageManager.currentDeprecation(
         branchId,
         location,
-        hash,
+        found.hash,
         LanguageTools.ProgramTypes.ItemKind.Fn)
 
     match deprecation with
@@ -252,47 +321,22 @@ let executePackageFn(
       let replacement = Packages.View.resolveReplacementName(branchId, reference)
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.warning(
-          $"Warning: {fnName} is deprecated. Use {replacement} instead."))
+          $"Warning: {found.name} is deprecated. Use {replacement} instead."))
     | Some(_) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated."))
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning($"Warning: {found.name} is deprecated."))
     | None -> ()
 
-    match Permissions.Command.carryApprovalForward(state.accountID, branchId, fnName) with
+    match Permissions.Command.carryApprovalForward(state.accountID, branchId, found.name) with
     | Some(note) -> Stdlib.printErrorLine(note)
     | None -> ()
 
-    match LanguageTools.PackageManager.Function.getSignature(hash) with
-    | Some(fn) ->
-      match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
-      | [] | [TUnit] -> runNullary(state, name, fnName, args, options, stats)
-      | [TList(TString)] ->
-        runScriptMeasured(
-          state,
-          fnName,
-          $"{fnName}(args)",
-          args,
-          options,
-          Approval.Offer,
-          stats,
-          ExecutionError.Entry.Call)
-      | _ ->
-        let modulePath = Stdlib.List.prepend(location.modules, location.owner)
-        let ctx = Packages.Signatures.rootContext(branchId, modulePath)
-        let shown =
-          fn.parameters
-          |> Stdlib.List.map(fun p ->
-            $"{p.name}: {PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)}")
-          |> Stdlib.String.join(", ")
-
-        Stdlib.printErrorLine(
-          $"{name} takes ({shown}); `run` passes the words as a List<String>. Call it with: dark eval '{name}(…)'")
-
-        { state with exitCode = 1 }
-    | None ->
+    match found.parameters with
+    | Nothing -> runNullary(state, name, found.name, args, options, stats)
+    | Words ->
       runScriptMeasured(
         state,
-        fnName,
-        $"{fnName}(args)",
+        found.name,
+        $"{found.name}(args)",
         args,
         options,
         Approval.Offer,
