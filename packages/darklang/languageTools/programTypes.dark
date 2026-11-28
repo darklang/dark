@@ -231,11 +231,8 @@ type StringSegment =
 
 type PipeExpr =
   | EPipeVariable(ID, String, List<Expr>)
-
   | EPipeLambda(ID, List<LetPattern>, Expr)
-
   | EPipeInfix(ID, Infix, Expr, FQFnName.ImplChoice)
-
   | EPipeFnCall(
     ID,
     NameResolution<FQFnName.FQFnName>,
@@ -243,7 +240,6 @@ type PipeExpr =
     args: List<Expr>,
     /// As `EFnName`: what this call worked out for the callee's bounds.
     boundImpls: List<FQFnName.BoundImpl>)
-
   | EPipeEnum(
     ID,
     typeName: NameResolution<FQTypeName.FQTypeName>,

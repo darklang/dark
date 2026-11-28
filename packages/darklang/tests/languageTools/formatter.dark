@@ -46,7 +46,8 @@ test findsTheComments =
   |> Stdlib.Test.equal(10)
 
 
-// A `///` where nothing stores it: on an enum case's field, and on a local fn.
+// A `///` on an enum case's field, which the field stores, and one on a local fn, which nothing
+// stores.
 val unstoredDocs =
   """module Darklang.Tests.FormatSample
 
@@ -68,6 +69,12 @@ test keepsDocCommentsNothingStores =
   LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, unstoredDocs)
   |> Stdlib.Result.map(fun f -> LanguageTools.Formatter.docLines(f.text))
   |> Stdlib.Test.equal(Ok([ "/// the width", "/// the area of a box" ]))
+
+
+test keepsAsWrittenOnlyWhatNothingStores =
+  LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, unstoredDocs)
+  |> Stdlib.Result.map(fun f -> f.asWritten)
+  |> Stdlib.Test.equal(Ok([ "area" ]))
 
 
 // What lowering doesn't keep comes back as written: a spread, an escape, a float's exponent.

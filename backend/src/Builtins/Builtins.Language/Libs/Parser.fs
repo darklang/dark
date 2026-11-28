@@ -1287,7 +1287,7 @@ module WrittenTypesToDarkTypes =
         [ "range", rangeToDT f.range
           "typ", typeReferenceToDT f.typ
           "label", labelDval
-          "description", DString ""
+          "description", DString f.description
           "symbolColon", colonDval ]
     )
 
