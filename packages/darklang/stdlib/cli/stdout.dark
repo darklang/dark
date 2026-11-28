@@ -1,0 +1,6 @@
+module Darklang.Stdlib.Cli.Stdout
+
+/// Write <param bytes> to stdout exactly as they are. Nothing is removed from them, whether the
+/// output goes to a terminal, a pipe or a file. For text, see <fn Stdlib.printAsWritten>.
+let writeBytes(bytes: Bytes): Unit =
+  Builtin.stdoutWriteBytes(bytes)

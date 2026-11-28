@@ -78,12 +78,15 @@ module Ansi =
 /// exited, and the first write through `Console` to a terminal switches it to keypad mode
 /// (`ESC[?1h ESC=`), which only the interactive loop wants. Not a file: a stream on a file would
 /// write at its own offset, over what anything else sharing the fd wrote.
+///
+/// Also returns that stream of its own, when it made one, for writing bytes. The writer flushes
+/// on every write, so text and bytes written in turn stay in order.
 let private writerFor
   (fd : int)
   (console : unit -> System.IO.TextWriter)
-  : System.IO.TextWriter =
+  : System.IO.TextWriter * Option<System.IO.Stream> =
   if System.OperatingSystem.IsWindows() then
-    console ()
+    console (), None
   else
     let stream =
       new System.IO.FileStream(
@@ -93,13 +96,14 @@ let private writerFor
       )
     if stream.CanSeek then
       stream.Dispose()
-      console ()
+      console (), None
     else
       new System.IO.StreamWriter(
         stream,
         System.Text.UTF8Encoding false,
         AutoFlush = true
-      )
+      ),
+      Some stream
 
 /// `write` failing with EPIPE: whoever read stdout has gone.
 let private isBrokenPipe (e : exn) : bool =
@@ -107,8 +111,14 @@ let private isBrokenPipe (e : exn) : bool =
   | :? System.IO.IOException as e -> e.HResult = 32
   | _ -> false
 
-type BlockingCollection =
-  System.Collections.Concurrent.BlockingCollection<struct (Stream * string)>
+/// One thing waiting to be written.
+type private Queued =
+  | Text of Stream * string
+  /// Bytes for stdout, written exactly as they are.
+  | Bytes of byte[]
+
+type private BlockingCollection =
+  System.Collections.Concurrent.BlockingCollection<Queued>
 
 type private Capture() =
   member val All = System.Text.StringBuilder()
@@ -144,6 +154,8 @@ type private State =
     queue : BlockingCollection
 
     out : Lazy<System.IO.TextWriter>
+    // Where bytes for stdout go: the same place as `out`'s text.
+    outBytes : Lazy<System.IO.Stream>
     err : Lazy<System.IO.TextWriter>
 
     // Decided per stream, here, because the colouring helpers can't know where a string will land.
@@ -177,12 +189,16 @@ let private printLoop (s : State) () : unit =
     let wrote =
       lock s.printLock (fun () ->
         try
-          let mutable v = struct (Out, null)
+          let mutable v = Text(Out, "")
           // Don't block (eg with `Take`) while holding the lock
           if s.queue.TryTake(&v) then
             match v with
-            | struct (Out, text) -> s.out.Force().Write(s.forOut.Force () text)
-            | struct (Err, text) -> s.err.Force().Write(s.forErr.Force () text)
+            | Text(Out, text) -> s.out.Force().Write(s.forOut.Force () text)
+            | Text(Err, text) -> s.err.Force().Write(s.forErr.Force () text)
+            | Bytes bytes ->
+              let stream = s.outBytes.Force()
+              stream.Write(bytes, 0, bytes.Length)
+              stream.Flush()
             true
           else
             false
@@ -224,12 +240,18 @@ type private Instance =
       // initialisation, which is the thing this avoids. Nobody else can see this private type.
       lock typeof<Instance> (fun () ->
         if isNull (box Instance.state) then
+          let out = lazy (writerFor 1 (fun () -> System.Console.Out))
           let fresh =
             { isWasm = System.OperatingSystem.IsBrowser()
               browserSink = None
               queue = new BlockingCollection()
-              out = lazy (writerFor 1 (fun () -> System.Console.Out))
-              err = lazy (writerFor 2 (fun () -> System.Console.Error))
+              out = lazy (fst (out.Force()))
+              outBytes =
+                lazy
+                  (match snd (out.Force()) with
+                   | Some stream -> stream
+                   | None -> System.Console.OpenStandardOutput())
+              err = lazy (fst (writerFor 2 (fun () -> System.Console.Error)))
               forOut = lazy (Ansi.decide System.Console.IsOutputRedirected)
               forErr = lazy (Ansi.decide System.Console.IsErrorRedirected)
               captureLock = obj ()
@@ -254,6 +276,32 @@ type private Private =
   static member SetBrowserSink(sink : string -> unit) : unit =
     (Instance.Get()).browserSink <- Some sink
 
+  /// Append to this flow's capture window, if one is open, and say whether it was. The decision
+  /// and the append are one step, so a concurrent Stop can't leave a write appended to a buffer
+  /// nobody will read, or tear the StringBuilder. A capture holds text, so bytes are read as UTF-8;
+  /// they are passed as they are and decoded only when a window is open.
+  static member private Capture
+    (
+      s : State,
+      stream : Stream,
+      text : string,
+      bytes : byte[]
+    ) : bool =
+    lock s.captureLock (fun () ->
+      let c = s.captureBuffer.Value
+      if isNull (box c) || not c.Active then
+        false
+      else
+        let value =
+          if isNull bytes then text else System.Text.Encoding.UTF8.GetString bytes
+        c.All.Append(value) |> ignore
+        (match stream with
+         | Out -> c.Out
+         | Err -> c.Err)
+          .Append(value)
+        |> ignore
+        true)
+
   static member Write(stream : Stream, value : string) : unit =
     let s = Instance.Get()
     if s.isWasm then
@@ -263,24 +311,15 @@ type private Private =
       | Some sink, _ -> sink value
       | None, Out -> System.Console.Out.Write value
       | None, Err -> System.Console.Error.Write value
-    else
-      // Take the capture decision and the append atomically, so a concurrent Stop can't leave a write
-      // appended to a buffer nobody will read, or tear the StringBuilder.
-      let captured =
-        lock s.captureLock (fun () ->
-          let c = s.captureBuffer.Value
-          if isNull (box c) || not c.Active then
-            false
-          else
-            c.All.Append(value) |> ignore
-            (match stream with
-             | Out -> c.Out
-             | Err -> c.Err)
-              .Append(value)
-            |> ignore
-            true)
+    elif not (Private.Capture(s, stream, value, null)) then
+      s.queue.Add(Text(stream, value))
 
-      if not captured then s.queue.Add(struct (stream, value))
+  /// Bytes for stdout, exactly as they are: nothing is removed, whatever stdout is. The browser
+  /// shows text, so there they are read as UTF-8.
+  static member WriteBytes(value : byte[]) : unit =
+    let s = Instance.Get()
+    if s.isWasm then Private.Write(Out, System.Text.Encoding.UTF8.GetString value)
+    elif not (Private.Capture(s, Out, null, value)) then s.queue.Add(Bytes value)
 
   /// Begin a capture window for THIS flow. Returns false if one was already open here, in which case
   /// nothing changes: the caller must not assume it owns the buffer. Nesting isn't supported;
@@ -312,6 +351,9 @@ type private Private =
 let wait () : unit = Private.wait ()
 
 let writeInline (value : string) : unit = Private.Write(Out, value)
+
+/// Bytes to stdout exactly as they are, in order with everything already queued.
+let writeBytes (value : byte[]) : unit = Private.WriteBytes value
 
 let writeLine (value : string) : unit = Private.Write(Out, value + "\n")
 

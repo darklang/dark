@@ -60,3 +60,33 @@ test noColorFlagTakesTheColourOut = Instance.withInstance(fun i ->
         after,
         "\u001b[32m",
         "--no-color after the command") ]))
+
+
+/// Through a pipe `print` removes colour codes. `printAsWritten` keeps them, and so does
+/// writing the bytes.
+test stdoutBytesAreWrittenAsTheyAre = Instance.withInstance(fun i ->
+  let piped = fun code ->
+    let command = Instance.command([ "eval", code ])
+    (Instance.call(i, { command with env = [ ("CLICOLOR_FORCE", "") ] })).stdout
+
+  let plain = piped("Stdlib.print(\"\\u001b[31mred\")")
+  let exact = piped("Stdlib.printAsWritten(\"\\u001b[31mred\")")
+  let bytes =
+    piped(
+      "Stdlib.Cli.Stdout.writeBytes(Stdlib.Utf8.encode(\"\\u001b[31mred\"))")
+
+  // Text and bytes written in turn come out in the order they were written.
+  let ordered =
+    piped(
+      "let _ = Stdlib.print(\"a\")\nlet _ = Stdlib.printAsWritten(\"b\")\nStdlib.print(\"c\")")
+
+  Stdlib.Test.all(
+    [ Instance.says(plain, "red", "print writes the text")
+      Instance.doesNotSay(
+        plain,
+        "\u001b[31m",
+        "print removes the colour in a pipe")
+
+      Instance.says(exact, "\u001b[31mred", "printAsWritten keeps it")
+      Instance.says(bytes, "\u001b[31mred", "writeBytes keeps it")
+      Instance.says(ordered, "abc", "text and bytes keep their order") ]))
