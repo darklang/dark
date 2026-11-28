@@ -6415,6 +6415,12 @@ and PackageFnCallData =
     paramList : List<PackageFn.Parameter>
     executionPoint : ExecutionPoint
 
+    /// The parameters and return type with their aliases replaced by what they name, for the
+    /// checks on every call: a value carries the aliased type's name, so this lets them match it
+    /// directly. A failed check reports the types as written.
+    checkedParams : List<PackageFn.Parameter>
+    checkedReturnType : TypeReference
+
     /// The builtin this fn is a bare forwarder for (`Interpreter.thinWrapperOf`), resolved
     /// against the table of the execution state whose cache holds this, which every state
     /// sharing that cache also has. A call to a forwarder runs the builtin with no frame.

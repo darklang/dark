@@ -1,0 +1,82 @@
+// A fn's parameter and return types are checked through the aliases in them, at any depth.
+module Darklang.Language.Tests.SignatureAliases
+
+type Person =
+  { name: String }
+
+
+type MyPerson = Person
+
+type People = List<MyPerson>
+
+type MaybeT<'t> = Stdlib.Option.Option<'t>
+
+
+type Tree<'a> =
+  { value: 'a
+    children: List<Branch<'a>> }
+
+
+type Branch<'x> = Tree<'x>
+
+let getName(p: MyPerson): String = p.name
+
+let count(people: People): Int64 = Stdlib.List.length(people)
+
+let asPerson(x: 'a): MyPerson = x
+
+
+let orElse(m: MaybeT<'t>, fallback: 't): 't =
+  Stdlib.Option.withDefault(m, fallback)
+
+
+let floatOr(m: MaybeT<Float64>): Float64 =
+  Stdlib.Option.withDefault(m, 0.0)
+
+
+let childCount(t: Branch<Int64>): Int64 =
+  Stdlib.List.length(t.children)
+
+
+test aliasParam = getName(Person { name = "a" }) |> Stdlib.Test.equal("a")
+
+
+test aliasParamWrongTypeRaises =
+  getName(5)
+  => raises "Darklang.Language.Tests.SignatureAliases.getName's 1st parameter `p` expects Darklang.Language.Tests.SignatureAliases.Person, but got Int64 (5)"
+
+
+test listOfAliases =
+  count([ Person { name = "a" }, MyPerson { name = "b" } ])
+  |> Stdlib.Test.equal(2)
+
+
+test listOfAliasesWrongItemRaises =
+  count([ 1 ])
+  => raises "Darklang.Language.Tests.SignatureAliases.count's 1st parameter `people` expects List<Darklang.Language.Tests.SignatureAliases.Person>, but got List<Int64> ([1])"
+
+
+test aliasResult =
+  (asPerson(Person { name = "a" })).name |> Stdlib.Test.equal("a")
+
+
+test aliasResultWrongTypeRaises =
+  asPerson(5)
+  => raises "Darklang.Language.Tests.SignatureAliases.asPerson's return value expects Darklang.Language.Tests.SignatureAliases.Person, but got Int64 (5)"
+
+
+test genericAliasAtTwoTypes =
+  Stdlib.Test.all(
+    [ orElse(Stdlib.Option.Option.Some(1.5), 0.0) |> Stdlib.Test.equal(1.5)
+      orElse(Stdlib.Option.Option.None, "x") |> Stdlib.Test.equal("x") ])
+
+
+test genericAliasWrongTypeArgRaises =
+  floatOr(Stdlib.Option.Option.Some("x"))
+  => raises "Darklang.Language.Tests.SignatureAliases.floatOr's 1st parameter `m` expects Darklang.Stdlib.Option.Option<Float64>, but got Darklang.Stdlib.Option.Option<String> (Some(\"x\"))"
+
+
+test recursiveAlias =
+  childCount(
+    Tree { value = 1, children = [ Branch { value = 2, children = [] } ] })
+  |> Stdlib.Test.equal(1)
