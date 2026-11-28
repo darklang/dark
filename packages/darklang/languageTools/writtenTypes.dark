@@ -80,30 +80,21 @@ module TypeReference =
     | TDateTime(Range)
     | TUuid(Range)
     | TBytes(Range)
-
     | TStream(
       Range,
       keywordStream: Range,
       openBracket: Range,
-      typ: TypeReference.TypeReference,
+      typ: TypeReference,
       closeBracket: Range)
-
-    | TList(
-      Range,
-      keywordList: Range,
-      openBracket: Range,
-      typ: TypeReference.TypeReference,
-      closeBracket: Range)
-
+    | TList(Range, keywordList: Range, openBracket: Range, typ: TypeReference, closeBracket: Range)
     | TDict(
       Range,
       keywordDict: Range,
       openBrace: Range,
-      key: TypeReference.TypeReference,
+      key: TypeReference,
       symbolComma: Range,
-      value: TypeReference.TypeReference,
+      value: TypeReference,
       closeBrace: Range)
-
     | TTuple(
       Range,
       first: TypeReference,
@@ -113,13 +104,11 @@ module TypeReference =
       rest: List<(Range * TypeReference)>,
       openParen: Range,
       closeParen: Range)
-
     | TFn(
       Range,
       /// the Range corresponds to the `->` symbol
-      arguments: List<(TypeReference.TypeReference * Range)>,
-      ret: TypeReference.TypeReference)
-
+      arguments: List<(TypeReference * Range)>,
+      ret: TypeReference)
     | TVariable(
       Range,
       symbolSingleQuote: Range,
@@ -416,12 +405,7 @@ type Expr =
 
 
 type PipeExpr =
-  | EPipeLambda(
-    Range,
-    pats: List<LetPattern>,
-    body: Expr,
-    keywordFun: Range,
-    symbolArrow: Range)
+  | EPipeLambda(Range, pats: List<LetPattern>, body: Expr, keywordFun: Range, symbolArrow: Range)
   | EPipeEnum(
     Range,
     typeName: QualifiedTypeIdentifier,
