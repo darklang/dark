@@ -29,7 +29,8 @@ let isWarning(code: IssueCode): Bool =
   | AmbiguousType
   | NonExhaustiveMatch
   | UnreachableMatchCase
-  | UnsupportedConstruct -> true
+  | UnsupportedConstruct ->
+    true
   | TypeMismatch
   | OccursCheckFailed
   | UnknownVariable
@@ -60,7 +61,8 @@ let isWarning(code: IssueCode): Bool =
   | AmbiguousImpl
   | ImplMethodSet
   | ImplMethodSignature
-  | UnboundTypeParameter -> false
+  | UnboundTypeParameter ->
+    false
 
 
 /// Create an error finding whose expected or actual types may still be unknown.

@@ -346,6 +346,11 @@ module MatchPattern =
       (finalContext, PT.MPListCons(gid (), head', tail'))
     | WT.MPOr(_, pats) ->
       let (finalContext, convertedPats) = pats |> foldMapContext toPT context
+      // Each alternative's own, for a comment above its `|`.
+      List.iter2
+        (fun p mp -> noteRange context (matchPatternID mp) (WT.mpRange p))
+        pats
+        convertedPats
       (finalContext,
        PT.MPOr(gid (), NEList.ofListUnsafe "MatchPattern.toPT" [] convertedPats))
     | WT.MPAs(_, inner, _, (_, name)) ->
