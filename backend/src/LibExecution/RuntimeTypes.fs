@@ -6433,6 +6433,10 @@ and PackageFnCallData =
     /// That builtin's `FastOps` tag, if it is an operator.
     fastOpTag : int voption
 
+    /// Whether the fn is a harmful deprecation on this branch, as of this package generation:
+    /// what `isHarmful` answers until a fold moves the generation on (`Interpreter.isHarmfulHere`).
+    harmful : struct (Branching.BranchId * int * bool)
+
     /// The fn itself, so a call that finds this needs no fetch. It is content-addressed: the
     /// hash this is cached under always names this fn.
     fn : PackageFn.PackageFn
