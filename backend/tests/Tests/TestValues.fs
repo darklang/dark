@@ -589,8 +589,6 @@ module Expressions =
       module Fact =
         let hash = "34c0c7bb-2bfa-4dc3-85f9-b965ba3c7880"
         let unapplied = ePackageFn hash
-        let appliedWith2 = eApply unapplied [] [ eInt64 2 ]
-        let appliedWith20 = eApply unapplied [] [ eInt64 20 ]
 
       module Recursion =
         let hash = "02036aff-7ae5-4e7c-8f95-f42936044542"
@@ -611,16 +609,6 @@ module Expressions =
               [ lpVar "x" ]
               (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1))
           eApply unapplied [] [ list; lambda ]
-
-
-        let fullyApplied2 =
-          let lambda =
-            eLambda
-              lambdaID
-              [ lpVar "x" ]
-              (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 11))
-
-          eApply unapplied [] [ eInt64 4L; lambda ]
 
       module MyFnThatReturnsUnit =
         let hash = "6a47744f-7390-48f6-9822-7a76b9ee174b"

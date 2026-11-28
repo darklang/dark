@@ -276,22 +276,6 @@ module List =
     [| for _ in 1..count -> readItem reader |] |> Array.toList
 
 
-/// Read/write an array -- with count prefix
-module Array =
-  let writeArray
-    (w : BinaryWriter)
-    (writeItem : BinaryWriter -> 'T -> unit)
-    (items : 'T array)
-    =
-    Varint.write w items.Length
-    items |> Array.iter (writeItem w)
-
-  let readArray (reader : BinaryReader) (readItem : BinaryReader -> 'T) : 'T array =
-    let count = Varint.read reader
-    [| for _ in 1..count -> readItem reader |]
-
-
-
 /// Read/write non-empty lists
 module Map =
   let write
