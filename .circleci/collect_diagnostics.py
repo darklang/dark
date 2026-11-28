@@ -42,7 +42,8 @@ CHECK_DATABASES = {
                                      "gate-perf-probes-run", "gate-gates-are-clean"]},
   # `run-fsharp-tests --split` gives each share of the one-at-a-time tests a store of its own.
   "backend-tests": ["test-data.db", "split-sequenced/.darklang/test-data.db",
-                    "split-sequenced-2/.darklang/test-data.db"],
+                    "split-sequenced-2/.darklang/test-data.db",
+                    "split-sequenced-3/.darklang/test-data.db"],
   "gate-workbench-scm": homes("workbench-scm-test", "workbench-scm-test-quiet"),
   "gate-workbench-views": homes("workbench-views-test"),
   "gate-first-day": homes("first-day/home.*", "first-day/installed.*"),

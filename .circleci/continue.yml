@@ -380,7 +380,7 @@ jobs:
       - run:
           name: Run F# tests
           command: |
-            # --split runs the sequenced tests in two processes alongside the parallel ones.
+            # --split runs the sequenced tests in three processes alongside the parallel ones.
             DARK_TEST_CLI="$PWD/$(ls clis/darklang-*-linux-x64)" \
             DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
               --run backend-tests -- timeout 20m scripts/run-fsharp-tests --published --split

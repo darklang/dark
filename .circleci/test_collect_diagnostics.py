@@ -172,9 +172,9 @@ class DiagnosticsTests(unittest.TestCase):
     (self.root / "data.db").symlink_to(outside)
     diagnostics.failure_databases(self.root)
     results = json.loads((self.output / "databases.json").read_text())["databases"]
-    # 5, not 3: backend-tests lists three databases, and all are unavailable here (the
+    # 6, not 3: backend-tests lists four databases, and all are unavailable here (the
     # main one is corrupt, and the split ones were never created).
-    self.assertEqual(len(results), 5)
+    self.assertEqual(len(results), 6)
     self.assertTrue(all(r["status"].startswith("unavailable:") for r in results))
     self.assertEqual(list(self.output.rglob("*.db.xz")), [])
 
