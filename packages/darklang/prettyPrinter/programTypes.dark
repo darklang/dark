@@ -2942,8 +2942,11 @@ module TypeDeclaration =
       | typ -> typeReferenceDocWithFnParens(ctx, FnParens.Bare, typ)
 
     match d.label with
-    | None -> typ
-    | Some(label) -> Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text($"{formatName(label)}: "), typ)
+    | None -> withInlineDoc(d.description, typ)
+    | Some(label) ->
+      withInlineDoc(
+        d.description,
+        Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text($"{formatName(label)}: "), typ))
 
 
   let enumField(ctx: Context, d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField): String =

@@ -525,10 +525,14 @@ type RecordFieldSyntax =
   }
 
 type EnumFieldSyntax =
-  { range : Range
+  {
+    range : Range
     typ : TypeReference
     label : Option<Range * string>
-    symbolColon : Option<Range> }
+    symbolColon : Option<Range>
+    /// The `///` written above the field. See `FnParam` for why it is kept.
+    description : string
+  }
 
 type EnumCaseSyntax =
   {
@@ -852,7 +856,7 @@ let private recordFieldNorm (f : RecordFieldSyntax) : TypeDeclaration.RecordFiel
   { name = snd f.name; typ = f.typ; description = f.description }
 
 let private enumFieldNorm (f : EnumFieldSyntax) : TypeDeclaration.EnumField =
-  { typ = f.typ; label = f.label |> Option.map snd; description = "" }
+  { typ = f.typ; label = f.label |> Option.map snd; description = f.description }
 
 let private enumCaseNorm (c : EnumCaseSyntax) : TypeDeclaration.EnumCase =
   { name = snd c.name

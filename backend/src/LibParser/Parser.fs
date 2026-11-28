@@ -4353,14 +4353,16 @@ and parseEnumField
     ({ range = span lblR (WT.typeReferenceRange typ)
        typ = typ
        label = Some(lblR, lbl)
-       symbolColon = Some colon },
+       symbolColon = Some colon
+       description = docOf state i },
      j)
   | _ ->
     let (typ, j) = parseType state i
     ({ range = WT.typeReferenceRange typ
        typ = typ
        label = None
-       symbolColon = None },
+       symbolColon = None
+       description = docOf state i },
      j)
 
 /// A case's fields go in parentheses, separated by commas, as a constructor's do:
