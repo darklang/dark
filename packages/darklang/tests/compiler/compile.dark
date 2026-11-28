@@ -263,17 +263,6 @@ test seconds =
   |> Stdlib.Test.equal([ "0.4 s", "2.4 s", "81 s" ])
 
 
-test preparingIsItsOwnCommand =
-  Compiler.Darkc.prepareArguments()
-  |> Stdlib.Test.equal([ "prepare", "--cache-dir", Compiler.Darkc.cacheDir() ])
-
-
-test noBackgroundPreparationWithoutATerminal =
-  Compiler.Prepare.skip()
-  |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(Compiler.Prepare.Skip.NotATerminal))
-
-
 test freeMemoryIsRead =
   "MemTotal:       65536000 kB\nMemFree:         1000 kB\nMemAvailable:    2048 kB\n"
   |> Compiler.Prepare.memAvailable

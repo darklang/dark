@@ -75,21 +75,16 @@ The compiler runs on Linux x86-64 and arm64, and macOS arm64. Elsewhere,
 
 The compiler is `~/.darklang/compiler/<commit>/darkc`, where `<commit>` is the
 first 9 characters of the pinned darklang/compiler commit (`pinnedCommit` in
-`packages/darklang/compiler/darkc.dark`). A release CLI for Linux carries it and
-writes it there the first time it starts, and removes other pins' directories. In
-a dev build, `scripts/compiler/build` builds it there.
+`packages/darklang/compiler/darkc.dark`). The first compile downloads it from the
+compiler's release `darkc-<commit>`, which has static Linux x86-64 and arm64 builds,
+and checks it against the release's SHA256SUMS. Nothing about the compiler is in
+the CLI itself, so a `dark` that never compiles never downloads it. To try a
+compiler change on Linux, `scripts/compiler/build` builds the pinned commit there
+from source, in Docker, with the OCaml toolchain the compiler pins.
 
-A Release build embeds `rundir/compiler/<commit>/<runtime>/darkc.br` when it is
-there: `scripts/compiler/embed <static darkc> linux-x64 linux-musl-x64` writes it.
-`scripts/compiler/fetch` downloads the static builds from the compiler's release
-`darkc-<commit>`, which has Linux x86-64 and arm64 builds. Nothing is embedded for
-macOS or linux-arm.
-
-The compiler's stdlib is prepared once: about a minute and 150 MB, in
-`~/.darklang/compiler/<commit>/cache`. The first `dark` at a terminal starts it in
-the background on Linux, when 6 GB of memory is free; otherwise the first compile
-does it. `dark config set compile.prepare off` turns the background start off.
-Later compiles take a few seconds.
+The compiler's stdlib is prepared once, by the first compile: about a minute and
+150 MB, in `~/.darklang/compiler/<commit>/cache`. The first compile asks before it
+downloads or prepares anything. Later compiles take a few seconds.
 
 ## Internals
 

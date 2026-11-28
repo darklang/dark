@@ -30,11 +30,17 @@ let memoryNote(): String =
   | _ -> ""
 
 
-/// Before darkc builds its stdlib cache, ask; with nobody to ask, go ahead and say so.
-let confirmStdlib(verbosity: Int64): Bool =
+/// Before darkc is downloaded or builds its stdlib cache, ask; with nobody to ask, go ahead
+/// and say so.
+let confirmFirstCompile(verbosity: Int64, withDownload: Bool): Bool =
   if Stdlib.Cli.UI.Prompt.canAsk() then
-    Stdlib.printError(
-      $"The first compile prepares the compiler's stdlib: about a minute and 150 MB.{memoryNote()} Continue? [Y/n] ")
+    let work =
+      if withDownload then
+        "The first compile downloads the compiler (about 50 MB) and prepares its stdlib: about a minute and 150 MB."
+      else
+        "The first compile prepares the compiler's stdlib: about a minute and 150 MB."
+
+    Stdlib.printError($"{work}{memoryNote()} Continue? [Y/n] ")
 
     match Stdlib.Cli.Stdin.checkedReadLine() with
     | Ok(Some(typed)) ->
@@ -43,12 +49,50 @@ let confirmStdlib(verbosity: Int64): Bool =
     | _ -> false
   else
     if verbosity >= 0 then
+      let downloading = if withDownload then "Downloading the compiler (about 50 MB), then: " else ""
       Stdlib.printErrorLine(
-        $"{preparing} (once per compiler: about a minute and 150 MB).{memoryNote()}")
+        $"{downloading}{preparing} (once per compiler: about a minute and 150 MB).{memoryNote()}")
     else
       ()
 
     true
+
+
+/// Download the pinned compiler's build <param asset> to where `dark compile` runs it, checked
+/// against its release's SHA256SUMS. Written beside it first, so a cut-off download is never run.
+let download(asset: String): Result<Unit, String> =
+  let target = Compiler.Darkc.path()
+  let partial = $"{target}.partial-{Stdlib.display(Stdlib.Uuid.generate())}"
+  let sums = $"{partial}.sums"
+  let url = Compiler.Darkc.releaseUrl()
+  let result =
+    Stdlib.Cli.Dir.createRecursive(Compiler.Darkc.directory())
+    |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Curl.downloadFileToPath($"{url}/SHA256SUMS", sums))
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Curl.downloadFileToPath($"{url}/{asset}", partial))
+    |> Stdlib.Result.andThen(fun _ ->
+      match Stdlib.Cli.File.readText(sums), Stdlib.Cli.File.readBytes(partial) with
+      | Ok(listed), Ok(bytes) ->
+        let actual =
+          bytes
+          |> Stdlib.Crypto.sha256
+          |> Stdlib.Base16.encode
+          |> Stdlib.String.toLowercase
+
+        if Installation.Download.expectedSha256(listed, asset) == Option.Some(actual) then
+          Result.Ok()
+        else
+          Result.Error($"{asset} doesn't match the sha256 in its release's SHA256SUMS.")
+      | Error(e), _ -> Result.Error(Stdlib.display(e))
+      | _, Error(e) -> Result.Error(Stdlib.display(e)))
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Unix.grantExecutePermission(partial))
+    |> Stdlib.Result.andThen(fun _ ->
+      Stdlib.Cli.File.move(partial, target) |> Stdlib.Result.mapError(fun e -> Stdlib.display(e)))
+
+  let _ = Stdlib.Cli.File.delete(sums)
+  let _ = Stdlib.Cli.File.delete(partial)
+  result
+  |> Stdlib.Result.mapError(fun e -> $"Could not download the compiler from {url}/{asset}: {e}")
 
 
 /// Wait for <param run>, counting seconds after <param label> on stderr until the stdlib
@@ -76,38 +120,12 @@ let runCompiler(
   verbosity: Int64,
   preparingStdlib: Bool)
   : Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error> =
-  // under the lock a background preparation takes, so the two never both prepare
-  let (program, programArgs) =
-    if preparingStdlib && Compiler.Prepare.isLinux() then
-      let _ = Stdlib.Cli.Dir.createRecursive(Compiler.Darkc.cacheDir())
-      ("flock", Stdlib.List.concat([ Compiler.Prepare.lockPath(), Compiler.Darkc.path() ], args))
-    else
-      (Compiler.Darkc.path(), args)
-
+  let compiler = Compiler.Darkc.path()
   if preparingStdlib && verbosity >= 0 && Stdlib.Cli.Sys.isTerminal(2) then
-    let run = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Process.run(program, programArgs))
+    let run = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Process.run(compiler, args))
     waitShowingProgress(run, preparing, Telemetry.now())
   else
-    Stdlib.Cli.Process.run(program, programArgs)
-
-
-/// When the stdlib is being prepared in the background, wait for it.
-let waitForBackground(verbosity: Int64): Unit =
-  if Compiler.Prepare.running() then
-    let wait = fun () -> Stdlib.Cli.Process.run("flock", [ Compiler.Prepare.lockPath(), "true" ])
-    if verbosity >= 0 && Stdlib.Cli.Sys.isTerminal(2) then
-      let _ =
-        waitShowingProgress(
-          Stdlib.Exec.spawn(wait),
-          "Waiting for the compiler's stdlib, preparing in the background",
-          Telemetry.now())
-
-      ()
-    else
-      let _ = wait()
-      ()
-  else
-    ()
+    Stdlib.Cli.Process.run(compiler, args)
 
 
 /// Serve this instance's packages on a random high port, retrying a few ports when one is
@@ -140,7 +158,7 @@ let startServer(
     | Some(Ok(_)) -> Result.Error("The package server stopped before the compile.")
 
 
-/// Why compiling can't start here, before anything is served or run.
+/// Why compiling can't start here, before anything is downloaded, served or run.
 let unavailable(): Option<String> =
   match Compiler.Darkc.unsupportedHost() with
   | Some(host) ->
@@ -148,19 +166,48 @@ let unavailable(): Option<String> =
       $"dark compile isn't available on {host}. The compiler runs on Linux x86-64 and arm64, and macOS arm64.")
   | None ->
     let compiler = Compiler.Darkc.path()
-    if Stdlib.Cli.File.exists(compiler) then
+    if Stdlib.Cli.File.exists(compiler) || Stdlib.Option.isSome(Compiler.Darkc.releaseAsset()) then
       Option.None
     else
-      Option.Some($"No compiler at {compiler}. Build the pinned one with scripts/compiler/build.")
+      Option.Some(
+        $"No compiler at {compiler}, and the compiler's releases have only Linux builds. Build darklang/compiler at {Compiler.Darkc.pinnedCommit} and put its darkc there.")
 
 
-/// Why the stdlib can't be prepared on this disk, when it can't.
+/// Why the compiler or its stdlib can't be written to this disk, when they can't.
 let lowDiskMessage(): Option<String> =
   match Compiler.Prepare.availableDisk() with
   | Some(bytes) when bytes < Compiler.Prepare.diskNeeded ->
     Option.Some(
-      $"The first compile prepares the compiler's stdlib, which needs about 1 GB free in {Compiler.Darkc.directory()}, and {Text.bytes(bytes)} is free.")
+      $"The first compile needs about 1 GB free in {Compiler.Darkc.directory()}, for the compiler and its stdlib, and {Text.bytes(bytes)} is free.")
   | _ -> Option.None
+
+
+/// The compiler, downloaded if it isn't here yet, and whether this compile prepares its stdlib.
+let ready(verbosity: Int64): Result<Bool, String> =
+  match unavailable() with
+  | Some(message) -> Result.Error(message)
+  | None ->
+    let asset =
+      if Stdlib.Cli.File.exists(Compiler.Darkc.path()) then
+        Option.None
+      else
+        Compiler.Darkc.releaseAsset()
+
+    let preparingStdlib = Stdlib.Bool.not(Compiler.Darkc.stdlibPrepared())
+    let lowDisk = if preparingStdlib then lowDiskMessage() else Option.None
+    match lowDisk with
+    | Some(message) -> Result.Error(message)
+    | None ->
+      let confirmed =
+        Stdlib.Bool.not(preparingStdlib)
+        || confirmFirstCompile(verbosity, Stdlib.Option.isSome(asset))
+
+      if Stdlib.Bool.not(confirmed) then
+        Result.Error("Not compiling.")
+      else
+        match asset with
+        | Some(a) -> download(a) |> Stdlib.Result.map(fun _ -> preparingStdlib)
+        | None -> Result.Ok(preparingStdlib)
 
 
 /// Run darkc on <param job> while this instance's packages are served to it.
@@ -168,43 +215,35 @@ let withServer(
   job: Compiler.Darkc.Job,
   verbosity: Int64)
   : Result<Stdlib.Cli.Process.Output, String> =
-  match unavailable() with
-  | Some(message) -> Result.Error(message)
-  | None ->
-    waitForBackground(verbosity)
-    let preparingStdlib = Stdlib.Bool.not(Compiler.Darkc.stdlibPrepared())
-    let lowDisk = if preparingStdlib then lowDiskMessage() else Option.None
-    if Stdlib.Option.isSome(lowDisk) then
-      Result.Error(Stdlib.Option.withDefault(lowDisk, ""))
-    else if preparingStdlib && Stdlib.Bool.not(confirmStdlib(verbosity)) then
-      Result.Error("Not compiling.")
-    else
-      // darkc sends the URL's user and password as basic auth on every request
-      let token = Stdlib.String.replaceAll(Stdlib.display(Stdlib.Uuid.generate()), "-", "")
-      match startServer(token, 5) with
-      | Error(e) -> Result.Error(e)
-      | Ok((server, port)) ->
-        if verbosity > 0 then
-          Stdlib.printErrorLine($"serving packages on 127.0.0.1:{Stdlib.display(port)}")
-          Stdlib.printErrorLine($"running {Compiler.Darkc.path()}")
-        else
-          ()
+  match ready(verbosity) with
+  | Error(message) -> Result.Error(message)
+  | Ok(preparingStdlib) ->
+    // darkc sends the URL's user and password as basic auth on every request
+    let token = Stdlib.String.replaceAll(Stdlib.display(Stdlib.Uuid.generate()), "-", "")
+    match startServer(token, 5) with
+    | Error(e) -> Result.Error(e)
+    | Ok((server, port)) ->
+      if verbosity > 0 then
+        Stdlib.printErrorLine($"serving packages on 127.0.0.1:{Stdlib.display(port)}")
+        Stdlib.printErrorLine($"running {Compiler.Darkc.path()}")
+      else
+        ()
 
-        let invocation =
-          Compiler.Darkc.Invocation
-            { job = job
-              verbosity = verbosity
-              packageServer = $"http://dark:{token}@127.0.0.1:{Stdlib.display(port)}" }
+      let invocation =
+        Compiler.Darkc.Invocation
+          { job = job
+            verbosity = verbosity
+            packageServer = $"http://dark:{token}@127.0.0.1:{Stdlib.display(port)}" }
 
-        let result =
-          runCompiler(Compiler.Darkc.arguments(invocation), verbosity, preparingStdlib)
-          |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+      let result =
+        runCompiler(Compiler.Darkc.arguments(invocation), verbosity, preparingStdlib)
+        |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
 
-        let _ = Stdlib.Exec.stop(server, Stdlib.Exec.Stop.Kill)
-        // darkc names the URL when a fetch fails
-        result
-        |> Stdlib.Result.map(fun output ->
-          { output with stderr = Stdlib.String.replaceAll(output.stderr, $"dark:{token}@", "") })
+      let _ = Stdlib.Exec.stop(server, Stdlib.Exec.Stop.Kill)
+      // darkc names the URL when a fetch fails
+      result
+      |> Stdlib.Result.map(fun output ->
+        { output with stderr = Stdlib.String.replaceAll(output.stderr, $"dark:{token}@", "") })
 
 
 /// The package fn <param name> as an executable's entry, or why it can't be one. Takes and
