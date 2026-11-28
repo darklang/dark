@@ -1,0 +1,85 @@
+/// Document text the way the protocol addresses it: lines, and columns counted in UTF-16 units.
+module Darklang.Lsp.Text
+
+/// How many UTF-16 units <param s> takes: one per code point, two above U+FFFF.
+let width(s: String): Int64 =
+  s
+  |> Stdlib.String.toCodepoints
+  |> Stdlib.List.fold(0, fun(sum, cp) -> if cp > 65535u32 then sum + 2 else sum + 1)
+
+
+/// <param line> cut at UTF-16 column <param column>: what is before it and what is after.
+let splitAt(line: String, column: Int64): (String * String) =
+  let chars = Stdlib.String.toList(line)
+  let (count, _) =
+    chars
+    |> Stdlib.List.fold((0, 0), fun((count, at), c) ->
+      if at < column then
+        (count + 1, at + width(Stdlib.String.fromChar(c)))
+      else
+        (count, at))
+
+  (
+    Stdlib.String.fromList(Stdlib.List.take(chars, count)),
+    Stdlib.String.fromList(Stdlib.List.drop(chars, count)))
+
+
+let lines(text: String): List<String> =
+  Stdlib.String.split(text, "\n")
+
+
+let lineOf(text: String, line: Int64): String =
+  lines(text)
+  |> Stdlib.List.getAt(line)
+  |> Stdlib.Option.withDefault("")
+
+
+/// <param text> with <param r> replaced by <param replacement>: one change of an incremental
+/// `didChange`.
+let replace(text: String, r: Range, replacement: String): String =
+  let all = lines(text)
+  let lineAt(n: Int64): String = Stdlib.List.getAt(all, n) |> Stdlib.Option.withDefault("")
+  let (head, _) = splitAt(lineAt(r.start.line), r.start.character)
+  let (_, tail) = splitAt(lineAt(r.end.line), r.end.character)
+  let before = Stdlib.List.take(all, r.start.line)
+  let after = Stdlib.List.drop(all, r.end.line + 1)
+  Stdlib.String.join(Stdlib.List.flatten([ before, [ head + replacement + tail ], after ]), "\n")
+
+
+/// The text before <param p>, up to <param limit> lines back.
+let before(text: String, p: Position, limit: Int64): String =
+  let all = lines(text)
+  let first = Stdlib.max(0, p.line - limit)
+  let whole =
+    all
+    |> Stdlib.List.drop(first)
+    |> Stdlib.List.take(p.line - first)
+
+  let (head, _) =
+    splitAt(Stdlib.List.getAt(all, p.line) |> Stdlib.Option.withDefault(""), p.character)
+
+  Stdlib.String.join(Stdlib.List.append(whole, head), "\n")
+
+
+/// The word under <param p>: letters, digits and `_`.
+let wordAt(text: String, p: Position): Option<String> =
+  let (before, after) = splitAt(lineOf(text, p.line), p.character)
+  let isWord(c: Char): Bool =
+    Stdlib.Regex.isMatch(Stdlib.String.fromChar(c), "^[A-Za-z0-9_]$")
+    |> Stdlib.Result.withDefault(false)
+
+  let start =
+    before
+    |> Stdlib.String.toList
+    |> Stdlib.List.reverse
+    |> Stdlib.List.takeWhile(fun c -> isWord(c))
+    |> Stdlib.List.reverse
+
+  let rest =
+    after
+    |> Stdlib.String.toList
+    |> Stdlib.List.takeWhile(fun c -> isWord(c))
+
+  match Stdlib.String.fromList(Stdlib.List.concat(start, rest)) with
+  | "" -> Option.None
+  | word -> Option.Some(word)

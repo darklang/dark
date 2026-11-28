@@ -1,0 +1,68 @@
+/// A language server for a toy language of `name = value` lines: a warning on a line that is
+/// not one, a name's value on hover, and the names as completions.
+module Darklang.Lsp.Examples.Toy
+
+type Line =
+  { name: String
+    value: String }
+
+
+/// The lines that say `name = value`, and the numbers of those that don't.
+type Parsed =
+  { lines: List<Line>
+    bad: List<Int64> }
+
+
+let parse(text: String): Parsed =
+  Stdlib.String.split(text, "\n")
+  |> Stdlib.List.indexedMap(fun(n, line) -> (n, Stdlib.String.split(line, " = ")))
+  |> Stdlib.List.fold(Parsed { lines = [], bad = [] }, fun(p, (n, parts)) ->
+    match parts with
+    | [""] -> p
+    | [name, value] ->
+      { p with lines = Stdlib.List.append(p.lines, Line { name = name, value = value }) }
+    | _ -> { p with bad = Stdlib.List.append(p.bad, n) })
+
+
+let warning(line: Int64): Diagnostic =
+  Diagnostic
+    { range = Lsp.line(line)
+      severity = Severity.Warning
+      code = Option.None
+      message = "expected `name = value`"
+      data = Option.None }
+
+
+let hover(_: Session<Unit, Parsed>, doc: Document<Parsed>, at: Position): Option<Hover> =
+  match analysis(doc), Text.wordAt(doc.text, at) with
+  | Some(parsed), Some(word) ->
+    parsed.lines
+    |> Stdlib.List.findFirst(fun l -> l.name == word)
+    |> Stdlib.Option.map(fun l ->
+      Hover { markdown = $"`{l.name}` is {l.value}", range = Option.None })
+  | _ -> Option.None
+
+
+let names(_: Session<Unit, Parsed>, doc: Document<Parsed>, _: Position): List<CompletionItem> =
+  match analysis(doc) with
+  | Some(parsed) ->
+    Stdlib.List.map(parsed.lines, fun l -> completion(l.name, CompletionKind.Variable))
+  | None -> []
+
+
+let server(): Server<Unit, Parsed> =
+  { Lsp.server("toy", ()) with
+      analyser =
+        Option.Some(
+          Analyser
+            { analyse = (fun(_, doc) -> parse(doc.text))
+              diagnostics = (fun parsed -> Stdlib.List.map(parsed.bad, warning)) })
+      handlers =
+        { noHandlers() with
+            hover = Option.Some(hover)
+            completion =
+              Option.Some(Completion { triggers = [], items = names, resolve = Option.None }) } }
+
+
+let main(_args: List<String>): Int64 =
+  run(server())

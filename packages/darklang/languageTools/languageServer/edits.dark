@@ -1,0 +1,185 @@
+/// Saving a store document, formatting, and renaming.
+module Darklang.LanguageTools.LanguageServer.Edits
+
+type Json = Stdlib.AltJson.Json
+
+
+let withoutColour(text: String): String =
+  Stdlib.Regex.replaceAll(text, "\\x1b\\[[0-9;]*m", "") |> Stdlib.Result.withDefault(text)
+
+
+/// Run a CLI command's code in this process, with what it prints collected instead of written:
+/// stdout is the protocol channel.
+let quietly(f: Unit -> Cli.AppState): (Bool * String) =
+  let (state, printed) = Cli.Workbench.captureOutputAnd(f)
+  (
+    state.exitCode == 0,
+    printed
+    |> withoutColour
+    |> Stdlib.String.trim)
+
+
+/// `dark/fs/write`: save a store document the way `dark edit` (one item) or `dark module` (a
+/// module) does, with the same checks. Answers whether it saved, and what the command said.
+let save(branchId: Uuid, uri: String, text: String): Json =
+  let state = { Cli.initState() with currentBranchId = branchId, nonInteractive = true }
+  let outcome =
+    match Names.parseUri(uri) with
+    | Some(Item(loc, _)) ->
+      Option.Some(
+        quietly(fun () ->
+          Cli.Packages.ModuleCommand.saveEdit(state, Cli.Packages.Edit.moduleArgFor(loc), text)))
+    | Some(Module(path)) ->
+      Option.Some(
+        quietly(fun () ->
+          Cli.Packages.ModuleCommand.save(
+            state,
+            "/" + Stdlib.String.join(path, "."),
+            text,
+            Cli.Packages.ModuleCommand.SaveMode.Module)))
+    | None -> Option.None
+
+  match outcome with
+  | Some((saved, said)) ->
+    Json.Object([ ("saved", Json.Bool(saved)), ("message", Json.String(said)) ])
+  | None ->
+    Json.Object(
+      [ ("saved", Json.Bool(false)), ("message", Json.String($"{uri} is not a store document")) ])
+
+
+// --- formatting ---
+
+/// <param text> laid out as `dark format` lays out a module file. `dark format` keeps loose
+/// declarations as written, so a document without a `module` header is formatted as one.
+let format(branchId: Uuid, text: String): Result<String, String> =
+  let header = "module Formatting\n\n"
+  let hasHeader =
+    match Lsp.Text.lines(text) |> Stdlib.List.head with
+    | Some(first) ->
+      Stdlib.String.startsWith(first, "module ")
+      && Stdlib.Bool.not(Stdlib.String.contains(first, "="))
+    | None -> false
+
+  if hasHeader then
+    Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, text)
+    |> Stdlib.Result.map(fun f -> f.text)
+  else
+    Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, header + text)
+    |> Stdlib.Result.map(fun f ->
+      Stdlib.String.stripPrefix(f.text, header) |> Stdlib.Option.withDefault(f.text))
+
+
+/// The whole document, laid out as `dark format` lays it out: one edit, or none when it is
+/// already formatted or does not parse.
+let formatting(session: Session, doc: Document): List<Lsp.TextEdit> =
+  match format(session.state.branchId, doc.text) with
+  | Ok(formatted) ->
+    if formatted == doc.text then
+      []
+    else
+      let lineCount = Stdlib.List.length(Lsp.Text.lines(doc.text))
+      [ Lsp.TextEdit
+          { range =
+              Lsp.Range
+                { start = Lsp.Position { line = 0, character = 0 }
+                  end = Lsp.Position { line = lineCount, character = 0 } }
+            newText = formatted } ]
+  | Error(e) ->
+    Lsp.log($"not formatted: {e}")
+    []
+
+
+// --- rename ---
+
+let textEdit(r: Parser.Range, newText: String): Lsp.TextEdit =
+  Lsp.TextEdit { range = Analysis.range(r), newText = newText }
+
+
+/// The last segment of each place <param range> covers a dotted name: what a rename replaces.
+let lastSegment(r: Parser.Range, short: String): Parser.Range =
+  { r with
+      start = Parser.Point { row = r.end_.row, column = r.end_.column - Lsp.Text.width(short) } }
+
+
+let isIdentifier(name: String): Bool =
+  Stdlib.Regex.isMatch(name, "^[A-Za-z_][A-Za-z0-9_']*$") |> Stdlib.Result.withDefault(false)
+
+
+/// Rename the package item <param item> to <param newName>, in its own module: the store binds
+/// the new name, callers keep their hashes and follow it (`dark rename`). The open documents
+/// that name it are edited to match.
+let renameItem(
+  branchId: Uuid,
+  item: Names.Item,
+  newName: String,
+  openDocs: List<(String * String)>)
+  : Result<Lsp.WorkspaceEdit, String> =
+  let old = Names.itemLocation(item)
+  let renamed = { old with name = newName }
+  if Stdlib.Bool.not(isIdentifier(newName)) then
+    Result.Error($"{newName} is not a name")
+  else
+    match Cli.Packages.Rename.referenceAt(branchId, renamed) with
+    | Some(_) -> Result.Error($"{Live.entryName(renamed)} already names something")
+    | None ->
+      match Cli.Packages.Rename.referenceAt(branchId, old) with
+      | None -> Result.Error($"nothing is named {Live.entryName(old)}")
+      | Some(reference) ->
+        let inDocs =
+          openDocs
+          |> Stdlib.List.map(fun((uri, text)) ->
+            let edits =
+              Navigation.namedIn(Names.context(branchId, uri), text, item)
+              |> Stdlib.List.map(fun r -> textEdit(lastSegment(r, old.name), newName))
+
+            (uri, edits))
+
+        match SCM.PackageOps.add(
+                branchId,
+                Cli.Packages.Rename.ops(branchId, old, renamed, reference)) with
+        | Ok(_) -> Result.Ok(Lsp.WorkspaceEdit { changes = inDocs })
+        | Error(e) -> Result.Error($"could not rename: {e}")
+
+
+/// A local within its document, or a package item store-wide.
+let rename(
+  session: Session,
+  doc: Document,
+  at: Lsp.Position,
+  newName: String)
+  : Result<Lsp.WorkspaceEdit, String> =
+  match Analysis.localAt(doc, at) with
+  | Some((_, occurrences)) ->
+    if isIdentifier(newName) then
+      Result.Ok(
+        Lsp.WorkspaceEdit
+          { changes =
+              [ (doc.uri, Stdlib.List.map(occurrences, fun o -> textEdit(o.range, newName))) ] })
+    else
+      Result.Error($"{newName} is not a name")
+  | None ->
+    match Names.itemAt(session, doc, at) with
+    | Some(item) -> renameItem(session.state.branchId, item, newName, Names.openDocs(session))
+    | None -> Result.Error("there is no name here to rename")
+
+
+/// Where a rename would apply: the local or the name under the cursor, the last segment of a
+/// dotted name.
+let prepareRename(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.Range> =
+  match Analysis.localAt(doc, at) with
+  | Some((_, occurrences)) ->
+    occurrences
+    |> Stdlib.List.findFirst(fun o -> Syntax.contains(o.range, at.line, at.character))
+    |> Stdlib.Option.map(fun o -> Analysis.range(o.range))
+  | None ->
+    match Names.itemAt(session, doc, at), Names.at(doc.text, at.line, at.character) with
+    | Some(item), Some(name) ->
+      let short = (Names.itemLocation(item)).name
+      if Stdlib.List.last(name.parts) == Option.Some(short) then
+        Option.Some(
+          Lsp.Range
+            { start = Lsp.Position { line = at.line, character = name.end - Lsp.Text.width(short) }
+              end = Lsp.Position { line = at.line, character = name.end } })
+      else
+        Option.None
+    | _ -> Option.None

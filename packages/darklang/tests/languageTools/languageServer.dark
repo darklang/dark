@@ -1,0 +1,247 @@
+module Darklang.LanguageTools.Tests.LanguageServer
+
+let parse(text: String): LanguageTools.WrittenTypes.ParsedFile =
+  LanguageTools.Parser.Parse.toWrittenTypes(text) |> Builtin.unwrap
+
+
+let start(r: LanguageTools.Parser.Range): (Int64 * Int64) =
+  (r.start.row, r.start.column)
+
+
+test nameUnderCursor =
+  let text = "let f() =\n  Stdlib.List.map(xs, g)\n"
+  Stdlib.Test.all(
+    [ LanguageTools.LanguageServer.Names.at(text, 1, 10)
+      |> Stdlib.Option.map(fun n -> (n.parts, n.whole, n.start, n.end))
+      |> Stdlib.Test.equal(
+        Option.Some(([ "Stdlib", "List" ], "Stdlib.List.map", 2, 13)))
+
+      LanguageTools.LanguageServer.Names.at(text, 1, 16)
+      |> Stdlib.Option.map(fun n -> n.parts)
+      |> Stdlib.Test.equal(Option.Some([ "Stdlib", "List", "map" ]))
+
+      LanguageTools.LanguageServer.Names.at(text, 1, 1)
+      |> Stdlib.Test.equal(Option.None) ])
+
+
+test storeUris =
+  let loc =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang", modules = [ "Stdlib", "List" ], name = "map" }
+
+  let uri =
+    LanguageTools.LanguageServer.Names.uriOf(
+      loc,
+      LanguageTools.ProgramTypes.ItemKind.Fn)
+
+  Stdlib.Test.all(
+    [ uri |> Stdlib.Test.equal("darkfs:/Darklang/Stdlib/List/map.fn.dark")
+
+      LanguageTools.LanguageServer.Names.parseUri(uri)
+      |> Stdlib.Test.equal(
+        Option.Some(
+          LanguageTools.LanguageServer.Names.StoreDoc.Item(
+            loc,
+            LanguageTools.ProgramTypes.ItemKind.Fn)))
+
+      LanguageTools.LanguageServer.Names.parseUri(
+        "darkfs:/Darklang/Stdlib/List.dark")
+      |> Stdlib.Test.equal(
+        Option.Some(
+          LanguageTools.LanguageServer.Names.StoreDoc.Module(
+            [ "Darklang", "Stdlib", "List" ])))
+
+      LanguageTools.LanguageServer.Names.parseUri("darkfs:/A/b.nonsense.dark")
+      |> Stdlib.Test.equal(Option.None)
+
+      LanguageTools.LanguageServer.Names.parseUri("file:///a.dark")
+      |> Stdlib.Test.equal(Option.None) ])
+
+
+test docMarkup =
+  LanguageTools.LanguageServer.Hover.markdownOfDoc(
+    "Maps <param fn> over {{Some}}; see <fn List.filter>.")
+  |> Stdlib.Test.equal("Maps `fn` over `Some`; see `List.filter`.")
+
+
+test localsFollowScope =
+  // x is a parameter, shadowed inside the lambda; y is bound by a let, z by a match case.
+  let file =
+    parse(
+      "let f(x: Int64): Int64 =\n  let y = x\n  let g = fun x -> x\n  match y with\n  | Some(z) -> z + x\n  | None -> 0\n")
+
+  let bindingOf(line: Int64, character: Int64): Option<(Int64 * Int64)> =
+    LanguageTools.LanguageServer.Syntax.localAt(file, line, character)
+    |> Stdlib.Option.map(fun((b, _)) -> start(b))
+
+  let count(line: Int64, character: Int64): Int64 =
+    LanguageTools.LanguageServer.Syntax.localAt(file, line, character)
+    |> Stdlib.Option.map(fun((_, all)) -> Stdlib.List.length(all))
+    |> Stdlib.Option.withDefault(0)
+
+  Stdlib.Test.all(
+    [ bindingOf(1, 10) |> Stdlib.Test.equal(Option.Some((0, 6)))
+      bindingOf(2, 19) |> Stdlib.Test.equal(Option.Some((2, 14)))
+      bindingOf(4, 15) |> Stdlib.Test.equal(Option.Some((4, 9)))
+      bindingOf(4, 19) |> Stdlib.Test.equal(Option.Some((0, 6)))
+      count(0, 6) |> Stdlib.Test.equal(3)
+      // Outside any local: a keyword.
+      bindingOf(1, 3) |> Stdlib.Test.equal(Option.None) ])
+
+
+test orPatternBindsOnce =
+  let file =
+    parse(
+      "let f(v: Stdlib.Result.Result<Int64, Int64>): Int64 =\n  match v with\n  | Ok(n) | Error(n) -> n\n")
+
+  LanguageTools.LanguageServer.Syntax.localAt(file, 2, 24)
+  |> Stdlib.Option.map(fun((b, all)) -> (start(b), Stdlib.List.length(all)))
+  |> Stdlib.Test.equal(Option.Some(((2, 7), 3)))
+
+
+test foldsAndSelection =
+  let text =
+    "// a\n// b\nlet f(x: Int64): String =\n  match x with\n  | 0 ->\n    \"zero\"\n  | _ -> \"other\"\n"
+
+  let file = parse(text)
+  let folds =
+    LanguageTools.LanguageServer.Syntax.folds(Option.Some(file), text)
+    |> Stdlib.List.map(fun f -> (f.startLine, f.endLine, f.comment))
+
+  Stdlib.Test.all(
+    [ folds
+      |> Stdlib.Test.equal(
+        [ (0, 1, true), (2, 6, false), (3, 6, false), (4, 5, false) ])
+
+      LanguageTools.LanguageServer.Syntax.around(file, 5, 6)
+      |> Stdlib.List.map(start)
+      |> Stdlib.Test.equal([ (2, 0), (3, 2), (5, 4) ]) ])
+
+
+test typedPrefix =
+  Stdlib.Test.all(
+    [ LanguageTools.LanguageServer.Completion.typed("  x |> Stdlib.List.ma")
+      |> Stdlib.Test.equal(([ "Stdlib", "List" ], "ma"))
+
+      LanguageTools.LanguageServer.Completion.typed("(Stdlib.")
+      |> Stdlib.Test.equal(([ "Stdlib" ], ""))
+
+      LanguageTools.LanguageServer.Completion.typed("let x = ")
+      |> Stdlib.Test.equal(([], ""))
+
+      LanguageTools.LanguageServer.Completion.typed("coun")
+      |> Stdlib.Test.equal(([], "coun")) ])
+
+
+test callUnderCursor =
+  Stdlib.Test.all(
+    [ LanguageTools.LanguageServer.Completion.callAt(
+        "f(Stdlib.String.padStart(s, \"a, b\", ")
+      |> Stdlib.Test.equal(Option.Some(("Stdlib.String.padStart", 2, false)))
+
+      LanguageTools.LanguageServer.Completion.callAt(
+        "xs\n  |> Stdlib.List.map(")
+      |> Stdlib.Test.equal(Option.Some(("Stdlib.List.map", 0, true)))
+
+      LanguageTools.LanguageServer.Completion.callAt("g(h(1), [2, 3], ")
+      |> Stdlib.Test.equal(Option.Some(("g", 2, false)))
+
+      LanguageTools.LanguageServer.Completion.callAt("let x = 1")
+      |> Stdlib.Test.equal(Option.None) ])
+
+
+test scopeAtCursor =
+  let file =
+    parse(
+      "let f(a: Int64): Int64 =\n  let b = a\n  let g = fun c -> c + b\n  g(b)\n")
+
+  Stdlib.Test.all(
+    [ LanguageTools.LanguageServer.Syntax.scopeAt(file, 2, 20)
+      |> Stdlib.List.map(fun((n, _)) -> n)
+      |> Stdlib.Test.equal([ "c", "b", "a" ])
+
+      LanguageTools.LanguageServer.Syntax.scopeAt(file, 3, 4)
+      |> Stdlib.List.map(fun((n, _)) -> n)
+      |> Stdlib.Test.equal([ "g", "b", "a" ])
+
+      LanguageTools.LanguageServer.Syntax.scopeAt(file, 1, 10)
+      |> Stdlib.List.map(fun((n, _)) -> n)
+      |> Stdlib.Test.equal([ "a" ]) ])
+
+
+test bindingOrder =
+  let file =
+    parse(
+      "let f(a: Int64): Int64 =\n  let b = Stdlib.List.map([ a ], fun c -> c)\n  match b with\n  | d -> (fun e -> e)(d)\n")
+
+  LanguageTools.LanguageServer.Syntax.bodies(file)
+  |> Stdlib.List.map(fun body ->
+    LanguageTools.LanguageServer.Syntax.bindsIn(
+      LanguageTools.LanguageServer.Syntax.Node.E(body.body)))
+  |> Stdlib.List.flatten
+  |> Stdlib.List.map(fun((name, _, hint)) ->
+    (name, hint == LanguageTools.LanguageServer.Syntax.Hint.Shows))
+  |> Stdlib.Test.equal([ ("c", true), ("b", true), ("d", false), ("e", true) ])
+
+
+test ourCapabilitiesFollowOurHandlers =
+  let caps =
+    Lsp.Loop.capabilities(
+      Lsp.Loop.methods(LanguageTools.LanguageServer.server(false)))
+
+  [ "hoverProvider"
+    "definitionProvider"
+    "implementationProvider"
+    "referencesProvider"
+    "documentHighlightProvider"
+    "completionProvider"
+    "signatureHelpProvider"
+    "documentSymbolProvider"
+    "workspaceSymbolProvider"
+    "foldingRangeProvider"
+    "selectionRangeProvider"
+    "semanticTokensProvider"
+    "inlayHintProvider"
+    "codeLensProvider"
+    "codeActionProvider"
+    "documentFormattingProvider"
+    "documentLinkProvider"
+    "renameProvider"
+    "callHierarchyProvider" ]
+  |> Stdlib.List.filter(fun key ->
+    Stdlib.Option.isNone(Lsp.Read.at(caps, [ key ])))
+  |> Stdlib.Test.equal([])
+
+
+test extendingOurHover =
+  let server = LanguageTools.LanguageServer.Examples.TodoHover.server()
+  let text = "// TODO: tidy\nlet f(x: Int64): Int64 = x\n"
+  let doc =
+    Lsp.Document
+      { uri = "file:///todo.dark"
+        version = 1
+        text = text
+        analysis = Lsp.Analysed.Pending
+        previous = Option.None }
+
+  let session =
+    Lsp.Session
+      { state = server.state
+        documents = Stdlib.Dict.fromList([ (doc.uri, doc) ])
+        client = Stdlib.AltJson.Json.Null }
+
+  let hover(line: Int64, character: Int64): Option<String> =
+    match server.handlers.hover with
+    | Some(h) ->
+      h(session, doc, Lsp.Position { line = line, character = character })
+      |> Stdlib.Option.map(fun h -> h.markdown)
+    | None -> Option.None
+
+  Stdlib.Test.all(
+    [ hover(0, 4)
+      |> Stdlib.Test.equal(Option.Some("Something to come back to."))
+
+      // a parameter is still ours to describe
+      hover(1, 25)
+      |> Stdlib.Test.equal(
+        Option.Some("```darklang\n(parameter) x: Int64\n```")) ])

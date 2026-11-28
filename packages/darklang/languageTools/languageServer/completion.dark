@@ -1,0 +1,355 @@
+/// Completion and signature help.
+module Darklang.LanguageTools.LanguageServer.Completion
+
+type Json = Stdlib.AltJson.Json
+
+
+val keywords =
+  [ "let"
+    "val"
+    "type"
+    "trait"
+    "impl"
+    "for"
+    "module"
+    "test"
+    "fun"
+    "if"
+    "then"
+    "else"
+    "match"
+    "with"
+    "when"
+    "as"
+    "true"
+    "false" ]
+
+
+/// What is typed before the cursor, as a dotted name: `Stdlib.List.ma` is (["Stdlib", "List"],
+/// "ma"), and `Stdlib.` is (["Stdlib"], "").
+let typed(before: String): (List<String> * String) =
+  let atEnd =
+    Stdlib.Regex.findAllMatches(
+      before,
+      Stdlib.Regex.ofPattern("[A-Za-z_][A-Za-z0-9_']*(\\.[A-Za-z_][A-Za-z0-9_']*)*\\.?"))
+    |> Stdlib.Result.withDefault([])
+    |> Stdlib.List.last
+    |> Stdlib.Option.andThen(fun m ->
+      if m.range.end == Lsp.Text.width(before) then
+        Option.Some(m.text)
+      else
+        Option.None)
+
+  match atEnd
+        |> Stdlib.Option.map(fun t -> Stdlib.String.split(t, "."))
+        |> Stdlib.Option.andThen(Stdlib.List.splitLast) with
+  | Some((modules, partial)) -> (modules, partial)
+  | None -> ([], "")
+
+
+let item(label: String, kind: Lsp.CompletionKind, sort: String, data: Json): Lsp.CompletionItem =
+  { Lsp.completion(label, kind) with sortText = Option.Some(sort + label), data = data }
+
+
+let snippetParam(i: Int64, name: String): String =
+  "${" + Stdlib.display(i + 1) + ":" + name + "}"
+
+
+/// A function as a completion: `map(${1:list}, ${2:fn})`, its parameters and return type
+/// beside the name.
+let fnItem(
+  ctx: PrettyPrinter.ProgramTypes.Context,
+  loc: ProgramTypes.PackageLocation,
+  hash: ProgramTypes.Hash)
+  : Lsp.CompletionItem =
+  let data = Json.Object([ ("uri", Json.String(Names.uriOf(loc, ProgramTypes.ItemKind.Fn))) ])
+  let plain = item(loc.name, Lsp.CompletionKind.Function, "2", data)
+  match PackageManager.Function.get(hash) with
+  | None -> plain
+  | Some(fn) ->
+    let params =
+      fn.parameters
+      |> Stdlib.List.map(fun p ->
+        p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ))
+
+    let snippet =
+      fn.parameters
+      |> Stdlib.List.indexedMap(fun(i, p) -> snippetParam(i, p.name))
+      |> Stdlib.String.join(", ")
+
+    { plain with
+        detail = Option.Some("(" + Stdlib.String.join(params, ", ") + ")")
+        description = Option.Some(PrettyPrinter.ProgramTypes.typeReference(ctx, fn.returnType))
+        snippet = Option.Some(loc.name + "(" + snippet + ")")
+        command =
+          Option.Some(
+            Lsp.Command
+              { title = "", command = "editor.action.triggerParameterHints", arguments = [] }) }
+
+
+/// Everything directly in the module at <param path>, as completions: submodules, functions,
+/// types, values and traits, without what `dark ls` hides. An enum's cases when <param path>
+/// names an enum type.
+let inModule(
+  branchId: Uuid,
+  sets: Cli.Packages.Query.DeprecationSets,
+  path: List<String>)
+  : List<Lsp.CompletionItem> =
+  let (subs, types, values, fns, traits, impls, _) =
+    Cli.Packages.Query.allDirectDescendantNamesAndHashes(branchId, path)
+
+  let shown(items: List<(String * ProgramTypes.Hash)>): List<(String * ProgramTypes.Hash)> =
+    Cli.Packages.Query.filterHiddenPairs(
+      path,
+      items,
+      sets,
+      Cli.Packages.Query.Deprecated.Hide,
+      Cli.Packages.Query.Internal.Hide)
+
+  match path with
+  | [] -> subs |> Stdlib.List.map(fun name -> item(name, Lsp.CompletionKind.Module, "4", Json.Null))
+  | [owner, ...modules] ->
+    let loc(name: String): ProgramTypes.PackageLocation =
+      ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
+
+    let at(name: String, kind: ProgramTypes.ItemKind): Json =
+      Json.Object([ ("uri", Json.String(Names.uriOf(loc(name), kind))) ])
+
+    let implNames = Stdlib.List.map(impls, fun((name, _)) -> name)
+    let submodules =
+      subs
+      |> Stdlib.List.filter(fun name -> Stdlib.Bool.not(Stdlib.List.contains(implNames, name)))
+      |> Cli.Packages.Query.withoutInternalNames
+      |> Stdlib.List.map(fun name -> item(name, Lsp.CompletionKind.Module, "4", Json.Null))
+
+    let cases =
+      match PackageManager.Type.find(
+              branchId,
+              ProgramTypes.PackageLocation
+                { owner = owner
+                  modules = Stdlib.List.dropLast(modules)
+                  name = Stdlib.List.last(path) |> Stdlib.Option.withDefault("") })
+            |> Stdlib.Option.andThen(fun h -> PackageManager.Type.get(h)) with
+      | Some(t) ->
+        match t.declaration.definition with
+        | Enum(cases) ->
+          cases
+          |> Stdlib.List.map(fun c -> item(c.name, Lsp.CompletionKind.EnumMember, "1", Json.Null))
+        | _ -> []
+      | None -> []
+
+    // one print context for the module, not one per function
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, path)
+    Stdlib.List.flatten(
+      [ cases
+        shown(fns) |> Stdlib.List.map(fun((name, hash)) -> fnItem(ctx, loc(name), hash))
+
+        shown(values)
+        |> Stdlib.List.map(fun((name, _)) ->
+          item(name, Lsp.CompletionKind.Constant, "3", at(name, ProgramTypes.ItemKind.Value)))
+
+        shown(types)
+        |> Stdlib.List.map(fun((name, _)) ->
+          item(name, Lsp.CompletionKind.Struct, "3", at(name, ProgramTypes.ItemKind.Type)))
+
+        shown(traits)
+        |> Stdlib.List.map(fun((name, _)) ->
+          item(name, Lsp.CompletionKind.Interface, "3", at(name, ProgramTypes.ItemKind.Trait)))
+
+        submodules ])
+
+
+/// The modules a written prefix can mean from where the document is, most specific first:
+/// `List` inside `Darklang.Stdlib` is `Darklang.Stdlib.List`, then `Darklang.List`, then `List`.
+let candidates(ctx: NameResolver.NRContext, modules: List<String>): List<List<String>> =
+  NameResolver.namesToTry(
+    ctx.owner,
+    ctx.currentModule,
+    NameResolver.GenericName { modules = modules, name = "x", version = 0s32 })
+  |> Stdlib.List.map(fun n -> n.modules)
+  |> Stdlib.List.unique
+
+
+/// The top-level declarations of the document itself.
+let declared(file: Option<WrittenTypes.ParsedFile>): List<Lsp.CompletionItem> =
+  let names =
+    match file with
+    | None -> []
+    | Some(file) ->
+      Syntax.declarations(file)
+      |> Stdlib.List.filterMap(fun d ->
+        match d with
+        | Function(f) -> Option.Some((f.name.name, Lsp.CompletionKind.Function))
+        | Value(v) -> Option.Some((v.name.name, Lsp.CompletionKind.Constant))
+        | Type(t) -> Option.Some((t.name.name, Lsp.CompletionKind.Struct))
+        | SubModule(m) -> Option.Some((Stdlib.Tuple2.second(m.name), Lsp.CompletionKind.Module))
+        | _ -> Option.None)
+
+  names |> Stdlib.List.map(fun((name, kind)) -> item(name, kind, "1", Json.Null))
+
+
+/// The completions at <param at>.
+let complete(session: Session, doc: Document, at: Lsp.Position): List<Lsp.CompletionItem> =
+  let ctx = Names.context(session.state.branchId, doc.uri)
+  let file = Analysis.parsed(doc)
+  let sets = Cli.Packages.Query.loadDeprecationSets(ctx.branchId)
+  let (modules, _) = typed(Lsp.Text.before(doc.text, at, 0))
+  let scope =
+    match file with
+    | Some(file) -> Syntax.scopeAt(file, at.line, at.character)
+    | None -> []
+
+  let items =
+    match modules with
+    | [] ->
+      let locals =
+        scope
+        |> Stdlib.List.map(fun((name, _)) -> name)
+        |> Stdlib.List.unique
+        |> Stdlib.List.map(fun name -> item(name, Lsp.CompletionKind.Variable, "0", Json.Null))
+
+      let around =
+        // what bare names resolve to: the document's module and those around it
+        candidates(ctx, [])
+        |> Stdlib.List.filter(fun path -> Stdlib.Bool.not(Stdlib.List.isEmpty(path)))
+        |> Stdlib.List.map(fun path -> inModule(ctx.branchId, sets, path))
+        |> Stdlib.List.flatten
+
+      Stdlib.List.flatten(
+        [ locals
+          declared(file)
+          around
+          [ item("Stdlib", Lsp.CompletionKind.Module, "4", Json.Null) ]
+          inModule(ctx.branchId, sets, [])
+          keywords
+          |> Stdlib.List.map(fun k -> item(k, Lsp.CompletionKind.Keyword, "5", Json.Null)) ])
+    | [first, ...] ->
+      if Stdlib.List.any(scope, fun((name, _)) -> name == first) then
+        []
+      else
+        candidates(ctx, modules)
+        |> Stdlib.List.map(fun path -> inModule(ctx.branchId, sets, path))
+        |> Stdlib.List.flatten
+
+  Stdlib.List.uniqueBy(items, fun i -> (i.label, i.kind))
+
+
+/// An item's signature and docs, read when the editor shows it.
+let resolve(session: Session, completion: Lsp.CompletionItem): Lsp.CompletionItem =
+  let branchId = session.state.branchId
+  let uri = Lsp.Read.string(completion.data, [ "uri" ])
+  let found =
+    match uri |> Stdlib.Option.andThen(Names.parseUri) with
+    | Some(Item(loc, kind)) ->
+      let parts = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
+      Names.resolve(Names.context(branchId, ""), parts)
+      |> Stdlib.Option.andThen(fun found ->
+        if Names.itemKind(found) == kind then Option.Some(found) else Option.None)
+    | _ -> Option.None
+
+  match found with
+  | Some(found) -> { completion with documentation = Option.Some(Hover.describe(branchId, found)) }
+  | None -> completion
+
+
+// --- signature help ---
+
+/// The call the cursor is in, from the text before it: the function's name, which argument the
+/// cursor is on, and whether a pipe gives the first. Strings are skipped, so their commas and
+/// parentheses do not count.
+let callAt(before: String): Option<(String * Int64 * Bool)> =
+  let chars =
+    before
+    |> Stdlib.String.toList
+    |> Stdlib.List.reverse
+
+  callIn(chars, 0, 0)
+
+
+let callIn(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int64 * Bool)> =
+  match chars with
+  | [] -> Option.None
+  | [c, ...rest] ->
+    match Stdlib.String.fromChar(c) with
+    | "\"" -> inString(rest, depth, commas)
+    | ")" | "]" | "}" -> callIn(rest, depth + 1, commas)
+    | "[" | "{" -> if depth == 0 then Option.None else callIn(rest, depth - 1, commas)
+    | "(" ->
+      if depth > 0 then
+        callIn(rest, depth - 1, commas)
+      else
+        let before =
+          rest
+          |> Stdlib.List.reverse
+          |> Stdlib.String.fromList
+
+        let (modules, name) = typed(before)
+        if name == "" then
+          Option.None
+        else
+          let full = Stdlib.String.join(Stdlib.List.append(modules, name), ".")
+          let prior =
+            Stdlib.String.dropLast(before, Stdlib.String.length(full)) |> Stdlib.String.trimEnd
+
+          Option.Some((full, commas, Stdlib.String.endsWith(prior, "|>")))
+    | "," -> callIn(rest, depth, if depth == 0 then commas + 1 else commas)
+    | _ -> callIn(rest, depth, commas)
+
+
+/// Inside a string, read backwards: skip to its opening quote.
+let inString(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int64 * Bool)> =
+  match chars with
+  | [] -> Option.None
+  | [c, ...rest] ->
+    if Stdlib.String.fromChar(c) == "\"" then
+      callIn(rest, depth, commas)
+    else
+      inString(rest, depth, commas)
+
+
+let signature(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.Signature> =
+  let ctx = Names.context(session.state.branchId, doc.uri)
+  match callAt(Lsp.Text.before(doc.text, at, 30)) with
+  | None -> Option.None
+  | Some((name, commas, piped)) ->
+    match Names.resolve(ctx, Stdlib.String.split(name, ".")) with
+    | Some(Fn(found)) ->
+      let fn = found.entity
+      let pctx =
+        PrettyPrinter.ProgramTypes.Context.forModule(
+          ctx.branchId,
+          Stdlib.List.prepend(found.location.modules, found.location.owner))
+
+      let shown =
+        fn.parameters
+        |> Stdlib.List.map(fun p ->
+          p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(pctx, p.typ))
+
+      let prefix = found.location.name + "("
+      // each parameter's [start, end) in the label, in UTF-16 units
+      let (offsets, _) =
+        shown
+        |> Stdlib.List.fold(([], Lsp.Text.width(prefix)), fun((acc, at), p) ->
+          let w = Lsp.Text.width(p)
+          (Stdlib.List.append(acc, (at, at + w)), at + w + 2))
+
+      let docOf(description: String): Option<String> =
+        if description == "" then
+          Option.None
+        else
+          Option.Some(Hover.markdownOfDoc(description))
+
+      Option.Some(
+        Lsp.Signature
+          { label =
+              prefix
+              + Stdlib.String.join(shown, ", ")
+              + "): "
+              + PrettyPrinter.ProgramTypes.typeReference(pctx, fn.returnType)
+            documentation = docOf(fn.description)
+            parameters =
+              Stdlib.List.zipShortest(offsets, fn.parameters)
+              |> Stdlib.List.map(fun((span, p)) ->
+                Lsp.ParameterInformation { label = span, documentation = docOf(p.description) })
+            activeParameter = if piped then commas + 1 else commas })
+    | _ -> Option.None

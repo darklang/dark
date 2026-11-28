@@ -1,0 +1,293 @@
+/// Where a name is defined, and who uses what: definitions, references, highlights, the call
+/// hierarchy, implementations and doc-comment links, from the parse and the store's dependency
+/// edges (`dark deps usedby`).
+module Darklang.LanguageTools.LanguageServer.Navigation
+
+type Json = Stdlib.AltJson.Json
+
+
+let top(): Lsp.Range =
+  let p = Lsp.Position { line = 0, character = 0 }
+  Lsp.Range { start = p, end = p }
+
+
+/// A store item's document, at its top.
+let itemLocation(loc: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind): Lsp.Location =
+  Lsp.Location { uri = Names.uriOf(loc, kind), range = top() }
+
+
+let located(uri: String, r: Parser.Range): Lsp.Location =
+  Lsp.Location { uri = uri, range = Analysis.range(r) }
+
+
+/// A local jumps to its `let`; a package item opens as its own document (`Names.uriOf`).
+let definition(session: Session, doc: Document, at: Lsp.Position): List<Lsp.Location> =
+  match Analysis.localAt(doc, at) with
+  | Some((binding, _)) -> [ located(doc.uri, binding) ]
+  | None ->
+    Names.itemAt(session, doc, at)
+    |> Stdlib.Option.map(fun item ->
+      [ itemLocation(Names.itemLocation(item), Names.itemKind(item)) ])
+    |> Stdlib.Option.withDefault([])
+
+
+/// At most this many answers from the store: `Stdlib.List.map` has thousands of callers.
+val limit = 500
+
+
+/// The store items that use <param item>.
+let dependents(
+  branchId: Uuid,
+  item: Names.Item)
+  : List<(ProgramTypes.Hash * ProgramTypes.PackageLocation * ProgramTypes.ItemKind)> =
+  match SCM.Deps.dependents(branchId, [ (Names.itemLocation(item), Names.itemKind(item)) ]) with
+  | Ok(found) -> Stdlib.List.take(found, limit)
+  | Error(e) ->
+    Lsp.log($"could not read the dependents of {(Names.itemLocation(item)).name}: {e}")
+    []
+
+
+/// Where <param item> is named in <param text>: every name on a line that resolves to it.
+let namedIn(ctx: NameResolver.NRContext, text: String, item: Names.Item): List<Parser.Range> =
+  let target = Names.itemHash(item)
+  let short = (Names.itemLocation(item)).name
+  text
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.indexedMap(fun(line, lineText) ->
+    Names.namesOn(lineText)
+    |> Stdlib.List.filter(fun m -> Stdlib.String.endsWith(m.text, short))
+    |> Stdlib.List.filter(fun m ->
+      match Names.resolve(ctx, Stdlib.String.split(m.text, ".")) with
+      | Some(found) -> Names.itemHash(found) == target
+      | None -> false)
+    |> Stdlib.List.map(fun m ->
+      Parser.Range
+        { start = Parser.Point { row = line, column = m.range.start }
+          end_ = Parser.Point { row = line, column = m.range.end } }))
+  |> Stdlib.List.flatten
+
+
+/// A local's every place in its document; a package item's places in the open documents, and the
+/// store items that use it.
+let references(
+  session: Session,
+  doc: Document,
+  at: Lsp.Position,
+  includeDeclaration: Bool)
+  : List<Lsp.Location> =
+  match Analysis.localAt(doc, at) with
+  | Some((binding, occurrences)) ->
+    occurrences
+    |> Stdlib.List.filter(fun o -> includeDeclaration || o.range != binding)
+    |> Stdlib.List.map(fun o -> located(doc.uri, o.range))
+  | None ->
+    match Names.itemAt(session, doc, at) with
+    | None -> []
+    | Some(item) ->
+      let branchId = session.state.branchId
+      let inDocs =
+        Names.openDocs(session)
+        |> Stdlib.List.map(fun((uri, text)) ->
+          namedIn(Names.context(branchId, uri), text, item)
+          |> Stdlib.List.map(fun r -> located(uri, r)))
+        |> Stdlib.List.flatten
+
+      let declaration =
+        if includeDeclaration then
+          [ itemLocation(Names.itemLocation(item), Names.itemKind(item)) ]
+        else
+          []
+
+      let users =
+        dependents(branchId, item)
+        |> Stdlib.List.map(fun((_, loc, kind)) -> itemLocation(loc, kind))
+
+      Stdlib.List.flatten([ declaration, inDocs, users ]) |> Stdlib.List.unique
+
+
+/// A local where it is bound (written) and read; a package item where this document names it.
+let highlights(session: Session, doc: Document, at: Lsp.Position): List<Lsp.DocumentHighlight> =
+  match Analysis.localAt(doc, at) with
+  | Some((binding, occurrences)) ->
+    occurrences
+    |> Stdlib.List.map(fun o ->
+      Lsp.DocumentHighlight
+        { range = Analysis.range(o.range)
+          kind = if o.range == binding then Lsp.HighlightKind.Write else Lsp.HighlightKind.Read })
+  | None ->
+    match Names.itemAt(session, doc, at) with
+    | Some(item) ->
+      namedIn(Names.context(session.state.branchId, doc.uri), doc.text, item)
+      |> Stdlib.List.map(fun r ->
+        Lsp.DocumentHighlight { range = Analysis.range(r), kind = Lsp.HighlightKind.Text })
+    | None -> []
+
+
+// --- call hierarchy ---
+
+let symbolKind(kind: ProgramTypes.ItemKind): Lsp.SymbolKind =
+  match kind with
+  | Fn -> Lsp.SymbolKind.Function
+  | Type -> Lsp.SymbolKind.Struct
+  | Value -> Lsp.SymbolKind.Variable
+  | Trait -> Lsp.SymbolKind.Interface
+  | TraitImpl -> Lsp.SymbolKind.Class
+  | Test -> Lsp.SymbolKind.Method
+
+
+let hierarchyItem(loc: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind): Json =
+  Json.Object(
+    [ ("name", Json.String(loc.name))
+      ("kind", Json.Integer(Lsp.Write.symbolKind(symbolKind(kind))))
+      ("detail", Json.String(Stdlib.String.join(Stdlib.List.prepend(loc.modules, loc.owner), ".")))
+      ("uri", Json.String(Names.uriOf(loc, kind)))
+      ("range", Lsp.Write.range(top()))
+      ("selectionRange", Lsp.Write.range(top())) ])
+
+
+/// The function a call hierarchy item stands for, read back from its `darkfs:` URI.
+let itemOfUri(branchId: Uuid, uri: String): Option<Names.Item> =
+  Names.storeFn(uri)
+  |> Stdlib.Option.andThen(fun loc ->
+    PackageManager.Function.find(branchId, loc)
+    |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h))
+    |> Stdlib.Option.map(fun fn ->
+      Names.Item.Fn(ProgramTypes.LocatedItem { entity = fn, location = loc })))
+
+
+let calls(direction: String, entries: List<Json>): Json =
+  entries
+  |> Stdlib.List.map(fun item ->
+    Json.Object([ (direction, item), ("fromRanges", Json.Array([ Lsp.Write.range(top()) ])) ]))
+  |> Json.Array
+
+
+/// What calls the function.
+let incoming(branchId: Uuid, uri: String): Json =
+  match itemOfUri(branchId, uri) with
+  | None -> Json.Array([])
+  | Some(item) ->
+    calls(
+      "from",
+      dependents(branchId, item)
+      |> Stdlib.List.map(fun((_, loc, kind)) -> hierarchyItem(loc, kind)))
+
+
+/// The package functions the function calls.
+let outgoing(branchId: Uuid, uri: String): Json =
+  match itemOfUri(branchId, uri) with
+  | None -> Json.Array([])
+  | Some(item) ->
+    let called =
+      SCM.Deps.dependenciesOf(Names.itemHash(item))
+      |> Stdlib.List.filter(fun((_, kind)) -> kind == "fn")
+      |> Stdlib.List.map(fun((h, _)) -> h)
+
+    calls(
+      "to",
+      SCM.Deps.resolveLocations(called)
+      |> Stdlib.List.map(fun((_, loc)) -> hierarchyItem(loc, ProgramTypes.ItemKind.Fn)))
+
+
+let prepareCallHierarchy(session: Session, params: Json): Json =
+  Lsp.Methods.onPosition(session, params, Json.Null, fun(doc, at) ->
+    match Names.itemAt(session, doc, at) with
+    | Some(Fn(found)) -> Json.Array([ hierarchyItem(found.location, ProgramTypes.ItemKind.Fn) ])
+    | _ -> Json.Null)
+
+
+let uriOf(params: Json): String =
+  Lsp.Read.string(params, [ "item", "uri" ]) |> Stdlib.Option.withDefault("")
+
+
+/// The call hierarchy as methods: `Lsp.Handlers` has no field for it, so this is how a server
+/// answers a request the handlers do not cover.
+let callHierarchy(): List<Lsp.Method<State, Analysis.Analysis>> =
+  [ Lsp.Method
+      { name = "textDocument/prepareCallHierarchy"
+        capability = Option.Some(("callHierarchyProvider", Json.Bool(true)))
+        answer = (fun(session, params) -> Result.Ok(prepareCallHierarchy(session, params)))
+        writes = false }
+
+    Lsp.Method
+      { name = "callHierarchy/incomingCalls"
+        capability = Option.None
+        answer =
+          (fun(session, params) -> Result.Ok(incoming(session.state.branchId, uriOf(params))))
+        writes = false }
+
+    Lsp.Method
+      { name = "callHierarchy/outgoingCalls"
+        capability = Option.None
+        answer =
+          (fun(session, params) -> Result.Ok(outgoing(session.state.branchId, uriOf(params))))
+        writes = false } ]
+
+
+// --- implementations ---
+
+/// A trait's impls, or the impls written for a type.
+let implementation(session: Session, doc: Document, at: Lsp.Position): List<Lsp.Location> =
+  let branchId = session.state.branchId
+  let implAt(hash: ProgramTypes.Hash): List<Lsp.Location> =
+    PackageManager.TraitImpl.locations(branchId, hash)
+    |> Stdlib.List.take(1)
+    |> Stdlib.List.map(fun loc -> itemLocation(loc, ProgramTypes.ItemKind.TraitImpl))
+
+  match Names.itemAt(session, doc, at) with
+  | Some(Trait(t)) ->
+    PackageManager.Trait.impls(branchId, t.entity.hash)
+    |> Stdlib.List.map(fun c -> implAt(c.source))
+    |> Stdlib.List.flatten
+  | Some(Type(t)) ->
+    let loc = t.location
+    let typePath = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
+    let (_, _, _, _, _, impls, _) =
+      PackageManager.Search.searchNames(
+        branchId,
+        ProgramTypes.Search.SearchQuery
+          { currentModule = typePath
+            text = ""
+            searchDepth = ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+            entityTypes = [ ProgramTypes.Search.EntityType.TraitImpl ]
+            exactMatch = false })
+
+    impls
+    |> Stdlib.List.map(fun name ->
+      itemLocation(
+        ProgramTypes.PackageLocation
+          { owner = loc.owner, modules = Stdlib.List.append(loc.modules, loc.name), name = name },
+        ProgramTypes.ItemKind.TraitImpl))
+  | _ -> []
+
+
+// --- links in doc comments ---
+
+/// Each `<fn X>`, `<type X>`, `<value X>` and `<trait X>` in a `///` comment, linked to the item's
+/// store document.
+let links(session: Session, doc: Document): List<Lsp.DocumentLink> =
+  let ctx = Names.context(session.state.branchId, doc.uri)
+  doc.text
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.indexedMap(fun(line, lineText) ->
+    if Stdlib.String.startsWith(Stdlib.String.trimStart(lineText), "///") then
+      Stdlib.Regex.findAllMatches(
+        lineText,
+        Stdlib.Regex.ofPattern("<(?:fn|type|value|trait) ([A-Za-z0-9_.']+)>"))
+      |> Stdlib.Result.withDefault([])
+      |> Stdlib.List.filterMap(fun m ->
+        match Stdlib.List.head(m.captures) with
+        | Some(Some(name)) ->
+          Names.resolve(ctx, Stdlib.String.split(name.text, "."))
+          |> Stdlib.Option.map(fun item ->
+            Lsp.DocumentLink
+              { range =
+                  Analysis.range(
+                    Parser.Range
+                      { start = Parser.Point { row = line, column = name.range.start }
+                        end_ = Parser.Point { row = line, column = name.range.end } })
+                target = Names.uriOf(Names.itemLocation(item), Names.itemKind(item)) })
+        | _ -> Option.None)
+    else
+      [])
+  |> Stdlib.List.flatten

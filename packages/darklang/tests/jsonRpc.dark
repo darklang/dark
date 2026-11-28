@@ -1,0 +1,103 @@
+module Darklang.JsonRpc.Tests
+
+type Json = Stdlib.AltJson.Json
+
+
+let roundTrip(m: JsonRpc.Message): JsonRpc.Body =
+  JsonRpc.parse(JsonRpc.format(m))
+
+
+test messagesRoundTrip =
+  let request =
+    JsonRpc.Message.Request(
+      JsonRpc.Id.Number(7),
+      "textDocument/hover",
+      Json.Object([]))
+
+  let notification = JsonRpc.Message.Notification("initialized", Json.Null)
+  let response =
+    JsonRpc.Message.Response(
+      Option.Some(JsonRpc.Id.Text("a")),
+      Result.Ok(Json.Bool(true)))
+
+  let failed =
+    JsonRpc.Message.Response(
+      Option.Some(JsonRpc.Id.Number(2)),
+      Result.Error(JsonRpc.error(JsonRpc.Code.methodNotFound, "no")))
+
+  Stdlib.Test.all(
+    [ roundTrip(request)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(request)))
+
+      roundTrip(notification)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(notification)))
+
+      roundTrip(response)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(response)))
+
+      roundTrip(failed)
+      |> Stdlib.Test.equal(JsonRpc.Body.One(Result.Ok(failed))) ])
+
+
+test badMessagesGetTheirReply =
+  let code(body: JsonRpc.Body): Option<(Option<JsonRpc.Id> * Int64)> =
+    match body with
+    | One(Error(Response(id, Error(e)))) -> Option.Some((id, e.code))
+    | _ -> Option.None
+
+  Stdlib.Test.all(
+    [ JsonRpc.parse("{not json")
+      |> code
+      |> Stdlib.Test.equal(Option.Some((Option.None, JsonRpc.Code.parseError)))
+
+      JsonRpc.parse("{\"id\": 3, \"method\": \"x\"}")
+      |> code
+      |> Stdlib.Test.equal(
+        Option.Some(
+          (Option.Some(JsonRpc.Id.Number(3)), JsonRpc.Code.invalidRequest)))
+
+      JsonRpc.parse("[]")
+      |> code
+      |> Stdlib.Test.equal(
+        Option.Some((Option.None, JsonRpc.Code.invalidRequest))) ])
+
+
+test batchesAnswerInOneArray =
+  let echo(m: JsonRpc.Message): Option<JsonRpc.Message> =
+    match m with
+    | Request(id, _, params) ->
+      Option.Some(JsonRpc.Message.Response(Option.Some(id), Result.Ok(params)))
+    | _ -> Option.None
+
+  Stdlib.Test.all(
+    [ JsonRpc.answer(
+        "[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"a\",\"params\":1},{\"jsonrpc\":\"2.0\",\"method\":\"n\"},{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"b\",\"params\":2}]",
+        echo)
+      |> Stdlib.Test.equal(
+        Option.Some(
+          "[{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":1},{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":2}]"))
+
+      JsonRpc.answer("[{\"jsonrpc\":\"2.0\",\"method\":\"n\"}]", echo)
+      |> Stdlib.Test.equal(Option.None) ])
+
+
+test framing =
+  let reader = JsonRpc.Framing.start
+  let (reader, none1) = JsonRpc.Framing.step(reader, "Content-Length: 7")
+  let (reader, none2) = JsonRpc.Framing.step(reader, "Content-Type: x")
+  let (reader, none3) = JsonRpc.Framing.step(reader, "")
+  let wanted = JsonRpc.Framing.wants(reader)
+  let (reader, body) = JsonRpc.Framing.step(reader, "{\"a\":1}")
+  Stdlib.Test.all(
+    [ (none1, none2, none3)
+      |> Stdlib.Test.equal((Option.None, Option.None, Option.None))
+
+      wanted |> Stdlib.Test.equal(Stdlib.Host.EventSpec.StdinBytes(7))
+
+      body |> Stdlib.Test.equal(Option.Some("{\"a\":1}"))
+
+      reader |> Stdlib.Test.equal(JsonRpc.Framing.start)
+
+      // the length is in bytes, not characters
+      JsonRpc.Framing.frame("é")
+      |> Stdlib.Test.equal("Content-Length: 2\r\n\r\né") ])

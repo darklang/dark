@@ -1,0 +1,67 @@
+/// Dark's own requests, `dark/*`: the store as documents and a tree, its runs, and the branch
+/// and draft for the status bar.
+module Darklang.LanguageTools.LanguageServer.Store
+
+type Json = Stdlib.AltJson.Json
+
+
+/// A store document's text. `?trace=<id>` on a function's URI asks for that run's document: the
+/// function with the value each call gave beside it.
+let read(branchId: Uuid, params: Json): Json =
+  let text =
+    match Lsp.Read.string(params, [ "uri" ])
+          |> Stdlib.Option.map(fun uri -> Stdlib.String.split(uri, "?trace=")) with
+    | Some([uri]) -> Names.source(branchId, uri)
+    | Some([uri, traceId]) ->
+      Names.storeFn(uri)
+      |> Stdlib.Option.andThen(fun loc -> Lens.traceDocument(branchId, loc, traceId))
+    | _ -> Option.None
+
+  match text with
+  | Some(text) -> Json.String(text)
+  | None -> Json.Null
+
+
+let tree(branchId: Uuid, params: Json): Json =
+  let path =
+    Lsp.Read.list(params, [ "path" ])
+    |> Stdlib.List.filterMap(fun s ->
+      match s with
+      | String(s) -> Option.Some(s)
+      | _ -> Option.None)
+
+  Tree.children(branchId, path)
+
+
+let traces(branchId: Uuid, params: Json): Json =
+  match Lsp.Read.string(params, [ "uri" ]) |> Stdlib.Option.andThen(Names.storeFn) with
+  | Some(loc) -> Lens.runs(branchId, loc)
+  | None -> Json.Array([])
+
+
+/// Saving goes through `dark edit`'s or `dark module`'s checks (`Edits.save`).
+let write(branchId: Uuid, params: Json): Json =
+  Edits.save(
+    branchId,
+    Lsp.Read.string(params, [ "uri" ]) |> Stdlib.Option.withDefault(""),
+    Lsp.Read.string(params, [ "text" ]) |> Stdlib.Option.withDefault(""))
+
+
+let methods(): List<Lsp.Method<State, Analysis.Analysis>> =
+  let method(
+    name: String,
+    writes: Bool,
+    answer: (Uuid, Json) -> Json)
+    : Lsp.Method<State, Analysis.Analysis> =
+    Lsp.Method
+      { name = name
+        capability = Option.None
+        answer = (fun(session, params) -> Result.Ok(answer(session.state.branchId, params)))
+        writes = writes }
+
+  [ method("dark/fs/read", false, read)
+    method("dark/fs/write", true, write)
+    method("dark/tree", false, tree)
+    method("dark/traces", false, traces)
+    method("dark/status", false, fun(branchId, _) -> Scm.status(branchId))
+    method("dark/branches", false, fun(branchId, _) -> Scm.branches(branchId)) ]

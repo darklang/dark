@@ -148,7 +148,7 @@ let bind(
     else
       Stdlib.Dict.set(locals, name, Model.Binder.Mono(t)))
 
-  ({ scope with locals = locals }, duplicateBindings(reportAt, bindings))
+  ({ scope with locals = locals }, all([ duplicateBindings(reportAt, bindings), bound(bindings) ]))
 
 
 /// Add local names whose reusable type schemes will be saved by Generalize
@@ -165,7 +165,15 @@ let bindGeneralized(
     else
       Stdlib.Dict.set(locals, name, Model.Binder.Poly(key)))
 
-  ({ scope with locals = locals }, duplicateBindings(reportAt, bindings))
+  ({ scope with locals = locals }, all([ duplicateBindings(reportAt, bindings), bound(bindings) ]))
+
+
+/// Note each binding's type for the report (`Bound`).
+let bound(bindings: List<(String * Model.Ty * Int64)>): Model.Constraint =
+  bindings
+  |> Stdlib.List.filter(fun((name, _, _)) -> name != "_")
+  |> Stdlib.List.map(fun((name, t, key)) -> Model.Constraint.Bound(key, name, t))
+  |> all
 
 
 // --------------------

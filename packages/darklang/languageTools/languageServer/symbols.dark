@@ -1,0 +1,81 @@
+/// The outline of a document, and package items by name.
+module Darklang.LanguageTools.LanguageServer.Symbols
+
+let symbol(
+  name: String,
+  kind: Lsp.SymbolKind,
+  range: Parser.Range,
+  selection: Parser.Range,
+  children: List<Lsp.DocumentSymbol>)
+  : Lsp.DocumentSymbol =
+  Lsp.DocumentSymbol
+    { name = name
+      kind = kind
+      range = Analysis.range(range)
+      selectionRange = Analysis.range(selection)
+      children = children }
+
+
+let ofDeclaration(d: WrittenTypes.ModuleDeclaration.Declaration): Option<Lsp.DocumentSymbol> =
+  match d with
+  | Function(f) ->
+    Option.Some(symbol(f.name.name, Lsp.SymbolKind.Function, f.range, f.name.range, []))
+  | Type(t) -> Option.Some(symbol(t.name.name, Lsp.SymbolKind.Struct, t.range, t.name.range, []))
+  | Value(v) -> Option.Some(symbol(v.name.name, Lsp.SymbolKind.Variable, v.range, v.name.range, []))
+  | Test(t) -> Option.Some(symbol(t.name.name, Lsp.SymbolKind.Method, t.range, t.name.range, []))
+  | Trait(t) ->
+    Option.Some(symbol(t.name.name, Lsp.SymbolKind.Interface, t.range, t.name.range, []))
+  | Impl(i) -> Option.Some(symbol("impl", Lsp.SymbolKind.Class, i.range, i.keywordImpl, []))
+  | SubModule(m) ->
+    let (nameRange, name) = m.name
+    Option.Some(
+      symbol(
+        name,
+        Lsp.SymbolKind.Module,
+        m.range,
+        nameRange,
+        Stdlib.List.filterMap(m.declarations, ofDeclaration)))
+  | Expr(_) -> Option.None
+
+
+/// The outline of a document, from its parsed declarations.
+let outline(_session: Session, doc: Document): List<Lsp.DocumentSymbol> =
+  match Analysis.parsed(doc) with
+  | Some(SourceFile(sf)) ->
+    sf.declarations
+    |> Stdlib.List.filterMap(fun d -> ofDeclaration(Parser.Parse.toModuleDeclaration(d)))
+  | None -> []
+
+
+/// At most this many answers to a workspace search: an editor shows a short list as you type.
+val workspaceLimit = 100
+
+
+/// Package items whose names match <param query>, anywhere in the tree, each at its store
+/// document.
+let workspace(session: Session, query: String): List<Lsp.SymbolInformation> =
+  let found =
+    PackageManager.Search.search(
+      session.state.branchId,
+      ProgramTypes.Search.SearchQuery
+        { currentModule = []
+          text = query
+          searchDepth = ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes =
+            [ ProgramTypes.Search.EntityType.Fn
+              ProgramTypes.Search.EntityType.Type
+              ProgramTypes.Search.EntityType.Value ]
+          exactMatch = false })
+
+  let entry(loc: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind): Lsp.SymbolInformation =
+    Lsp.SymbolInformation
+      { name = loc.name
+        kind = Navigation.symbolKind(kind)
+        container = Stdlib.String.join(Stdlib.List.prepend(loc.modules, loc.owner), ".")
+        location = Navigation.itemLocation(loc, kind) }
+
+  Stdlib.List.flatten(
+    [ Stdlib.List.map(found.fns, fun i -> entry(i.location, ProgramTypes.ItemKind.Fn))
+      Stdlib.List.map(found.types, fun i -> entry(i.location, ProgramTypes.ItemKind.Type))
+      Stdlib.List.map(found.values, fun i -> entry(i.location, ProgramTypes.ItemKind.Value)) ])
+  |> Stdlib.List.take(workspaceLimit)

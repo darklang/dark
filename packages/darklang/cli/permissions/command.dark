@@ -320,7 +320,7 @@ let requirementBadge(hash: LanguageTools.ProgramTypes.Hash): String =
 /// Effects describe the body; runtime permissions check the actual resources.
 let policyLinesForHash(hash: String): List<String> =
   let requirementsLine = "permission requirements: " + requirementDisplay(hash)
-  let (_, reasons) = Effects.reasons(hash)
+  let (_, reasons) = LanguageTools.Permissions.effectReasons(hash)
   if
     Stdlib.List.any(reasons, fun((effect, _)) -> effect == LanguageTools.Permissions.Effect.Raise)
   then

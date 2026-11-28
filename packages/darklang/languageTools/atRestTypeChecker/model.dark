@@ -198,6 +198,9 @@ type Constraint =
   /// the surrounding scope may vary between uses; unknowns tied to surrounding
   /// bindings must stay shared. Save deferred requirements with the scheme too.
   | Generalize(binder: Int64, typ: Ty, scope: List<Binder>)
+  /// Note the type the local <param name> was bound with at pattern <param at>, for the item's
+  /// report. Requires nothing.
+  | Bound(at: Int64, name: String, typ: Ty)
   /// Check whether the match cases cover every value of scrutinee's type.
   /// Run after type inference. Skip this check if the matched type or patterns
   /// already have problems that would make coverage diagnostics misleading.

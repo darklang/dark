@@ -1,0 +1,223 @@
+/// Dark's language server, `dark lsp`: an `Lsp.Server` record. Each feature is a module with a
+/// handler fn, and the record names them. Beyond the editor it follows the store: a change
+/// another process makes (an edit in a terminal, an agent's commit) re-analyses the documents it
+/// touches, and while nothing happens a timer looks for new runs and a switch of branch.
+///
+/// To change a feature, make your own record from this one:
+/// `{ LanguageServer.server(false) with handlers = { ... with hover = Option.Some(mine) } }`.
+module Darklang.LanguageTools.LanguageServer
+
+type State =
+  { branchId: Uuid
+    /// The branch `dark switch` last stored for this instance, as stored: a switch in a
+    /// terminal changes it, and the server follows.
+    storedBranch: String
+    /// Under `dark lsp --live`: the version of `answerLive` each request runs, followed as the
+    /// store changes and kept on the last one that type-checks.
+    live: Option<Live.LastGood> }
+
+
+type Session = Lsp.Session<State, Analysis.Analysis>
+
+type Document = Lsp.Document<Analysis.Analysis>
+
+
+let handlers(): Lsp.Handlers<State, Analysis.Analysis> =
+  { Lsp.noHandlers() with
+      hover = Option.Some(Hover.hover)
+      definition = Option.Some(Navigation.definition)
+      implementation = Option.Some(Navigation.implementation)
+      references = Option.Some(Navigation.references)
+      highlights = Option.Some(Navigation.highlights)
+      completion =
+        Option.Some(
+          Lsp.Completion
+            { triggers = [ "." ]
+              items = Completion.complete
+              resolve = Option.Some(Completion.resolve) })
+      signatureHelp =
+        Option.Some(Lsp.SignatureHelp { triggers = [ "(", "," ], signature = Completion.signature })
+      symbols = Option.Some(Symbols.outline)
+      workspaceSymbols = Option.Some(Symbols.workspace)
+      folding = Option.Some(Syntax.folding)
+      selection = Option.Some(Syntax.selection)
+      semanticTokens =
+        Option.Some(Lsp.SemanticTokens { legend = Tokens.legend, tokens = Tokens.tokens })
+      inlayHints = Option.Some(Lens.inlayHints)
+      codeLenses = Option.Some(Lens.codeLenses)
+      codeActions = Option.Some(Actions.codeActions)
+      formatting = Option.Some(Edits.formatting)
+      links = Option.Some(Navigation.links)
+      prepareRename = Option.Some(Edits.prepareRename)
+      rename = Option.Some(Edits.rename) }
+
+
+/// Dark's own requests, and the call hierarchy, which the handler record does not cover.
+let methods(): List<Lsp.Method<State, Analysis.Analysis>> =
+  Stdlib.List.flatten([ Store.methods(), Navigation.callHierarchy() ])
+
+
+let server(live: Bool): Lsp.Server<State, Analysis.Analysis> =
+  let branchId = SCM.PackageOps.currentBranch()
+  { Lsp.server(
+      "dark",
+      State
+        { branchId = branchId
+          storedBranch = storedBranch()
+          live =
+            if live then
+              Option.Some(Live.refresh(branchId, Live.start(answerLiveLocation)))
+            else
+              Option.None }) with
+      analyser =
+        Option.Some(
+          Lsp.Analyser { analyse = Analysis.analyse, diagnostics = (fun a -> a.diagnostics) })
+      handlers = handlers()
+      methods = methods()
+      middleware = if live then [ answeredLive ] else []
+      wakes =
+        [ Lsp.Wake { on = Stdlib.Host.EventSpec.StoreChanged, run = storeChanged }
+          Lsp.Wake { on = Stdlib.Host.EventSpec.Timer(idleCheckMs), run = idle } ] }
+
+
+let run(live: Bool): Int64 =
+  Lsp.run(server(live))
+
+
+// --- following the store ---
+
+/// How often, while nothing happens, to look for new runs and for a switch of branch. Neither is
+/// a store change, so nothing else wakes the server for them.
+val idleCheckMs = 2000
+
+
+let storedBranch(): String =
+  LocalStore.configGet("current_branch") |> Stdlib.Option.withDefault("")
+
+
+let idle(session: Session, _event: Stdlib.Host.Event): Session =
+  newRuns(branchMoved(session))
+
+
+/// Another process switched branches (`dark switch` in a terminal): the server switches too, and
+/// every document now reads against the other branch.
+let branchMoved(session: Session): Session =
+  let stored = storedBranch()
+  if stored == session.state.storedBranch then
+    session
+  else
+    let wanted = Stdlib.Uuid.parse(stored) |> Stdlib.Result.withDefault(SCM.Branch.mainBranchId)
+    let branchId = SCM.PackageOps.selectBranch(wanted)
+    Lsp.log($"following the switch to {SCM.PackageOps.branchName(branchId)}")
+    Lsp.notify(
+      "dark/storeChanged",
+      Stdlib.AltJson.Json.Object([ ("names", Stdlib.AltJson.Json.Array([])) ]))
+
+    Lsp.reanalyse(
+      { session with state = { session.state with branchId = branchId, storedBranch = stored } },
+      fun _ -> true)
+
+
+/// A run went through a function whose document is open: its values and lenses are stale.
+let newRuns(session: Session): Session =
+  let stale(doc: Document): Bool =
+    match Names.storeFn(doc.uri), Lsp.analysis(doc) with
+    | Some(loc), Some(a) ->
+      Lens.newestRunId(session.state.branchId, loc)
+      != (a.live |> Stdlib.Option.map(fun l -> l.runId))
+    | _ -> false
+
+  if Stdlib.List.any(Stdlib.Dict.values(session.documents), fun d -> stale(d)) then
+    Lsp.askToRefresh(session)
+    { session with
+        documents =
+          Stdlib.Dict.mapValues(session.documents, fun doc ->
+            match doc.analysis with
+            | Ready(a) ->
+              if stale(doc) then
+                { doc with
+                    analysis =
+                      Lsp.Analysed.Ready(
+                        { a with live = Analysis.live(session.state.branchId, doc) }) }
+              else
+                doc
+            | _ -> doc) }
+  else
+    session
+
+
+/// Whether <param change> can change what <param doc> means: its own item or something it uses
+/// moved. A file is judged by the names in its text.
+let touches(change: Live.Change, doc: Document): Bool =
+  if change.unknown then
+    true
+  else
+    match Names.parseUri(doc.uri) with
+    | Some(Item(loc, _)) -> Live.affects(change, loc)
+    | Some(Module(path)) ->
+      Stdlib.List.any(change.touched, fun t ->
+        Stdlib.List.prepend(t.location.modules, t.location.owner) == path
+        || Stdlib.String.contains(doc.text, t.location.name))
+    | None ->
+      Stdlib.List.any(change.touched, fun t -> Stdlib.String.contains(doc.text, t.location.name))
+
+
+/// The store moved under the open documents: names they use may resolve differently now, a
+/// checker finding may have gone, and the values beside a call may be different. The documents it
+/// touches are analysed again once things are quiet, and the editor is told what moved, so it
+/// reloads the store documents it shows.
+let storeChanged(session: Session, event: Stdlib.Host.Event): Session =
+  match event with
+  | StoreChanged(change) ->
+    Lsp.notify(
+      "dark/storeChanged",
+      Stdlib.AltJson.Json.Object([ ("names", Lsp.Write.strings(Live.touchedNames(change))) ]))
+
+    let branchId = SCM.PackageOps.currentBranch()
+    let moved = branchId != session.state.branchId
+    let live = session.state.live |> Stdlib.Option.map(fun lg -> Live.refresh(branchId, lg))
+    match live |> Stdlib.Option.andThen(fun lg -> lg.report) with
+    | Some(report) ->
+      Lsp.log(
+        $"the request handler's newest version does not check, so the last good one answers: {Live.reportText(report)}")
+    | None -> ()
+
+    Lsp.reanalyse(
+      { session with state = { session.state with branchId = branchId, live = live } },
+      fun doc -> moved || touches(change, doc))
+  | _ -> session
+
+
+// --- `dark lsp --live` ---
+
+val answerLiveLocation =
+  ProgramTypes.PackageLocation
+    { owner = "Darklang", modules = [ "LanguageTools", "LanguageServer" ], name = "answerLive" }
+
+
+/// What `--live` calls for each request, as the store has it now: the method of that name in the
+/// newest version of this server.
+let answerLive(
+  args: (Session * String * Stdlib.AltJson.Json))
+  : Result<Stdlib.AltJson.Json, JsonRpc.Error> =
+  let (session, name, params) = args
+  let ours = Stdlib.List.concat(Lsp.Methods.ofHandlers("dark", handlers()), methods())
+  match Stdlib.List.findFirst(ours, fun m -> m.name == name) with
+  | Some(m) -> m.answer(session, params)
+  | None -> Result.Error(JsonRpc.error(JsonRpc.Code.methodNotFound, $"{name} is not supported"))
+
+
+/// Middleware: answer with the store's version of the method; when that fails, this one answers.
+/// The store's version runs under the instance policy, like any stored code.
+let answeredLive(m: Lsp.Method<State, Analysis.Analysis>): Lsp.Method<State, Analysis.Analysis> =
+  { m with
+      answer =
+        (fun(session, params) ->
+           match session.state.live with
+           | None -> m.answer(session, params)
+           | Some(lg) ->
+             match Live.call(lg, (session, m.name, params)) with
+             | Ok(answer) -> answer
+             | Error(e) ->
+               Lsp.log($"the store's {m.name} failed, so the built-in one answers: {e}")
+               m.answer(session, params)) }

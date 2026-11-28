@@ -1,0 +1,194 @@
+{
+  "name": "darklang",
+  "displayName": "Darklang",
+  "description": "Darklang: diagnostics, navigation and the package store as documents, from `dark lsp`",
+  "publisher": "darklang",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/darklang/dark"
+  },
+  "icon": "static/logo-dark.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onFileSystem:darkfs"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "darklang",
+        "aliases": [
+          "Darklang",
+          "dark"
+        ],
+        "extensions": [
+          ".dark"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./static/logo-light-transparent.svg",
+          "dark": "./static/logo-dark-transparent.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "darklang",
+        "scopeName": "source.darklang",
+        "path": "./syntaxes/darklang.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Darklang",
+      "properties": {
+        "darklang.path": {
+          "type": "string",
+          "default": "dark",
+          "description": "The `dark` executable the extension starts as `dark lsp`."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "darklang.restartServer",
+        "title": "Darklang: Restart Language Server"
+      },
+      {
+        "command": "darklang.packages.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "darklang.packages.openModule",
+        "title": "Open Module"
+      },
+      {
+        "command": "darklang.run",
+        "title": "Darklang: Run Function"
+      },
+      {
+        "command": "darklang.runTests",
+        "title": "Darklang: Run Tests"
+      },
+      {
+        "command": "darklang.showTraces",
+        "title": "Darklang: Show Runs of This Function"
+      },
+      {
+        "command": "darklang.scm.actions",
+        "title": "Darklang: Branch and Draft\u2026"
+      },
+      {
+        "command": "darklang.branch.switch",
+        "title": "Darklang: Switch Branch"
+      },
+      {
+        "command": "darklang.scm.commit",
+        "title": "Darklang: Commit",
+        "icon": "$(check)"
+      },
+      {
+        "command": "darklang.scm.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "darklang.openStore",
+        "title": "Darklang: Open the Package Store as a Folder"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "darklang",
+          "title": "Darklang",
+          "icon": "static/logo-dark-transparent.svg"
+        }
+      ]
+    },
+    "views": {
+      "darklang": [
+        {
+          "id": "darklangPackages",
+          "name": "Packages"
+        },
+        {
+          "id": "darklangChanges",
+          "name": "Changes"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "darklang.packages.refresh",
+          "when": "view == darklangPackages",
+          "group": "navigation"
+        },
+        {
+          "command": "darklang.scm.commit",
+          "when": "view == darklangChanges",
+          "group": "navigation"
+        },
+        {
+          "command": "darklang.scm.refresh",
+          "when": "view == darklangChanges",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "darklang.packages.openModule",
+          "when": "view == darklangPackages && viewItem == module"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "darklang.packages.openModule",
+          "when": "false"
+        },
+        {
+          "command": "darklang.packages.refresh",
+          "when": "false"
+        },
+        {
+          "command": "darklang.run",
+          "when": "false"
+        },
+        {
+          "command": "darklang.runTests",
+          "when": "false"
+        },
+        {
+          "command": "darklang.showTraces",
+          "when": "resourceScheme == darkfs"
+        },
+        {
+          "command": "darklang.scm.refresh",
+          "when": "false"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=out/extension.js",
+    "package": "npm run build -- --minify && vsce package --no-dependencies --skip-license"
+  },
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@types/vscode": "1.90.0",
+    "@vscode/vsce": "2.31.1",
+    "esbuild": "0.23.0",
+    "typescript": "5.5.3"
+  }
+}

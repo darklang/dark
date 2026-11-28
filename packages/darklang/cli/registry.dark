@@ -63,6 +63,8 @@ module Registry =
 
   let acceptsClear(): Accepts.Accepts = Accepts.nothing()
 
+  let acceptsLsp(): Accepts.Accepts = Accepts.flagsOnly([ "--stdio", "--live" ])
+
   let acceptsFormat(): Accepts.Accepts = Accepts.freeText(1, [ "--check", "--as-written" ])
 
   let acceptsRunScript(): Accepts.Accepts = Accepts.text(1)
@@ -950,6 +952,15 @@ module Registry =
         Ps.complete)
 
       (
+        "lsp",
+        "Run the language server, for an editor to start",
+        [],
+        acceptsLsp,
+        Lsp.execute,
+        Lsp.help,
+        Lsp.complete)
+
+      (
         "workbench",
         "Open the workbench -- a framed, navigable package tree",
         [ "wb" ],
@@ -1159,7 +1170,7 @@ module Registry =
       ("Security", [ "effects", "permissions" ])
       (
         "Utilities",
-        [ "clear", "help", "docs", "quit", "builtins", "workbench", "backups", "config" ]) ]
+        [ "clear", "help", "docs", "quit", "builtins", "workbench", "backups", "config", "lsp" ]) ]
 
 
   let formatCommandGroup(

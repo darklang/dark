@@ -54,6 +54,8 @@
 1 Darklang.LanguageTools.AtRestTypeChecker.Run.checkQuery Darklang.Stdlib.List.parallelMap
 1 Darklang.LanguageTools.PackageManager.Test.Worker.main Darklang.Stdlib.Cli.FileSystem.overwriteFile
 1 Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot Builtin.pmTestWithStoreSnapshot
+1 Darklang.Lsp.Loop.answered Darklang.Stdlib.Exec.await
+1 Darklang.Lsp.Loop.wake Darklang.Stdlib.Host.await
 1 Darklang.SCM.Deps.dependentsFor Builtin.unwrap
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive

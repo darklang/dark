@@ -56,7 +56,8 @@ let reportCandidates(
           verdict = outcome.verdict
           diagnostics = outcome.diagnostics
           warnings = outcome.warnings
-          resolutions = outcome.resolutions })
+          resolutions = outcome.resolutions
+          bindings = outcome.bindings })
 
   reportItems(items)
 
@@ -410,7 +411,8 @@ let checkReferencesFrom(
               verdict = outcome.verdict
               diagnostics = outcome.diagnostics
               warnings = outcome.warnings
-              resolutions = outcome.resolutions }
+              resolutions = outcome.resolutions
+              bindings = outcome.bindings }
 
         (ops, Stdlib.List.prepend(failures, item)))
 
