@@ -1216,16 +1216,17 @@ gate_package_tests() {
 
   # The processes the tests start: about a thousand isolated tests each start a worker, and many
   # of those start the CLI again, a dozen or more times for an SCM test. A Debug CLI spends most
-  # of its 0.8 s start compiling itself, so with a Debug CLI they start a ReadyToRun copy of it
-  # instead, which starts in 0.35 s (`scripts/testing/_fast-cli`, shared with `run-cli test`).
-  # The runner stays the Debug CLI. Made when the Debug build has changed since the last copy,
-  # which costs 5 to 15 s; if that fails, everything runs on the Debug CLI as before.
+  # of its 0.8 s start compiling itself, so with a Debug CLI they start a NativeAOT copy of it
+  # instead, as CI does, which starts in 0.03 s (`scripts/testing/_fast-cli`). The runner stays
+  # the Debug CLI. Made when the Debug build has changed since the last copy, which costs about
+  # 90 s; if that fails, a ReadyToRun copy (0.35 s, 5 to 15 s to make), else the Debug CLI.
   CHILD_CLI="$CLI"
   if [[ "$CLI" == "$PWD/backend/Build/out/Cli/Debug/net11.0/Cli" ]]; then
-    if FAST_CLI=$(scripts/testing/_fast-cli --make 2> "$ROOT/child-cli.log"); then
+    if FAST_CLI=$(scripts/testing/_fast-cli --aot --make 2> "$ROOT/child-cli.log" \
+                  || scripts/testing/_fast-cli --make 2>> "$ROOT/child-cli.log"); then
       CHILD_CLI="$PWD/$FAST_CLI"
     else
-      echo "package-tests: could not make a ReadyToRun CLI, so the tests start the Debug one" \
+      echo "package-tests: could not make a faster CLI copy, so the tests start the Debug one" \
         "(why: $ROOT/child-cli.log)" >&2
     fi
   fi

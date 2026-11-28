@@ -54,6 +54,13 @@ suite_slot_take "run-tests" || exit 1
 LOGS=rundir/logs/run-tests
 rm -rf "$LOGS"; mkdir -p "$LOGS"
 
+# The CLI the suites start, as CI's: a NativeAOT copy of the Debug CLI, made here once for both
+# (`scripts/testing/_fast-cli`). Without one they make the ReadyToRun copy as before.
+if [[ "$PUBLISHED" != "true" && " ${SUITES[*]} " =~ \ (fsharp|package-tests)\  ]] \
+  && AOT_CLI=$(scripts/testing/_fast-cli --aot --make 2> "$LOGS/aot-cli.log"); then
+  export DARK_TEST_CLI="$PWD/$AOT_CLI"
+fi
+
 declare -A PIDS
 started=$SECONDS
 start() {  # start <suite> <command...>: in the background, recording how long it took

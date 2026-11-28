@@ -4,6 +4,7 @@
 #   scripts/testing/_fast-cli            print the copy's path when it is current; else exit 1
 #   scripts/testing/_fast-cli --make     make it current first if it is not, then print its path
 #   scripts/testing/_fast-cli --refresh  make it current in the background; prints nothing
+#   scripts/testing/_fast-cli --aot ...  the same, for a NativeAOT copy
 #
 # About a thousand package tests each start a worker, and many of those start the CLI again. A
 # Debug CLI spends most of its 0.8 s start compiling itself; this copy starts in 0.35 s. Its
@@ -14,10 +15,18 @@
 # file in it. Making it takes about 5 s when only Cli changed and 15 s when every library did.
 # One copy per Debug build, in backend/Build/out/Cli/fast/<key>/; the two newest are kept, so
 # a run still going when the next copy is made keeps its own. Run from the clone's root.
+#
+# The NativeAOT copy, which CI's suites run as its release build, starts in 0.03 s. It takes
+# about 90 s to make, so only full runs use it (`scripts/run-tests`, `gates package-tests`).
 set -euo pipefail
 
 DEBUG_DIR=backend/Build/out/Cli/Debug/net11.0
 ROOT=backend/Build/out/Cli/fast
+KIND=""
+if [[ "${1:-}" == "--aot" ]]; then
+  KIND=aot-
+  shift
+fi
 
 case "$(uname -m)" in
   x86_64) RID=linux-x64 ;;
@@ -27,7 +36,9 @@ esac
 
 key() {
   [[ -x "$DEBUG_DIR/Cli" ]] || return 1
-  find "$DEBUG_DIR" -maxdepth 1 -type f -printf '%f %s %T@\n' | sort | sha256sum | cut -c1-16
+  local k
+  k=$(find "$DEBUG_DIR" -maxdepth 1 -type f -printf '%f %s %T@\n' | sort | sha256sum | cut -c1-16)
+  echo "$KIND$k"
 }
 
 current() {
@@ -50,14 +61,21 @@ make_it() {
   # The real HOME, not a test's throwaway one: dotnet keeps its packages under it.
   local home
   home=$(getent passwd "$(id -un)" | cut -d: -f6)
+  local mode=(--self-contained false -p:PublishReadyToRun=true)
+  if [[ -n "$KIND" ]]; then
+    # The AOT link takes SQLite as a static archive.
+    [[ -f "backend/src/Cli/lib/libe_sqlite3-$RID.a" ]] \
+      || scripts/build/build-sqlite.sh --runtimes="$RID" < /dev/null >&2 9>&- || return 1
+    mode=(--self-contained true -p:PublishAot=true -p:Optimize=true -p:DebugType=None)
+  fi
   # Not the lock's fd: the MSBuild node dotnet leaves running would hold the lock after it,
   # and the next --make (run-tests makes it from two suites at once) would wait on that node.
   if ! (cd backend && HOME="$home" dotnet publish src/Cli/Cli.fsproj --configuration Debug \
-          --runtime "$RID" --self-contained false -p:PublishReadyToRun=true \
+          --runtime "$RID" "${mode[@]}" \
           --no-dependencies --output "../$out" --verbosity quiet) < /dev/null >&2 9>&- \
       || [[ ! -x "$out/Cli" ]]; then
     rm -rf "$out"
-    echo "_fast-cli: could not make the ReadyToRun CLI" >&2
+    echo "_fast-cli: could not make the ${KIND:+NativeAOT }CLI copy" >&2
     return 1
   fi
   # A build that finished while this ran makes the copy a mix of two builds.
@@ -70,7 +88,7 @@ make_it() {
   rm -rf "${ROOT:?}/$k"
   mv "$out" "$ROOT/$k"
   # shellcheck disable=SC2012  # names are hex keys
-  ls -td "$ROOT"/*/ | tail -n +3 | xargs -r rm -rf
+  ls -td "$ROOT/$KIND"????????????????/ | tail -n +3 | xargs -r rm -rf
   echo "$ROOT/$k/Cli"
 }
 
@@ -80,7 +98,7 @@ case "${1:-}" in
   --refresh)
     current > /dev/null && exit 0
     mkdir -p "$ROOT"
-    setsid "$0" --make < /dev/null > "$ROOT/refresh.log" 2>&1 &
+    setsid "$0" ${KIND:+--aot} --make < /dev/null > "$ROOT/${KIND}refresh.log" 2>&1 &
     ;;
-  *) echo "usage: $0 [--make | --refresh]" >&2; exit 2 ;;
+  *) echo "usage: $0 [--aot] [--make | --refresh]" >&2; exit 2 ;;
 esac
