@@ -2,7 +2,7 @@
 module Darklang.Cli.Lsp
 
 let execute(state: AppState, args: List<String>): AppState =
-  { state with exitCode = LanguageTools.Lsp.Server.run(Stdlib.List.contains(args, "--live")) }
+  { state with exitCode = LanguageTools.LanguageServer.run(Stdlib.List.contains(args, "--live")) }
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

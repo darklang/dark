@@ -1,7 +1,7 @@
 /// What a store function's document shows from its runs: the value beside each call (inlay
 /// hints), and above it how often it ran and how long it took, what it can do to the world, and
 /// its tests (code lenses).
-module Darklang.LanguageTools.Lsp.Lens
+module Darklang.LanguageTools.LanguageServer.Lens
 
 type Json = Stdlib.AltJson.Json
 
@@ -80,7 +80,7 @@ let live(branchId: Uuid, loc: ProgramTypes.PackageLocation, text: String): Optio
         Option.None
       else
         let hints =
-          Stdlib.List.zipShortest(Text.lines(plain), Text.lines(annotated))
+          Stdlib.List.zipShortest(Lsp.Text.lines(plain), Lsp.Text.lines(annotated))
           |> Stdlib.List.indexedMap(fun(i, (before, after)) ->
             if before != after && Stdlib.String.startsWith(after, before) then
               let added =
@@ -89,38 +89,55 @@ let live(branchId: Uuid, loc: ProgramTypes.PackageLocation, text: String): Optio
               let label =
                 Stdlib.String.stripPrefix(added, "// ") |> Stdlib.Option.withDefault(added)
 
-              [ (i, Text.width(before), label) ]
+              [ (i, Lsp.Text.width(before), label) ]
             else
               [])
           |> Stdlib.List.flatten
 
         let note =
-          Text.lines(annotated)
-          |> Stdlib.List.drop(Stdlib.List.length(Text.lines(plain)))
+          Lsp.Text.lines(annotated)
+          |> Stdlib.List.drop(Stdlib.List.length(Lsp.Text.lines(plain)))
           |> Stdlib.String.join(" ")
 
         let noteHint =
-          match note, Text.lines(plain) with
+          match note, Lsp.Text.lines(plain) with
           | "", _ -> []
-          | _, [first, ...] -> [ (0, Text.width(first), note) ]
+          | _, [first, ...] -> [ (0, Lsp.Text.width(first), note) ]
           | _, [] -> []
 
         Option.Some(
           Live { runId = run.id, hints = Stdlib.List.concat(hints, noteHint), note = note })
 
 
-let inlayHints(live: Live): Json =
-  live.hints
-  |> Stdlib.List.map(fun((line, column, label)) ->
-    Json.Object(
-      [ (
-          "position",
-          Json.Object([ ("line", Json.Integer(line)), ("character", Json.Integer(column)) ]))
+/// Inlay hints: the type of each `let` and lambda parameter, and in a store function the value
+/// each call gave in its newest run.
+let inlayHints(_session: Session, doc: Document, _range: Lsp.Range): List<Lsp.InlayHint> =
+  match Lsp.analysis(doc) with
+  | None -> []
+  | Some(a) ->
+    let types =
+      a.typeHints
+      |> Stdlib.List.map(fun((at, label)) ->
+        Lsp.InlayHint
+          { position = Analysis.position(at)
+            label = label
+            kind = Option.Some(Lsp.InlayHintKind.Type)
+            paddingLeft = false })
 
-        // The editor's own padding is narrow; a space keeps `* 2` and `= 40` apart.
-        ("label", Json.String(" " + label))
-        ("paddingLeft", Json.Bool(true)) ]))
-  |> Json.Array
+    let values =
+      match a.live with
+      | Some(live) ->
+        live.hints
+        |> Stdlib.List.map(fun((line, column, label)) ->
+          Lsp.InlayHint
+            { position = Lsp.Position { line = line, character = column }
+              // The editor's own padding is narrow; a space keeps `* 2` and `= 40` apart.
+              label = " " + label
+              kind = Option.None
+              paddingLeft = true })
+      | None -> []
+
+    Stdlib.List.concat(types, values)
 
 
 // --- code lenses ---
@@ -177,16 +194,10 @@ let effects(hash: ProgramTypes.Hash): String =
     "effects: " + names
 
 
-let lens(title: String, command: String, arguments: List<Json>): Json =
-  let zero = Json.Object([ ("line", Json.Integer(0)), ("character", Json.Integer(0)) ])
-  Json.Object(
-    [ ("range", Json.Object([ ("start", zero), ("end", zero) ]))
-      (
-        "command",
-        Json.Object(
-          [ ("title", Json.String(title))
-            ("command", Json.String(command))
-            ("arguments", Json.Array(arguments)) ])) ])
+let lens(title: String, command: String, arguments: List<Json>): Lsp.CodeLens =
+  Lsp.CodeLens
+    { range = Navigation.top()
+      command = Lsp.Command { title = title, command = command, arguments = arguments } }
 
 
 /// The tests that call the function, by name.
@@ -199,13 +210,17 @@ let tests(branchId: Uuid, loc: ProgramTypes.PackageLocation): List<String> =
   | Error(_) -> []
 
 
-/// The code lenses over the function at <param loc>: run it (when it takes no arguments), its
-/// recorded runs and their timing, its effects, and its tests.
-let codeLenses(branchId: Uuid, uri: String, loc: ProgramTypes.PackageLocation): Json =
-  match PackageManager.Function.find(branchId, loc)
-        |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h)) with
-  | None -> Json.Array([])
-  | Some(fn) ->
+/// Over a store function: run it (when it takes no arguments), its recorded runs and their
+/// timing, its effects, and its tests.
+let codeLenses(session: Session, doc: Document): List<Lsp.CodeLens> =
+  let branchId = session.state.branchId
+  match Names.storeFn(doc.uri)
+        |> Stdlib.Option.andThen(fun loc ->
+          PackageManager.Function.find(branchId, loc)
+          |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h))
+          |> Stdlib.Option.map(fun fn -> (loc, fn))) with
+  | None -> []
+  | Some((loc, fn)) ->
     let name = Live.entryName(loc)
     let run =
       match fn.parameters with
@@ -214,7 +229,7 @@ let codeLenses(branchId: Uuid, uri: String, loc: ProgramTypes.PackageLocation): 
 
     let runs =
       match timing(branchId, loc) with
-      | Some(text) -> [ lens(text, "darklang.showTraces", [ Json.String(uri) ]) ]
+      | Some(text) -> [ lens(text, "darklang.showTraces", [ Json.String(doc.uri) ]) ]
       | None -> []
 
     let testLens =
@@ -225,7 +240,7 @@ let codeLenses(branchId: Uuid, uri: String, loc: ProgramTypes.PackageLocation): 
         let title = if count == 1 then "▶ 1 test" else "▶ " + Stdlib.display(count) + " tests"
         [ lens(title, "darklang.runTests", Stdlib.List.map(found, fun t -> Json.String(t))) ]
 
-    Stdlib.List.flatten([ run, runs, [ lens(effects(fn.hash), "", []) ], testLens ]) |> Json.Array
+    Stdlib.List.flatten([ run, runs, [ lens(effects(fn.hash), "", []) ], testLens ])
 
 
 /// The recorded runs through the function at <param loc>, newest first, for the editor to

@@ -1,0 +1,207 @@
+/// A language server built from a record: what it works out from a document, a plain fn per
+/// request it answers, and anything else it wakes for. `run` does the protocol: the lifecycle,
+/// document sync, capabilities (one per handler that is set), cancellation, and answering
+/// requests beside the loop so a slow one holds up nothing.
+module Darklang.Lsp
+
+/// What the server worked out from a document's text: nothing yet (typing has not paused),
+/// its analysis, or why that failed.
+type Analysed<'a> =
+  | Pending
+  | Ready('a)
+  | Failed(String)
+
+
+type Document<'a> =
+  { uri: String
+    version: Int64
+    text: String
+    /// Of exactly `text`: a change makes it Pending again.
+    analysis: Analysed<'a>
+    /// The last analysis of an earlier text, for an analyser that reuses what did not change.
+    previous: Option<'a> }
+
+
+/// What a handler reads: the server's own state, the open documents, and what the client said
+/// it can do in `initialize`.
+type Session<'s, 'a> =
+  { state: 's
+    documents: Dict<String, Document<'a>>
+    client: Json }
+
+
+/// What a document means, worked out once typing pauses: the diagnostics to publish, and
+/// whatever the handlers want to read back (a parse, resolved names).
+type Analyser<'s, 'a> =
+  { /// The document's `previous` analysis is there to reuse.
+    analyse: (Session<'s, 'a>, Document<'a>) -> 'a
+    diagnostics: 'a -> List<Diagnostic> }
+
+
+type Completion<'s, 'a> =
+  { triggers: List<String>
+    items: (Session<'s, 'a>, Document<'a>, Position) -> List<CompletionItem>
+    /// Fills in an item's documentation when the editor shows it.
+    resolve: Option<(Session<'s, 'a>, CompletionItem) -> CompletionItem> }
+
+
+type SignatureHelper<'s, 'a> =
+  { triggers: List<String>
+    help: (Session<'s, 'a>, Document<'a>, Position) -> Option<SignatureHelp> }
+
+
+type SemanticTokens<'s, 'a> =
+  { /// A token's type is its index here.
+    legend: List<String>
+    /// The tokens from one line to another, in order.
+    tokens: (Session<'s, 'a>, Document<'a>, Int64, Int64) -> List<Token> }
+
+
+/// One fn per request. A handler that is set is a capability `initialize` announces.
+type Handlers<'s, 'a> =
+  { hover: Option<(Session<'s, 'a>, Document<'a>, Position) -> Option<Hover>>
+    definition: Option<(Session<'s, 'a>, Document<'a>, Position) -> List<Location>>
+    implementation: Option<(Session<'s, 'a>, Document<'a>, Position) -> List<Location>>
+    /// The last argument says whether to include the declaration.
+    references: Option<(Session<'s, 'a>, Document<'a>, Position, Bool) -> List<Location>>
+    highlights: Option<(Session<'s, 'a>, Document<'a>, Position) -> List<DocumentHighlight>>
+    completion: Option<Completion<'s, 'a>>
+    signatureHelp: Option<SignatureHelper<'s, 'a>>
+    symbols: Option<(Session<'s, 'a>, Document<'a>) -> List<DocumentSymbol>>
+    workspaceSymbols: Option<(Session<'s, 'a>, String) -> List<SymbolInformation>>
+    folding: Option<(Session<'s, 'a>, Document<'a>) -> List<FoldingRange>>
+    /// What encloses the position, outermost first.
+    selection: Option<(Session<'s, 'a>, Document<'a>, Position) -> List<Range>>
+    semanticTokens: Option<SemanticTokens<'s, 'a>>
+    inlayHints: Option<(Session<'s, 'a>, Document<'a>, Range) -> List<InlayHint>>
+    codeLenses: Option<(Session<'s, 'a>, Document<'a>) -> List<CodeLens>>
+    /// The range, and the diagnostics the editor shows there.
+    codeActions: Option<(Session<'s, 'a>, Document<'a>, Range, List<Diagnostic>) -> List<CodeAction>>
+    formatting: Option<(Session<'s, 'a>, Document<'a>) -> List<TextEdit>>
+    links: Option<(Session<'s, 'a>, Document<'a>) -> List<DocumentLink>>
+    prepareRename: Option<(Session<'s, 'a>, Document<'a>, Position) -> Option<Range>>
+    /// The new name; an Error is shown to the person.
+    rename: Option<(Session<'s, 'a>, Document<'a>, Position, String) -> Result<WorkspaceEdit, String>> }
+
+
+/// A request by its method name, its params and result as JSON: what every handler becomes,
+/// what middleware wraps, and how a server answers what the records above don't cover.
+type Method<'s, 'a> =
+  { name: String
+    /// What `initialize` announces for it.
+    capability: Option<(String * Json)>
+    answer: (Session<'s, 'a>, Json) -> Result<Json, JsonRpc.Error>
+    /// Changes something outside the session (the store, a file), so it is answered in the loop
+    /// in the order it came. Everything else is answered beside the loop.
+    writes: Bool }
+
+
+/// Something besides the editor that wakes the server: a store change, a timer.
+type Wake<'s, 'a> =
+  { on: Stdlib.Host.EventSpec
+    run: (Session<'s, 'a>, Stdlib.Host.Event) -> Session<'s, 'a> }
+
+
+type Server<'s, 'a> =
+  { /// Shown beside each diagnostic, and sent to the editor.
+    name: String
+    state: 's
+    analyser: Option<Analyser<'s, 'a>>
+    handlers: Handlers<'s, 'a>
+    /// Answered after the handlers' methods, so one here with the same name takes over.
+    methods: List<Method<'s, 'a>>
+    /// Applied to every method, the first outermost.
+    middleware: List<Method<'s, 'a> -> Method<'s, 'a>>
+    wakes: List<Wake<'s, 'a>> }
+
+
+let noHandlers(): Handlers<'s, 'a> =
+  Handlers
+    { hover = Option.None
+      definition = Option.None
+      implementation = Option.None
+      references = Option.None
+      highlights = Option.None
+      completion = Option.None
+      signatureHelp = Option.None
+      symbols = Option.None
+      workspaceSymbols = Option.None
+      folding = Option.None
+      selection = Option.None
+      semanticTokens = Option.None
+      inlayHints = Option.None
+      codeLenses = Option.None
+      codeActions = Option.None
+      formatting = Option.None
+      links = Option.None
+      prepareRename = Option.None
+      rename = Option.None }
+
+
+/// A server that answers nothing yet: set what it does with `{ server(...) with ... }`.
+let server(name: String, state: 's): Server<'s, 'a> =
+  Server
+    { name = name
+      state = state
+      analyser = Option.None
+      handlers = noHandlers()
+      methods = []
+      middleware = []
+      wakes = [] }
+
+
+/// The server's log. Stdout is the protocol's, so it goes to stderr, which an editor shows as
+/// the server's output.
+let log(line: String): Unit =
+  Stdlib.printErrorLine(line)
+
+
+let notify(method: String, params: Json): Unit =
+  JsonRpc.Stdio.send(JsonRpc.Message.Notification(method, params))
+
+
+let analysis(doc: Document<'a>): Option<'a> =
+  match doc.analysis with
+  | Ready(a) -> Option.Some(a)
+  | _ -> Option.None
+
+
+/// <param session> with every document <param stale> picks to be analysed again.
+let reanalyse(session: Session<'s, 'a>, stale: Document<'a> -> Bool): Session<'s, 'a> =
+  { session with
+      documents =
+        Stdlib.Dict.mapValues(session.documents, fun doc ->
+          if stale(doc) then
+            { doc with analysis = Analysed.Pending, previous = Option.None }
+          else
+            doc) }
+
+
+/// Ask the editor to fetch inlay hints, code lenses and semantic tokens again, where it said it
+/// takes the request: what they show moved.
+let askToRefresh(session: Session<'s, 'a>): Unit =
+  [ ("inlayHint", "workspace/inlayHint/refresh")
+    ("codeLens", "workspace/codeLens/refresh")
+    ("semanticTokens", "workspace/semanticTokens/refresh") ]
+  |> Stdlib.List.iter(fun((what, method)) ->
+    if Read.bool(session.client, [ "workspace", what, "refreshSupport" ])
+       |> Stdlib.Option.withDefault(false) then
+      JsonRpc.Stdio.send(
+        JsonRpc.Message.Request(
+          JsonRpc.Id.Text(method + "-" + Stdlib.display(Stdlib.Uuid.generate())),
+          method,
+          Json.Null)))
+
+
+/// The codes the Language Server Protocol adds to JSON-RPC's.
+module Code =
+  val requestCancelled = -32800
+
+  val requestFailed = -32803
+
+
+/// Serve the editor on stdin and stdout until it goes. The exit code is 0 after `shutdown` then
+/// `exit`, and 1 when the editor left without `shutdown`, as the protocol says.
+let run(server: Server<'s, 'a>): Int64 =
+  log($"{server.name} language server started")
+  Loop.turn(server, Loop.start(server))

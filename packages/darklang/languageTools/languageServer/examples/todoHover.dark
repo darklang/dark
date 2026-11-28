@@ -1,0 +1,13 @@
+/// Dark's language server with one more hover: `TODO` explains itself, and every other name is
+/// left to ours.
+module Darklang.LanguageTools.LanguageServer.Examples.TodoHover
+
+let hover(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.Hover> =
+  match Lsp.Text.wordAt(doc.text, at) with
+  | Some("TODO") -> Option.Some(Lsp.Hover { markdown = "Something to come back to.", range = Option.None })
+  | _ -> Hover.hover(session, doc, at)
+
+
+let server(): Lsp.Server<State, Analysis.Analysis> =
+  let ours = LanguageServer.server(false)
+  { ours with handlers = { ours.handlers with hover = Option.Some(hover) } }

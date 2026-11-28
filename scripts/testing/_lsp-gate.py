@@ -15,9 +15,9 @@ import time
 
 
 class Server:
-    def __init__(self, cli, env=None, args=()):
+    def __init__(self, cli, env=None, args=(), command=("lsp", "--stdio")):
         self.proc = subprocess.Popen(
-            [cli, "lsp", "--stdio", *args],
+            [cli, *command, *args],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -138,6 +138,11 @@ def check(ok, message):
         raise Failure(message)
 
 
+def first(locations):
+    """A definition answers with a list of locations; the first, or None."""
+    return locations[0] if locations else None
+
+
 def messages_of(diagnostics):
     return [d["message"] for d in diagnostics]
 
@@ -250,7 +255,7 @@ def run(cli):
         checked.append("hover shows the signature, the docs, and the effects")
 
         # Definition: the item opens as a store document, and the server serves its source.
-        loc = s.request("textDocument/definition", pos(1, 16))["result"]
+        loc = first(s.request("textDocument/definition", pos(1, 16))["result"])
         check(loc is not None and loc["uri"] == "darkfs:/Darklang/Stdlib/List/map.fn.dark", f"definition: {loc}")
         source = s.request("dark/fs/read", {"uri": loc["uri"]})["result"]
         check(source is not None and "let map(" in source, f"dark/fs/read: {source!r}"[:300])
@@ -287,7 +292,7 @@ def run(cli):
         marks = s.request("textDocument/documentHighlight", lpos(3, 9))["result"]
         spots = sorted((m["range"]["start"]["line"], m["range"]["start"]["character"], m["kind"]) for m in marks)
         check(spots == [(0, 6, 3), (1, 10, 2), (3, 9, 2)], f"highlights of x: {spots}")
-        loc = s.request("textDocument/definition", lpos(3, 4))["result"]
+        loc = first(s.request("textDocument/definition", lpos(3, 4))["result"])
         check(loc["uri"] == uri and loc["range"]["start"] == {"line": 1, "character": 6}, f"definition of y: {loc}")
         refs = s.request("textDocument/references", {**lpos(2, 19), "context": {"includeDeclaration": False}})["result"]
         check([r["range"]["start"] for r in refs] == [{"line": 2, "character": 19}], f"the lambda's x: {refs}")
@@ -559,6 +564,24 @@ def run(cli):
         s.close_stdin()
         check(s.exit_code() == 1, "closing stdin without shutdown did not stop the server with 1")
         checked.append("stdin closing stops the server")
+    finally:
+        s.kill()
+
+    # A server someone else wrote on `Darklang.Lsp`: the toy example, started with `dark run`.
+    s = Server(cli, command=("run", "Darklang.Lsp.Examples.Toy.main"))
+    try:
+        caps = s.request("initialize", {"capabilities": {}})["result"]["capabilities"]
+        check("hoverProvider" in caps and "definitionProvider" not in caps, f"toy capabilities: {caps}")
+        uri = "file:///tmp/lsp-gate/a.toy"
+        s.open(uri, "a = 1\nb = a\noops\n")
+        d = s.diagnostics(uri)
+        check([x["range"]["start"]["line"] for x in d] == [2], f"toy diagnostics: {d}")
+        hover = s.request("textDocument/hover", {"textDocument": {"uri": uri}, "position": {"line": 1, "character": 4}})
+        check(hover["result"]["contents"]["value"] == "`a` is 1", f"toy hover: {hover}")
+        s.request("shutdown")
+        s.notify("exit")
+        check(s.exit_code() == 0, "the toy server did not stop with 0")
+        checked.append("a server built on Darklang.Lsp (the toy example) runs the same protocol")
     finally:
         s.kill()
 

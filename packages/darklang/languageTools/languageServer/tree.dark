@@ -1,6 +1,6 @@
 /// `dark/tree`: the package tree, one module at a time, for the editor's Packages view. It lists
 /// what `dark ls` lists: deprecated items and `__` helpers are left out.
-module Darklang.LanguageTools.Lsp.Tree
+module Darklang.LanguageTools.LanguageServer.Tree
 
 type Json = Stdlib.AltJson.Json
 

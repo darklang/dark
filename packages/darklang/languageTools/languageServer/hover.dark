@@ -1,5 +1,5 @@
-/// `textDocument/hover` and `textDocument/definition`.
-module Darklang.LanguageTools.Lsp.Hover
+/// `textDocument/hover`: what the name under the cursor is.
+module Darklang.LanguageTools.LanguageServer.Hover
 
 type Json = Stdlib.AltJson.Json
 
@@ -114,13 +114,8 @@ let describe(branchId: Uuid, item: Names.Item): String =
       "\n\n")
 
 
-let markdown(value: String, r: Parser.Range): Json =
-  Json.Object(
-    [ (
-        "contents",
-        Json.Object([ ("kind", Json.String("markdown")), ("value", Json.String(value)) ]))
-
-      ("range", Analysis.range(r)) ])
+let markdown(value: String, r: Parser.Range): Lsp.Hover =
+  Lsp.Hover { markdown = value, range = Option.Some(Analysis.range(r)) }
 
 
 /// The built-in types, and where their functions are.
@@ -232,15 +227,13 @@ let describeModule(branchId: Uuid, path: List<String>): Option<String> =
       + Stdlib.String.join(parts, ", "))
 
 
-/// The hover at <param line>:<param character>: a local, a package item, one of the document's own
-/// declarations, a module, or a built-in type.
-let hover(
-  ctx: NameResolver.NRContext,
-  text: String,
-  file: Option<WrittenTypes.ParsedFile>,
-  line: Int64,
-  character: Int64)
-  : Json =
+/// The hover at <param at>: a local, a package item, one of the document's own declarations, a
+/// module, or a built-in type.
+let hover(session: Session, doc: Document, at: Lsp.Position): Option<Lsp.Hover> =
+  let file = Analysis.parsed(doc)
+  let line = at.line
+  let character = at.character
+  let ctx = Names.context(session.state.branchId, doc.uri)
   let local =
     file
     |> Stdlib.Option.andThen(fun f ->
@@ -252,13 +245,13 @@ let hover(
           |> Stdlib.Option.map(fun o -> o.range)
           |> Stdlib.Option.withDefault(binding)
 
-        markdown(describeLocal(text, f, binding), r)))
+        markdown(describeLocal(doc.text, f, binding), r)))
 
   match local with
-  | Some(found) -> found
+  | Some(found) -> Option.Some(found)
   | None ->
-    match Names.at(text, line, character) with
-    | None -> Json.Null
+    match Names.at(doc.text, line, character) with
+    | None -> Option.None
     | Some(name) ->
       let r =
         Parser.Range
@@ -266,11 +259,11 @@ let hover(
             end_ = Parser.Point { row = line, column = name.end } }
 
       match Names.resolve(ctx, name.parts) with
-      | Some(item) -> markdown(describe(ctx.branchId, item), r)
+      | Some(item) -> Option.Some(markdown(describe(ctx.branchId, item), r))
       | None ->
         let declared =
           match file, name.parts with
-          | Some(f), [only] -> describeDeclared(text, f, only)
+          | Some(f), [only] -> describeDeclared(doc.text, f, only)
           | _ -> Option.None
 
         let builtin =
@@ -294,24 +287,6 @@ let hover(
           |> Stdlib.List.head
 
         match declared, builtin with
-        | Some(d), _ -> markdown(d, r)
-        | _, Some(b) -> markdown(b, r)
-        | None, None ->
-          match modules() with
-          | Some(m) -> markdown(m, r)
-          | None -> Json.Null
-
-
-/// A store item opens as its own document (`Names.uriOf`), so a definition is its first line.
-let definition(ctx: NameResolver.NRContext, text: String, line: Int64, character: Int64): Json =
-  let start = Json.Object([ ("line", Json.Integer(0)), ("character", Json.Integer(0)) ])
-  let at(uri: String): Json =
-    Json.Object(
-      [ ("uri", Json.String(uri)), ("range", Json.Object([ ("start", start), ("end", start) ])) ])
-
-  match Names.at(text, line, character) with
-  | None -> Json.Null
-  | Some(name) ->
-    match Names.resolve(ctx, name.parts) with
-    | Some(item) -> at(Names.uriOf(Names.itemLocation(item), Names.itemKind(item)))
-    | None -> Json.Null
+        | Some(d), _ -> Option.Some(markdown(d, r))
+        | _, Some(b) -> Option.Some(markdown(b, r))
+        | None, None -> modules() |> Stdlib.Option.map(fun m -> markdown(m, r))

@@ -1,0 +1,83 @@
+/// Semantic tokens: what each name in a document is, from the parsed file
+/// (`LanguageTools.SemanticTokens`), so modules, types, functions, parameters and enum cases
+/// each get their own colour.
+module Darklang.LanguageTools.LanguageServer.Tokens
+
+type TokenType = SemanticTokens.TokenType
+
+
+/// The legend: a token's type is its index here. Punctuation is left to the grammar.
+val legend =
+  [ "keyword"
+    "namespace"
+    "type"
+    "operator"
+    "string"
+    "number"
+    "parameter"
+    "variable"
+    "function"
+    "comment"
+    "typeParameter"
+    "enumMember"
+    "property"
+    "method"
+    "regexp" ]
+
+
+let index(t: TokenType): Option<Int64> =
+  match t with
+  | Symbol -> Option.None
+  | Keyword -> Option.Some(0)
+  | ModuleName -> Option.Some(1)
+  | TypeName -> Option.Some(2)
+  | Operator -> Option.Some(3)
+  | String -> Option.Some(4)
+  | Number -> Option.Some(5)
+  | ParameterName -> Option.Some(6)
+  | VariableName -> Option.Some(7)
+  | FunctionName -> Option.Some(8)
+  | Comment -> Option.Some(9)
+  | TypeParameter -> Option.Some(10)
+  | EnumMember -> Option.Some(11)
+  | Property -> Option.Some(12)
+  | Method -> Option.Some(13)
+  | RegularExpression -> Option.Some(14)
+
+
+/// One token on one line. A token over several lines, a multi-line string, becomes one per line.
+let pieces(lines: List<String>, r: Parser.Range, t: Int64): List<Lsp.Token> =
+  let token(line: Int64, start: Int64, length: Int64): Lsp.Token =
+    Lsp.Token { line = line, start = start, length = length, tokenType = t }
+
+  if r.start.row == r.end_.row then
+    [ token(r.start.row, r.start.column, r.end_.column - r.start.column) ]
+  else
+    let widthOf(line: Int64): Int64 =
+      Stdlib.List.getAt(lines, line) |> Stdlib.Option.map(Lsp.Text.width) |> Stdlib.Option.withDefault(0)
+
+    let middle =
+      Stdlib.List.checkedRange(r.start.row + 1, r.end_.row - 1)
+      |> Stdlib.Result.withDefault([])
+      |> Stdlib.List.map(fun line -> token(line, 0, widthOf(line)))
+
+    Stdlib.List.flatten(
+      [ [ token(r.start.row, r.start.column, widthOf(r.start.row) - r.start.column) ]
+        middle
+        [ token(r.end_.row, 0, r.end_.column) ] ])
+
+
+/// The tokens of the document, by line then column, from <param fromLine> to <param toLine>.
+let tokens(_session: Session, doc: Document, fromLine: Int64, toLine: Int64): List<Lsp.Token> =
+  match Analysis.parsed(doc) with
+  | None -> []
+  | Some(file) ->
+    let lines = Lsp.Text.lines(doc.text)
+    SemanticTokens.ParsedFile.tokenize(file)
+    |> Stdlib.List.filter(fun tok -> tok.range.end_.row >= fromLine && tok.range.start.row <= toLine)
+    |> Stdlib.List.filterMap(fun tok ->
+      index(tok.tokenType) |> Stdlib.Option.map(fun t -> pieces(lines, tok.range, t)))
+    |> Stdlib.List.flatten
+    |> Stdlib.List.filter(fun t -> t.length > 0 && t.line >= fromLine && t.line <= toLine)
+    |> Stdlib.List.sortBy(fun t -> (t.line, t.start))
+    |> Stdlib.List.uniqueBy(fun t -> (t.line, t.start))

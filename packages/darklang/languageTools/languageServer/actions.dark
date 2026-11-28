@@ -1,8 +1,5 @@
-/// `textDocument/codeAction`: quick fixes for what the analysis reported.
-module Darklang.LanguageTools.Lsp.Actions
-
-type Json = Stdlib.AltJson.Json
-
+/// Quick fixes for what the analysis reported.
+module Darklang.LanguageTools.LanguageServer.Actions
 
 /// Whether the editor applies a fix on its own ("Fix all", the lightbulb's first choice).
 type Preference =
@@ -13,35 +10,26 @@ type Preference =
 let quickFix(
   title: String,
   uri: String,
-  edits: List<Json>,
-  diagnostic: Json,
+  edits: List<Lsp.TextEdit>,
+  diagnostic: Lsp.Diagnostic,
   preference: Preference)
-  : Json =
-  Json.Object(
-    [ ("title", Json.String(title))
-      ("kind", Json.String("quickfix"))
-      ("diagnostics", Json.Array([ diagnostic ]))
-      ("isPreferred", Json.Bool(preference == Preference.Preferred))
-      ("edit", Edits.workspaceEdit([ (uri, edits) ])) ])
+  : Lsp.CodeAction =
+  Lsp.CodeAction
+    { title = title
+      kind = "quickfix"
+      diagnostics = [ diagnostic ]
+      preferred = preference == Preference.Preferred
+      edit = Lsp.WorkspaceEdit { changes = [ (uri, edits) ] } }
 
 
-let rangeOf(json: Json): Option<Parser.Range> =
-  match Requests.at(json, [ "start" ]) |> Stdlib.Option.andThen(Requests.point), Requests.at(
-          json,
-          [ "end" ])
-        |> Stdlib.Option.andThen(Requests.point) with
-  | Some((sl, sc)), Some((el, ec)) ->
-    Option.Some(
-      Parser.Range
-        { start = Parser.Point { row = sl, column = sc }
-          end_ = Parser.Point { row = el, column = ec } })
-  | _ -> Option.None
+let parserRange(r: Lsp.Range): Parser.Range =
+  Parser.Range { start = Analysis.point(r.start), end_ = Analysis.point(r.end) }
 
 
 /// The text <param r> covers on its line.
 let textAt(text: String, r: Parser.Range): String =
-  let (_, from) = Text.splitAt(Names.lineOf(text, r.start.row), r.start.column)
-  let (inside, _) = Text.splitAt(from, r.end_.column - r.start.column)
+  let (_, from) = Lsp.Text.splitAt(Names.lineOf(text, r.start.row), r.start.column)
+  let (inside, _) = Lsp.Text.splitAt(from, r.end_.column - r.start.column)
   inside
 
 
@@ -65,11 +53,11 @@ let shortest(ctx: NameResolver.NRContext, loc: ProgramTypes.PackageLocation): St
 
 
 let qualify(
-  view: Requests.View,
-  doc: Requests.Document,
-  diagnostic: Json,
+  session: Session,
+  doc: Document,
+  diagnostic: Lsp.Diagnostic,
   r: Parser.Range)
-  : List<Json> =
+  : List<Lsp.CodeAction> =
   // The range can be the whole call (`padStart(s, ' ', 3)` reads as an unknown local applied):
   // the name is what it starts with.
   let written =
@@ -80,7 +68,7 @@ let qualify(
 
   let r =
     { r with
-        end_ = Parser.Point { row = r.start.row, column = r.start.column + Text.width(written) } }
+        end_ = Parser.Point { row = r.start.row, column = r.start.column + Lsp.Text.width(written) } }
 
   let name =
     Stdlib.String.split(written, ".")
@@ -89,7 +77,7 @@ let qualify(
 
   let found =
     PackageManager.Search.search(
-      view.branchId,
+      session.state.branchId,
       ProgramTypes.Search.SearchQuery
         { currentModule = []
           text = name
@@ -100,7 +88,7 @@ let qualify(
               ProgramTypes.Search.EntityType.Value ]
           exactMatch = true })
 
-  let ctx = Requests.context(view, doc)
+  let ctx = Names.context(session.state.branchId, doc.uri)
   Stdlib.List.flatten(
     [ Stdlib.List.map(found.fns, fun i -> i.location)
       Stdlib.List.map(found.types, fun i -> i.location)
@@ -138,14 +126,14 @@ let matchesIn(n: Syntax.Node): List<WrittenTypes.Expr> =
 /// A case for <param missing> after the last case of the match the diagnostic is about: the
 /// innermost one around the cursor, or the only one in the declaration.
 let addCase(
-  doc: Requests.Document,
-  diagnostic: Json,
+  doc: Document,
+  diagnostic: Lsp.Diagnostic,
   r: Parser.Range,
   cursor: Parser.Range,
   missing: String)
-  : List<Json> =
+  : List<Lsp.CodeAction> =
   let matches =
-    match Requests.parsed(doc) with
+    match Analysis.parsed(doc) with
     | Some(file) ->
       Syntax.bodies(file)
       |> Stdlib.List.filter(fun b -> Syntax.contains(b.range, r.start.row, r.start.column))
@@ -171,7 +159,7 @@ let addCase(
     | Some(last) ->
       let (bar, _, _) = last.pat
       let at = (WrittenTypes.Expr.range(last.rhs)).end_
-      let (indent, _) = Text.splitAt(Names.lineOf(doc.text, bar.start.row), bar.start.column)
+      let (indent, _) = Lsp.Text.splitAt(Names.lineOf(doc.text, bar.start.row), bar.start.column)
       let insert = "\n" + indent + "| " + missing + " -> ()"
       [ quickFix(
           $"Add a case for {missing}",
@@ -183,30 +171,21 @@ let addCase(
   | _ -> []
 
 
-/// The fixes for the diagnostics the editor sends with the request.
-let codeActions(view: Requests.View, params: Json): Json =
-  match Requests.document(view, params), rangeOf(
-          Requests.at(params, [ "range" ]) |> Stdlib.Option.withDefault(Json.Null)) with
-  | Some(doc), Some(cursor) ->
-    let diagnostics =
-      match Requests.at(params, [ "context", "diagnostics" ]) with
-      | Some(Array(ds)) -> ds
-      | _ -> []
-
-    diagnostics
-    |> Stdlib.List.map(fun d ->
-      let message = Requests.stringAt(d, [ "message" ]) |> Stdlib.Option.withDefault("")
-      match rangeOf(Requests.at(d, [ "range" ]) |> Stdlib.Option.withDefault(Json.Null)) with
-      | None -> []
-      | Some(r) ->
-        match Requests.stringAt(d, [ "code" ]), Requests.stringAt(d, [ "data", "missing" ]) with
-        | Some("NonExhaustiveMatch"), Some(missing) -> addCase(doc, d, r, cursor, missing)
-        | Some("UnknownVariable"), _ -> qualify(view, doc, d, r)
-        | _ ->
-          if Stdlib.String.endsWith(message, "not found") then
-            qualify(view, doc, d, r)
-          else
-            [])
-    |> Stdlib.List.flatten
-    |> Json.Array
-  | _ -> Json.Array([])
+/// The fixes for the diagnostics the editor shows at the cursor: qualify an unresolved name, or
+/// add the case a match misses.
+let codeActions(
+  session: Session,
+  doc: Document,
+  cursor: Lsp.Range,
+  diagnostics: List<Lsp.Diagnostic>)
+  : List<Lsp.CodeAction> =
+  diagnostics
+  |> Stdlib.List.map(fun d ->
+    let r = parserRange(d.range)
+    let missing = d.data |> Stdlib.Option.andThen(fun data -> Lsp.Read.string(data, [ "missing" ]))
+    match d.code, missing with
+    | Some("NonExhaustiveMatch"), Some(missing) -> addCase(doc, d, r, parserRange(cursor), missing)
+    | Some("UnknownVariable"), _ -> qualify(session, doc, d, r)
+    | _ ->
+      if Stdlib.String.endsWith(d.message, "not found") then qualify(session, doc, d, r) else [])
+  |> Stdlib.List.flatten

@@ -1,0 +1,213 @@
+/// JSON-RPC 2.0 (https://www.jsonrpc.org/specification): messages as data, and the
+/// `Content-Length` framing that carries them over a byte stream. Nothing here knows which
+/// protocol rides on top: the Language Server Protocol is one (`Darklang.Lsp`).
+module Darklang.JsonRpc
+
+type Json = Stdlib.AltJson.Json
+
+
+/// A request's id, which its response carries back.
+type Id =
+  | Number(Int64)
+  | Text(String)
+
+
+type Error =
+  { code: Int64
+    message: String
+    data: Option<Json> }
+
+
+type Message =
+  /// Wants a `Response` with the same id.
+  | Request(id: Id, method: String, params: Json)
+  | Notification(method: String, params: Json)
+  /// `id` is None only when the message it answers could not be read.
+  | Response(id: Option<Id>, result: Result<Json, Error>)
+
+
+/// The codes the spec defines. A protocol on top adds its own outside this range.
+module Code =
+  val parseError = -32700
+
+  val invalidRequest = -32600
+
+  val methodNotFound = -32601
+
+  val invalidParams = -32602
+
+  val internalError = -32603
+
+
+let error(code: Int64, message: String): Error =
+  Error { code = code, message = message, data = Option.None }
+
+
+let idToJson(id: Id): Json =
+  match id with
+  | Number(n) -> Json.Integer(n)
+  | Text(s) -> Json.String(s)
+
+
+let idOfJson(json: Json): Option<Id> =
+  match json with
+  | Integer(n) -> Option.Some(Id.Number(n))
+  | String(s) -> Option.Some(Id.Text(s))
+  | _ -> Option.None
+
+
+let toJson(message: Message): Json =
+  let version = ("jsonrpc", Json.String("2.0"))
+  match message with
+  | Request(id, method, params) ->
+    Json.Object(
+      [ version, ("id", idToJson(id)), ("method", Json.String(method)), ("params", params) ])
+  | Notification(method, params) ->
+    Json.Object([ version, ("method", Json.String(method)), ("params", params) ])
+  | Response(id, result) ->
+    let idField =
+      ("id", id |> Stdlib.Option.map(idToJson) |> Stdlib.Option.withDefault(Json.Null))
+
+    match result with
+    | Ok(value) -> Json.Object([ version, idField, ("result", value) ])
+    | Error(e) ->
+      let data =
+        match e.data with
+        | Some(d) -> [ ("data", d) ]
+        | None -> []
+
+      let fields =
+        Stdlib.List.concat(
+          [ ("code", Json.Integer(e.code)), ("message", Json.String(e.message)) ],
+          data)
+
+      Json.Object([ version, idField, ("error", Json.Object(fields)) ])
+
+
+let format(message: Message): String =
+  Stdlib.AltJson.format(toJson(message))
+
+
+/// One message from its JSON, or the response that says why it is not one.
+let ofJson(json: Json): Result<Message, Message> =
+  let invalid(id: Option<Id>, why: String): Result<Message, Message> =
+    Result.Error(Message.Response(id, Result.Error(error(Code.invalidRequest, why))))
+
+  match json with
+  | Object(fields) ->
+    let get(key: String): Option<Json> = Stdlib.AltJson.Helpers.getValue(key, fields)
+    let params = get("params") |> Stdlib.Option.withDefault(Json.Null)
+    let id = get("id") |> Stdlib.Option.andThen(idOfJson)
+    match get("jsonrpc"), get("method"), get("id") with
+    | Some(String("2.0")), Some(String(method)), None ->
+      Result.Ok(Message.Notification(method, params))
+    | Some(String("2.0")), Some(String(method)), Some(_) ->
+      match id with
+      | Some(id) -> Result.Ok(Message.Request(id, method, params))
+      | None -> invalid(Option.None, "an id must be a number or a string")
+    | Some(String("2.0")), None, Some(_) ->
+      match id, get("result"), get("error") with
+      | Some(id), Some(result), _ -> Result.Ok(Message.Response(Option.Some(id), Result.Ok(result)))
+      | _, _, Some(Object(e)) ->
+        let code =
+          match Stdlib.AltJson.Helpers.getValue("code", e) with
+          | Some(Integer(c)) -> c
+          | _ -> Code.internalError
+
+        let message = Stdlib.AltJson.Helpers.getString("message", e) |> Stdlib.Option.withDefault("")
+        Result.Ok(
+          Message.Response(
+            id,
+            Result.Error(
+              Error
+                { code = code
+                  message = message
+                  data = Stdlib.AltJson.Helpers.getValue("data", e) })))
+      | _ -> invalid(id, "a response needs a result or an error")
+    | Some(String("2.0")), _, _ -> invalid(id, "a request needs a method")
+    | _ -> invalid(id, "\"jsonrpc\" must be \"2.0\"")
+  | _ -> invalid(Option.None, "a message must be an object")
+
+
+/// A body as it arrived: one message, or a batch of them. Each is a message, or the response
+/// that says why it is not one.
+type Body =
+  | One(Result<Message, Message>)
+  | Batch(List<Result<Message, Message>>)
+
+
+let parse(text: String): Body =
+  match Stdlib.Json.parse<Json>(text) with
+  | Error(_) ->
+    Body.One(Result.Error(Message.Response(Option.None, Result.Error(error(Code.parseError, "Parse error")))))
+  | Ok(Array([])) ->
+    Body.One(
+      Result.Error(
+        Message.Response(Option.None, Result.Error(error(Code.invalidRequest, "an empty batch")))))
+  | Ok(Array(items)) -> Body.Batch(Stdlib.List.map(items, ofJson))
+  | Ok(json) -> Body.One(ofJson(json))
+
+
+/// Answer a body with <param handle>, which answers one message: the reply, a batch's replies
+/// in one array, or None when nothing is owed (notifications and responses).
+let answer(text: String, handle: Message -> Option<Message>): Option<String> =
+  let one(item: Result<Message, Message>): Option<Message> =
+    match item with
+    | Ok(message) -> handle(message)
+    | Error(reply) -> Option.Some(reply)
+
+  match parse(text) with
+  | One(item) -> one(item) |> Stdlib.Option.map(format)
+  | Batch(items) ->
+    match Stdlib.List.filterMap(items, one) with
+    | [] -> Option.None
+    | replies ->
+      Option.Some(Stdlib.AltJson.format(Json.Array(Stdlib.List.map(replies, toJson))))
+
+
+/// Bodies over a byte stream, each after a `Content-Length` header in bytes and a blank line:
+/// how the Language Server Protocol and the Debug Adapter Protocol carry JSON-RPC.
+module Framing =
+  /// Where the reader is: reading header lines (with the length, once one is seen), or waiting
+  /// for a body of that many bytes.
+  type Reader =
+    | Header(length: Option<Int64>)
+    | Body(length: Int64)
+
+
+  val start = Reader.Header(Option.None)
+
+
+  /// What the reader asks stdin for next.
+  let wants(reader: Reader): Stdlib.Host.EventSpec =
+    match reader with
+    | Header(_) -> Stdlib.Host.EventSpec.StdinLine
+    | Body(length) -> Stdlib.Host.EventSpec.StdinBytes(length)
+
+
+  /// What one read moved the reader to, and the body when it completed one. Other headers
+  /// (`Content-Type`) are skipped; a blank line before any length leaves the reader where it was.
+  let step(reader: Reader, text: String): (Reader * Option<String>) =
+    match reader with
+    | Body(_) -> (start, Option.Some(text))
+    | Header(length) ->
+      if text == "" then
+        match length with
+        | Some(n) -> (Reader.Body(n), Option.None)
+        | None -> (reader, Option.None)
+      else
+        match Stdlib.String.stripPrefix(text, "Content-Length:")
+              |> Stdlib.Option.map(fun n -> Stdlib.Int64.parse(Stdlib.String.trim(n))) with
+        | Some(Ok(n)) -> (Reader.Header(Option.Some(n)), Option.None)
+        | _ -> (reader, Option.None)
+
+
+  let frame(body: String): String =
+    let length = Stdlib.Bytes.length(Stdlib.Utf8.encode(body))
+    $"Content-Length: {length}\r\n\r\n{body}"
+
+
+/// Stdout as the channel: nothing else may write there. A socket would frame the same way.
+module Stdio =
+  let send(message: Message): Unit =
+    Stdlib.print(Framing.frame(format(message)))

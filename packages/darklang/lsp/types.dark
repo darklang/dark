@@ -1,0 +1,511 @@
+/// The Language Server Protocol's messages as plain records
+/// (https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification),
+/// with the JSON each one goes out as. Only what a handler returns or reads is here; the
+/// fields nobody sets are left out.
+module Darklang.Lsp
+
+type Json = Stdlib.AltJson.Json
+
+
+/// A column counts UTF-16 units, as the protocol's default encoding does.
+type Position = { line: Int64, character: Int64 }
+
+type Range = { start: Position, end: Position }
+
+type Location = { uri: String, range: Range }
+
+type TextEdit = { range: Range, newText: String }
+
+/// The edits to make, by document.
+type WorkspaceEdit = { changes: List<(String * List<TextEdit>)> }
+
+/// A command the editor runs: one of its own, or one an extension registered.
+type Command =
+  { title: String
+    command: String
+    arguments: List<Json> }
+
+
+type Severity =
+  | Error
+  | Warning
+  | Information
+  | Hint
+
+type Diagnostic =
+  { range: Range
+    severity: Severity
+    code: Option<String>
+    message: String
+    /// Kept by the editor and sent back with a code action request.
+    data: Option<Json> }
+
+
+type Hover =
+  { markdown: String
+    range: Option<Range> }
+
+
+type CompletionKind =
+  | Text
+  | Function
+  | Variable
+  | Module
+  | Keyword
+  | EnumMember
+  | Constant
+  | Struct
+  | Interface
+
+type CompletionItem =
+  { label: String
+    kind: CompletionKind
+    /// Beside the label, the parameters say.
+    detail: Option<String>
+    /// After the detail, dimmer: a return type.
+    description: Option<String>
+    sortText: Option<String>
+    /// Inserted instead of the label, with `${1:name}` placeholders.
+    snippet: Option<String>
+    documentation: Option<String>
+    command: Option<Command>
+    /// Kept by the editor and sent back to resolve the item.
+    data: Json }
+
+
+type ParameterInformation =
+  { /// [start, end) of the parameter in the signature's label, in UTF-16 units.
+    label: (Int64 * Int64)
+    documentation: Option<String> }
+
+type SignatureHelp =
+  { label: String
+    documentation: Option<String>
+    parameters: List<ParameterInformation>
+    activeParameter: Int64 }
+
+
+type SymbolKind =
+  | Module
+  | Class
+  | Method
+  | Interface
+  | Function
+  | Variable
+  | Struct
+
+type DocumentSymbol =
+  { name: String
+    kind: SymbolKind
+    range: Range
+    selectionRange: Range
+    children: List<DocumentSymbol> }
+
+type SymbolInformation =
+  { name: String
+    kind: SymbolKind
+    container: String
+    location: Location }
+
+
+type HighlightKind =
+  | Text
+  | Read
+  | Write
+
+type DocumentHighlight = { range: Range, kind: HighlightKind }
+
+type FoldingRange = { startLine: Int64, endLine: Int64, comment: Bool }
+
+type InlayHintKind =
+  | Type
+  | Parameter
+
+type InlayHint =
+  { position: Position
+    label: String
+    kind: Option<InlayHintKind>
+    paddingLeft: Bool }
+
+type CodeLens = { range: Range, command: Command }
+
+type CodeAction =
+  { title: String
+    /// `quickfix`, `refactor`, ...
+    kind: String
+    diagnostics: List<Diagnostic>
+    preferred: Bool
+    edit: WorkspaceEdit }
+
+type DocumentLink = { range: Range, target: String }
+
+/// A semantic token: its type is an index into the legend the server declared.
+type Token =
+  { line: Int64
+    start: Int64
+    length: Int64
+    tokenType: Int64 }
+
+
+/// An item with nothing but a label and a kind.
+let completion(label: String, kind: CompletionKind): CompletionItem =
+  CompletionItem
+    { label = label
+      kind = kind
+      detail = Option.None
+      description = Option.None
+      sortText = Option.None
+      snippet = Option.None
+      documentation = Option.None
+      command = Option.None
+      data = Json.Null }
+
+
+/// Reading the params a client sent: the few fields a handler needs, by path.
+module Read =
+  let at(json: Json, path: List<String>): Option<Json> =
+    match path with
+    | [] -> Option.Some(json)
+    | [key, ...rest] ->
+      match json with
+      | Object(fields) ->
+        Stdlib.AltJson.Helpers.getValue(key, fields) |> Stdlib.Option.andThen(fun j -> at(j, rest))
+      | _ -> Option.None
+
+
+  let string(json: Json, path: List<String>): Option<String> =
+    match at(json, path) with
+    | Some(String(s)) -> Option.Some(s)
+    | _ -> Option.None
+
+
+  let int(json: Json, path: List<String>): Option<Int64> =
+    match at(json, path) with
+    | Some(Integer(n)) -> Option.Some(n)
+    | _ -> Option.None
+
+
+  let bool(json: Json, path: List<String>): Option<Bool> =
+    match at(json, path) with
+    | Some(Bool(b)) -> Option.Some(b)
+    | _ -> Option.None
+
+
+  let list(json: Json, path: List<String>): List<Json> =
+    match at(json, path) with
+    | Some(Array(items)) -> items
+    | _ -> []
+
+
+  let position(json: Json): Option<Position> =
+    match int(json, [ "line" ]), int(json, [ "character" ]) with
+    | Some(line), Some(character) -> Option.Some(Position { line = line, character = character })
+    | _ -> Option.None
+
+
+  let range(json: Json): Option<Range> =
+    match at(json, [ "start" ]) |> Stdlib.Option.andThen(position), at(json, [ "end" ])
+          |> Stdlib.Option.andThen(position) with
+    | Some(s), Some(e) -> Option.Some(Range { start = s, end = e })
+    | _ -> Option.None
+
+
+  let severity(n: Int64): Severity =
+    match n with
+    | 1 -> Severity.Error
+    | 2 -> Severity.Warning
+    | 3 -> Severity.Information
+    | _ -> Severity.Hint
+
+
+  let diagnostic(json: Json): Option<Diagnostic> =
+    range(at(json, [ "range" ]) |> Stdlib.Option.withDefault(Json.Null))
+    |> Stdlib.Option.map(fun r ->
+      Diagnostic
+        { range = r
+          severity = severity(int(json, [ "severity" ]) |> Stdlib.Option.withDefault(1))
+          code = string(json, [ "code" ])
+          message = string(json, [ "message" ]) |> Stdlib.Option.withDefault("")
+          data = at(json, [ "data" ]) })
+
+
+  let completionKind(n: Int64): CompletionKind =
+    match n with
+    | 3 -> CompletionKind.Function
+    | 6 -> CompletionKind.Variable
+    | 9 -> CompletionKind.Module
+    | 14 -> CompletionKind.Keyword
+    | 20 -> CompletionKind.EnumMember
+    | 21 -> CompletionKind.Constant
+    | 22 -> CompletionKind.Struct
+    | 8 -> CompletionKind.Interface
+    | _ -> CompletionKind.Text
+
+
+  /// An item as the editor sends it back to be resolved.
+  let completionItem(json: Json): CompletionItem =
+    { completion(
+        string(json, [ "label" ]) |> Stdlib.Option.withDefault(""),
+        completionKind(int(json, [ "kind" ]) |> Stdlib.Option.withDefault(1))) with
+        detail = string(json, [ "labelDetails", "detail" ])
+        description = string(json, [ "labelDetails", "description" ])
+        sortText = string(json, [ "sortText" ])
+        snippet = string(json, [ "insertText" ])
+        documentation = string(json, [ "documentation", "value" ])
+        command =
+          string(json, [ "command", "command" ])
+          |> Stdlib.Option.map(fun c ->
+            Command
+              { title = string(json, [ "command", "title" ]) |> Stdlib.Option.withDefault("")
+                command = c
+                arguments = list(json, [ "command", "arguments" ]) })
+        data = at(json, [ "data" ]) |> Stdlib.Option.withDefault(Json.Null) }
+
+
+/// Each record as the JSON the protocol sends.
+module Write =
+  let optional(key: String, value: Option<Json>): List<(String * Json)> =
+    match value with
+    | Some(v) -> [ (key, v) ]
+    | None -> []
+
+
+  let strings(xs: List<String>): Json =
+    Json.Array(Stdlib.List.map(xs, fun x -> Json.String(x)))
+
+
+  let position(p: Position): Json =
+    Json.Object([ ("line", Json.Integer(p.line)), ("character", Json.Integer(p.character)) ])
+
+
+  let range(r: Range): Json =
+    Json.Object([ ("start", position(r.start)), ("end", position(r.end)) ])
+
+
+  let location(l: Location): Json =
+    Json.Object([ ("uri", Json.String(l.uri)), ("range", range(l.range)) ])
+
+
+  let textEdit(e: TextEdit): Json =
+    Json.Object([ ("range", range(e.range)), ("newText", Json.String(e.newText)) ])
+
+
+  let workspaceEdit(e: WorkspaceEdit): Json =
+    let changes =
+      e.changes
+      |> Stdlib.List.filter(fun((_, edits)) -> Stdlib.Bool.not(Stdlib.List.isEmpty(edits)))
+      |> Stdlib.List.map(fun((uri, edits)) -> (uri, Json.Array(Stdlib.List.map(edits, textEdit))))
+
+    Json.Object([ ("changes", Json.Object(changes)) ])
+
+
+  let command(c: Command): Json =
+    Json.Object(
+      [ ("title", Json.String(c.title))
+        ("command", Json.String(c.command))
+        ("arguments", Json.Array(c.arguments)) ])
+
+
+  let markdown(value: String): Json =
+    Json.Object([ ("kind", Json.String("markdown")), ("value", Json.String(value)) ])
+
+
+  let severity(s: Severity): Int64 =
+    match s with
+    | Error -> 1
+    | Warning -> 2
+    | Information -> 3
+    | Hint -> 4
+
+
+  /// <param source> names the server, as the editor shows beside the message.
+  let diagnostic(source: String, d: Diagnostic): Json =
+    Json.Object(
+      Stdlib.List.flatten(
+        [ [ ("range", range(d.range))
+            ("severity", Json.Integer(severity(d.severity)))
+            ("source", Json.String(source)) ]
+          optional("code", d.code |> Stdlib.Option.map(fun c -> Json.String(c)))
+          [ ("message", Json.String(d.message)) ]
+          optional("data", d.data) ]))
+
+
+  let hover(h: Hover): Json =
+    Json.Object(
+      Stdlib.List.concat(
+        [ ("contents", markdown(h.markdown)) ],
+        optional("range", h.range |> Stdlib.Option.map(range))))
+
+
+  let completionKind(k: CompletionKind): Int64 =
+    match k with
+    | Text -> 1
+    | Function -> 3
+    | Variable -> 6
+    | Interface -> 8
+    | Module -> 9
+    | Keyword -> 14
+    | EnumMember -> 20
+    | Constant -> 21
+    | Struct -> 22
+
+
+  let completionItem(c: CompletionItem): Json =
+    let string(key: String, value: Option<String>): List<(String * Json)> =
+      optional(key, value |> Stdlib.Option.map(fun s -> Json.String(s)))
+
+    let details =
+      match Stdlib.List.flatten([ string("detail", c.detail), string("description", c.description) ]) with
+      | [] -> []
+      | fields -> [ ("labelDetails", Json.Object(fields)) ]
+
+    let snippet =
+      match c.snippet with
+      | Some(s) -> [ ("insertText", Json.String(s)), ("insertTextFormat", Json.Integer(2)) ]
+      | None -> []
+
+    Json.Object(
+      Stdlib.List.flatten(
+        [ [ ("label", Json.String(c.label)), ("kind", Json.Integer(completionKind(c.kind))) ]
+          details
+          string("sortText", c.sortText)
+          snippet
+          optional("documentation", c.documentation |> Stdlib.Option.map(markdown))
+          optional("command", c.command |> Stdlib.Option.map(command))
+          [ ("data", c.data) ] ]))
+
+
+  let signatureHelp(s: SignatureHelp): Json =
+    let parameter(p: ParameterInformation): Json =
+      let (from, to) = p.label
+      Json.Object(
+        Stdlib.List.concat(
+          [ ("label", Json.Array([ Json.Integer(from), Json.Integer(to) ])) ],
+          optional("documentation", p.documentation |> Stdlib.Option.map(markdown))))
+
+    Json.Object(
+      [ (
+          "signatures",
+          Json.Array(
+            [ Json.Object(
+                Stdlib.List.flatten(
+                  [ [ ("label", Json.String(s.label)) ]
+                    optional("documentation", s.documentation |> Stdlib.Option.map(markdown))
+                    [ ("parameters", Json.Array(Stdlib.List.map(s.parameters, parameter))) ] ])) ]))
+        ("activeSignature", Json.Integer(0))
+        ("activeParameter", Json.Integer(s.activeParameter)) ])
+
+
+  let symbolKind(k: SymbolKind): Int64 =
+    match k with
+    | Module -> 2
+    | Class -> 5
+    | Method -> 6
+    | Interface -> 11
+    | Function -> 12
+    | Variable -> 13
+    | Struct -> 23
+
+
+  let documentSymbol(s: DocumentSymbol): Json =
+    Json.Object(
+      [ ("name", Json.String(s.name))
+        ("kind", Json.Integer(symbolKind(s.kind)))
+        ("range", range(s.range))
+        ("selectionRange", range(s.selectionRange))
+        ("children", Json.Array(Stdlib.List.map(s.children, documentSymbol))) ])
+
+
+  let symbolInformation(s: SymbolInformation): Json =
+    Json.Object(
+      [ ("name", Json.String(s.name))
+        ("kind", Json.Integer(symbolKind(s.kind)))
+        ("containerName", Json.String(s.container))
+        ("location", location(s.location)) ])
+
+
+  let highlight(h: DocumentHighlight): Json =
+    let kind =
+      match h.kind with
+      | Text -> 1
+      | Read -> 2
+      | Write -> 3
+
+    Json.Object([ ("range", range(h.range)), ("kind", Json.Integer(kind)) ])
+
+
+  let foldingRange(f: FoldingRange): Json =
+    Json.Object(
+      Stdlib.List.concat(
+        [ ("startLine", Json.Integer(f.startLine)), ("endLine", Json.Integer(f.endLine)) ],
+        if f.comment then [ ("kind", Json.String("comment")) ] else []))
+
+
+  /// Ranges from the outermost in, as the chain of parents the protocol wants.
+  let selectionRange(ranges: List<Range>): Json =
+    ranges
+    |> Stdlib.List.fold(Json.Null, fun(parent, r) ->
+      match parent with
+      | Null -> Json.Object([ ("range", range(r)) ])
+      | _ -> Json.Object([ ("range", range(r)), ("parent", parent) ]))
+
+
+  let inlayHint(h: InlayHint): Json =
+    let kind =
+      h.kind
+      |> Stdlib.Option.map(fun k ->
+        match k with
+        | Type -> Json.Integer(1)
+        | Parameter -> Json.Integer(2))
+
+    Json.Object(
+      Stdlib.List.flatten(
+        [ [ ("position", position(h.position)), ("label", Json.String(h.label)) ]
+          optional("kind", kind)
+          if h.paddingLeft then [ ("paddingLeft", Json.Bool(true)) ] else [] ]))
+
+
+  let codeLens(l: CodeLens): Json =
+    Json.Object([ ("range", range(l.range)), ("command", command(l.command)) ])
+
+
+  let codeAction(source: String, a: CodeAction): Json =
+    Json.Object(
+      [ ("title", Json.String(a.title))
+        ("kind", Json.String(a.kind))
+        ("diagnostics", Json.Array(Stdlib.List.map(a.diagnostics, fun d -> diagnostic(source, d))))
+        ("isPreferred", Json.Bool(a.preferred))
+        ("edit", workspaceEdit(a.edit)) ])
+
+
+  let documentLink(l: DocumentLink): Json =
+    Json.Object([ ("range", range(l.range)), ("target", Json.String(l.target)) ])
+
+
+  /// Five numbers a token: its line and start relative to the token before it.
+  let tokens(tokens: List<Token>): Json =
+    let (data, _, _) =
+      tokens
+      |> Stdlib.List.fold(([], 0, 0), fun((acc, lastLine, lastStart), t) ->
+        let deltaLine = t.line - lastLine
+        let deltaStart = if deltaLine == 0 then t.start - lastStart else t.start
+        let numbers =
+          [ deltaLine, deltaStart, t.length, t.tokenType, 0 ]
+          |> Stdlib.List.map(fun n -> Json.Integer(n))
+
+        (Stdlib.List.prepend(acc, numbers), t.line, t.start))
+
+    Json.Object(
+      [ (
+          "data",
+          Json.Array(
+            data
+            |> Stdlib.List.reverse
+            |> Stdlib.List.flatten)) ])
+
+
+/// The whole of line <param n>.
+let line(n: Int64): Range =
+  Range
+    { start = Position { line = n, character = 0 }
+      end = Position { line = n + 1, character = 0 } }

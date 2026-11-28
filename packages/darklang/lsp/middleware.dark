@@ -1,0 +1,28 @@
+/// Wrappers for every method a server answers: `{ server with middleware = [ Lsp.Middleware.timed ] }`.
+module Darklang.Lsp.Middleware
+
+/// Logs each request's method and how long it took.
+let timed(m: Lsp.Method<'s, 'a>): Lsp.Method<'s, 'a> =
+  { m with
+      answer =
+        fun(session, params) ->
+          let started = Stdlib.DateTime.now()
+          let result = m.answer(session, params)
+          let ms = Stdlib.DateTime.subtractMs(Stdlib.DateTime.now(), started)
+          Lsp.log($"{m.name} {ms} ms")
+          result }
+
+
+/// Logs each request's params and what it answered.
+let logged(m: Lsp.Method<'s, 'a>): Lsp.Method<'s, 'a> =
+  { m with
+      answer =
+        fun(session, params) ->
+          let result = m.answer(session, params)
+          let answered =
+            match result with
+            | Ok(json) -> Stdlib.AltJson.format(json)
+            | Error(e) -> $"error {e.code}: {e.message}"
+
+          Lsp.log($"{m.name} {Stdlib.AltJson.format(params)} -> {answered}")
+          result }

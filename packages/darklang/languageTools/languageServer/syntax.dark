@@ -1,6 +1,6 @@
 /// Walks over a parsed document: what an expression contains, where each local is bound, what
 /// encloses a position, and what folds.
-module Darklang.LanguageTools.Lsp.Syntax
+module Darklang.LanguageTools.LanguageServer.Syntax
 
 type Range = Parser.Range
 
@@ -285,10 +285,15 @@ let localAt(
   line: Int64,
   character: Int64)
   : Option<(Range * List<Occurrence>)> =
-  let all = occurrences(file)
-  match Stdlib.List.findFirst(all, fun o -> contains(o.range, line, character)) with
+  // A local never leaves its declaration, so only the one around the position is walked.
+  match bodies(file) |> Stdlib.List.findFirst(fun b -> contains(b.range, line, character)) with
   | None -> Option.None
-  | Some(o) -> Option.Some((o.binding, Stdlib.List.filter(all, fun x -> x.binding == o.binding)))
+  | Some(b) ->
+    let (env, bound) = bind([], b.params)
+    let all = Stdlib.List.concat(bound, walk(env, Node.E(b.body)))
+    match Stdlib.List.findFirst(all, fun o -> contains(o.range, line, character)) with
+    | None -> Option.None
+    | Some(o) -> Option.Some((o.binding, Stdlib.List.filter(all, fun x -> x.binding == o.binding)))
 
 
 /// The locals in scope at <param line>:<param character> inside <param n>, nearest first.
@@ -581,3 +586,20 @@ let folds(file: Option<WrittenTypes.ParsedFile>, text: String): List<Fold> =
   Stdlib.List.concat(code, commentFolds(text))
   |> Stdlib.List.sortBy(fun f -> (f.startLine, 0 - f.endLine))
   |> Stdlib.List.uniqueBy(fun f -> f.startLine)
+
+
+// --- handlers ---
+
+let folding(_session: Session, doc: Document): List<Lsp.FoldingRange> =
+  folds(Analysis.parsed(doc), doc.text)
+  |> Stdlib.List.map(fun f ->
+    Lsp.FoldingRange { startLine = f.startLine, endLine = f.endLine, comment = f.comment })
+
+
+/// What encloses <param at>, outermost first, down to the position itself.
+let selection(_session: Session, doc: Document, at: Lsp.Position): List<Lsp.Range> =
+  let here = Lsp.Range { start = at, end = at }
+  match Analysis.parsed(doc) with
+  | Some(file) ->
+    Stdlib.List.append(Stdlib.List.map(around(file, at.line, at.character), Analysis.range), here)
+  | None -> [ here ]

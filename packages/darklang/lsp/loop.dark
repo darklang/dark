@@ -1,0 +1,376 @@
+/// The loop `Lsp.run` turns. It is the only writer to stdout, and it waits on stdin, the
+/// requests answered beside it, and the server's own wakes at once (`Host.await`):
+/// - a keystroke (`didChange`) only stores the text; the analysis runs once typing pauses, so
+///   ten keystrokes cost one analysis, not ten.
+/// - a request runs in a process of its own unless its method `writes`; its answer is sent
+///   when it is done, and `$/cancelRequest` stops it.
+/// - stdin closing ends the server: an editor holds stdin open for the whole session, so EOF
+///   means it is gone, and reading on would spin forever.
+module Darklang.Lsp.Loop
+
+type Json = Stdlib.AltJson.Json
+
+type Answer = Result<Result<Json, JsonRpc.Error>, String>
+
+
+type Loop<'s, 'a> =
+  { session: Lsp.Session<'s, 'a>
+    reader: JsonRpc.Framing.Reader
+    watch: LanguageTools.Live.Watch
+    methods: Dict<String, Lsp.Method<'s, 'a>>
+    inFlight: List<(JsonRpc.Id * Stdlib.Exec.Handle<Answer>)>
+    /// `shutdown` came; only `exit` is answered now.
+    shuttingDown: Bool
+    /// `exit` came, or stdin ended: the exit code to stop with.
+    stopped: Option<Int64> }
+
+
+/// How long typing must pause before the changed documents are analysed.
+val quietMs = 250
+
+
+/// The server's methods, middleware applied: the handlers' and then its own, where one of its
+/// own takes over from a handler's of the same name.
+let methods(server: Lsp.Server<'s, 'a>): List<Lsp.Method<'s, 'a>> =
+  let wrap(m: Lsp.Method<'s, 'a>): Lsp.Method<'s, 'a> =
+    server.middleware
+    |> Stdlib.List.reverse
+    |> Stdlib.List.fold(m, fun(inner, around) -> around(inner))
+
+  let own = Stdlib.List.map(server.methods, fun m -> m.name)
+  Stdlib.List.concat(
+    Lsp.Methods.ofHandlers(server.name, server.handlers)
+    |> Stdlib.List.filter(fun m -> Stdlib.Bool.not(Stdlib.List.contains(own, m.name))),
+    server.methods)
+  |> Stdlib.List.map(wrap)
+
+
+/// What `initialize` answers: document sync, and a capability for each method that has one.
+let capabilities(methods: List<Lsp.Method<'s, 'a>>): Json =
+  let sync =
+    Json.Object(
+      [ ("openClose", Json.Bool(true))
+        // 2: each change sends only what changed
+        ("change", Json.Integer(2))
+        ("save", Json.Object([ ("includeText", Json.Bool(true)) ])) ])
+
+  Json.Object(
+    Stdlib.List.concat(
+      [ ("positionEncoding", Json.String("utf-16")), ("textDocumentSync", sync) ],
+      Stdlib.List.filterMap(methods, fun m -> m.capability)))
+
+
+let start(server: Lsp.Server<'s, 'a>): Loop<'s, 'a> =
+  Loop
+    { session =
+        Lsp.Session { state = server.state, documents = Stdlib.Dict.empty, client = Json.Null }
+      reader = JsonRpc.Framing.start
+      watch = Stdlib.Host.begin()
+      methods = methods(server) |> Stdlib.List.map(fun m -> (m.name, m)) |> Stdlib.Dict.fromList
+      inFlight = []
+      shuttingDown = false
+      stopped = Option.None }
+
+
+let send(message: JsonRpc.Message): Unit =
+  JsonRpc.Stdio.send(message)
+
+
+let reply(id: JsonRpc.Id, result: Result<Json, JsonRpc.Error>): Unit =
+  send(JsonRpc.Message.Response(Option.Some(id), result))
+
+
+let turn(server: Lsp.Server<'s, 'a>, loop: Loop<'s, 'a>): Int64 =
+  match loop.stopped with
+  | Some(code) -> code
+  | None -> turn(server, wake(server, loop))
+
+
+let pending(loop: Loop<'s, 'a>): Bool =
+  Stdlib.List.any(Stdlib.Dict.values(loop.session.documents), fun d ->
+    d.analysis == Lsp.Analysed.Pending)
+
+
+let matches(spec: Stdlib.Host.EventSpec, event: Stdlib.Host.Event): Bool =
+  match spec, event with
+  | StoreChanged, StoreChanged(_) -> true
+  | Timer(_), Timer -> true
+  | Key, Key(_) -> true
+  | _ -> false
+
+
+/// Wait for the next thing that happens, and deal with it.
+let wake(server: Lsp.Server<'s, 'a>, loop: Loop<'s, 'a>): Loop<'s, 'a> =
+  let analysing = pending(loop) && Stdlib.Option.isSome(server.analyser)
+  // While documents wait to be analysed, the quiet timer stands in for the server's own.
+  let wakes =
+    server.wakes
+    |> Stdlib.List.filter(fun w ->
+      match w.on with
+      | Timer(_) -> Stdlib.Bool.not(analysing)
+      | _ -> true)
+
+  let quiet = if analysing then [ Stdlib.Host.EventSpec.Timer(quietMs) ] else []
+  let answering =
+    Stdlib.List.map(loop.inFlight, fun((_, h)) -> Stdlib.Host.EventSpec.ExecDone(h.id))
+
+  let specs =
+    Stdlib.List.flatten(
+      [ [ JsonRpc.Framing.wants(loop.reader) ]
+        quiet
+        Stdlib.List.map(wakes, fun w -> w.on)
+        answering ])
+
+  let awaited = Stdlib.Host.await(loop.watch, specs)
+  let loop = { loop with watch = awaited.watch }
+  match awaited.event with
+  | Stdin(text) ->
+    let (reader, body) = JsonRpc.Framing.step(loop.reader, text)
+    let loop = { loop with reader = reader }
+    match body with
+    | Some(body) -> received(server, loop, body)
+    | None -> loop
+  | StdinClosed ->
+    Lsp.log("stdin closed; stopping")
+    { loop with stopped = Option.Some(if loop.shuttingDown then 0 else 1) }
+  | ExecDone(done) -> answered(loop, done)
+  | Timer ->
+    if analysing then
+      let loop = analysePending(server, loop)
+      Lsp.askToRefresh(loop.session)
+      loop
+    else
+      woken(wakes, loop, awaited.event)
+  | event -> woken(wakes, loop, event)
+
+
+let woken(wakes: List<Lsp.Wake<'s, 'a>>, loop: Loop<'s, 'a>, event: Stdlib.Host.Event): Loop<'s, 'a> =
+  match Stdlib.List.findFirst(wakes, fun w -> matches(w.on, event)) with
+  | Some(w) -> { loop with session = w.run(loop.session, event) }
+  | None -> loop
+
+
+// --- documents ---
+
+/// Analyse every document that waits for it, and publish what each one found. An analysis that
+/// fails is a diagnostic saying so, not the end of the server.
+let analysePending(server: Lsp.Server<'s, 'a>, loop: Loop<'s, 'a>): Loop<'s, 'a> =
+  match server.analyser with
+  | None -> loop
+  | Some(analyser) ->
+    let session = loop.session
+    let documents =
+      Stdlib.Dict.mapValues(session.documents, fun doc ->
+        match doc.analysis with
+        | Pending ->
+          let analysed =
+            Builtin.applicableTryApply((fun d -> analyser.analyse(session, d)), doc)
+
+          let (analysis, diagnostics) =
+            match analysed with
+            | Ok(a) -> (Lsp.Analysed.Ready(a), analyser.diagnostics(a))
+            | Error(e) ->
+              Lsp.log($"analysing {doc.uri} failed: {e}")
+              let start = Lsp.Position { line = 0, character = 0 }
+              (
+                Lsp.Analysed.Failed(e),
+                [ Lsp.Diagnostic
+                    { range = Lsp.Range { start = start, end = start }
+                      severity = Lsp.Severity.Error
+                      code = Option.None
+                      message = $"The analysis failed: {e}"
+                      data = Option.None } ])
+
+          publish(server.name, doc.uri, Option.Some(doc.version), diagnostics)
+          { doc with analysis = analysis, previous = Option.None }
+        | _ -> doc)
+
+    { loop with session = { session with documents = documents } }
+
+
+let publish(
+  source: String,
+  uri: String,
+  version: Option<Int64>,
+  diagnostics: List<Lsp.Diagnostic>)
+  : Unit =
+  let versionField =
+    match version with
+    | Some(v) -> [ ("version", Json.Integer(v)) ]
+    | None -> []
+
+  Lsp.notify(
+    "textDocument/publishDiagnostics",
+    Json.Object(
+      Stdlib.List.flatten(
+        [ [ ("uri", Json.String(uri)) ]
+          versionField
+          [ ( "diagnostics",
+              Json.Array(Stdlib.List.map(diagnostics, fun d -> Lsp.Write.diagnostic(source, d)))) ] ])))
+
+
+let setDocument(loop: Loop<'s, 'a>, uri: String, version: Int64, text: String): Loop<'s, 'a> =
+  let previous =
+    match Stdlib.Dict.get(loop.session.documents, uri) with
+    | Some(doc) ->
+      match doc.analysis with
+      | Ready(a) -> Option.Some(a)
+      | _ -> doc.previous
+    | None -> Option.None
+
+  let doc =
+    Lsp.Document
+      { uri = uri
+        version = version
+        text = text
+        analysis = Lsp.Analysed.Pending
+        previous = previous }
+
+  { loop with
+      session =
+        { loop.session with documents = Stdlib.Dict.set(loop.session.documents, uri, doc) } }
+
+
+/// One change of a `didChange`: a range and its new text, or the whole text.
+let applyChange(text: String, change: Json): String =
+  match Lsp.Read.string(change, [ "text" ]), Lsp.Read.at(change, [ "range" ])
+        |> Stdlib.Option.andThen(Lsp.Read.range) with
+  | Some(newText), Some(r) -> Lsp.Text.replace(text, r, newText)
+  | Some(newText), None -> newText
+  | None, _ -> text
+
+
+/// Open, change, save and close: the documents follow the editor's text and version.
+let synced(server: Lsp.Server<'s, 'a>, loop: Loop<'s, 'a>, method: String, params: Json): Loop<'s, 'a> =
+  let uri = Lsp.Read.string(params, [ "textDocument", "uri" ]) |> Stdlib.Option.withDefault("")
+  let version = Lsp.Read.int(params, [ "textDocument", "version" ])
+  let open = Stdlib.Dict.get(loop.session.documents, uri)
+  match method with
+  | "textDocument/didOpen" ->
+    match Lsp.Read.string(params, [ "textDocument", "text" ]) with
+    // Analysed at once: the editor wants the squiggles as the file opens.
+    | Some(text) ->
+      analysePending(server, setDocument(loop, uri, version |> Stdlib.Option.withDefault(0), text))
+    | None -> loop
+  | "textDocument/didChange" ->
+    match open with
+    | Some(doc) ->
+      let text = Stdlib.List.fold(Lsp.Read.list(params, [ "contentChanges" ]), doc.text, applyChange)
+      setDocument(loop, uri, version |> Stdlib.Option.withDefault(doc.version), text)
+    | None -> loop
+  | "textDocument/didSave" ->
+    match open, Lsp.Read.string(params, [ "text" ]) with
+    | Some(doc), Some(text) ->
+      if text == doc.text then loop else analysePending(server, setDocument(loop, uri, doc.version, text))
+    | _ -> loop
+  | "textDocument/didClose" ->
+    // An empty list clears the closed document's squiggles.
+    publish(server.name, uri, Option.None, [])
+    { loop with
+        session =
+          { loop.session with documents = Stdlib.Dict.remove(loop.session.documents, uri) } }
+  | _ -> loop
+
+
+// --- messages ---
+
+let received(server: Lsp.Server<'s, 'a>, loop: Loop<'s, 'a>, body: String): Loop<'s, 'a> =
+  let one(loop: Loop<'s, 'a>, item: Result<JsonRpc.Message, JsonRpc.Message>): Loop<'s, 'a> =
+    match item with
+    | Error(reply) ->
+      Lsp.log($"not a JSON-RPC message: {body}")
+      send(reply)
+      loop
+    | Ok(Request(id, method, params)) -> request(server, loop, id, method, params)
+    | Ok(Notification(method, params)) -> notification(server, loop, method, params)
+    // A reply to something the server asked. Nothing it asks needs the answer.
+    | Ok(Response(_, _)) -> loop
+
+  match JsonRpc.parse(body) with
+  | One(item) -> one(loop, item)
+  | Batch(items) -> Stdlib.List.fold(items, loop, one)
+
+
+let request(
+  server: Lsp.Server<'s, 'a>,
+  loop: Loop<'s, 'a>,
+  id: JsonRpc.Id,
+  method: String,
+  params: Json)
+  : Loop<'s, 'a> =
+  if loop.shuttingDown then
+    reply(id, Result.Error(JsonRpc.error(JsonRpc.Code.invalidRequest, "the server is shutting down")))
+    loop
+  else
+    match method with
+    | "initialize" ->
+      reply(
+        id,
+        Result.Ok(
+          Json.Object(
+            [ ("capabilities", capabilities(Stdlib.Dict.values(loop.methods)))
+              ("serverInfo", Json.Object([ ("name", Json.String(server.name)) ])) ])))
+
+      let client = Lsp.Read.at(params, [ "capabilities" ]) |> Stdlib.Option.withDefault(Json.Null)
+      { loop with session = { loop.session with client = client } }
+    | "shutdown" ->
+      reply(id, Result.Ok(Json.Null))
+      { loop with shuttingDown = true }
+    | _ ->
+      match Stdlib.Dict.get(loop.methods, method) with
+      | None ->
+        reply(id, Result.Error(JsonRpc.error(JsonRpc.Code.methodNotFound, $"{method} is not supported")))
+        loop
+      | Some(m) ->
+        let session = loop.session
+        let answer = fun () -> Builtin.applicableTryApply((fun p -> m.answer(session, p)), params)
+        if m.writes then
+          finish(id, answer())
+          loop
+        else
+          // Answered beside the loop, so a slow one (the references of `List.map`) holds up
+          // neither the typing nor the other requests.
+          { loop with inFlight = Stdlib.List.append(loop.inFlight, (id, Stdlib.Exec.spawn(answer))) }
+
+
+let finish(id: JsonRpc.Id, answer: Answer): Unit =
+  match answer with
+  | Ok(result) -> reply(id, result)
+  | Error(e) ->
+    Lsp.log($"a request failed: {e}")
+    reply(id, Result.Error(JsonRpc.error(JsonRpc.Code.internalError, e)))
+
+
+/// A request answered beside the loop has its answer.
+let answered(loop: Loop<'s, 'a>, done: Uuid): Loop<'s, 'a> =
+  match Stdlib.List.findFirst(loop.inFlight, fun((_, h)) -> h.id == done) with
+  | None -> loop
+  | Some((id, handle)) ->
+    finish(id, Stdlib.Exec.await(handle))
+    { loop with inFlight = Stdlib.List.filter(loop.inFlight, fun((_, h)) -> h.id != done) }
+
+
+/// `$/cancelRequest`: stop answering it. The editor still gets a reply, saying it was cancelled.
+let cancel(loop: Loop<'s, 'a>, id: JsonRpc.Id): Loop<'s, 'a> =
+  match Stdlib.List.findFirst(loop.inFlight, fun((i, _)) -> i == id) with
+  | None -> loop
+  | Some((_, handle)) ->
+    let _ = Stdlib.Exec.cancel(handle)
+    reply(id, Result.Error(JsonRpc.error(Lsp.Code.requestCancelled, "cancelled")))
+    { loop with inFlight = Stdlib.List.filter(loop.inFlight, fun((i, _)) -> i != id) }
+
+
+let notification(
+  server: Lsp.Server<'s, 'a>,
+  loop: Loop<'s, 'a>,
+  method: String,
+  params: Json)
+  : Loop<'s, 'a> =
+  match method with
+  | "exit" -> { loop with stopped = Option.Some(if loop.shuttingDown then 0 else 1) }
+  | "$/cancelRequest" ->
+    match Lsp.Read.at(params, [ "id" ]) |> Stdlib.Option.andThen(JsonRpc.idOfJson) with
+    | Some(id) -> cancel(loop, id)
+    | None -> loop
+  // `initialized`, `$/setTrace` and the rest need nothing.
+  | _ -> synced(server, loop, method, params)

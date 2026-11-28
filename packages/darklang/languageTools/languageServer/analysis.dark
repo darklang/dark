@@ -1,44 +1,50 @@
 /// What a document's text means: parsed, names resolved, checked, and what the editor should
 /// underline.
-module Darklang.LanguageTools.Lsp.Analysis
+module Darklang.LanguageTools.LanguageServer.Analysis
 
 type Json = Stdlib.AltJson.Json
 
 
 type Analysis =
   { parsed: Option<WrittenTypes.ParsedFile>
-    /// LSP `Diagnostic`s, ready to publish.
-    diagnostics: List<Json>
+    diagnostics: List<Lsp.Diagnostic>
     /// The type the checker gave each `let` and lambda parameter, and where to show it: just
     /// after the name.
-    typeHints: List<(Parser.Point * String)> }
+    typeHints: List<(Parser.Point * String)>
+    /// The declarations the document lowers to, and the checker's report on each, for the next
+    /// analysis to keep where a declaration's hash did not change.
+    ops: List<ProgramTypes.PackageOp>
+    checked: List<AtRestTypeChecker.ItemReport>
+    /// For a store function's document: the values its newest run gave each call.
+    live: Option<Lens.Live> }
 
 
 // --- positions ---
 
-let position(p: Parser.Point): Json =
-  Json.Object([ ("line", Json.Integer(p.row)), ("character", Json.Integer(p.column)) ])
+let position(p: Parser.Point): Lsp.Position =
+  Lsp.Position { line = p.row, character = p.column }
 
 
-let range(r: Parser.Range): Json =
-  Json.Object([ ("start", position(r.start)), ("end", position(r.end_)) ])
+let range(r: Parser.Range): Lsp.Range =
+  Lsp.Range { start = position(r.start), end = position(r.end_) }
 
 
-/// LSP severities: 1 error, 2 warning.
-let diagnostic(severity: Int64, r: Parser.Range, code: Option<String>, message: String): Json =
-  let codeField =
-    match code with
-    | Some(c) -> [ ("code", Json.String(c)) ]
-    | None -> []
+let point(p: Lsp.Position): Parser.Point =
+  Parser.Point { row = p.line, column = p.character }
 
-  Json.Object(
-    Stdlib.List.flatten(
-      [ [ ("range", range(r))
-          ("severity", Json.Integer(severity))
-          ("source", Json.String("dark")) ]
 
-        codeField
-        [ ("message", Json.String(message)) ] ]))
+let diagnostic(
+  severity: Lsp.Severity,
+  r: Parser.Range,
+  code: Option<String>,
+  message: String)
+  : Lsp.Diagnostic =
+  Lsp.Diagnostic
+    { range = range(r)
+      severity = severity
+      code = code
+      message = message
+      data = Option.None }
 
 
 // --- the checker's findings, placed on the items they are about ---
@@ -159,7 +165,11 @@ let reportedElsewhere(issue: AtRestTypeChecker.Issue): Bool =
 
 /// A checker finding as a diagnostic. A match that misses a case carries the case it misses, for
 /// the quick fix that adds it.
-let issueDiagnostic(severity: Int64, r: Parser.Range, issue: AtRestTypeChecker.Issue): Json =
+let issueDiagnostic(
+  severity: Lsp.Severity,
+  r: Parser.Range,
+  issue: AtRestTypeChecker.Issue)
+  : Lsp.Diagnostic =
   let d =
     diagnostic(
       severity,
@@ -167,10 +177,9 @@ let issueDiagnostic(severity: Int64, r: Parser.Range, issue: AtRestTypeChecker.I
       Option.Some(AtRestTypeChecker.issueCodeToString(issue.code)),
       AtRestTypeChecker.issueToString(issue))
 
-  match d, issue.context with
-  | Object(fields), UncoveredPattern(Some(missing)) ->
-    Json.Object(
-      Stdlib.List.append(fields, ("data", Json.Object([ ("missing", Json.String(missing)) ]))))
+  match issue.context with
+  | UncoveredPattern(Some(missing)) ->
+    { d with data = Option.Some(Json.Object([ ("missing", Json.String(missing)) ])) }
   | _ -> d
 
 
@@ -180,22 +189,24 @@ let checkerDiagnostics(
   whole: Parser.Range,
   srcs: List<ItemSource>,
   report: AtRestTypeChecker.Report)
-  : List<Json> =
+  : List<Lsp.Diagnostic> =
   let rangesFor(reference: ProgramTypes.Reference): List<Parser.Range> =
     let hash = ProgramTypes.hashToString(ProgramTypes.Reference.hash(reference))
     match srcs |> Stdlib.List.filter(fun s -> s.hash == hash) with
     | [] -> [ whole ]
     | found -> Stdlib.List.map(found, fun s -> s.range)
 
-  let onItem(item: AtRestTypeChecker.ItemReport): List<Json> =
-    let place(severity: Int64, issues: List<AtRestTypeChecker.Issue>): List<Json> =
+  let onItem(item: AtRestTypeChecker.ItemReport): List<Lsp.Diagnostic> =
+    let place(severity: Lsp.Severity, issues: List<AtRestTypeChecker.Issue>): List<Lsp.Diagnostic> =
       issues
       |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(reportedElsewhere(i)))
       |> Stdlib.List.map(fun i ->
         rangesFor(item.item) |> Stdlib.List.map(fun r -> issueDiagnostic(severity, r, i)))
       |> Stdlib.List.flatten
 
-    Stdlib.List.concat(place(1, item.diagnostics), place(2, item.warnings))
+    Stdlib.List.concat(
+      place(Lsp.Severity.Error, item.diagnostics),
+      place(Lsp.Severity.Warning, item.warnings))
 
   let itemFindings =
     report.items
@@ -204,7 +215,7 @@ let checkerDiagnostics(
 
   let fileWarnings =
     if Stdlib.List.isEmpty(report.items) then
-      Stdlib.List.map(report.warnings, fun i -> issueDiagnostic(2, whole, i))
+      Stdlib.List.map(report.warnings, fun i -> issueDiagnostic(Lsp.Severity.Warning, whole, i))
     else
       []
 
@@ -271,46 +282,150 @@ let typeHints(
   |> Stdlib.List.flatten
 
 
+// --- checking only what changed ---
+
+let hashOf(op: ProgramTypes.PackageOp): Option<ProgramTypes.Hash> =
+  match op with
+  | AddType(t) -> Option.Some(t.hash)
+  | AddValue(v) -> Option.Some(v.hash)
+  | AddFn(f) -> Option.Some(f.hash)
+  | _ -> Option.None
+
+
+/// The checker's report on <param ops>. A declaration's hash covers its body and every name it
+/// resolved, so one whose hash is in <param previous> gets the same report again, and only the
+/// rest are checked, with the unchanged ones beside them as what they may call. A trait or an
+/// impl decides calls by more than hashes, so a document with one is checked whole.
+let check(
+  branchId: Uuid,
+  previous: Option<Analysis>,
+  ops: List<ProgramTypes.PackageOp>)
+  : AtRestTypeChecker.Report =
+  let traitsOrImpls =
+    Stdlib.List.any(ops, fun op ->
+      match op with
+      | AddTrait(_) | AddTraitImpl(_) -> true
+      | _ -> false)
+
+  let known =
+    match previous with
+    | Some(p) ->
+      if traitsOrImpls then
+        Stdlib.Dict.empty
+      else
+        p.checked
+        |> Stdlib.List.map(fun i -> (ProgramTypes.hashToString(ProgramTypes.Reference.hash(i.item)), i))
+        |> Stdlib.Dict.fromList
+    | None -> Stdlib.Dict.empty
+
+  let isKnown(op: ProgramTypes.PackageOp): Bool =
+    match hashOf(op) with
+    | Some(h) -> Stdlib.Dict.containsKey(known, ProgramTypes.hashToString(h))
+    | None -> false
+
+  let (kept, fresh) = Stdlib.List.partition(ops, fun op -> isKnown(op))
+  let pool =
+    kept
+    |> Stdlib.List.fold(AtRestTypeChecker.Environment.emptyClosure(), fun(c, op) ->
+      match op with
+      | AddType(t) -> { c with types = Stdlib.Dict.set(c.types, t.hash, t) }
+      | AddValue(v) -> { c with values = Stdlib.Dict.set(c.values, v.hash, v) }
+      | AddFn(f) -> { c with fns = Stdlib.Dict.set(c.fns, f.hash, f) }
+      | _ -> c)
+
+  let report =
+    AtRestTypeChecker.guarded(
+      (fun o -> AtRestTypeChecker.Run.checkPackageOpsFrom(pool, Option.None, branchId, o)),
+      fresh)
+
+  let keptReports =
+    kept
+    |> Stdlib.List.filterMap(hashOf)
+    |> Stdlib.List.filterMap(fun h -> Stdlib.Dict.get(known, ProgramTypes.hashToString(h)))
+
+  match keptReports with
+  | [] -> report
+  | _ ->
+    { AtRestTypeChecker.Run.reportItems(Stdlib.List.concat(keptReports, report.items)) with
+        warnings = report.warnings }
+
+
 // --- the whole analysis ---
 
-/// Parse, resolve and check <param text>, with names resolved as <param ctx> says.
+/// The live values for <param doc>, when it shows a store function; none when working them out
+/// fails.
+let live(branchId: Uuid, doc: Document): Option<Lens.Live> =
+  match Names.storeFn(doc.uri) with
+  | None -> Option.None
+  | Some(loc) ->
+    match Builtin.applicableTryApply((fun text -> Lens.live(branchId, loc, text)), doc.text) with
+    | Ok(live) -> live
+    | Error(e) ->
+      Lsp.log($"live values for {doc.uri} failed: {e}")
+      Option.None
+
+
+/// Parse, resolve and check the document, with names resolved from where it is.
 ///
 /// Syntax errors come from the parser; names that resolve to nothing are warnings at the name;
 /// type errors come from the at-rest checker, and only for a syntax-clean document, since the
 /// parser's recovery holes would read as errors of their own.
-let analyse(ctx: NameResolver.NRContext, text: String): Analysis =
-  let (parsed, syntax) = Parser.Parse.parse(Parser.FileKind.Script, text)
+let analyse(session: Session, doc: Document): Analysis =
+  let branchId = session.state.branchId
+  let ctx = Names.context(branchId, doc.uri)
+  let (parsed, syntax) = Parser.Parse.parse(Parser.FileKind.Script, doc.text)
   let syntaxDiagnostics =
-    Stdlib.List.map(syntax, fun((r, message)) -> diagnostic(1, r, Option.None, message))
+    Stdlib.List.map(syntax, fun((r, message)) ->
+      diagnostic(Lsp.Severity.Error, r, Option.None, message))
+
+  let empty =
+    Analysis
+      { parsed = Option.None
+        diagnostics = syntaxDiagnostics
+        typeHints = []
+        ops = []
+        checked = []
+        live = live(branchId, doc) }
 
   match parsed with
-  | None -> Analysis { parsed = Option.None, diagnostics = syntaxDiagnostics, typeHints = [] }
+  | None -> empty
   | Some(SourceFile(sf)) ->
     let file = WrittenTypes.ParsedFile.SourceFile(sf)
-    let (unresolved, checked, hints) =
-      match Parser.CliScript.parseFromWT(ctx, "", syntax, file) with
-      | Ok((program, unresolved)) ->
-        match Parser.CliScript.parseDecls(ctx.owner, "", syntax, file) with
-        | Ok(written) ->
-          let srcs = sources(written, program)
-          let report = AtRestTypeChecker.checkPackageOps(opsOf(program))
-          (
-            unresolved,
-            checkerDiagnostics(sf.range, srcs, report),
-            typeHints(ctx.branchId, file, srcs, report))
-        | Error(_) -> (unresolved, [], [])
-      | Error(_) -> ([], [], [])
+    match Parser.CliScript.parseFromWT(ctx, "", syntax, file), Parser.CliScript.parseDecls(
+            ctx.owner,
+            "",
+            syntax,
+            file) with
+    | Ok((program, unresolved)), Ok(written) ->
+      let srcs = sources(written, program)
+      let ops = opsOf(program)
+      let report = check(branchId, doc.previous, ops)
+      let names =
+        unresolved
+        |> Stdlib.List.map(fun((r, name, err)) ->
+          diagnostic(
+            Lsp.Severity.Warning,
+            r,
+            Option.None,
+            PrettyPrinter.ProgramTypes.NameResolutionError.error(name, err)))
 
-    let nameDiagnostics =
-      unresolved
-      |> Stdlib.List.map(fun((r, name, err)) ->
-        diagnostic(
-          2,
-          r,
-          Option.None,
-          PrettyPrinter.ProgramTypes.NameResolutionError.error(name, err)))
+      { empty with
+          parsed = Option.Some(file)
+          diagnostics =
+            Stdlib.List.flatten([ syntaxDiagnostics, names, checkerDiagnostics(sf.range, srcs, report) ])
+          typeHints = typeHints(branchId, file, srcs, report)
+          ops = ops
+          checked = report.items }
+    | _ -> { empty with parsed = Option.Some(file) }
 
-    Analysis
-      { parsed = Option.Some(file)
-        diagnostics = Stdlib.List.flatten([ syntaxDiagnostics, nameDiagnostics, checked ])
-        typeHints = hints }
+
+/// The document's parse: the analysis's, or a fresh one while typing has not paused.
+let parsed(doc: Document): Option<WrittenTypes.ParsedFile> =
+  match doc.analysis with
+  | Ready(a) -> a.parsed
+  | _ -> Parser.Parse.toWrittenTypes(doc.text)
+
+
+/// The local written at <param at>: where it is bound, and every place it occurs.
+let localAt(doc: Document, at: Lsp.Position): Option<(Parser.Range * List<Syntax.Occurrence>)> =
+  parsed(doc) |> Stdlib.Option.andThen(fun file -> Syntax.localAt(file, at.line, at.character))

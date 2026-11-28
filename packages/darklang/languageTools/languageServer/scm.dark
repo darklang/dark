@@ -1,6 +1,6 @@
 /// The branch you are on and what your draft holds, for the editor's status bar and its Changes
 /// view: what `dark status` and `dark branches` say.
-module Darklang.LanguageTools.Lsp.Scm
+module Darklang.LanguageTools.LanguageServer.Scm
 
 type Json = Stdlib.AltJson.Json
 
