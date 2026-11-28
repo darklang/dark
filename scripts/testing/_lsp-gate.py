@@ -80,11 +80,13 @@ class Server:
             self.seen.append(m)
         raise Failure(f"no {what} within {timeout}s")
 
-    def diagnostics(self, uri, timeout=60):
+    def diagnostics(self, uri, timeout=60, version=None):
         m = self.wait(
-            lambda m: m.get("method") == "textDocument/publishDiagnostics" and m["params"]["uri"] == uri,
+            lambda m: m.get("method") == "textDocument/publishDiagnostics"
+            and m["params"]["uri"] == uri
+            and (version is None or m["params"].get("version") == version),
             timeout,
-            f"diagnostics for {uri}",
+            f"diagnostics for {uri}" + ("" if version is None else f" at version {version}"),
         )
         return m["params"]["diagnostics"]
 
@@ -199,13 +201,17 @@ def run(cli):
         s.diagnostics(uri)
         for v in range(2, 12):
             s.change(uri, v, "let double(x: Int64): Int64 = x * 2" + " " * v + "\n")
+        after = s.quiet(5)
         publishes = [
             m
-            for m in s.quiet(5)
+            for m in after
             if m.get("method") == "textDocument/publishDiagnostics" and m["params"]["uri"] == uri
         ]
         check(len(publishes) == 1, f"ten keystrokes gave {len(publishes)} analyses, not one")
-        checked.append("ten keystrokes, one analysis")
+        check(publishes[0]["params"].get("version") == 11, f"the analysis is not of the last keystroke: {publishes[0]}")
+        # Hints asked for while typing came before the analysis, so the editor is asked again.
+        check(any(m.get("method") == "workspace/inlayHint/refresh" for m in after), "no refresh after typing")
+        checked.append("ten keystrokes, one analysis, then a refresh")
 
         # Non-ASCII text: Content-Length counts bytes, so the message after it must still parse.
         uri = "file:///tmp/lsp-gate/utf8.dark"
@@ -431,7 +437,7 @@ def run(cli):
         s.wait(lambda m: m.get("method") == "dark/storeChanged", 30, "dark/storeChanged after an edit")
         # What the editor does on dark/storeChanged: read the document again.
         s.change(uri, 2, s.request("dark/fs/read", {"uri": uri})["result"])
-        s.diagnostics(uri)
+        s.diagnostics(uri, version=2)
         check(hints() == ["= 15"], f"values follow an edit to the code: {hints()}")
         checked.append("live values follow a new run and an edit, and the editor is asked to refresh")
 

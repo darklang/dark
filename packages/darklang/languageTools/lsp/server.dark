@@ -124,15 +124,27 @@ let wake(state: State): State =
 
 // --- documents ---
 
-let setDocument(state: State, uri: String, text: String): State =
-  let doc = Requests.Document { uri = uri, text = text, analysis = Option.None, live = Option.None }
+let setDocument(state: State, uri: String, version: Option<Int64>, text: String): State =
+  let doc =
+    Requests.Document
+      { uri = uri, text = text, version = version, analysis = Option.None, live = Option.None }
+
   { state with documents = Stdlib.Dict.set(state.documents, uri, doc) }
 
 
-let publish(uri: String, diagnostics: List<Json>): Unit =
+let publish(uri: String, version: Option<Int64>, diagnostics: List<Json>): Unit =
+  let versionField =
+    match version with
+    | Some(v) -> [ ("version", Json.Integer(v)) ]
+    | None -> []
+
   Rpc.notify(
     "textDocument/publishDiagnostics",
-    Json.Object([ ("uri", Json.String(uri)), ("diagnostics", Json.Array(diagnostics)) ]))
+    Json.Object(
+      Stdlib.List.flatten(
+        [ [ ("uri", Json.String(uri)) ]
+          versionField
+          [ ("diagnostics", Json.Array(diagnostics)) ] ])))
 
 
 /// Analyse every open document that has none, and publish what each one found. A store
@@ -146,7 +158,7 @@ let analysePending(state: State): State =
       | None ->
         let analysis = analyseSafely(state.branchId, doc)
         Rpc.log($"analysed {doc.uri}")
-        publish(doc.uri, analysis.diagnostics)
+        publish(doc.uri, doc.version, analysis.diagnostics)
         { doc with analysis = Option.Some(analysis), live = liveSafely(state.branchId, doc) })
 
   if state.refresh then askToRefresh(state) else ()
@@ -410,7 +422,8 @@ let notification(state: State, method: String, params: Json): State =
             [ "textDocument", "text" ]) with
     | Some(uri), Some(text) ->
       // Analysed at once: the editor wants the squiggles as the file opens.
-      analysePending(setDocument(state, uri, text))
+      let version = Requests.intAt(params, [ "textDocument", "version" ])
+      analysePending(setDocument(state, uri, version, text))
     | _ -> state
   | "textDocument/didChange" ->
     match stringAt(params, [ "textDocument", "uri" ])
@@ -418,17 +431,26 @@ let notification(state: State, method: String, params: Json): State =
             params,
             "contentChanges") with
     | Some(doc), Some(Array(changes)) ->
-      setDocument(state, doc.uri, Stdlib.List.fold(changes, doc.text, applyChange))
+      let version = Requests.intAt(params, [ "textDocument", "version" ])
+      let state =
+        setDocument(state, doc.uri, version, Stdlib.List.fold(changes, doc.text, applyChange))
+
+      // The editor asks for hints as it types, before the analysis they come from has run.
+      { state with refresh = true }
     | _ -> state
   | "textDocument/didSave" ->
     match stringAt(params, [ "textDocument", "uri" ]), stringAt(params, [ "text" ]) with
-    | Some(uri), Some(text) -> analysePending(setDocument(state, uri, text))
+    | Some(uri), Some(text) ->
+      let version =
+        Stdlib.Dict.get(state.documents, uri) |> Stdlib.Option.andThen(fun d -> d.version)
+
+      analysePending(setDocument(state, uri, version, text))
     | _ -> state
   | "textDocument/didClose" ->
     match stringAt(params, [ "textDocument", "uri" ]) with
     | Some(uri) ->
       // An empty list clears the closed document's squiggles.
-      publish(uri, [])
+      publish(uri, Option.None, [])
       { state with documents = Stdlib.Dict.remove(state.documents, uri) }
     | None -> state
   // `initialized`, `$/setTrace` and the rest need nothing from this server.

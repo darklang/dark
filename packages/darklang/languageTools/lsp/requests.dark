@@ -8,6 +8,8 @@ type Json = Stdlib.AltJson.Json
 type Document =
   { uri: String
     text: String
+    /// The editor's version of `text`, sent back with its diagnostics.
+    version: Option<Int64>
     /// The analysis of exactly `text`, or None until the quiet period ends. A change makes a
     /// new Document with this empty, so an analysis is never read against other text.
     analysis: Option<Analysis.Analysis>
