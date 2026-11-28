@@ -27,7 +27,8 @@ test commandNamesAreUnique =
     |> Stdlib.List.flatten
 
   words
-  |> Stdlib.List.filter(fun w -> Stdlib.List.length(Stdlib.List.filter(words, fun x -> x == w)) > 1)
+  |> Stdlib.List.filter(fun w ->
+    Stdlib.List.length(Stdlib.List.filter(words, fun x -> x == w)) > 1)
   |> Stdlib.List.unique
   |> Stdlib.Test.equal([])
 

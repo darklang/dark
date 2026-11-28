@@ -17,11 +17,11 @@ let nearestKey(key: String): Option<String> =
       Stdlib.String.endsWith(Stdlib.String.toLowercase(k), "." + lower))
 
   match bySuffix with
-  | [only] -> Option.Some(only)
+  | [only] -> Some(only)
   | _ ->
     match LanguageTools.Suggest.near(key, keys, []) with
-    | [only] -> Option.Some(only)
-    | _ -> Option.None
+    | [only] -> Some(only)
+    | _ -> None
 
 
 /// A key `config list` describes: what it does, and what applies while it is not set.
@@ -102,9 +102,9 @@ let settings(): List<Setting> =
 /// The `DARK_CONFIG_*` name the runtime falls back to for <param key> while it is not set.
 let shellSettingOf(key: String): Option<String> =
   match key with
-  | "http.loopback" -> Option.Some("DARK_CONFIG_HTTP_LOOPBACK")
-  | "http.private" -> Option.Some("DARK_CONFIG_HTTP_PRIVATE")
-  | _ -> Option.None
+  | "http.loopback" -> Some("DARK_CONFIG_HTTP_LOOPBACK")
+  | "http.private" -> Some("DARK_CONFIG_HTTP_PRIVATE")
+  | _ -> None
 
 
 /// One row of `config list`: the value in effect, and where it came from.
@@ -127,7 +127,7 @@ let current(s: Setting): Current =
     let fromEnv =
       match shellSettingOf(s.key) with
       | Some(name) -> Stdlib.Cli.Env.get(name)
-      | None -> Option.None
+      | None -> None
 
     match fromEnv with
     | Some(v) when Stdlib.String.trim(v) != "" ->

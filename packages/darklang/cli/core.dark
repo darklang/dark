@@ -239,7 +239,7 @@ let resolveStartingBranch(): Uuid =
 
 let initState(): AppState =
   // No accounts: approval scoping is the only thing that still takes one, and it takes None.
-  let accountID = Option.None
+  let accountID = None
   let branchId = resolveStartingBranch()
   let commands = Registry.allCommands()
   AppState
@@ -250,7 +250,7 @@ let initState(): AppState =
       pageStack = []
       currentBranchId = branchId
       accountID = accountID
-      promptTerminal = Option.None
+      promptTerminal = None
       nonInteractive = false
       cachedHintInput = ""
       cachedHintValue = ""
@@ -260,7 +260,7 @@ let initState(): AppState =
       cachedFilterItems = []
       allCommandsCache = commands
       commandOptionsCache = commandOptions(commands)
-      telemetryEnabled = Stdlib.Env.get("DARK_TELEMETRY") == Option.Some("1")
+      telemetryEnabled = Stdlib.Env.get("DARK_TELEMETRY") == Some("1")
       exitCode = 0
       output = Output.Mode.Pretty }
 
@@ -356,10 +356,10 @@ module ExecutionError =
       match folderRules with
       | Some(rules) ->
         if Stdlib.List.length(rules) > 1 then
-          Option.Some(Stdlib.String.join(rules, "; "))
+          Some(Stdlib.String.join(rules, "; "))
         else
-          Option.None
-      | None -> Option.None
+          None
+      | None -> None
 
     let rememberRule =
       match readAndWrite with
@@ -370,8 +370,7 @@ module ExecutionError =
       match approved with
       | None ->
         $"`{name}` has no remembered approval. Remember this access:\n  dark permissions approve {name} {quote(rememberRule)}"
-      | Some(version)
-        when Option.Some(version) != Permissions.Command.latestVersion(branchId, name) ->
+      | Some(version) when Some(version) != Permissions.Command.latestVersion(branchId, name) ->
         $"`{name}` changed since it was approved. Review the new version:\n  dark permissions update {name}"
       | Some(_) ->
         $"The approval for `{name}` does not cover it. Show its access:\n  dark permissions show {name}"
@@ -494,18 +493,17 @@ module ExecutionError =
 
       let frameOf(frame: LanguageTools.RuntimeTypes.ExecutionPoint): Option<Frame> =
         match frame with
-        | Function(Package(hash)) -> Option.Some(fnFrame(hash, fun name -> name))
+        | Function(Package(hash)) -> Some(fnFrame(hash, fun name -> name))
         | Lambda(_, _, Some(Function(Package(hash)))) ->
-          Option.Some(fnFrame(hash, fun name -> $"a lambda in {name}"))
+          Some(fnFrame(hash, fun name -> $"a lambda in {name}"))
         | Lambda(_, id, Some(Source)) ->
           match entry with
-          | Call -> Option.None
+          | Call -> None
           | Script ->
             match Stdlib.List.findFirst(lambdaLines, fun((lambdaId, _)) -> lambdaId == id) with
-            | Some((_, line)) ->
-              Option.Some(Frame.Yours($"line {Stdlib.display(line)} of the script"))
-            | None -> Option.None
-        | _ -> Option.None
+            | Some((_, line)) -> Some(Frame.Yours($"line {Stdlib.display(line)} of the script"))
+            | None -> None
+        | _ -> None
 
       let isDarklang(frame: Frame): Bool =
         match frame with

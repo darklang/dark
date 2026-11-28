@@ -17,11 +17,11 @@ let distance(a: String, b: String): Int64 =
   // Each row keeps the one before the last, which a swap reads.
   let (_, lastRow, _, _) =
     xs
-    |> Stdlib.List.fold((1, firstRow, [], Option.None), fun(acc, x) ->
+    |> Stdlib.List.fold((1, firstRow, [], None), fun(acc, x) ->
       let (i, prev, before, lastX) = acc
       let (reversed, _, _) =
         ys
-        |> Stdlib.List.fold(([ i ], 0, Option.None), fun(rowAcc, y) ->
+        |> Stdlib.List.fold(([ i ], 0, None), fun(rowAcc, y) ->
           let (row, j, lastY) = rowAcc
           let cost = if x == y then 0 else 1
           let plain =
@@ -29,12 +29,13 @@ let distance(a: String, b: String): Int64 =
 
           let d =
             match lastX, lastY with
-            | Some(px), Some(py) when px == y && py == x -> Stdlib.min(plain, cell(before, j - 1) + 1)
+            | Some(px), Some(py) when px == y && py == x ->
+              Stdlib.min(plain, cell(before, j - 1) + 1)
             | _ -> plain
 
-          (Stdlib.List.prepend(row, d), j + 1, Option.Some(y)))
+          (Stdlib.List.prepend(row, d), j + 1, Some(y)))
 
-      (i + 1, Stdlib.List.reverse(reversed), prev, Option.Some(x)))
+      (i + 1, Stdlib.List.reverse(reversed), prev, Some(x)))
 
   Stdlib.Option.withDefault(Stdlib.List.last(lastRow), 0)
 
@@ -58,9 +59,9 @@ let near(word: String, names: List<String>, means: List<String>): List<String> =
   let nearness(name: String): Option<Int64> =
     let n = Stdlib.String.toLowercase(name)
     if name == word then
-      Option.None
+      None
     else if n == w || Stdlib.List.contains(meant, n) then
-      Option.Some(0)
+      Some(0)
     else
       // Only a name about as long as the word is worth measuring, and one that holds the word is
       // as many edits away as it has letters more.
@@ -68,25 +69,26 @@ let near(word: String, names: List<String>, means: List<String>): List<String> =
       let edits =
         if Stdlib.abs(more) <= allowed then
           let d = distance(w, n)
-          if d <= allowed then Option.Some(d) else Option.None
+          if d <= allowed then Some(d) else None
         else
-          Option.None
+          None
 
       match edits with
-      | Some(d) -> Option.Some(d)
+      | Some(d) -> Some(d)
       | None ->
         if len >= 4 && more > 0 && more <= len && Stdlib.String.contains(n, w) then
-          Option.Some(more)
+          Some(more)
         else
-          Option.None
+          None
 
   let scored =
     names
     |> Stdlib.List.unique
-    |> Stdlib.List.filterMap(fun name ->
-      nearness(name) |> Stdlib.Option.map(fun d -> (d, name)))
+    |> Stdlib.List.filterMap(fun name -> nearness(name) |> Stdlib.Option.map(fun d -> (d, name)))
 
-  match scored |> Stdlib.List.map(fun((d, _)) -> d) |> Stdlib.List.min with
+  match scored
+        |> Stdlib.List.map(fun((d, _)) -> d)
+        |> Stdlib.List.min with
   | None -> []
   | Some(best) ->
     scored

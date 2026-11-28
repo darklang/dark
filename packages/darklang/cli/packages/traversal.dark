@@ -64,16 +64,16 @@ let applySegment(
   segment: PathSegment)
   : Result<PackageLocation, String> =
   match segment with
-  | Root -> Result.Ok(PackageLocation.Module([]))
-  | Here -> Result.Ok(location)
+  | Root -> Ok(PackageLocation.Module([]))
+  | Here -> Ok(location)
   | Up ->
     match location with
-    | Module([]) -> Result.Error("Already at root - cannot go to parent")
+    | Module([]) -> Error("Already at root - cannot go to parent")
     | Module(modules) ->
       let newModules = Stdlib.List.dropLast(modules)
-      Result.Ok(PackageLocation.Module(newModules))
+      Ok(PackageLocation.Module(newModules))
     // An item's parent is the module it lives in.
-    | item -> Result.Ok(PackageLocation.Module(modulePathOf(item)))
+    | item -> Ok(PackageLocation.Module(modulePathOf(item)))
   | Into(name) ->
     let currentPath = getCurrentModulePath(location)
     resolveEntity(branchId, currentPath, name)
@@ -85,7 +85,7 @@ let resolveEntity(
   basePath: List<String>,
   name: String)
   : Result<PackageLocation, String> =
-  let (resolved, _implsInside) = resolveEntityKnowing(branchId, basePath, name, Option.None)
+  let (resolved, _implsInside) = resolveEntityKnowing(branchId, basePath, name, None)
   resolved
 
 
@@ -187,22 +187,22 @@ let applyPath(
   // stored directly in it, which answer the next segment's "is this an implementation?".
   let (result, _listed) =
     segments
-    |> Stdlib.List.fold((Result.Ok(start), Option.None), fun(acc, segment) ->
+    |> Stdlib.List.fold((Ok(start), None), fun(acc, segment) ->
       let (accResult, listed) = acc
       match accResult with
-      | Error(e) -> (Result.Error(e), Option.None)
+      | Error(e) -> (Error(e), None)
       | Ok(loc) ->
         match segment with
         | Into(name) ->
           let basePath = getCurrentModulePath(loc)
           let implsInBase =
             match listed with
-            | Some((path, names)) -> if path == basePath then Option.Some(names) else Option.None
-            | None -> Option.None
+            | Some((path, names)) -> if path == basePath then Some(names) else None
+            | None -> None
 
           let (resolved, implsInside) = resolveEntityKnowing(branchId, basePath, name, implsInBase)
-          (resolved, Option.Some((Stdlib.List.append(basePath, name), implsInside)))
-        | _ -> (applySegment(branchId, loc, segment), Option.None))
+          (resolved, Some((Stdlib.List.append(basePath, name), implsInside)))
+        | _ -> (applySegment(branchId, loc, segment), None))
 
   result
 
@@ -235,8 +235,8 @@ let searchModulesByPrefix(branchId: Uuid, prefixText: String): List<String> =
     | Some(pair) ->
       let (idx, _) = pair
       // Return path up to and including the matching segment
-      Option.Some(Stdlib.List.take(modulePath, idx + 1))
-    | None -> Option.None)
+      Some(Stdlib.List.take(modulePath, idx + 1))
+    | None -> None)
   |> Stdlib.List.unique
   |> Stdlib.List.sort
   |> Stdlib.List.map(fun path -> Stdlib.String.join(path, "."))
@@ -391,16 +391,16 @@ let applyPathFrom(
         PackageLocation.Module([])
 
     match applyPath(branchId, base, segments) with
-    | Ok(loc) -> Result.Ok(loc)
+    | Ok(loc) -> Ok(loc)
     | Error(e) ->
       match applyPath(branchId, start, segments) with
-      | Ok(loc) -> Result.Ok(loc)
+      | Ok(loc) -> Ok(loc)
       // The miss as typed: from the root, `Stdlib` is not spelled out.
       | Error(_) ->
         if first == "Stdlib" then
           applyPath(branchId, PackageLocation.Module([]), segments)
         else
-          Result.Error(e)
+          Error(e)
   | _ -> applyPath(branchId, start, segments)
 
 
@@ -412,7 +412,7 @@ let traverse(
   path: String)
   : Result<PackageLocation, String> =
   match applyPathFrom(branchId, start, parsePath(path)) with
-  | Ok(loc) -> Result.Ok(loc)
+  | Ok(loc) -> Ok(loc)
   | Error(e) ->
     let dotted =
       Stdlib.Bool.not(Stdlib.String.contains(path, "/") || Stdlib.String.contains(path, ".."))
@@ -424,5 +424,5 @@ let traverse(
         ""
 
     match hint with
-    | "" -> Result.Error(e)
-    | hint -> Result.Error(e + "." + hint)
+    | "" -> Error(e)
+    | hint -> Error(e + "." + hint)

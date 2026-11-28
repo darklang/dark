@@ -106,7 +106,7 @@ test fullNamesAfterNav =
 
       walk(inList, "Stdlib.String")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
+        Ok(
           Cli.Packages.PackageLocation.Module(
             [ "Darklang", "Stdlib", "String" ])))
 
@@ -114,8 +114,7 @@ test fullNamesAfterNav =
       |> Stdlib.Test.equal(walk(root, "Darklang.Stdlib.List.map"))
 
       walk(inList, "Stdlib.String.nope")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error("Not found: Stdlib.String.nope")) ])
+      |> Stdlib.Test.equal(Error("Not found: Stdlib.String.nope")) ])
 
 
 /// A name a command creates means the same wherever you stand, as a name it looks up does.
@@ -151,13 +150,12 @@ test missedPathSuggestsCodeNames =
   Stdlib.Test.all(
     [ walk("Stdlib.List.lenght")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "Not found: Stdlib.List.lenght. Did you mean `Stdlib.List.length`?"))
 
       walk("Stdlib.Int64.toString")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
+        Error(
           "Not found: Stdlib.Int64.toString. Did you mean `Stdlib.display`?"))
 
-      walk("Zzz.Nope.nope")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Not found: Zzz")) ])
+      walk("Zzz.Nope.nope") |> Stdlib.Test.equal(Error("Not found: Zzz")) ])

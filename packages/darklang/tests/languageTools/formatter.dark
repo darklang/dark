@@ -37,8 +37,7 @@ let formattedComments(
 
 test keepsEveryCommentInOrder =
   formattedComments(commented)
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(LanguageTools.Formatter.commentTexts(commented)))
+  |> Stdlib.Test.equal(Ok(LanguageTools.Formatter.commentTexts(commented)))
 
 
 test findsTheComments =
@@ -68,8 +67,7 @@ let area(s: Shape): Int64 =
 test keepsDocCommentsNothingStores =
   LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, unstoredDocs)
   |> Stdlib.Result.map(fun f -> LanguageTools.Formatter.docLines(f.text))
-  |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok([ "/// the width", "/// the area of a box" ]))
+  |> Stdlib.Test.equal(Ok([ "/// the width", "/// the area of a box" ]))
 
 
 // What lowering doesn't keep comes back as written: a spread, an escape, a float's exponent.
@@ -95,7 +93,7 @@ val notSmall = 0.000001
 test keepsSpreadsEscapesAndFloats =
   LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, keptAsWritten)
   |> Stdlib.Result.map(fun f -> f.text)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(keptAsWritten))
+  |> Stdlib.Test.equal(Ok(keptAsWritten))
 
 
 // A `let` inside a list keeps its parentheses, or the items after it would be lines of its block.
@@ -114,7 +112,7 @@ let f(): List<Int64> =
 test keepsParenthesesOnALetInAList =
   LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, letInList)
   |> Stdlib.Result.map(fun f -> f.text)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(letInList))
+  |> Stdlib.Test.equal(Ok(letInList))
 
 
 test formattingTwiceChangesNothing =
@@ -173,7 +171,7 @@ let brokenChainProblems(context: String): List<String> =
       |> Stdlib.Result.map(fun f -> f.text)
 
     match format(source) with
-    | Error(e) -> Option.Some($"{op}: {e}")
+    | Error(e) -> Some($"{op}: {e}")
     | Ok(once) ->
       let broken =
         once
@@ -182,11 +180,11 @@ let brokenChainProblems(context: String): List<String> =
           Stdlib.String.startsWith(Stdlib.String.trim(l), $"{op} "))
 
       if Stdlib.Bool.not(broken) then
-        Option.Some($"{op}: not broken before the operator")
-      else if format(once) != Stdlib.Result.Result.Ok(once) then
-        Option.Some($"{op}: formatting again changes it")
+        Some($"{op}: not broken before the operator")
+      else if format(once) != Ok(once) then
+        Some($"{op}: formatting again changes it")
       else
-        Option.None)
+        None)
 
 
 test keepsABrokenChainInAnArgumentList =
@@ -226,9 +224,8 @@ test refusesToChangeWhatCodeMeans =
       file,
       "module Darklang.Tests.FormatSample\n\nlet f(a: Int64, b: Int64): List<Int64> =\n  [ a\n    - b ]\n"))
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(
-      Option.Some(
-        "formatting would change what Darklang.Tests.FormatSample.f means")))
+    Ok(
+      Some("formatting would change what Darklang.Tests.FormatSample.f means")))
 
 
 test acceptsTheSameMeaningLaidOutAnotherWay =
@@ -237,7 +234,7 @@ test acceptsTheSameMeaningLaidOutAnotherWay =
     LanguageTools.Formatter.meaningChange(
       file,
       "module Darklang.Tests.FormatSample\n\nlet f(a: Int64, b: Int64): List<Int64> =\n  [ a\n      - b ]\n"))
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Option.None))
+  |> Stdlib.Test.equal(Ok(None))
 
 
 test refusesWhatDoesNotParse =
@@ -248,7 +245,7 @@ test refusesWhatDoesNotParse =
       "module Darklang.Tests.FormatSample\n\nlet f(a: Int64, b: Int64): List<Int64> =\n  [ a -\n")
     |> Stdlib.Option.map(fun e ->
       Stdlib.String.startsWith(e, "formatting would leave it not parsing")))
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Option.Some(true)))
+  |> Stdlib.Test.equal(Ok(Some(true)))
 
 
 // `Some`, `None`, `Ok` and `Error` read back as Stdlib's Option and Result from any module, a test
@@ -267,12 +264,16 @@ val d = Stdlib.Cli.UI.Node.Severity.Error
 
 
 test printsStdlibCasesBare =
-  match LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, bareCases) with
+  match LanguageTools.Formatter.source(
+          SCM.Branch.mainBranchId,
+          100,
+          bareCases) with
   | Ok(f) ->
     [ "val a = Some(1)"
       "val b = Error(\"no\")"
       "val c = None"
       "val d = Stdlib.Cli.UI.Node.Severity.Error" ]
-    |> Stdlib.List.filter(fun line -> Stdlib.Bool.not(Stdlib.String.contains(f.text, line)))
+    |> Stdlib.List.filter(fun line ->
+      Stdlib.Bool.not(Stdlib.String.contains(f.text, line)))
     |> Stdlib.Test.equal([])
   | Error(e) -> Stdlib.Test.fail(e)

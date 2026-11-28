@@ -141,11 +141,9 @@ test displayAdviceHolds = Instance.withInstance(fun i ->
       |> Stdlib.Test.equal(
         "Error: List<Int64> has no implementation of Darklang.Stdlib.Display. Write `impl Display for List<Int64> = ...`, or run `dark impls Display` to see which types do. `Stdlib.inspect` shows any value")
 
-      Stdlib.display(Stdlib.Option.Option.Some(3))
-      |> Stdlib.Test.equal("Some(3)")
+      Stdlib.display(Some(3)) |> Stdlib.Test.equal("Some(3)")
 
-      Stdlib.display<Result<Int64, String>>(Stdlib.Result.Result.Ok(3))
-      |> Stdlib.Test.equal("Ok(3)")
+      Stdlib.display<Result<Int64, String>>(Ok(3)) |> Stdlib.Test.equal("Ok(3)")
 
       Stdlib.inspect([ 1, 2 ]) |> Stdlib.Test.equal("[1, 2]")
 
@@ -200,7 +198,9 @@ test listedFunctionsExist =
 
 
 test unknownTopicSuggestsTheNearest =
-  let near = fun name -> Cli.Docs.Command.Topics.near(Cli.Docs.Command.Topics.allTopics(), name)
+  let near = fun name ->
+    Cli.Docs.Command.Topics.near(Cli.Docs.Command.Topics.allTopics(), name)
+
   Stdlib.Test.all(
     [ near("recrods") |> Stdlib.Test.equal([ "records" ])
       near("sytnax") |> Stdlib.Test.equal([ "syntax" ])

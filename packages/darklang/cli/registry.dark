@@ -1000,7 +1000,7 @@ module Registry =
 
       // `import` used to be `module`, too far apart for an edit-distance match
       let means = if name == "module" then [ "import" ] else []
-      Result.Error(LanguageTools.Suggest.near(name, names, means))
+      Error(LanguageTools.Suggest.near(name, names, means))
 
 
   /// <fn findCommand>, with a command that refuses to run in place of a name that is none.

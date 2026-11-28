@@ -131,54 +131,48 @@ test stdlibSuggestionFindsTheRealName =
 
   Stdlib.Test.all(
     [ suggest("Stdlib.Int64.toString")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.display"))
+      |> Stdlib.Test.equal(Some("Stdlib.display"))
 
       suggest("Stdlib.UInt8.toInt64")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Int64.fromUInt8"))
+      |> Stdlib.Test.equal(Some("Stdlib.Int64.fromUInt8"))
 
       suggest("Stdlib.List.Nope.length")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.length"))
+      |> Stdlib.Test.equal(Some("Stdlib.List.length"))
 
-      suggest("Bool.not")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
+      suggest("Bool.not") |> Stdlib.Test.equal(Some("Stdlib.Bool.not"))
 
       suggest("Stdlib.String.fromBytes")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
+      |> Stdlib.Test.equal(Some("Stdlib.Utf8.decode"))
 
-      suggest("Bytes.toString")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
+      suggest("Bytes.toString") |> Stdlib.Test.equal(Some("Stdlib.Utf8.decode"))
 
-      suggest("String.toBytes")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
+      suggest("String.toBytes") |> Stdlib.Test.equal(Some("Stdlib.Utf8.encode"))
 
       suggest("Stdlib.Int64.absoluteValue")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.abs"))
+      |> Stdlib.Test.equal(Some("Stdlib.abs"))
 
       suggest("Stdlib.Char.toString")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.String.fromChar"))
+      |> Stdlib.Test.equal(Some("Stdlib.String.fromChar"))
 
       suggest("List.flatMap")
-      |> Stdlib.Test.equal(
-        Stdlib.Option.Option.Some(
-          "Stdlib.List.flatten(Stdlib.List.map(xs, f))"))
+      |> Stdlib.Test.equal(Some("Stdlib.List.flatten(Stdlib.List.map(xs, f))"))
 
       suggest("Stdlib.String.substring")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.String.slice"))
+      |> Stdlib.Test.equal(Some("Stdlib.String.slice"))
 
       suggest("Stdlib.List.iteri")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.indexedMap"))
+      |> Stdlib.Test.equal(Some("Stdlib.List.indexedMap"))
 
       suggest("List.enumerate")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.indexedMap"))
+      |> Stdlib.Test.equal(Some("Stdlib.List.indexedMap"))
 
       suggest("Stdlib.Float64.format")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Decimal.round"))
+      |> Stdlib.Test.equal(Some("Stdlib.Decimal.round"))
 
       suggest("Float64.roundTo")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Decimal.round"))
+      |> Stdlib.Test.equal(Some("Stdlib.Decimal.round"))
 
-      suggest("Stdlib.Nope.zzz")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(None) ])
 
 
 // Each function <fn Darklang.Cli.Packages.Errors.otherLanguageNames> points at exists.
@@ -253,22 +247,12 @@ test operatorNamesSuggestTheOperator =
       Stdlib.String.split(name, "."))
 
   Stdlib.Test.all(
-    [ suggest("Stdlib.Int64.mod")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
-
-      suggest("Int64.modulo")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
-
-      suggest("Stdlib.Float64.pow")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a ** b"))
-
-      suggest("Stdlib.String.mod")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      suggest("Stdlib.Int64.zzz")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-
-      suggest("mod") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ suggest("Stdlib.Int64.mod") |> Stdlib.Test.equal(Some("a % b"))
+      suggest("Int64.modulo") |> Stdlib.Test.equal(Some("a % b"))
+      suggest("Stdlib.Float64.pow") |> Stdlib.Test.equal(Some("a ** b"))
+      suggest("Stdlib.String.mod") |> Stdlib.Test.equal(None)
+      suggest("Stdlib.Int64.zzz") |> Stdlib.Test.equal(None)
+      suggest("mod") |> Stdlib.Test.equal(None) ])
 
 
 // `Stdlib.Int64.mod` said only "not found", and searching for it never showed `%`.

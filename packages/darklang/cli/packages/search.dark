@@ -15,29 +15,29 @@ val displayCap = 20
 // more; it lands on `Add`, since `+` is what joins strings now.
 let operatorAlias(query: String): Option<String> =
   match Stdlib.String.trim(query) with
-  | "+" -> Option.Some("Add")
-  | "++" -> Option.Some("Add")
-  | "-" -> Option.Some("Subtract")
-  | "*" -> Option.Some("Multiply")
-  | "/" -> Option.Some("Divide")
-  | "%" -> Option.Some("Modulo")
-  | "**" -> Option.Some("Power")
-  | "&" -> Option.Some("BitwiseAnd")
-  | "|" -> Option.Some("BitwiseOr")
-  | "^" -> Option.Some("BitwiseXor")
-  | "~" -> Option.Some("BitwiseNot")
-  | "<<" -> Option.Some("ShiftLeft")
-  | ">>" -> Option.Some("ShiftRight")
-  | "<" -> Option.Some("Compare")
-  | "<=" -> Option.Some("Compare")
-  | ">" -> Option.Some("Compare")
-  | ">=" -> Option.Some("Compare")
-  | "==" -> Option.Some("equals")
-  | "!=" -> Option.Some("notEquals")
-  | "!" -> Option.Some("not")
-  | "&&" -> Option.Some("and")
-  | "||" -> Option.Some("or")
-  | _ -> Option.None
+  | "+" -> Some("Add")
+  | "++" -> Some("Add")
+  | "-" -> Some("Subtract")
+  | "*" -> Some("Multiply")
+  | "/" -> Some("Divide")
+  | "%" -> Some("Modulo")
+  | "**" -> Some("Power")
+  | "&" -> Some("BitwiseAnd")
+  | "|" -> Some("BitwiseOr")
+  | "^" -> Some("BitwiseXor")
+  | "~" -> Some("BitwiseNot")
+  | "<<" -> Some("ShiftLeft")
+  | ">>" -> Some("ShiftRight")
+  | "<" -> Some("Compare")
+  | "<=" -> Some("Compare")
+  | ">" -> Some("Compare")
+  | ">=" -> Some("Compare")
+  | "==" -> Some("equals")
+  | "!=" -> Some("notEquals")
+  | "!" -> Some("not")
+  | "&&" -> Some("and")
+  | "||" -> Some("or")
+  | _ -> None
 
 
 /// For a query that names an operator as a function, `Int64.mod`, the operator it is: there is no
@@ -149,10 +149,10 @@ let wordSynonyms(word: String): List<String> =
 let conceptNote(query: String): Option<String> =
   let words = queryTokens(query)
   if Stdlib.List.any(words, fun w -> w == "channel" || w == "channels" || w == "mailbox") then
-    Option.Some(
+    Some(
       "  (Dark has no channels: `Exec.spawn` runs a function beside yours and `Exec.await` takes its result; `dark docs processes` has more)")
   else
-    Option.None
+    None
 
 
 // What a whole query may also mean, for words that mean something only together.
@@ -473,72 +473,72 @@ let bestModuleRank(query: String, modules: List<List<String>>): Int64 =
 // common ones and the type's own name for every builtin type.
 let typeWord(word: String): Option<String> =
   match Stdlib.String.toLowercase(word) with
-  | "string" -> Option.Some("string")
-  | "str" -> Option.Some("string")
-  | "text" -> Option.Some("string")
-  | "int" -> Option.Some("int64")
-  | "integer" -> Option.Some("int64")
-  | "number" -> Option.Some("int64")
-  | "int64" -> Option.Some("int64")
-  | "float" -> Option.Some("float64")
-  | "float64" -> Option.Some("float64")
-  | "double" -> Option.Some("float64")
-  | "bool" -> Option.Some("bool")
-  | "boolean" -> Option.Some("bool")
-  | "char" -> Option.Some("char")
-  | "character" -> Option.Some("char")
-  | "bytes" -> Option.Some("bytes")
-  | "binary" -> Option.Some("bytes")
-  | "list" -> Option.Some("list")
-  | "array" -> Option.Some("list")
-  | "dict" -> Option.Some("dict")
-  | "dictionary" -> Option.Some("dict")
-  | "datetime" -> Option.Some("datetime")
-  | "date" -> Option.Some("datetime")
-  | "uuid" -> Option.Some("uuid")
-  | "unit" -> Option.Some("unit")
-  | "decimal" -> Option.Some("decimal")
-  | "bigint" -> Option.Some("bigint")
-  | "float32" -> Option.Some("float32")
-  | "int8" -> Option.Some("int8")
-  | "uint8" -> Option.Some("uint8")
-  | "int16" -> Option.Some("int16")
-  | "uint16" -> Option.Some("uint16")
-  | "int32" -> Option.Some("int32")
-  | "uint32" -> Option.Some("uint32")
-  | "uint64" -> Option.Some("uint64")
-  | "int128" -> Option.Some("int128")
-  | "uint128" -> Option.Some("uint128")
-  | _ -> Option.None
+  | "string" -> Some("string")
+  | "str" -> Some("string")
+  | "text" -> Some("string")
+  | "int" -> Some("int64")
+  | "integer" -> Some("int64")
+  | "number" -> Some("int64")
+  | "int64" -> Some("int64")
+  | "float" -> Some("float64")
+  | "float64" -> Some("float64")
+  | "double" -> Some("float64")
+  | "bool" -> Some("bool")
+  | "boolean" -> Some("bool")
+  | "char" -> Some("char")
+  | "character" -> Some("char")
+  | "bytes" -> Some("bytes")
+  | "binary" -> Some("bytes")
+  | "list" -> Some("list")
+  | "array" -> Some("list")
+  | "dict" -> Some("dict")
+  | "dictionary" -> Some("dict")
+  | "datetime" -> Some("datetime")
+  | "date" -> Some("datetime")
+  | "uuid" -> Some("uuid")
+  | "unit" -> Some("unit")
+  | "decimal" -> Some("decimal")
+  | "bigint" -> Some("bigint")
+  | "float32" -> Some("float32")
+  | "int8" -> Some("int8")
+  | "uint8" -> Some("uint8")
+  | "int16" -> Some("int16")
+  | "uint16" -> Some("uint16")
+  | "int32" -> Some("int32")
+  | "uint32" -> Some("uint32")
+  | "uint64" -> Some("uint64")
+  | "int128" -> Some("int128")
+  | "uint128" -> Some("uint128")
+  | _ -> None
 
 
 // The <fn typeWord> spelling of a type, for the types a word can name.
 let typeWordOf(t: LanguageTools.ProgramTypes.TypeReference): Option<String> =
   match t with
-  | TString -> Option.Some("string")
-  | TInt64 -> Option.Some("int64")
-  | TFloat64 -> Option.Some("float64")
-  | TBool -> Option.Some("bool")
-  | TChar -> Option.Some("char")
-  | TBytes -> Option.Some("bytes")
-  | TList(_) -> Option.Some("list")
-  | TDict(_, _) -> Option.Some("dict")
-  | TDateTime -> Option.Some("datetime")
-  | TUuid -> Option.Some("uuid")
-  | TUnit -> Option.Some("unit")
-  | TDecimal -> Option.Some("decimal")
-  | TBigInt -> Option.Some("bigint")
-  | TFloat32 -> Option.Some("float32")
-  | TInt8 -> Option.Some("int8")
-  | TUInt8 -> Option.Some("uint8")
-  | TInt16 -> Option.Some("int16")
-  | TUInt16 -> Option.Some("uint16")
-  | TInt32 -> Option.Some("int32")
-  | TUInt32 -> Option.Some("uint32")
-  | TUInt64 -> Option.Some("uint64")
-  | TInt128 -> Option.Some("int128")
-  | TUInt128 -> Option.Some("uint128")
-  | _ -> Option.None
+  | TString -> Some("string")
+  | TInt64 -> Some("int64")
+  | TFloat64 -> Some("float64")
+  | TBool -> Some("bool")
+  | TChar -> Some("char")
+  | TBytes -> Some("bytes")
+  | TList(_) -> Some("list")
+  | TDict(_, _) -> Some("dict")
+  | TDateTime -> Some("datetime")
+  | TUuid -> Some("uuid")
+  | TUnit -> Some("unit")
+  | TDecimal -> Some("decimal")
+  | TBigInt -> Some("bigint")
+  | TFloat32 -> Some("float32")
+  | TInt8 -> Some("int8")
+  | TUInt8 -> Some("uint8")
+  | TInt16 -> Some("int16")
+  | TUInt16 -> Some("uint16")
+  | TInt32 -> Some("int32")
+  | TUInt32 -> Some("uint32")
+  | TUInt64 -> Some("uint64")
+  | TInt128 -> Some("int128")
+  | TUInt128 -> Some("uint128")
+  | _ -> None
 
 
 // How a <fn typeWord> spelling is written in Dark, for the section header.
@@ -573,23 +573,23 @@ let typeQuery(query: String): Option<(String * String)> =
 
   let pair = fun(a, b) ->
     match typeWord(a), typeWord(b) with
-    | Some(source), Some(target) -> Option.Some((source, target))
-    | _ -> Option.None
+    | Some(source), Some(target) -> Some((source, target))
+    | _ -> None
 
   match words with
   | [a, "to", b] -> pair(a, b)
   | [a, "->", b] -> pair(a, b)
-  | _ -> Option.None
+  | _ -> None
 
 
 // Whether a function's result is <param target>, bare or as the first type
 // argument of what it returns: `Result<Int64, _>` or `Option<Int64>`.
 let returnsType(target: String, t: LanguageTools.ProgramTypes.TypeReference): Bool =
-  if typeWordOf(t) == Option.Some(target) then
+  if typeWordOf(t) == Some(target) then
     true
   else
     match t with
-    | TCustomType(_, [arg, ...]) -> typeWordOf(arg) == Option.Some(target)
+    | TCustomType(_, [arg, ...]) -> typeWordOf(arg) == Some(target)
     | _ -> false
 
 
@@ -612,7 +612,7 @@ let takesAndReturns(
   match item.entity.parameters with
   | [] -> false
   | [first, ...] ->
-    typeWordOf(first.typ) == Option.Some(source) && returnsType(target, item.entity.returnType)
+    typeWordOf(first.typ) == Some(source) && returnsType(target, item.entity.returnType)
 
 
 // The sort key of a function for a by-type query. One named for converting comes
@@ -691,8 +691,7 @@ type NothingFound =
     partial: List<(String * List<String>)> }
 
 
-val nothingToTry =
-  NothingFound { wordCounts = [], didYouMean = [], fallback = Option.None, partial = [] }
+val nothingToTry = NothingFound { wordCounts = [], didYouMean = [], fallback = None, partial = [] }
 
 
 // TODO: this only helps when nothing has every word. Searches like "parse json text" or
@@ -803,13 +802,13 @@ let nothingFound(
         missing
         |> Stdlib.List.filterMap(fun((w, _)) ->
           match LanguageTools.Suggest.near(w, names, []) with
-          | [] -> Option.None
-          | near -> Option.Some((w, near)))
+          | [] -> None
+          | near -> Some((w, near)))
 
   NothingFound
     { wordCounts = if several then counts else []
       didYouMean = didYouMean
-      fallback = Option.None
+      fallback = None
       partial = partial }
 
 
@@ -1027,11 +1026,11 @@ let parseArgs(args: List<String>): ParsedArgs =
       entityTypes = entityTypes
       limit =
         match FlagParser.getOption(p, "--limit") with
-        | None -> Option.Some(displayCap)
+        | None -> Some(displayCap)
         | Some(value) ->
           match Stdlib.Int64.parse(value) with
-          | Ok(n) when n > 0 -> Option.Some(n)
-          | _ -> Option.None
+          | Ok(n) when n > 0 -> Some(n)
+          | _ -> None
       batch = FlagParser.hasFlag(p, "--batch")
       exactMatch = FlagParser.hasFlag(p, "--exact")
       withDocs = FlagParser.hasFlag(p, "--with-docs")
@@ -1246,9 +1245,12 @@ let shallowScope(
         || Stdlib.String.contains(p, "/")))
 
   let moduleAt = fun path ->
-    match Traversal.applyPathFrom(branchId, location, Traversal.parsePath(Stdlib.String.join(path, "."))) with
-    | Ok(Module(m)) -> Option.Some(m)
-    | _ -> Option.None
+    match Traversal.applyPathFrom(
+            branchId,
+            location,
+            Traversal.parsePath(Stdlib.String.join(path, "."))) with
+    | Ok(Module(m)) -> Some(m)
+    | _ -> None
 
   if Stdlib.Bool.not(isPath) then
     (here, query)
@@ -1367,11 +1369,11 @@ let fallbackSuggestions(
   if
     query.exactMatch || Stdlib.String.contains(query.text, ".") || Stdlib.List.length(words) < 3
   then
-    Option.None
+    None
   else
     words
     |> Stdlib.List.take(3)
-    |> Stdlib.List.fold(Option.None, fun(found, droppedWord) ->
+    |> Stdlib.List.fold(None, fun(found, droppedWord) ->
       match found with
       | Some(_) -> found
       | None ->
@@ -1396,8 +1398,8 @@ let fallbackSuggestions(
           |> Stdlib.List.take(Stdlib.min(3, cap))
 
         match names with
-        | [] -> Option.None
-        | _ -> Option.Some(FallbackSuggestions { dropped = droppedWord, names = names }))
+        | [] -> None
+        | _ -> Some(FallbackSuggestions { dropped = droppedWord, names = names }))
 
 
 let executeQuery(state: AppState, args: List<String>): AppState =
@@ -1423,7 +1425,7 @@ let executeQuery(state: AppState, args: List<String>): AppState =
       Stdlib.printErrorLine("")
       Stdlib.printErrorLine(usage)
       failed(state)
-    else if parsed.limit == Option.None then
+    else if parsed.limit == None then
       printErr("Error: --limit requires a positive integer")
       failed(state)
     else
@@ -1886,7 +1888,7 @@ let execute(state: AppState, args: List<String>): AppState =
     if
       Stdlib.Bool.not(several)
       || Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors))
-      || parsed.limit == Option.None
+      || parsed.limit == None
     then
       executeQuery(state, args)
     else if Stdlib.List.isEmpty(parsed.queryParts) then

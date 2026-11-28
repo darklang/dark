@@ -5,10 +5,7 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 
 test exprsUnwrapOfVariable =
   Stdlib.Test.all(
-    [ roundTrip(
-        "unwrap of variable",
-        "fun x -> Ok(x?)",
-        "(fun x -> Ok(x?))")
+    [ roundTrip("unwrap of variable", "fun x -> Ok(x?)", "(fun x -> Ok(x?))")
 
       roundTrip(
         "unwrap of application",
@@ -20,10 +17,7 @@ test exprsUnwrapOfVariable =
         "fun x -> Some(x?.field?)",
         "(fun x -> Some(x?.field?))")
 
-      roundTrip(
-        "nested unwrap",
-        "fun x -> Ok(x??)",
-        "(fun x -> Ok(x??))")
+      roundTrip("nested unwrap", "fun x -> Ok(x??)", "(fun x -> Ok(x??))")
 
       // units
       roundTrip("unit literal", "()", "()")
@@ -549,10 +543,7 @@ test exprsRecordWithType =
         "$\"{{x}} = {x}\"",
         "$\"{{x}} = {x}\"")
 
-      roundTrip(
-        "option none, short",
-        "Stdlib.Option.Option.None",
-        "None")
+      roundTrip("option none, short", "Stdlib.Option.Option.None", "None")
 
       roundTrip("option none, long", "Stdlib.Option.Option.None", "None")
 

@@ -268,19 +268,17 @@ test testHelpersHidden =
 test typeQueries =
   Stdlib.Test.all(
     [ Cli.Packages.Search.typeQuery("bytes to string")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("bytes", "string")))
+      |> Stdlib.Test.equal(Some(("bytes", "string")))
 
       Cli.Packages.Search.typeQuery("string -> int")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("string", "int64")))
+      |> Stdlib.Test.equal(Some(("string", "int64")))
 
       Cli.Packages.Search.typeQuery("String->Int64")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("string", "int64")))
+      |> Stdlib.Test.equal(Some(("string", "int64")))
 
-      Cli.Packages.Search.typeQuery("write to file")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Cli.Packages.Search.typeQuery("write to file") |> Stdlib.Test.equal(None)
 
-      Cli.Packages.Search.typeQuery("parse int")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Cli.Packages.Search.typeQuery("parse int") |> Stdlib.Test.equal(None) ])
 
 
 // A function answers a by-type query when it returns the type, bare or wrapped:
@@ -291,8 +289,7 @@ test byTypeMatches =
       LanguageTools.ProgramTypes.NameResolution
         { originalName = [ "Result" ]
           resolved =
-            Stdlib.Result.Result.Error(
-              LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
+            Error(LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
       [ LanguageTools.ProgramTypes.TypeReference.TInt64 ])
 
   Stdlib.Test.all(
@@ -353,7 +350,7 @@ test moduleNamedByTheQuery =
           ("LanguageTools.AtRestTypeChecker.Environment", "runtimeVariables")
           ("Stdlib.Env", "get") ])
       |> Stdlib.List.head
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("get")) ])
+      |> Stdlib.Test.equal(Some("get")) ])
 
 
 // What already ranked well stays put: a name the query spells beats the module rule.
@@ -365,7 +362,7 @@ test moduleRuleKeepsNamedHitsFirst =
           ("Stdlib.Json", "parse")
           ("Stdlib.AltJson", "json") ])
       |> Stdlib.List.head
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("json"))
+      |> Stdlib.Test.equal(Some("json"))
 
       Rank.order("read file", Rank.fileFns())
       |> Stdlib.Test.equal(
