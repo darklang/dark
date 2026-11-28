@@ -28,6 +28,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
 REPO = "darklang/dark"
@@ -36,10 +37,24 @@ SETUP_JOBS = {"images", "publish-images"}  # finish before the real jobs even ex
 PASSED = {"success", "fixed", "no_tests"}
 
 
-def get(url):
+def get(url, waits=(5, 10, 20, 40, 60)):
+  """Retries what a network blip causes (DNS, a dropped connection, a 5xx), so a --wait
+  that has run for ten minutes doesn't die on one bad lookup."""
   req = urllib.request.Request(url, headers={"Accept": "application/json"})
-  with urllib.request.urlopen(req, timeout=30) as r:
-    return json.load(r)
+  for wait in (*waits, None):
+    try:
+      with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+    except urllib.error.HTTPError as e:
+      if wait is None or (e.code < 500 and e.code != 429):
+        raise
+      why = f"HTTP {e.code}"
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+      if wait is None:
+        raise
+      why = str(getattr(e, "reason", e))
+    print(f"ci-status: {why}; retrying in {wait}s", file=sys.stderr)
+    time.sleep(wait)
 
 
 def sh(*args):
