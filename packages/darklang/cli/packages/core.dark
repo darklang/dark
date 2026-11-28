@@ -65,7 +65,7 @@ let formatLocation(location: PackageLocation): String =
 /// attached to the front; both come off, leading ones only, since the `=` in
 /// `(x: Int64) : Int64 = x` is the body's. A lone `-` reads stdin, so the separate
 /// argument has to go first. A lone argument naming a file that exists reads the
-/// file, the way `module` does; a definition is never one token, so the two cannot
+/// file, the way `import` does; a definition is never one token, so the two cannot
 /// be confused.
 let definitionFromArgs(args: List<String>): Result<String, String> =
   let withoutSeparator =
@@ -420,7 +420,7 @@ let commitAuthored(
         | [] -> Option.Some("it failed the type check")
         | [issue, ...rest] ->
           // The CODE as well as the message. `dark docs traits` names these codes, they are
-          // what somebody searches for, and `dark module` prints them through
+          // what somebody searches for, and `dark import` prints them through
           // `AtRestCheck.printSaveReport`, so a `fn` or an `impl` dropping them made the two
           // paths disagree about what a refused save says. It costs one bracketed word on a
           // line that already exists, so the save is still two lines.

@@ -35,7 +35,7 @@ test aModuleSaveNamesEachFn = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/fx.dark"
   let source = $"let f{pureFn}\nlet g{readsFn}"
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (_, out, _) = Instance.streams(i, [ "module", "/Me.Fx", path ])
+  let (_, out, _) = Instance.streams(i, [ "import", path, "/Me.Fx" ])
   Stdlib.Test.all(
     [ Instance.says(out, "effects of f: none", "the pure one")
       Instance.says(out, "effects of g: file-read", "the one that reads") ]))

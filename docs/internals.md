@@ -198,7 +198,7 @@ authoring through `WipRefresh` goes down, is the one to watch. The parser's own 
 because the checker has not run yet.
 
 **The disk-load path records choices too, and it is the reason a reload rehashes so much.**
-`resolveTraitCalls` runs from `addAuthored` (so `dark fn`/`impl`/`module` and the workbench)
+`resolveTraitCalls` runs from `addAuthored` (so `dark fn`/`impl`/`import` and the workbench)
 and from `LocalExec.reloadPackages`, which authors `packages/` off disk. The reload path
 does it in the same order the authoring path does, records the choices at the hashes in hand
 and then `computeRealHashes` to move them, and it prints how many ops moved. Recording a choice changes

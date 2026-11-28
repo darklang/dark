@@ -551,7 +551,7 @@ let private httpRuleWithTrailingStarMatches =
     })
 
 
-/// A doc-only edit through `dark module` lands, as it does through `dark fn`.
+/// A doc-only edit through `dark import` lands, as it does through `dark fn`.
 ///
 /// Docs are not part of the content hash, so an edit that changes only a `///` line leaves every
 /// item on the hash it had, and the module path, which never wrote the `UpdateDoc` the single-item
@@ -559,7 +559,7 @@ let private httpRuleWithTrailingStarMatches =
 /// doc changed, because a module saves a batch and one item's words must not land on the other.
 let private moduleDocOnlyEditLands =
   instanceTest
-    "a doc-only edit through dark module lands on the item it was made to"
+    "a doc-only edit through dark import lands on the item it was made to"
     (fun state ->
       task {
         let write (text : string) =
@@ -572,11 +572,11 @@ let private moduleDocOnlyEditLands =
         let! _ =
           runCli
             state
-            [ "module"; "/Tests.HonestDocs"; write (source "First wording.") ]
+            [ "import"; write (source "First wording."); "/Tests.HonestDocs" ]
         let! saved =
           runCli
             state
-            [ "module"; "/Tests.HonestDocs"; write (source "Second wording.") ]
+            [ "import"; write (source "Second wording."); "/Tests.HonestDocs" ]
 
         let! viewA = runCli state [ "view"; "Tests.HonestDocs.docA" ]
         Expect.stringContains

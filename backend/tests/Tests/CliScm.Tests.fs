@@ -93,7 +93,7 @@ let private archivingABranchCommitsItsEvent =
             "the archive is its own commit"
       })
 
-/// `fn` takes a file as well as text, like `module`. A definition is never one token, so one
+/// `fn` takes a file as well as text, like `import`. A definition is never one token, so one
 /// argument that names a file that exists is the file.
 let private fnReadsItsDefinitionFromAFile =
   instanceTest "fn takes a source file, the way module does" (fun state ->
@@ -564,7 +564,7 @@ let private editChangesAnItemWithoutRetypingIt =
             "9"
             "the sibling in the same module is untouched"
 
-        // And an edit PROPAGATES. `edit` lands through `dark module`, whose op scan picks out `SetName`
+        // And an edit PROPAGATES. `edit` lands through `dark import`, whose op scan picks out `SetName`
         // in a `filterMap`, where a pattern of the wrong arity is a silent no-match: the edit looks fine
         // and no dependent follows.
         do!

@@ -149,13 +149,13 @@ test savingAFunctionAndItsCalleeTogetherLeavesNoStaleCaller =
         Stdlib.Test.fail($"could not write {path}: {Stdlib.display(e)}")
 
     [ write("let b(x: Int64): Int64 = x + 1\nlet a(x: Int64): Int64 = b(x) * 2")
-      run(dark, [ "module", "/Tests.Pair", path ])
+      run(dark, [ "import", path, "/Tests.Pair" ])
       save(dark, "Tests.App.c", "(x: Int64): Int64 = Tests.Pair.a(x) + 100")
       commit(dark, "base")
       write(
         "let b(x: Int64): Int64 = x + 10\nlet a(x: Int64): Int64 = b(x) * 3")
 
-      run(dark, [ "module", "/Tests.Pair", path ])
+      run(dark, [ "import", path, "/Tests.Pair" ])
       evals(dark, "Tests.App.c(1)", "133", "the caller runs both edits")
       same(staleCallers(dark), 0, "and nothing reads as on an old version") ])
 

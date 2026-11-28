@@ -2,7 +2,7 @@
 ///
 /// A reload parses every file and fills the store twice. Most edits change a declaration or two.
 /// This diffs each changed file against the text the store was loaded from, declaration by
-/// declaration, and lands the changed ones through `dark module`'s own code
+/// declaration, and lands the changed ones through `dark import`'s own code
 /// (`ModuleCommand.defineBundled`), so their dependents are repointed the way an authored edit
 /// repoints them. Declarations removed from a file, or in a deleted file, are unbound, as a reload
 /// drops them. Then it commits them as the baseline, as a reload does.
@@ -15,7 +15,7 @@
 /// - a type changed that more than `typeDependentsLimit` items depend on, since a type's dependents
 ///   are repointed without a check;
 /// - the edits have more than `dependentsLimit` dependents in all, where a reload is no slower;
-/// - a file does not parse, or `dark module` fails.
+/// - a file does not parse, or `dark import` fails.
 [<RequireQualifiedAccess>]
 module LocalExec.PackageEdits
 
@@ -201,7 +201,7 @@ let rec private removals (modules : List<string>) (d : Decl) : List<Change> =
       $"a trait or impl was removed ({d.name}), which can change how existing calls resolve"
   | None -> [ { added = false; kind = d.kind; modules = modules; name = d.name } ]
 
-/// The source to hand `dark module` for one module level, what it adds or changes (every new or
+/// The source to hand `dark import` for one module level, what it adds or changes (every new or
 /// changed declaration, inside the nested modules it is in), and what is no longer there.
 let rec private diff
   (modules : List<string>)
@@ -451,12 +451,12 @@ let private applyEdits () : string =
           Exe.executeFunction state define [] args)
       with
       | Ok(RT.DInt64 0L) -> ()
-      | Ok _ -> refuse $"`dark module` did not apply {file}"
+      | Ok _ -> refuse $"`dark import` did not apply {file}"
       | Error(rte, _) ->
         let message =
           LibExecution.HostEvents.runHere (fun () ->
             Exe.runtimeErrorMessage state rte)
-        refuse $"`dark module` did not apply {file}: {message}")
+        refuse $"`dark import` did not apply {file}: {message}")
 
     // After the edits, so a caller rewritten in the same change no longer counts as a user.
     if not (List.isEmpty removed) then

@@ -1,5 +1,5 @@
-/// A module save names the line and column of each type error, so a long module is not a hunt.
-module Darklang.Cli.Tests.ModuleSaveLines
+/// An import names the line and column of each type error, so a long module is not a hunt.
+module Darklang.Cli.Tests.ImportSaveLines
 
 test eachOccurrenceHasItsLine = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/lines.dark"
@@ -14,7 +14,7 @@ test eachOccurrenceHasItsLine = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (_, out) = Instance.ran(i, [ "module", "/Me.Lines", path ])
+  let (_, out) = Instance.ran(i, [ "import", path, "/Me.Lines" ])
   Stdlib.Test.all(
     [ Instance.says(
         out,
@@ -29,7 +29,7 @@ test annotatedValueHasItsLine = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/annotated.dark"
   let source = "val ok: String = \"a\"\nval limit: Int64 = \"six\""
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.Annotated", path ])
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.Annotated" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "a definite type error")
       Instance.says(out, "(line 2, column 20)", "the value's location") ]))
@@ -40,7 +40,7 @@ test calledValueHasNameAndLine = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/called-value.dark"
   let source = "let f(): Bytes = Stdlib.Bytes.empty()"
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (_, out) = Instance.ran(i, [ "module", "/Me.CalledValue", path ])
+  let (_, out) = Instance.ran(i, [ "import", path, "/Me.CalledValue" ])
   Stdlib.Test.all(
     [ Instance.says(out, "[NotCallable]", "the diagnostic code")
 
@@ -61,13 +61,13 @@ test valOfSiblingTypeIsChecked = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (_, out) = Instance.ran(i, [ "module", "/Me.Store", path ])
+  let (_, out) = Instance.ran(i, [ "import", path, "/Me.Store" ])
   let user = Instance.home(i) + "/user.dark"
   let _ =
     Stdlib.Cli.File.writeAtomic(user, "let count(): Int64 = Me.Store.empty.n")
     |> Builtin.unwrap
 
-  let (_, userOut) = Instance.ran(i, [ "module", "/Me.StoreUser", user ])
+  let (_, userOut) = Instance.ran(i, [ "import", user, "/Me.StoreUser" ])
   Stdlib.Test.all(
     [ Instance.doesNotSay(out, "incomplete", "the value's type is known")
 
@@ -82,7 +82,7 @@ test valTypeIsADependency = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/names.dark"
   let source = "type Names = List<String>\nval none: Names = []\n"
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.Names", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.Names" ])
 
   let (code, out) =
     Instance.ran(i, [ "delete", "type", "Me.Names.Names", "--dry-run" ])
@@ -103,7 +103,7 @@ test bareEnumCaseNamesItsEnum = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (_, out) = Instance.ran(i, [ "module", "/Me.Units", path ])
+  let (_, out) = Instance.ran(i, [ "import", path, "/Me.Units" ])
   let (_, audit) = Instance.ran(i, [ "typecheck", "Me.Units" ])
   let hint =
     "`Fahrenheit` is a case of Me.Units.Scale; write `Scale.Fahrenheit`"
@@ -123,7 +123,7 @@ test refusedValueIsNotAHash = Instance.withInstance(fun i ->
     |> Stdlib.String.join("\n")
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.Refused", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.Refused" ])
   let (_, audit) = Instance.ran(i, [ "typecheck", "Me.Refused" ])
   Stdlib.Test.all(
     [ Instance.says(

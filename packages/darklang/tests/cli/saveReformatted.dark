@@ -23,7 +23,7 @@ test moduleSaveDoesNotReprint = Instance.withInstance(fun i ->
     "let top(x: Int64): Int64 = x+1\n\nmodule Sub =\n  let c(x: Int64): Int64 = (x+3)\n"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out, _) = Instance.streams(i, [ "module", "/Me.Fmt", path ])
+  let (code, out, _) = Instance.streams(i, [ "import", path, "/Me.Fmt" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "the save")
       Instance.doesNotSay(out, "x + 1", "nothing reprinted")

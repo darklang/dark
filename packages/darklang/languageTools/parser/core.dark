@@ -19,7 +19,7 @@ type Range =
 type FileKind =
   | Script
   | Package
-  /// Package input for `dark module`. Keep declarations that pass syntax and package checks.
+  /// Package input for `dark import`. Keep declarations that pass syntax and package checks.
   | PackagePartialSave
 
 

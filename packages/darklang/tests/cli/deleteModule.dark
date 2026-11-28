@@ -7,7 +7,7 @@ test deleteModuleTakesEverything = Instance.withInstance(fun i ->
     "type Box = { n: Int64 }\nlet make(): Box = Box { n = 1 }\nlet read(b: Box): Int64 = b.n\n"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.Scratch", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.Scratch" ])
 
   let (refusedCode, refused) = Instance.ran(i, [ "delete", "Me.Scratch" ])
 
@@ -66,8 +66,8 @@ test deleteModuleKeepsWhatOthersUse = Instance.withInstance(fun i ->
     Stdlib.Cli.File.writeAtomic(user, "let two(): Int64 = Me.Lib.one() + 1\n")
     |> Builtin.unwrap
 
-  let _ = Instance.ran(i, [ "module", "/Me.Lib", lib ])
-  let _ = Instance.ran(i, [ "module", "/Me.User", user ])
+  let _ = Instance.ran(i, [ "import", lib, "/Me.Lib" ])
+  let _ = Instance.ran(i, [ "import", user, "/Me.User" ])
   let (code, out) = Instance.ran(i, [ "delete", "Me.Lib", "--yes" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "refused")
@@ -83,7 +83,7 @@ test deleteModuleTakesImpls = Instance.withInstance(fun i ->
     "type Point = { x: Int64 }\n\nimpl Display for Point =\n  let display(p: Point): String = \"point\"\n\nlet make(): Point = Point { x = 1 }\n"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.ImplCheck", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.ImplCheck" ])
   let before = Instance.said(i, [ "ls", "Me.ImplCheck.Point" ])
   let (code, _) = Instance.ran(i, [ "delete", "Me.ImplCheck", "--yes" ])
   let after = Instance.said(i, [ "ls", "Me.ImplCheck.Point" ])
@@ -150,7 +150,7 @@ test deleteModuleRefusesAnOwner = Instance.withInstance(fun i ->
     Stdlib.Cli.File.writeAtomic(path, "let one(): Int64 = 1\n")
     |> Builtin.unwrap
 
-  let _ = Instance.ran(i, [ "module", "/Me.Scratch", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.Scratch" ])
 
   let (darklangCode, darklang) =
     Instance.ran(i, [ "delete", "Darklang", "--dry-run" ])
@@ -173,7 +173,7 @@ test deleteModuleListsEveryItem = Instance.withInstance(fun i ->
     |> Stdlib.String.join("")
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.Big", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.Big" ])
   let (code, out) = Instance.ran(i, [ "delete", "Me.Big", "--dry-run" ])
   let named =
     out
@@ -199,8 +199,8 @@ test deleteModuleTakesSubmodulesAndHonoursDryRun =
       Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2\n")
       |> Builtin.unwrap
 
-    let _ = Instance.ran(i, [ "module", "/Me.Outer", outer ])
-    let _ = Instance.ran(i, [ "module", "/Me.Outer.Inner", inner ])
+    let _ = Instance.ran(i, [ "import", outer, "/Me.Outer" ])
+    let _ = Instance.ran(i, [ "import", inner, "/Me.Outer.Inner" ])
     let (dryCode, dry) = Instance.ran(i, [ "delete", "Me.Outer", "--dry-run" ])
     let afterDry = Instance.said(i, [ "ls", "Me.Outer.Inner" ])
     let (code, _) = Instance.ran(i, [ "delete", "Me.Outer", "--yes" ])
@@ -223,7 +223,7 @@ test deprecatedModuleDiscoveryAndResave = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/repro.dark"
   let source = "let main(): Int64 = 0\n"
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.DeleteRepro", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.DeleteRepro" ])
   let _ = Instance.ran(i, [ "commit", "fixture", "-y" ])
   let before = Instance.said(i, [ "search", "DeleteRepro" ])
 
@@ -248,7 +248,7 @@ test deprecatedModuleDiscoveryAndResave = Instance.withInstance(fun i ->
 
   let docsOnly = Instance.said(i, [ "search", "DeleteRepro" ])
   let (runCode, runOut) = Instance.ran(i, [ "run", "Me.DeleteRepro.main" ])
-  let sameModule = Instance.said(i, [ "module", "/Me.DeleteRepro", path ])
+  let sameModule = Instance.said(i, [ "import", path, "/Me.DeleteRepro" ])
 
   let sameFn =
     Instance.said(i, [ "fn", "/Me.DeleteRepro.main", "(): Int64 = 0" ])

@@ -73,7 +73,7 @@ let addAuthored(
     | failed -> Result.Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
 
 
-/// Unbind the values a save could not evaluate, and say what that left. A batch (`dark module`,
+/// Unbind the values a save could not evaluate, and say what that left. A batch (`dark import`,
 /// the editor) can hold good items beside the bad value, and those stay.
 let takeBackFailedValues(
   branchId: Uuid,

@@ -76,7 +76,7 @@ let createImplInline(state: AppState, modulePath: String, definition: String): A
       "" ]
 
   // a synthetic item below the module, so the module path follows the same rules as `fn`,
-  // `type` and `module`. `.` means here.
+  // `type` and `import`. `.` means here.
   let locationStr = if modulePath == "." then "__impl__" else modulePath + ".__impl__"
   authorInline(
     state,
@@ -211,7 +211,7 @@ let help(_state: AppState): String =
     ""
     "  # Conditional, for a generic type: a Box of anything printable is printable."
     "  # Type params lead. A generic type is declared in a module:"
-    "  dark module /Me.Boxes - <<'EOF'"
+    "  dark import - /Me.Boxes <<'EOF'"
     "  type Box<'a> = { item: 'a }"
     "  impl<'a: Display> Display for Box<'a> ="
     "    let display(b: Box<'a>): String = \"box of \" + Stdlib.display(b.item)"

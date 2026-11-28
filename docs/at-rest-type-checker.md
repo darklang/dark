@@ -128,7 +128,7 @@ Lambdas passed to a fn must return what that fn expects.
 
 ### Authoring and commit
 
-`SCM.PackageOps.addAuthored` stabilizes hashes, stores the batch as WIP regardless of the verdict, and returns the report for display. It serves `fn`, `type`, `val`, `module`, and Workbench saves.
+`SCM.PackageOps.addAuthored` stabilizes hashes, stores the batch as WIP regardless of the verdict, and returns the report for display. It serves `fn`, `type`, `val`, `import`, and Workbench saves.
 
 `SCM.PackageOps.commit` and `commitOpIds` re-check the committing ops as one batch and refuse `Failed`. `commit --allow-type-errors` overrides this;
 `--force` only skips the unresolved-references check. Re-checking matters because WIP changes: fixing `g` can make `f` pass. `Checked` and `Incomplete` both allow commit. Adapter failures produce `Incomplete`, so an adapter failure alone cannot block a save or commit.
@@ -211,7 +211,7 @@ signature at the self type (`ImplMethodSignature`). `AmbiguousImpl` and
 - Visible means in `Environment.traitImpls`: every implementation bound on the branch in the
   store, plus the batch's own (`Environment.withBatch`). A trait the batch declares is read
   from the batch too (`batchTraits`), so a trait, its implementations and their callers can be
-  saved in one `dark module` and resolve exactly as they would saved one at a time. Without
+  saved in one `dark import` and resolve exactly as they would saved one at a time. Without
   the batch's own, the same code resolved or not depending on how its saves were batched, and nothing
   reported it (`gates trait-choice-any-batching`).
 - An authoring save that leaves any call unresolved says so, naming the items: a trait call still

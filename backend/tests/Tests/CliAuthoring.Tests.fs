@@ -782,7 +782,7 @@ let aRivalCannotReachABoundedCall =
               "Tests.Bnd"
               "Named for Pt = let name(p: Pt): String = \"first\"" ]
 
-        // `dark fn` wants the type params adjacent to the name and `module` takes a path rather
+        // `dark fn` wants the type params adjacent to the name and `import` takes a path rather
         // than inline source, so the bounded generic goes in through a file, as `CliScm.Tests`
         // does for the same reason.
         let file =
@@ -797,7 +797,7 @@ let aRivalCannotReachABoundedCall =
           + ""
           + ""
         )
-        do! run state [ "module"; "Tests.Bnd"; file ]
+        do! run state [ "import"; file; "Tests.Bnd" ]
         do!
           evals
             state
@@ -920,7 +920,7 @@ let aRefusedImplementationOrBoundSavesNothing =
 
 /// A commit took a function whose bound names a trait that does not exist: the unresolved-names
 /// check read a function's body and signature and not its bounds. `fn` refuses such a bound now,
-/// so this goes in through `module`, which is the other way an item arrives.
+/// so this goes in through `import`, which is the other way an item arrives.
 let commitRefusesABoundThatNamesNothing =
   instanceTest "commit refuses a bound on a trait that does not exist" (fun state ->
     task {
@@ -934,7 +934,7 @@ let commitRefusesABoundThatNamesNothing =
         file,
         "let ghost<'a: Tests.NoSuch.Trait>(v: 'a): String = \"x\"\n"
       )
-      do! run state [ "module"; "Tests.GhostBnd"; file ]
+      do! run state [ "import"; file; "Tests.GhostBnd" ]
       do!
         showsAll
           state
@@ -1006,7 +1006,7 @@ let aMismatchedImplementationIsReportedAtSave =
 
 /// A failed module save must not end on a check mark.
 ///
-/// `module` printed `✓ Defined N declarations` as its LAST line, underneath the reasons the save was
+/// `import` printed `✓ Defined N declarations` as its LAST line, underneath the reasons the save was
 /// broken, where a single-item save through `core.dark` has always printed `!` and put the reason
 /// after it. Anybody who reads the last line of a failed save read success.
 let aFailedModuleSaveDoesNotEndOnATick =
@@ -1028,7 +1028,7 @@ let aFailedModuleSaveDoesNotEndOnATick =
       System.IO.File.WriteAllText(path, source)
 
       try
-        let! out = runCliPlain state [ "module"; "/Tests.TickBad"; path ]
+        let! out = runCliPlain state [ "import"; path; "/Tests.TickBad" ]
 
         Expect.stringContains
           out
@@ -1059,7 +1059,7 @@ let aFailedModuleSaveDoesNotEndOnATick =
       System.IO.File.WriteAllText(goodPath, goodSource)
 
       try
-        let! out = runCliPlain state [ "module"; "/Tests.TickGood"; goodPath ]
+        let! out = runCliPlain state [ "import"; goodPath; "/Tests.TickGood" ]
         Expect.stringContains
           out
           "✓ Defined"
@@ -1207,7 +1207,7 @@ let helpExamplesRun : List<Test> =
     HelpExamples.runPage [ "val"; "--help" ] false 6
     HelpExamples.runPage [ "trait"; "--help" ] false 3
     HelpExamples.runPage [ "impl"; "--help" ] false 12
-    HelpExamples.runPage [ "module"; "--help" ] false 2
+    HelpExamples.runPage [ "import"; "--help" ] false 2
     // The main page and every part, so an example that moves between them stays covered.
     HelpExamples.runPages
       "docs for-ai <part>"
@@ -1247,7 +1247,7 @@ let aReplacedImplementationIsNotChosen =
               $"dark-{name}.dark"
             )
           System.IO.File.WriteAllText(file, source)
-          [ "module"; name; file ]
+          [ "import"; file; name ]
 
         do! run state (modul "Tests.ReplA" "type Box = { replA: Int64 }\n")
         do! run state (modul "Tests.ReplB" "type Box = { replB: Int64 }\n")
@@ -1374,7 +1374,7 @@ let failedSavesDoNotWarnAboutUnresolvedTraitCalls =
         let save (name : string) (source : string) =
           task {
             System.IO.File.WriteAllText(path, source)
-            return! runCliPlain state [ "module"; "/Tests." + name; path ]
+            return! runCliPlain state [ "import"; path; "/Tests." + name ]
           }
         let warning = "Warning: could not choose implementations for these calls:"
         try
@@ -1526,7 +1526,7 @@ let unresolvedTraitCallsKeepTheirSourceLocations =
         let save name lines =
           task {
             System.IO.File.WriteAllText(path, String.concat "\n" lines)
-            return! runCliPlain state [ "module"; "/Tests." + name; path ]
+            return! runCliPlain state [ "import"; path; "/Tests." + name ]
           }
         try
           let! helpers =

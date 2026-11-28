@@ -706,7 +706,7 @@ gate_trait_choice_survives_rival() {
   quietly $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }"
   $CLI impl Stachu.Rival \
     "Display for Pt = let display(p: Pt): String = Stdlib.display(p.gateRivalOnly)" >/dev/null
-  quietly $CLI module Stachu.Rival - <<'DARK'
+  quietly $CLI import - Stachu.Rival <<'DARK'
 let display<'a: Stdlib.Display>(v: 'a): String =
   Stdlib.Display.display(v)
 
@@ -753,7 +753,7 @@ DARK
 
 # --- trait-choice-any-batching: the choice is recorded however the saves were batched ---
 # `trait-choice-survives-rival` saves the implementation first and the calls after. A person
-# writing one file saves the trait, its implementations and their callers in ONE `dark module`,
+# writing one file saves the trait, its implementations and their callers in ONE `dark import`,
 # and the checker used to see only what the store held before that save. So the same code was
 # protected or not depending on how it was batched: saved with its trait, every trait call in
 # the batch was left to run-time dispatch (`toString` included); saved with its implementations,
@@ -810,7 +810,7 @@ gate_trait_choice_any_batching() {
 
   save() {
     local out
-    out=$($CLI module "/$1" - < "$2" 2>&1 | clean)
+    out=$($CLI import - "/$1" < "$2" 2>&1 | clean)
     # The success line, not the word anywhere in what the save printed.
     if ! grep -q '^✓ Defined ' <<<"$out"; then
       echo "trait-choice-any-batching: saving /$1 failed:"

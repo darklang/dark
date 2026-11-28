@@ -1,5 +1,5 @@
-/// Module saves report parse errors and keep the declarations that passed validation.
-module Darklang.Cli.Tests.ModuleParseErrors
+/// Imports report parse errors and keep the declarations that passed validation.
+module Darklang.Cli.Tests.ImportParseErrors
 
 test oneBrokenDeclarationCanBeRetriedOnItsOwn = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/mixed.dark"
@@ -7,7 +7,7 @@ test oneBrokenDeclarationCanBeRetriedOnItsOwn = Instance.withInstance(fun i ->
     "let ok(): Int64 = 1\nlet bad(): Int64 = (fun (n: Int64) -> n)(1)\n"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.Mixed", path ])
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.Mixed" ])
 
   let (viewCode, _) = Instance.ran(i, [ "view", "Me.Mixed.ok", "--raw" ])
 
@@ -31,7 +31,7 @@ test oneBrokenDeclarationCanBeRetriedOnItsOwn = Instance.withInstance(fun i ->
 
       Instance.says(
         out,
-        "Use `module` for one or more declarations or `fn` for a function.",
+        "Use `import` for one or more declarations or `fn` for a function.",
         "the retry options")
 
       Instance.says(
@@ -51,7 +51,7 @@ test callerOfUnparsedSiblingSaysSo = Instance.withInstance(fun i ->
     "let parseRepo(s: String): String =\n  s + +\nlet count(s: String): Int64 = Stdlib.String.length(parseRepo(s))\n"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (_, out) = Instance.ran(i, [ "module", "/Me.Sibling", path ])
+  let (_, out) = Instance.ran(i, [ "import", path, "/Me.Sibling" ])
   Stdlib.Test.all(
     [ Instance.says(
         out,
@@ -61,25 +61,24 @@ test callerOfUnparsedSiblingSaysSo = Instance.withInstance(fun i ->
       Instance.doesNotSay(out, "not in scope", "not a missing variable") ]))
 
 
-test expressionAtModuleScopeDoesNotPreventSavingDeclarations =
-  Instance.withInstance(fun i ->
-    let path = Instance.home(i) + "/stray.dark"
-    let _ =
-      Stdlib.Cli.File.writeAtomic(path, "let ok(): Int64 = 1\n42\n")
-      |> Builtin.unwrap
+test expressionAtModuleScopeIsRefused = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/stray.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(path, "let ok(): Int64 = 1\n42\n")
+    |> Builtin.unwrap
 
-    let (code, out) = Instance.ran(i, [ "module", "/Me.Stray", path ])
-    Stdlib.Test.all(
-      [ Instance.exitedWith(code, 1, "the invalid standalone expression")
-        Instance.says(
-          out,
-          "Expressions are not allowed in package files",
-          "the original diagnostic")
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.Stray" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "the invalid standalone expression")
+      Instance.says(
+        out,
+        "line 2, column 1: Expressions are not allowed in package files",
+        "the original diagnostic")
 
-        Instance.says(
-          out,
-          "Defined 1 declaration",
-          "the valid item was saved") ]))
+      Instance.says(out, "--skip-expressions", "the flag")
+
+      Instance.says(out, "Nothing was saved.", "the refusal")
+      Instance.expectExit(i, [ "view", "Me.Stray.ok" ], 1) ]))
 
 
 test missingDelimiterDoesNotRejectTheNextDeclaration =
@@ -87,7 +86,7 @@ test missingDelimiterDoesNotRejectTheNextDeclaration =
     let path = Instance.home(i) + "/boundary.dark"
     let source = "let bad(): Int64 = (1\nlet ok(): Int64 = 2\n"
     let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-    let (code, out) = Instance.ran(i, [ "module", "/Me.Boundary", path ])
+    let (code, out) = Instance.ran(i, [ "import", path, "/Me.Boundary" ])
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 1, "the parse error")
         Instance.says(
@@ -103,7 +102,7 @@ test missingBodyDoesNotConsumeTheNextSibling = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/empty-body.dark"
   let source = "module Inner =\n  let bad(): Int64 =\n  let ok(): Int64 = 2\n"
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.EmptyBody", path ])
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.EmptyBody" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "the missing body")
       Instance.says(
@@ -125,7 +124,7 @@ test damagedDeclarationDoesNotReplaceAnExistingItem =
       "#let bad(): Int64 = 1\nlet alsoBad(): Int64 = 1)\nlet ok(): Int64 = 2\n"
 
     let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-    let (code, out) = Instance.ran(i, [ "module", "/Me.StraySyntax", path ])
+    let (code, out) = Instance.ran(i, [ "import", path, "/Me.StraySyntax" ])
     let (evalCode, answer) = Instance.ran(i, [ "eval", "Me.StraySyntax.bad()" ])
     Stdlib.Test.all(
       [ Instance.exitedWith(setupCode, 0, "the existing version")
@@ -152,7 +151,7 @@ test malformedHeaderDoesNotMoveItsChildrenToTheParent =
       "let ok(): Int64 = 1\nmodule .Inner\nlet misplaced(): Int64 = 2\n"
 
     let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-    let (code, out) = Instance.ran(i, [ "module", "/Me.BadHeader", path ])
+    let (code, out) = Instance.ran(i, [ "import", path, "/Me.BadHeader" ])
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 1, "the malformed module header")
         Instance.says(out, "expected a module name", "the broken header")
@@ -167,7 +166,7 @@ test trailingHeaderTextDoesNotSaveChildrenUnderAnUncertainName =
       "let ok(): Int64 = 1\nmodule Inner Extra\nlet misplaced(): Int64 = 2\n"
 
     let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-    let (code, out) = Instance.ran(i, [ "module", "/Me.TrailingHeader", path ])
+    let (code, out) = Instance.ran(i, [ "import", path, "/Me.TrailingHeader" ])
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 1, "the malformed module header")
         Instance.says(
@@ -190,7 +189,7 @@ test nestedDeclarationsAreStillSavedTogether = Instance.withInstance(fun i ->
     + "  let leaf(): Int64 = 3\n"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
-  let (code, out) = Instance.ran(i, [ "module", "/Me.NestedDraft", path ])
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.NestedDraft" ])
 
   let (evalCode, answer) =
     Instance.ran(i, [ "eval", "Me.NestedDraft.Nested.caller()" ])
@@ -221,7 +220,7 @@ test everyParseErrorIsShown = Instance.withInstance(fun i ->
       "let alphabet: String = \"abc\"\nval limit: = 6\n")
     |> Builtin.unwrap
 
-  let (code, out) = Instance.ran(i, [ "module", "/Me.TwoErrs", path ])
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.TwoErrs" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "nothing was saved")
       Instance.says(out, "must use 'val'", "the first error")
@@ -236,7 +235,7 @@ test semicolonsSayCommas = Instance.withInstance(fun i ->
       "type P = { x: Int64; y: Int64 }\nlet f(): List<Int64> = [1; 2]\n")
     |> Builtin.unwrap
 
-  let (code, out) = Instance.ran(i, [ "module", "/Me.Semis", path ])
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.Semis" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "nothing was saved")
       Instance.says(

@@ -1,5 +1,5 @@
 /// `view --raw` on a module prints every declaration in it as one file, so a module goes
-/// out to a file and back in with `dark module`.
+/// out to a file and back in with `dark import`.
 module Darklang.Cli.Tests.ViewRawModule
 
 val source: String =
@@ -16,11 +16,11 @@ val source: String =
 test aModuleRoundTrips = Instance.withInstance(fun i ->
   let first = Instance.home(i) + "/first.dark"
   let _ = Stdlib.Cli.File.writeAtomic(first, source) |> Builtin.unwrap
-  let (defined, _) = Instance.ran(i, [ "module", "/Me.RawA", first ])
+  let (defined, _) = Instance.ran(i, [ "import", first, "/Me.RawA" ])
   let (code, raw) = Instance.ran(i, [ "view", "Me.RawA", "--raw" ])
   let second = Instance.home(i) + "/second.dark"
   let _ = Stdlib.Cli.File.writeAtomic(second, raw) |> Builtin.unwrap
-  let (redefined, out) = Instance.ran(i, [ "module", "/Me.RawB", second ])
+  let (redefined, out) = Instance.ran(i, [ "import", second, "/Me.RawB" ])
   let again = Instance.said(i, [ "view", "Me.RawB", "--raw" ])
 
   let shifted =
@@ -42,14 +42,14 @@ test aModuleRoundTrips = Instance.withInstance(fun i ->
       Stdlib.String.trim(shifted) |> Stdlib.Test.equal("3") ]))
 
 
-// `dark module` puts an impl under its type's name, so it comes back with the type.
+// `dark import` puts an impl under its type's name, so it comes back with the type.
 test anImplForTheModulesTypeIsPrinted = Instance.withInstance(fun i ->
   let path = Instance.home(i) + "/impl.dark"
   let src =
     "type Badge = { label: String }\n\nimpl Display for Badge =\n  let display(b: Badge): String = b.label"
 
   let _ = Stdlib.Cli.File.writeAtomic(path, src) |> Builtin.unwrap
-  let _ = Instance.ran(i, [ "module", "/Me.RawImpl", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.RawImpl" ])
   let (code, raw) = Instance.ran(i, [ "view", "Me.RawImpl", "--raw" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "view --raw of a module")
@@ -61,13 +61,13 @@ test submodulesAreLeftOut = Instance.withInstance(fun i ->
   let _ =
     Stdlib.Cli.File.writeAtomic(path, "let top(): Int64 = 1") |> Builtin.unwrap
 
-  let _ = Instance.ran(i, [ "module", "/Me.RawOuter", path ])
+  let _ = Instance.ran(i, [ "import", path, "/Me.RawOuter" ])
   let inner = Instance.home(i) + "/inner.dark"
   let _ =
     Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2")
     |> Builtin.unwrap
 
-  let _ = Instance.ran(i, [ "module", "/Me.RawOuter.Inner", inner ])
+  let _ = Instance.ran(i, [ "import", inner, "/Me.RawOuter.Inner" ])
   let (code, raw) = Instance.ran(i, [ "view", "Me.RawOuter", "--raw" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "view --raw of a module")
@@ -87,7 +87,7 @@ test aModuleWithNothingDirectlyInItIsRefused = Instance.withInstance(fun i ->
     Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2")
     |> Builtin.unwrap
 
-  let _ = Instance.ran(i, [ "module", "/Me.RawEmpty.Inner", inner ])
+  let _ = Instance.ran(i, [ "import", inner, "/Me.RawEmpty.Inner" ])
   match Instance.run(i, [ "view", "Me.RawEmpty", "--raw" ]) with
   | Error(e) -> Stdlib.Test.fail(e)
   | Ok(out) ->

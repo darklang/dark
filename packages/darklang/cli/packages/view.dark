@@ -23,7 +23,7 @@ let resolveReplacementName(branchId: Uuid, ref: LanguageTools.ProgramTypes.Refer
 
 /// The declaration alone: no deprecation header, no capabilities line, no colour. For a
 /// module, every declaration directly in it (`moduleSource`).
-/// Feed it to `dark module` or `dark edit` and it round-trips.
+/// Feed it to `dark import` or `dark edit` and it round-trips.
 ///
 /// Reading an item and writing it back should be a pipe. Stripping a trailer and a
 /// prefix with `sed` is a screen-scrape: it works until the display changes.
@@ -60,7 +60,7 @@ let rawSource(branchId: Uuid, location: PackageLocation): Result<String, String>
   | Test(loc) -> sourceOf(loc)
 
 
-/// The <param kind> named <param name> in the module at <param path>, printed for `dark module`.
+/// The <param kind> named <param name> in the module at <param path>, printed for `dark import`.
 let moduleDecl(
   branchId: Uuid,
   path: List<String>,
@@ -113,9 +113,9 @@ let moduleDecl(
       |> Stdlib.Option.map(fun item -> PrettyPrinter.ProgramTypes.packageTest(ctx, item.entity))
 
 
-/// Every declaration directly in the module at <param path>, as one file `dark module` reads
+/// Every declaration directly in the module at <param path>, as one file `dark import` reads
 /// back: types, traits, values, fns, impls, then tests. Submodules are left out; an impl
-/// for one of the module's types is kept, since `dark module` puts it under the type's name.
+/// for one of the module's types is kept, since `dark import` puts it under the type's name.
 let moduleSource(branchId: Uuid, path: List<String>): Result<String, String> =
   let depSets = Query.loadDeprecationSets(branchId)
   let decls(
@@ -570,7 +570,7 @@ let viewEntity(branchId: Uuid, location: PackageLocation, tests: Tests): Unit =
 type ViewMode =
   | Source
   /// The declaration alone: no highlighting, no deprecation header, no capabilities
-  /// line. What you get back is what `dark module` and `dark edit` accept, so
+  /// line. What you get back is what `dark import` and `dark edit` accept, so
   /// reading an item and writing it back is a pipe rather than a screen-scrape. The
   /// default view is for a person; this is for whatever reads it next.
   | Raw
@@ -869,7 +869,7 @@ let execute(state: AppState, args: List<String>): AppState =
     let (paths, mode, includeTests) = parsed
 
     // Several items are each viewed under their name. Under --raw the name is a comment, so the
-    // output is still source that `dark module` reads. A failure names the path, because the
+    // output is still source that `dark import` reads. A failure names the path, because the
     // traversal names only the segment it stopped at.
     let viewNamed(acc: AppState, p: String): AppState =
       match mode with
@@ -916,10 +916,10 @@ let help(_state: AppState): String =
     ""
     "Options:"
     "  --raw             The declaration alone, with no header, badge or colour."
-    "                    What `dark module` and `dark edit` accept, so reading an"
+    "                    What `dark import` and `dark edit` accept, so reading an"
     "                    item and writing it back is a pipe. For a module, every"
     "                    declaration directly in it (not its submodules), as one"
-    "                    file `dark module` reads back."
+    "                    file `dark import` reads back."
     ""
     "Options (functions only):"
     "  --include-tests   Also list the tests that call the function, each with"
@@ -936,7 +936,7 @@ let help(_state: AppState): String =
     "  view Option                     - View the Option type"
     "  view Stdlib.List                - View contents of Stdlib.List module"
     "  view List.head --raw            - Print just the declaration"
-    "  view Me.Example --raw > ex.dark - Save a module as a file `dark module` reads"
+    "  view Me.Example --raw > ex.dark - Save a module as a file `dark import` reads"
     "  view Float64.add --include-tests  - Float64.add and the tests that call it"
     "  view List.last --ast            - View List.last as a syntax tree"
     "  view List.map --instructions    - Disassemble List.map" ]

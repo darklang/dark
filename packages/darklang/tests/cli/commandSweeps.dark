@@ -412,7 +412,7 @@ val unsafeWithArguments: List<String> =
     "fn"  // authors; the seed is the only fixture the sweep should make
     "val"  // ditto
     "type"  // ditto
-    "module"  // ditto
+    "import"  // ditto
     "trait"  // ditto
     "impl"  // ditto
     "rename"  // moves an item the table names

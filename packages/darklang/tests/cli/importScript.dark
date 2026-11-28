@@ -1,0 +1,90 @@
+/// `import` refuses a script's expressions; `--skip-expressions` saves its declarations and leaves them out.
+module Darklang.Cli.Tests.ImportScript
+
+val script: String =
+  "let total(n: Int64): Int64 = n * 2\n\nlet main(args: List<String>): Int64 =\n  Stdlib.printLine(Stdlib.display(total(21)))\n  0\n\nmain([])\n"
+
+
+test importRefusesAScript = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/report.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(path, script) |> Builtin.unwrap
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.Report" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "the expression")
+      Instance.says(
+        out,
+        "line 7, column 1: Expressions are not allowed in package files",
+        "the line")
+
+      Instance.says(
+        out,
+        "`--skip-expressions` saves the declarations and leaves the expressions out",
+        "the flag")
+
+      Instance.says(out, "Nothing was saved.", "the refusal")
+      Instance.expectExit(i, [ "view", "Me.Report.total" ], 1) ]))
+
+
+test aScriptImportsAndRunsFromTheStore = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/report.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(path, script) |> Builtin.unwrap
+  let (code, out) =
+    Instance.ran(i, [ "import", path, "/Me.Report", "--skip-expressions" ])
+
+  let (runCode, ran) = Instance.ran(i, [ "run", "Me.Report.main" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the script")
+      Instance.says(out, "Defined 2 declarations in /Me.Report", "the summary")
+
+      Instance.says(
+        out,
+        "left out line 7, `main([])`: a module holds declarations, not expressions",
+        "the call it left out")
+
+      Instance.says(
+        out,
+        "run it with `dark run Me.Report.main`",
+        "how to run it")
+
+      Instance.doesNotSay(out, "Parse error", "no parse error")
+      Instance.exitedWith(runCode, 0, "main from the store")
+      Instance.says(ran, "42", "main ran") ]))
+
+
+test importReadsTheScriptFromStdin = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.runWithStdin(
+      i,
+      [ "import", "--skip-expressions", "-", "/Me.Piped" ],
+      script)
+
+  let (runCode, _) = Instance.ran(i, [ "run", "Me.Piped.main" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the script")
+      Instance.says(out, "left out line 7, `main([])`", "the call it left out")
+      Instance.exitedWith(runCode, 0, "main from the store") ]))
+
+
+test aFileOfOnlyDeclarationsImports = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/lib.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(path, "let double(n: Int64): Int64 = n * 2\n")
+    |> Builtin.unwrap
+
+  let (code, out) = Instance.ran(i, [ "import", path, "/Me.Lib" ])
+  let (evalCode, value) = Instance.ran(i, [ "eval", "Me.Lib.double(4)" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the declarations")
+      Instance.doesNotSay(out, "left out", "nothing left out")
+      Instance.exitedWith(evalCode, 0, "the saved function")
+      Instance.says(value, "8", "it runs") ]))
+
+
+test moduleIsUnknownAndSuggestsImport = Instance.withInstance(fun i ->
+  let (code, out) = Instance.ran(i, [ "module", "/Me.Lib", "lib.dark" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "an unknown command")
+      Instance.says(
+        out,
+        "Unknown command: module. Did you mean `import`?",
+        "the new name") ]))

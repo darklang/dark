@@ -200,7 +200,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
         + ""
         + ""
       )
-      do! run state [ "module"; "Tests.CacheT"; file ]
+      do! run state [ "import"; file; "Tests.CacheT" ]
       System.IO.File.Delete file
 
       do!
@@ -272,7 +272,7 @@ let cachedPassesStayOnTheirBranch =
           $"dark-cache-branch-{System.Guid.NewGuid():N}.dark"
         )
       System.IO.File.WriteAllText(file, "test passes = Stdlib.Test.pass()\n")
-      do! run state [ "module"; "Tests.CacheBranch"; file ]
+      do! run state [ "import"; file; "Tests.CacheBranch" ]
       System.IO.File.Delete file
       do! commit state "cacheable branch test"
 
@@ -337,7 +337,7 @@ let testsWithoutPurityProofAlwaysRun =
         + ""
         + ""
       )
-      do! run state [ "module"; "Tests.CacheSafety"; file ]
+      do! run state [ "import"; file; "Tests.CacheSafety" ]
       System.IO.File.Delete file
 
       do!
@@ -391,7 +391,7 @@ test notEqualMessage =
     Stdlib.Test.expect(Stdlib.String.contains(text, "First"), "type name changed")
 """
         )
-        do! run state [ "module"; "Tests.AssertionCache"; file ]
+        do! run state [ "import"; file; "Tests.AssertionCache" ]
         System.IO.File.Delete file
         for _ in 1..2 do
           do!
@@ -438,7 +438,7 @@ test spaces = Stdlib.Test.group("parsing", Stdlib.Test.expect(false, "spaces"))
 test plain = Stdlib.Test.expect(true, "plain")
 """
       )
-      do! run state [ "module"; "Tests.Grouped"; file ]
+      do! run state [ "import"; file; "Tests.Grouped" ]
       System.IO.File.Delete file
       do!
         showsAll
@@ -487,7 +487,7 @@ test halves =
   [ 2, 0 ] |> Stdlib.Test.table(fun n -> Stdlib.Test.expect(4 / n == 2, "not half"))
 """
       )
-      do! run state [ "module"; "Tests.Table"; file ]
+      do! run state [ "import"; file; "Tests.Table" ]
       System.IO.File.Delete file
       do!
         showsAll
@@ -531,7 +531,7 @@ test halves =
       Stdlib.Test.expect(Stdlib.String.length(s) == n, "wrong length")))
 """
       )
-      do! run state [ "module"; "Tests.GroupedTable"; grouped ]
+      do! run state [ "import"; grouped; "Tests.GroupedTable" ]
       System.IO.File.Delete grouped
       do!
         showsAll
@@ -819,7 +819,7 @@ let packageTestsRespectParallelLimit =
 """         )
             |> String.concat "\n"
           )
-          do! run state [ "module"; "Tests.Parallel"; source ]
+          do! run state [ "import"; source; "Tests.Parallel" ]
           // The runner needs no grants on the saved instance, even to spawn work.
           do! run state [ "permissions"; "clear" ]
           let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
@@ -956,7 +956,7 @@ test writer =
   Stdlib.Test.expect(Darklang.LanguageTools.LocalStore.configGet("test.writer-witness") == Stdlib.Option.Option.Some("written"), "write lost")
 """
         )
-        do! run state [ "module"; "Tests.Readers"; source ]
+        do! run state [ "import"; source; "Tests.Readers" ]
         do! run state [ "permissions"; "clear" ]
         let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
         let launches =
@@ -1133,7 +1133,7 @@ test expected =
   (if Stdlib.Cli.Sys.isTerminal(0) then 2 else 1) / 0 => raises "Cannot divide by 0"
 """
           )
-          do! run state [ "module"; "Tests.WorkerExit"; file ]
+          do! run state [ "import"; file; "Tests.WorkerExit" ]
           do!
             exits
               state
@@ -1240,7 +1240,7 @@ test isolated =
           do!
             exits
               state
-              [ "module"; "Tests.PermissionUse"; sourceFile ]
+              [ "import"; sourceFile; "Tests.PermissionUse" ]
               0L
               "author functions and their tests"
         finally
@@ -1307,7 +1307,7 @@ let processDenialOffersAnyArguments =
         do!
           exits
             state
-            [ "module"; "Tests.ProcDeny"; sourceFile ]
+            [ "import"; sourceFile; "Tests.ProcDeny" ]
             0L
             "author the runner"
         let call = [ "eval"; "Tests.ProcDeny.go()" ]
@@ -1358,7 +1358,7 @@ let readToo(path: String): String =
         do!
           exits
             state
-            [ "module"; "Tests.FdRead"; sourceFile ]
+            [ "import"; sourceFile; "Tests.FdRead" ]
             0L
             "author the readers"
         let call name = [ "eval"; $"Tests.FdRead.{name}(\"{file}\")" ]
@@ -1423,7 +1423,7 @@ let sub(x: Int64, y: Int64): Int64 = x - y
         do!
           exits
             state
-            [ "module"; "Tests.RunFn"; sourceFile ]
+            [ "import"; sourceFile; "Tests.RunFn" ]
             0L
             "author the program"
         do!

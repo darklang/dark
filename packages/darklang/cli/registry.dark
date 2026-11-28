@@ -140,7 +140,7 @@ module Registry =
 
   let acceptsImpl(): Accepts.Accepts = Accepts.text(2)
 
-  let acceptsModule(): Accepts.Accepts = Accepts.between(2, 2, [])
+  let acceptsImport(): Accepts.Accepts = Accepts.between(2, 2, [ "--skip-expressions" ])
 
   let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [ "--patch" ])
 
@@ -639,13 +639,13 @@ module Registry =
         Packages.ImplCommand.complete)
 
       (
-        "module",
-        "Define multiple package declarations",
+        "import",
+        "Import a file of declarations into a module",
         [],
-        acceptsModule,
-        Packages.ModuleCommand.execute,
-        Packages.ModuleCommand.help,
-        Packages.ModuleCommand.complete)
+        acceptsImport,
+        Packages.Import.execute,
+        Packages.Import.help,
+        Packages.Import.complete)
 
       (
         "edit",
@@ -995,7 +995,13 @@ module Registry =
                  |> Stdlib.List.map(fun cmd -> Stdlib.List.prepend(cmd.aliases, cmd.name))
                  |> Stdlib.List.flatten
 
-               let hint = Accepts.didYouMean(name, names)
+               // `import` used to be `module`, too far apart for an edit-distance match
+               let hint =
+                 if name == "module" then
+                   " Did you mean `import`?"
+                 else
+                   Accepts.didYouMean(name, names)
+
                Stdlib.printErrorLine(View.formatError($"Unknown command: {name}.{hint}"))
                Stdlib.printErrorLine("Use 'help' to see available commands.")
                { state with exitCode = 1 })
@@ -1132,7 +1138,7 @@ module Registry =
           "trait"
           "impl"
           "impls"
-          "module"
+          "import"
           "edit"
           "rename"
           "hash"

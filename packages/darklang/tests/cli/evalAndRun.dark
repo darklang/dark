@@ -718,7 +718,7 @@ test processDenialHintsPasteIntoRun = Instance.withInstance(fun i ->
       "hints.dark",
       "let echo(arg: String): String =\n  match Stdlib.Cli.Process.run(\"echo\", [ \"it's\", arg ]) with\n  | Ok(out) -> out.stdout\n  | Error(e) -> Stdlib.display(e)\n")
 
-  let authored = Instance.ran(i, [ "module", "Tests.ProcHints", source ])
+  let authored = Instance.ran(i, [ "import", source, "Tests.ProcHints" ])
   let denied =
     Instance.said(i, [ "eval", "Tests.ProcHints.echo(\"a b\")" ])
     |> Stdlib.Cli.Tui.Text.stripSgr
@@ -844,7 +844,7 @@ test anEditNeedingNoNewPermissionsKeepsTheApproval =
       + "  | Error(_) -> 1\n"
 
     let path = script(i, "keep.dark", source)
-    let _ = Instance.ran(i, [ "module", "/Tests.Keep", path ])
+    let _ = Instance.ran(i, [ "import", path, "/Tests.Keep" ])
 
     let _ =
       Instance.ran(
@@ -909,7 +909,7 @@ test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
       source,
       "let size(path: String): Int64 =\n  match Stdlib.Cli.FileSystem.readFile(path) with\n  | Ok(b) -> Stdlib.Bytes.length(b)\n  | Error(_) -> -1\n")
 
-  let _ = Instance.ran(i, [ "module", "/Me.Reader", source ])
+  let _ = Instance.ran(i, [ "import", source, "/Me.Reader" ])
   let call = $"Me.Reader.size(\"{target}\")"
   let (deniedCode, _) = Instance.ran(i, [ "eval", call ])
 
