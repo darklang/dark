@@ -396,10 +396,15 @@ let refresh(branchId: Uuid, lg: LastGood): LastGood =
         | _ -> LastGood { entry = lg.entry, hash = Some(newest), report = None, problem = None }
 
 
+/// A callable for the fn version `hash`; `name` is what its errors call it.
+let applicableAt(hash: ProgramTypes.Hash, name: String): Result<'f, String> =
+  Builtin.applicableByHash(ProgramTypes.hashToString(hash), name)
+
+
 /// A callable for the version `lg` is on. `Error` when nothing usable has been found yet.
 let applicable(lg: LastGood): Result<'f, String> =
   match lg.hash with
-  | Some(hash) -> Builtin.applicableByHash(ProgramTypes.hashToString(hash), entryName(lg.entry))
+  | Some(hash) -> applicableAt(hash, entryName(lg.entry))
   | None ->
     match lg.problem with
     | Some(problem) -> Error(problem)
@@ -422,7 +427,7 @@ let applicableByName(branchId: Uuid, name: String): Result<'a -> 'b, String> =
   | Some(location) ->
     if Stdlib.List.all(Stdlib.String.split(name, "."), isIdentifier) then
       match PackageManager.Function.find(branchId, location) with
-      | Some(hash) -> Builtin.applicableByHash(ProgramTypes.hashToString(hash), name)
+      | Some(hash) -> applicableAt(hash, name)
       | None -> Error($"No function named {name}")
     else
       Error($"Not a package function name: {name}")
