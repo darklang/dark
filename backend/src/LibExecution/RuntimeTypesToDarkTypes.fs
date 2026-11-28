@@ -246,6 +246,7 @@ module ExecutionPoint =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (point : RuntimeTypes.ExecutionPoint) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let caseName, fields =
       match point with
       | RuntimeTypes.Source -> "Source", []
@@ -326,6 +327,7 @@ module TypeReference =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (t : TypeReference) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let (caseName, fields) =
       match t with
       | TVariable name -> "TVariable", [ DString name ]
@@ -376,6 +378,7 @@ module TypeReference =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : TypeReference =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match d with
     | DEnum(_, _, [], "TVariable", [ DString name ]) -> TVariable(name)
 
@@ -454,6 +457,7 @@ module LetPattern =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (p : LetPattern) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let (caseName, fields) =
       match p with
       | LPVariable(reg, name) -> "LPVariable", [ DInt32 reg; DString name ]
@@ -468,6 +472,7 @@ module LetPattern =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : LetPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match d with
     | DEnum(_, _, [], "LPVariable", [ DInt32 reg; DString name ]) ->
       LPVariable(reg, name)
@@ -486,6 +491,7 @@ module MatchPattern =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (p : MatchPattern) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let (caseName, fields) =
       match p with
       | MPVariable(reg) -> "MPVariable", [ DInt32 reg ]
@@ -540,6 +546,7 @@ module MatchPattern =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : MatchPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match d with
     | DEnum(_, _, [], "MPVariable", [ DInt32 reg ]) -> MPVariable(reg)
 
@@ -600,6 +607,7 @@ module KnownType =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.knownType ())
 
   let toDT (kt : KnownType) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let (caseName, fields) =
       match kt with
       | KTUnit -> "KTUnit", []
@@ -656,6 +664,7 @@ module KnownType =
 
 
   let fromDT (d : Dval) : KnownType =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match d with
     | DEnum(_, _, [], "KTUnit", []) -> KTUnit
     | DEnum(_, _, [], "KTBool", []) -> KTBool
@@ -851,6 +860,7 @@ module Dval =
     DEnum(tn, tn, [], "DStreamStub", [ ValueType.toDT (StreamImpl.elemType impl) ])
 
   let rec toDT (dv : Dval) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let tn = typeName ()
     let mk caseName fields = DEnum(tn, tn, [], caseName, fields)
     match dv with
@@ -946,6 +956,7 @@ module Dval =
 
 
   let fromDT (d : Dval) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match d with
     | DEnum(_, _, [], "DUnit", []) -> DUnit
     | DEnum(_, _, [], "DBool", [ DBool b ]) -> DBool b
@@ -1074,6 +1085,7 @@ module Instruction =
 
   // Mutually recursive: an instruction can create a lambda, whose body is more instructions.
   let rec toDT (i : Instruction) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let (caseName, fields) =
       match i with
       | LoadVal(r, v) -> "LoadVal", [ reg r; Dval.toDT v ]

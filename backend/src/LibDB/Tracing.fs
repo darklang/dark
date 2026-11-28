@@ -521,6 +521,7 @@ module Redact =
   /// (`url`), wherever they sit inside it. That covers a request's arguments, the `Response`
   /// a request returns, a served `Request`, and the `Response` its handler answered.
   let rec http (dv : RT.Dval) : RT.Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match dv with
     | RT.DString s -> RT.DString(url s)
     | RT.DList(vt, RT.Items(items)) when

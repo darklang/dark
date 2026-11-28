@@ -148,6 +148,7 @@ let rec unifyValueTypeSync
   if unifiesTrivially expected actual then
     Unified tst
   else
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match expected with
     // Same reasoning as the hoisted case in `unifyValueType`, and deliberately the same logic: most
     // arguments bind a type variable, and most rebind it to what it already held.
@@ -270,7 +271,7 @@ let rec unifyValueType
   if unifiesTrivially expected actual then
     (Ok tst)
   else
-
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match expected with
     // Hoisted out of the match below because it is the hot path. ~88% of calls are into functions
     // whose signature has a type variable, and `unifiesTrivially` never claims one, so nearly every
@@ -594,7 +595,7 @@ let private unifyDval
 ///
 /// `ValueNone` on anything unresolved *or* mismatched, so the full check still produces the error
 /// message and the path that describes where the mismatch was.
-let rec private unifyTypeArgs
+let private unifyTypeArgs
   (tst : TypeSymbolTable)
   (declared : List<TypeReference>)
   (actual : List<ValueType>)
@@ -746,6 +747,7 @@ let rec private knownFits
   (expected : TypeReference)
   (known : KnownType)
   : bool =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match expected with
   | TVariable name ->
     match tst.TryFind name with
@@ -828,6 +830,7 @@ let rec argFitsWithNothingToBind
   | TTuple(ea, eb, eRest) ->
     (match actual with
      | DTuple(a, b, rest) ->
+       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
        argFitsWithNothingToBind tst ea a
        && argFitsWithNothingToBind tst eb b
        && argsFitWithNothingToBind tst eRest rest
@@ -871,6 +874,7 @@ and private tryUnifyGeneral
   (expected : TypeReference)
   (actual : Dval)
   : TypeSymbolTable voption =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match actual with
   // A read still in flight unifies with anything, by being unknown: `Promise<t>` is `t`. Only a
   // result ever arrives here as one (a wrapper handing back a builtin's result unlooked-at; a

@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Deep input never crashes the process: fail on a recursive walk with no stack check.
+
+A recursive F# function whose depth follows its input (a value, type, pattern or expression)
+calls `RuntimeHelpers.EnsureSufficientExecutionStack()`. Past the limit it throws, and the run
+reports "Out of stack" instead of the process dying of a stack overflow. Each `let rec` group
+in the files below needs the call somewhere in it. A group whose depth doesn't follow its
+input (a loop over a list, a varint) is in stack-checks.allowed, with why. In a `module rec`
+file a function can recurse without saying `rec`, and this can't see it.
+
+  scripts/linting/stack-checks      exit 1 naming each file:line
+"""
+
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ALLOWED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stack-checks.allowed")
+
+FILES = [
+    "backend/src/LibExecution/RuntimeTypesToDarkTypes.fs",
+    "backend/src/LibExecution/ProgramTypesToDarkTypes.fs",
+    "backend/src/LibExecution/RuntimeTypes.fs",
+    "backend/src/LibExecution/TypeChecker.fs",
+    "backend/src/LibDB/Tracing.fs",
+    "backend/src/Builtins/Builtins.Pure/Libs/Json.fs",
+]
+DIRS = ["backend/src/LibSerialization"]
+
+REC = re.compile(r"^( *)let rec (?:inline )?(?:private )?(\w+)")
+GUARD = "ensuresufficientexecutionstack"
+
+
+def files():
+    paths = list(FILES)
+    for d in DIRS:
+        for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, d)):
+            dirnames[:] = [n for n in dirnames if n not in ("bin", "obj")]
+            for name in sorted(filenames):
+                if name.endswith(".fs"):
+                    paths.append(os.path.relpath(os.path.join(dirpath, name), ROOT))
+    return paths
+
+
+def groups(lines):
+    """Each `let rec` group: its line, name, and whether a stack check is in it."""
+    for i, line in enumerate(lines):
+        m = REC.match(line)
+        if not m:
+            continue
+        indent = len(m.group(1))
+        guarded = GUARD in line.lower()
+        for body in lines[i + 1 :]:
+            stripped = body.strip()
+            if stripped and not stripped.startswith("//"):
+                depth = len(body) - len(body.lstrip())
+                if depth <= indent and not stripped.startswith("and "):
+                    break
+            if GUARD in body.lower():
+                guarded = True
+                break
+        yield i + 1, m.group(2), guarded
+
+
+def allowed_entries():
+    entries = set()
+    with open(ALLOWED) as f:
+        for raw in f:
+            line = raw.strip()
+            if line and not line.startswith("#"):
+                path, name = line.split()
+                entries.add((path, name))
+    return entries
+
+
+def main():
+    entries = allowed_entries()
+    used = set()
+    found = []
+    for rel in files():
+        with open(os.path.join(ROOT, rel), encoding="utf-8") as f:
+            lines = f.read().split("\n")
+        for n, name, guarded in groups(lines):
+            if (rel, name) in entries:
+                used.add((rel, name))
+            elif not guarded:
+                found.append(f"{rel}:{n}: {name}")
+    for f in found:
+        print(f)
+    if found:
+        print(
+            "\nstack-checks: a recursive walk here has no stack check, so deep input crashes "
+            "the process. Call System.Runtime.CompilerServices.RuntimeHelpers"
+            ".EnsureSufficientExecutionStack() in it, or add it to stack-checks.allowed "
+            "with why.",
+            file=sys.stderr,
+        )
+    for path, name in sorted(entries - used):
+        print(f"stack-checks.allowed: no longer matches: {path} {name}", file=sys.stderr)
+    sys.exit(1 if found or entries - used else 0)
+
+
+if __name__ == "__main__":
+    main()

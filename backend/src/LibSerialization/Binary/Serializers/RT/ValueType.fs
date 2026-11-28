@@ -18,6 +18,7 @@ let rec write (w : BinaryWriter) (v : ValueType) : unit =
     writeKnownType w kt
 
 and writeKnownType (w : BinaryWriter) (kt : KnownType) : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match kt with
   | KTUnit -> w.Write 0uy
   | KTBool -> w.Write 1uy
@@ -72,6 +73,7 @@ let rec read (r : BinaryReader) : ValueType =
   | b -> raiseFormatError $"Invalid ValueType tag: {b}"
 
 and readKnownType (r : BinaryReader) : KnownType =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match r.ReadByte() with
   | 0uy -> KTUnit
   | 1uy -> KTBool

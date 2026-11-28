@@ -11,6 +11,7 @@ open LibSerialization.Binary.Serializers.RT.Common
 
 
 let rec write (w : BinaryWriter) (t : TypeReference) : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match t with
   | TUnit -> w.Write 0uy
   | TBool -> w.Write 1uy
@@ -62,6 +63,7 @@ let rec write (w : BinaryWriter) (t : TypeReference) : unit =
   | TBigInt -> w.Write 26uy
 
 let rec read (r : BinaryReader) : TypeReference =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match r.ReadByte() with
   | 0uy -> TUnit
   | 1uy -> TBool

@@ -35,7 +35,8 @@ let writeJsonBytes (f : Utf8JsonWriter -> unit) : byte[] =
     new JsonWriterOptions(
       Indented = false,
       SkipValidation = true,
-      Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+      Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+      MaxDepth = System.Int32.MaxValue // infinite
     )
 
   let stream = new System.IO.MemoryStream()
@@ -142,6 +143,7 @@ module AnyJson =
   let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ())
 
   let rec ofElement (j : JsonElement) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let typeName = typeName ()
     let make caseName fields = DEnum(typeName, typeName, [], caseName, fields)
     match j.ValueKind with
@@ -194,6 +196,7 @@ let optionOf (types : Types) (typ : TypeReference) : TypeReference option =
 /// writes `None` as `null`. An `Option` of such a type is written in the tagged form,
 /// `{"Some":[..]}`, so that `Some(None)` and `None` stay apart.
 let rec writesNull (types : Types) (typ : TypeReference) : bool =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match unalias types typ with
   | TUnit -> true
   | typ ->
@@ -297,6 +300,7 @@ let rec serialize
   (typ : TypeReference)
   (dv : Dval)
   : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   let typ = declared ctx.types typ dv
   let impl =
     match dv with
@@ -459,6 +463,7 @@ and private writeValue
 
 /// Writes an `AltJson.Json` tree, as a `ToJson` impl returns it.
 let rec writeTree (w : Utf8JsonWriter) (tree : Dval) : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match tree with
   | DEnum(_, _, _, "Null", []) -> w.WriteNullValue()
   | DEnum(_, _, _, "Bool", [ DBool b ]) -> w.WriteBooleanValue b
@@ -841,7 +846,7 @@ let parse
     (pathSoFar : JsonPath.JsonPath)
     (j : JsonElement)
     : Dval =
-
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match typ, j.ValueKind with
     // basic types
     | TUnit, JsonValueKind.Null -> DUnit
@@ -1300,6 +1305,7 @@ let private serializeThen
       holes = ResizeArray() }
   let bytes = writeJsonBytes (fun w -> serialize ctx w typ arg)
   let rec fill (holes : List<Hole>) (from : int64) (parts : List<string>) : Dval =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match holes with
     | [] when from = 0L -> next (UTF8.ofBytesUnsafe bytes)
     | [] ->
@@ -1353,6 +1359,7 @@ let private parseThen
         |> List.filter (fun h -> not (Map.containsKey (holeKey h) answers))
       ask fresh answers
   and ask holes answers =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match holes with
     | [] -> attempt answers
     | hole :: rest ->

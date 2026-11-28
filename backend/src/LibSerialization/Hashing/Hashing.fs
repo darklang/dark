@@ -67,6 +67,7 @@ module Hashing =
   // the same names).
 
   let rec private letPatternVars (p : PT.LetPattern) : List<string> =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match p with
     | PT.LPVariable(_, name) -> [ name ]
     | PT.LPUnit _ -> []
@@ -75,6 +76,7 @@ module Hashing =
       letPatternVars first @ letPatternVars second @ List.collect letPatternVars rest
 
   let rec private matchPatternVars (p : PT.MatchPattern) : List<string> =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match p with
     | PT.MPVariable(_, name) -> [ name ]
     | PT.MPEnum(_, _, fields) -> List.collect matchPatternVars fields
@@ -98,6 +100,7 @@ module Hashing =
     (m : Map<string, string>)
     (p : PT.LetPattern)
     : PT.LetPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match p with
     | PT.LPVariable(id, name) ->
       PT.LPVariable(id, Map.tryFind name m |> Option.defaultValue name)
@@ -115,6 +118,7 @@ module Hashing =
     (m : Map<string, string>)
     (p : PT.MatchPattern)
     : PT.MatchPattern =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     match p with
     | PT.MPVariable(id, name) ->
       PT.MPVariable(id, Map.tryFind name m |> Option.defaultValue name)
@@ -176,6 +180,7 @@ module Hashing =
     (env : Map<string, string>)
     (e : PT.Expr)
     : PT.Expr =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let r = norm c env // recurse with the same scope (non-binding children)
     match e with
     // uses of variables: the whole point
@@ -296,6 +301,7 @@ module Hashing =
 
   /// Every name a `let`, lambda or match case in <param e> binds.
   let rec boundNames (e : PT.Expr) : Set<string> =
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let lambdaVars pats = pats |> NEList.toList |> List.collect letPatternVars
     let own =
       match e with
@@ -463,6 +469,7 @@ module Hashing =
       | [] -> ([], onStack, scc)
 
     let rec strongConnect (st : TarjanState<'id>) (v : 'id) : TarjanState<'id> =
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       let st =
         { st with
             indices = Map.add v st.nextIndex st.indices
