@@ -1,74 +1,94 @@
 module Darklang.Language.Tests.LetBindings
 
 test unusedBindingIsEvaluated =
-  (let x = Darklang.Language.Tests.raiseRuntimeError("a") in 5)
+  let x = Language.Tests.raiseRuntimeError("a")
+  5
   => raises "Uncaught exception: a"
 
+
 test bindingErrorSkipsBody =
-  (let x = Darklang.Language.Tests.raiseRuntimeError("a") in Darklang.Language.Tests.raiseRuntimeError("b"))
+  let x = Language.Tests.raiseRuntimeError("a")
+  Language.Tests.raiseRuntimeError("b")
   => raises "Uncaught exception: a"
+
 
 test variables =
   (let x = 5
    x)
   |> Stdlib.Test.equal(5)
 
+
 test unitPattern =
   (let () = Stdlib.Tuple2.first(((), 5))
    5)
   |> Stdlib.Test.equal(5)
+
 
 test tuples =
   Stdlib.Test.all(
     [ (let (a, b) = (1, 2)
        2)
       |> Stdlib.Test.equal(2)
+
       (let (a, b) = (1, 2)
        b)
       |> Stdlib.Test.equal(2)
+
       (let (a, b) = (1, 2)
        (b, a))
       |> Stdlib.Test.equal((2, 1))
+
       (let (_, _) = (1, 2)
        2)
       |> Stdlib.Test.equal(2)
+
       (let (a, b, c) = (1, 2, 3)
        b)
       |> Stdlib.Test.equal(2)
+
       (let (a, b, c) = (1, 2, 3)
        (b, a))
       |> Stdlib.Test.equal((2, 1))
+
       (let (_, _, _) = (1, 2, 3)
        2)
       |> Stdlib.Test.equal(2)
+
       // With multiple levels of nested destructuring
       (let ((a, ((b, (c, d)), e)), f) = ((1, ((2, (3, 4)), 5)), 6)
        c)
       |> Stdlib.Test.equal(3)
+
       (let ((a, ((b, cd), e)), f) = ((1, ((2, (3, 4)), 5)), 6)
        cd)
       |> Stdlib.Test.equal((3, 4)) ])
 
+
 test tupleEvaluatesIgnoredElements =
-  (let (_, _, _) = (1, 2, Darklang.Language.Tests.raiseRuntimeError("test")) in 2)
+  let (_, _, _) = (1, 2, Language.Tests.raiseRuntimeError("test"))
+  2
   => raises "Uncaught exception: test"
 
+
 test tupleRaisesFirstElementError =
-  (let (_, _, _) =
-    (Darklang.Language.Tests.raiseRuntimeError("test1"),
-     2,
-     Darklang.Language.Tests.raiseRuntimeError("test2"))
-   2)
+  let (_, _, _) =
+    (
+      Language.Tests.raiseRuntimeError("test1"),
+      2,
+      Language.Tests.raiseRuntimeError("test2"))
+
+  2
   => raises "Uncaught exception: test1"
+
 
 test nesting =
   (let x =
-    let y = 1
-    let z = 2
-    y + z
-
+     let y = 1
+     let z = 2
+     y + z
    x)
   |> Stdlib.Test.equal(3)
+
 
 test shadowing =
   Stdlib.Test.all(
@@ -76,70 +96,120 @@ test shadowing =
        let x = 6
        x)
       |> Stdlib.Test.equal(6)
+
       (let x = 35
        match 6 with
        | x -> x)
       |> Stdlib.Test.equal(6)
+
       (let x = 35
        match Stdlib.Result.Result.Ok(6) with
        | Ok(x) -> x)
       |> Stdlib.Test.equal(6)
+
       (let x = 35
        Stdlib.List.map([ 1, 2, 3, 4 ], fun x -> x + 2))
       |> Stdlib.Test.equal([ 3, 4, 5, 6 ])
+
       (let x = 35
        match Stdlib.Result.Result.Ok(6) with
-       | Ok(x) -> (Stdlib.List.map([ 1, 2, 3, 4 ], fun x -> x + 2)))
+       | Ok(x) -> Stdlib.List.map([ 1, 2, 3, 4 ], fun x -> x + 2))
       |> Stdlib.Test.equal([ 3, 4, 5, 6 ])
+
       Stdlib.List.map([ 1, 2, 3, 4 ], fun x ->
-        (let x = 35
-         match Stdlib.Result.Result.Ok(6) with
-         | Ok(x) -> x + 2))
+        let x = 35
+        match Stdlib.Result.Result.Ok(6) with
+        | Ok(x) -> x + 2)
       |> Stdlib.Test.equal([ 8, 8, 8, 8 ])
+
       Stdlib.List.map([ 1, 2, 3, 4 ], fun x ->
         match Stdlib.Result.Result.Ok(6) with
-        | Ok(x) -> let x = 9 in x + 2)
+        | Ok(x) ->
+          let x = 9
+          x + 2)
       |> Stdlib.Test.equal([ 11, 11, 11, 11 ])
+
       Stdlib.List.map([ 1, 2, 3, 4 ], fun x ->
-        (match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok(6)) with
-         | Ok(Ok(x)) -> let x = 9 in x + 2))
+        match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok(6)) with
+        | Ok(Ok(x)) ->
+          let x = 9
+          x + 2)
       |> Stdlib.Test.equal([ 11, 11, 11, 11 ]) ])
+
 
 test wildcard =
   Stdlib.Test.all(
     [ // Simple wildcard - should match any value without binding it
-      (let _ = 5 in 10) |> Stdlib.Test.equal(10)
+      (let _ = 5
+       10)
+      |> Stdlib.Test.equal(10)
+
       // Wildcard in tuple destructuring
-      (let (x, _) = (1, 2) in x) |> Stdlib.Test.equal(1)
-      (let (_, y) = (1, 2) in y) |> Stdlib.Test.equal(2)
-      (let (_, _) = (1, 2) in 5) |> Stdlib.Test.equal(5)
+      (let (x, _) = (1, 2)
+       x)
+      |> Stdlib.Test.equal(1)
+
+      (let (_, y) = (1, 2)
+       y)
+      |> Stdlib.Test.equal(2)
+
+      (let (_, _) = (1, 2)
+       5)
+      |> Stdlib.Test.equal(5)
+
       // Multiple wildcards in tuple
-      (let (_, _, _) = (1, 2, 3) in 10) |> Stdlib.Test.equal(10)
-      (let (x, _, _) = (1, 2, 3) in x) |> Stdlib.Test.equal(1)
-      (let (_, y, _) = (1, 2, 3) in y) |> Stdlib.Test.equal(2)
-      (let (_, _, z) = (1, 2, 3) in z) |> Stdlib.Test.equal(3)
+      (let (_, _, _) = (1, 2, 3)
+       10)
+      |> Stdlib.Test.equal(10)
+
+      (let (x, _, _) = (1, 2, 3)
+       x)
+      |> Stdlib.Test.equal(1)
+
+      (let (_, y, _) = (1, 2, 3)
+       y)
+      |> Stdlib.Test.equal(2)
+
+      (let (_, _, z) = (1, 2, 3)
+       z)
+      |> Stdlib.Test.equal(3)
+
       // Nested wildcards in tuples
-      (let ((_, x), _) = ((1, 2), 3) in x) |> Stdlib.Test.equal(2)
-      (let (_, (_, y)) = (1, (2, 3)) in y) |> Stdlib.Test.equal(3)
+      (let ((_, x), _) = ((1, 2), 3)
+       x)
+      |> Stdlib.Test.equal(2)
+
+      (let (_, (_, y)) = (1, (2, 3))
+       y)
+      |> Stdlib.Test.equal(3)
+
       // Wildcard with complex values
-      (let _ = [ 1, 2, 3 ] in "done") |> Stdlib.Test.equal("done") ])
+      (let _ = [ 1, 2, 3 ]
+       "done")
+      |> Stdlib.Test.equal("done") ])
+
 
 // Wildcard with side effects - the value should still be evaluated
 test wildcardValueIsEvaluated =
-  (let _ = Darklang.Language.Tests.raiseRuntimeError("test") in 10)
+  let _ = Language.Tests.raiseRuntimeError("test")
+  10
   => raises "Uncaught exception: test"
+
 
 // The parser rejects _ in expression position because a wildcard does not bind a variable.
 test wildcardCannotBeRead =
-  Darklang.LanguageTools.Parser.Parse.diagnostics("(let _ = 5 in _)")
+  LanguageTools.Parser.Parse.diagnostics("(let _ = 5 in _)")
   |> Stdlib.List.map(fun((_, message)) -> message)
   |> Stdlib.Test.equal([ "expected an expression, found '_'" ])
 
+
 test nonTupleDestructuringRaises =
-  (let (a, _) = 1 in a)
+  let (a, _) = 1
+  a
   => raises "Could not deconstruct value 1 into pattern (a, _)"
 
+
 test wrongTupleArityRaises =
-  (let (a, _) = (1, 2, 3) in a)
-  => raises
-    "Could not deconstruct value (1, 2, 3) into pattern (a, _)"
+  let (a, _) = (1, 2, 3)
+  a
+  => raises "Could not deconstruct value (1, 2, 3) into pattern (a, _)"

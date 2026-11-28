@@ -3,31 +3,40 @@ module Darklang.Language.Tests.Conditionals
 test ifElse =
   Stdlib.Test.all(
     [ (if true then "correct" else 0) |> Stdlib.Test.equal("correct")
-      (if false then Darklang.Language.Tests.raiseRuntimeError("a") else 0)
+
+      (if false then Language.Tests.raiseRuntimeError("a") else 0)
       |> Stdlib.Test.equal(0)
-      (if true then 0 else Darklang.Language.Tests.raiseRuntimeError("a"))
+
+      (if true then 0 else Language.Tests.raiseRuntimeError("a"))
       |> Stdlib.Test.equal(0)
+
       (if false then "" else "correct") |> Stdlib.Test.equal("correct") ])
 
+
 test thenErrorRaises =
-  (if true then Darklang.Language.Tests.raiseRuntimeError("a") else 0)
+  if true then Language.Tests.raiseRuntimeError("a") else 0
   => raises "Uncaught exception: a"
+
 
 test elseErrorRaises =
-  (if false then 0 else Darklang.Language.Tests.raiseRuntimeError("a"))
+  if false then 0 else Language.Tests.raiseRuntimeError("a")
   => raises "Uncaught exception: a"
 
+
 test unitConditionRaises =
-  (if () then "" else "")
+  if () then "" else ""
   => raises "Encountered a condition that must be a Bool, but got a Unit (())"
 
+
 test conditionErrorRaises =
-  (if Darklang.Language.Tests.raiseRuntimeError("msg") then "" else "")
+  if Language.Tests.raiseRuntimeError("msg") then "" else ""
   => raises "Uncaught exception: msg"
 
+
 test int64ConditionRaises =
-  (if 5 then "" else "")
+  if 5 then "" else ""
   => raises "Encountered a condition that must be a Bool, but got an Int64 (5)"
+
 
 test ifWithoutElse =
   Stdlib.Test.all(
@@ -36,14 +45,17 @@ test ifWithoutElse =
       (if 1 < 3 then 4) |> Stdlib.Test.equal(4)
       (if 1 < 3 then "msg") |> Stdlib.Test.equal("msg") ])
 
+
 test ifWithoutElseUnitConditionRaises =
-  (if () then "msg")
+  if () then "msg"
   => raises "Encountered a condition that must be a Bool, but got a Unit (())"
 
+
 test ifWithoutElseThenErrorRaises =
-  (if true then Darklang.Language.Tests.raiseRuntimeError("a"))
+  if true then Language.Tests.raiseRuntimeError("a")
   => raises "Uncaught exception: a"
 
+
 test ifWithoutElseConditionErrorRaises =
-  (if Darklang.Language.Tests.raiseRuntimeError("msg") then "")
+  if Language.Tests.raiseRuntimeError("msg") then ""
   => raises "Uncaught exception: msg"

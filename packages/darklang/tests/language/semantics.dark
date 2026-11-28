@@ -6,7 +6,12 @@ type Shape =
   | Rect(Float64, Float64)
   | Named(name: String, inner: Shape)
 
-type Acct = { id: Int64, name: String, tags: List<String> }
+
+type Acct =
+  { id: Int64
+    name: String
+    tags: List<String> }
+
 
 let area(s: Shape): Float64 =
   match s with
@@ -14,26 +19,33 @@ let area(s: Shape): Float64 =
   | Rect(w, h) -> w * h
   | Named(_, inner) -> area(inner)
 
+
 let fib(n: Int64): Int64 =
-  if n < 2 then n else (fib(n - 1)) + (fib(n - 2))
+  if n < 2 then n else fib(n - 1) + fib(n - 2)
+
 
 let shapes(): List<Shape> =
   [ Shape.Circle(2.0)
     Shape.Rect(3.0, 4.0)
     Shape.Named("boxed", Shape.Rect(1.5, 2.0)) ]
 
+
 test areasAndFiltering =
   let areas = shapes() |> Stdlib.List.map(area)
   Stdlib.Test.all(
     [ areas |> Stdlib.Test.equal([ 12.56636, 12.0, 3.0 ])
+
       areas
       |> Stdlib.List.fold(0.0, fun(acc, a) -> acc + a)
       |> Stdlib.Test.equal(27.56636)
+
       areas
       |> Stdlib.List.filter(fun a -> a > 5.0)
       |> Stdlib.Test.equal([ 12.56636, 12.0 ]) ])
 
+
 test recursion = fib(18) |> Stdlib.Test.equal(2584)
+
 
 // Check the serialized JSON text and the whole record after the round trip.
 test recordJsonRoundtrip =
@@ -42,10 +54,14 @@ test recordJsonRoundtrip =
   Stdlib.Test.all(
     [ json
       |> Stdlib.Test.equal("{\"id\":7,\"name\":\"ada\",\"tags\":[\"x\",\"y\"]}")
-      Stdlib.Json.parse<Acct>(json) |> Stdlib.Test.equal(Ok(acct)) ])
+
+      Stdlib.Json.parse<Acct>(json)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(acct)) ])
+
 
 // Compare the whole parsed list.
 test recursiveEnumJsonRoundtrip =
   let original = shapes()
   let json = Stdlib.Json.serialize<List<Shape>>(original)
-  Stdlib.Json.parse<List<Shape>>(json) |> Stdlib.Test.equal(Ok(original))
+  Stdlib.Json.parse<List<Shape>>(json)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(original))

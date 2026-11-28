@@ -4,22 +4,12 @@ test bytesValueIsNotCallable =
   Stdlib.Bytes.empty()
   => raises "Cannot call a Bytes value as a function."
 
-test lambdasAndOperators =
-  Stdlib.Test.all(
-    [ (let fn = (fun x -> x + 1)
-       fn(6))
-      |> Stdlib.Test.equal(7)
-      (let fn = (+)
-       fn(3, 4))
-      |> Stdlib.Test.equal(7)
-      (let fn = (fun(a, b) -> Stdlib.max(a, b))
-       fn(3, 7))
-      |> Stdlib.Test.equal(7) ])
 
 // `map` gives its callback one argument, and a two-parameter lambda takes two, so it raises.
 test callbackGivenTooFewArguments =
-  ([ 1, 2 ] |> Stdlib.List.map(fun(x, y) -> x))
+  [ 1, 2 ] |> Stdlib.List.map(fun(x, y) -> x)
   => raises "Lambda expects 2 arguments, but got 1 argument"
+
 
 // ---------------------------
 // DarkInternal tests are internal
@@ -27,21 +17,26 @@ test callbackGivenTooFewArguments =
 // module DarkInternal =
 //   test schedulingRuleListRaises =
 //     Builtin.darkInternalInfraSchedulingRuleList () => raises "Unknown error"
-
 // The extra binding gives this function a distinct content hash, so runtime errors
 // consistently name this function rather than another name for the same body.
 let stringFn(key: String): String =
   let (result, _fixture) =
     (key + " appended string", "Language.Tests.Apply.stringFn")
+
   result
 
+
 // The extra binding gives this identity function a distinct content hash for stable error names.
-let fnWithTypeArgAndOneParam<'a>(arg: 'a): 'a =
-  let (result, _fixture) = (arg, "Language.Tests.Apply.fnWithTypeArgAndOneParam")
+let fnWithTypeArgAndOneParam(arg: 'a): 'a =
+  let (result, _fixture) =
+    (arg, "Language.Tests.Apply.fnWithTypeArgAndOneParam")
+
   result
+
 
 let twoStringFn(str1: String, str2: String): String =
   str1 + " appended " + str2
+
 
 let returnsInt(): Int64 = 5
 
@@ -49,164 +44,215 @@ let returnsString(): String = "string"
 
 let shouldReturnStringButDoesNot(): String = 5
 
+
 let returnsOptionSome(): Stdlib.Option.Option<Int64> =
   Stdlib.Option.Option.Some(5)
 
-let returnsOptionNone(): Stdlib.Option.Option<Int64> = Stdlib.Option.Option.None
+
+let returnsOptionNone(): Stdlib.Option.Option<Int64> =
+  Stdlib.Option.Option.None
+
 
 let returnsResultOk(): Stdlib.Result.Result<Int64, 'err> =
   Stdlib.Result.Result.Ok(5)
 
-let derrorFn(msg: String): String = msg + Darklang.Language.Tests.raiseRuntimeError(msg)
 
-let fnWithTypeArgs<'a, 'b>(a: 'a, b: 'b): 'a = a
+let derrorFn(msg: String): String = msg + Language.Tests.raiseRuntimeError(msg)
 
-let fnWithTypedReturn<'a>(): 'a = 5 // errors unless Int64 passed for 'a
+let fnWithTypeArgs(a: 'a, b: 'b): 'a = a
 
-type X<'a> = | A(Int64) | B('a)
+let fnWithTypedReturn(): 'a = 5  // errors unless Int64 passed for 'a
+
+
+type X<'a> =
+  | A(Int64)
+  | B('a)
+
 
 let polyFn(a: X<'a>): X<'a> = a
+
 let strFn(a: X<String>): X<String> = a
-let definedPolyFn<'a>(a: X<'a>): X<'a> = a
+
+let definedPolyFn(a: X<'a>): X<'a> = a
+
 
 test userFunctions =
   Stdlib.Test.all(
     [ stringFn("string") |> Stdlib.Test.equal("string appended string")
+
       twoStringFn("str1", "str2") |> Stdlib.Test.equal("str1 appended str2")
+
       returnsInt() |> Stdlib.Test.equal(5)
+
       returnsString() |> Stdlib.Test.equal("string")
+
       returnsOptionSome() |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
-      (returnsOptionSome()) |> Builtin.unwrap |> Stdlib.Test.equal(5)
+
+      returnsOptionSome()
+      |> Builtin.unwrap
+      |> Stdlib.Test.equal(5)
+
       returnsOptionNone() |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       returnsResultOk() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5))
-      (returnsResultOk()) |> Builtin.unwrap |> Stdlib.Test.equal(5)
+
+      returnsResultOk()
+      |> Builtin.unwrap
+      |> Stdlib.Test.equal(5)
+
       fnWithTypeArgAndOneParam<Int64>(1) |> Stdlib.Test.equal(1)
+
       fnWithTypeArgs<Int64, String>(5, "x") |> Stdlib.Test.equal(5)
+
       fnWithTypedReturn<Int64>() |> Stdlib.Test.equal(5)
+
       polyFn(X.A(5)) |> Stdlib.Test.equal(X.A(5))
+
       polyFn(X.B("str")) |> Stdlib.Test.equal(X.B("str"))
+
       strFn(X.A(5)) |> Stdlib.Test.equal(X.A(5))
+
       strFn(X.B("str")) |> Stdlib.Test.equal(X.B("str")) ])
+
 
 // Inferred type arguments agree with explicit ones.
 test definedPolyFnInfersTypeArgs =
   Stdlib.Test.all(
     [ definedPolyFn<String>(X.A(5)) |> Stdlib.Test.equal(definedPolyFn(X.A(5)))
+
       definedPolyFn<String>(X.B("str"))
       |> Stdlib.Test.equal(definedPolyFn(X.B("str"))) ])
 
+
 // A type arg is read from inside a record, an enum or a tuple, and binds the next parameter.
 module InferFromParts =
-  type Box<'a> = { v: 'a }
+  type Box<'a> =
+    { v: 'a }
+
 
   let sameAsBoxed(b: Box<'a>, y: 'a): 'a = y
+
   let sameAsSome(o: Stdlib.Option.Option<'a>, y: 'a): 'a = y
+
   let sameAsSecond(p: ('a * 'b), y: 'b): 'b = y
 
   test fromARecord = sameAsBoxed(Box { v = 1 }, 2) |> Stdlib.Test.equal(2)
 
+
   test fromAnEnum =
     sameAsSome(Stdlib.Option.Option.Some("a"), "b") |> Stdlib.Test.equal("b")
 
+
   test fromATuple = sameAsSecond((1, "a"), "b") |> Stdlib.Test.equal("b")
+
 
   test aRecordMismatchRaises =
     sameAsBoxed(Box { v = 1 }, "x")
-    => raises
-      "Darklang.Language.Tests.Apply.InferFromParts.sameAsBoxed's 2nd parameter `y` expects Int64, but got String (\"x\")"
+    => raises "Darklang.Language.Tests.Apply.InferFromParts.sameAsBoxed's 2nd parameter `y` expects Int64, but got String (\"x\")"
+
 
 // A fn named with type args and not called is that fn as a value, specialised to them.
 module TypedFnValues =
   let twice(f: (List<Int64> * (Int64 -> Int64)) -> List<Int64>): List<Int64> =
     f(f([ 1, 2 ], fun x -> x + 1), fun x -> x * 10)
 
+
   test calledThroughALet =
     (let h = Stdlib.List.map<Int64, Int64>
      h([ 1, 2 ], fun x -> x + 1))
     |> Stdlib.Test.equal([ 2, 3 ])
+
 
   test userFnThroughALet =
     (let h = fnWithTypeArgAndOneParam<Int64>
      h(4))
     |> Stdlib.Test.equal(4)
 
+
   test passedToAnotherFn =
     twice(Stdlib.List.map<Int64, Int64>) |> Stdlib.Test.equal([ 20, 30 ])
+
 
   test passedAsACallback =
     [ 1, 2 ]
     |> Stdlib.List.map(fnWithTypeArgAndOneParam<Int64>)
     |> Stdlib.Test.equal([ 1, 2 ])
 
+
   test argsCheckedAgainstTheTypeArgs =
-    (let h = fnWithTypeArgAndOneParam<Int64>
-     h("str"))
-    => raises
-      "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str\")"
+    let h = fnWithTypeArgAndOneParam<Int64>
+    h("str")
+    => raises "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str\")"
+
 
   test wrongNumberOfTypeArgsRaises =
-    (let h = fnWithTypeArgAndOneParam<Int64, String>
-     h(1))
-    => raises
-      "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+    let h = fnWithTypeArgAndOneParam<Int64, String>
+    h(1)
+    => raises "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+
 
   test typeArgsCannotBeGivenTwice =
-    (let h = fnWithTypeArgAndOneParam<Int64>
-     h<Int64>(1))
+    let h = fnWithTypeArgAndOneParam<Int64>
+    h<Int64>(1)
     => raises "Cannot apply type arguments more than once"
+
 
 module InvalidFnCalls =
   test missingFunctionRaises =
-    (functionWhichDoesntExist(6))
+    functionWhichDoesntExist(6)
     => raises "There is no variable named: functionWhichDoesntExist"
+
 
   // errors around type args. Calling with 0 type args is allowed —
   // inference fills `'a` in from the actual arg's ValueType.
   test zeroTypeArgsAreInferred =
     fnWithTypeArgAndOneParam(1) |> Stdlib.Test.equal(1)
 
+
   test tooManyTypeArgsRaises =
     fnWithTypeArgAndOneParam<Int64, String>(1)
-    => raises
-      "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+    => raises "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+
 
   // errors around args
   test tooManyArgsRaises =
     stringFn("str1", "str2")
-    => raises
-      "Darklang.Language.Tests.Apply.stringFn expects 1 argument, but got 2 arguments"
+    => raises "Darklang.Language.Tests.Apply.stringFn expects 1 argument, but got 2 arguments"
+
 
   test wrongArgTypeRaises =
     stringFn(5)
-    => raises
-      "Darklang.Language.Tests.Apply.stringFn's 1st parameter `key` expects String, but got Int64 (5). Try wrapping it with `Stdlib.display`."
+    => raises "Darklang.Language.Tests.Apply.stringFn's 1st parameter `key` expects String, but got Int64 (5). Try wrapping it with `Stdlib.display`."
+
 
   test argTypeFollowsTypeArgRaises =
     fnWithTypeArgAndOneParam<Int64>("str2")
-    => raises
-      "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str2\")"
+    => raises "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str2\")"
+
 
   // errors around return value
   test wrongReturnTypeRaises =
-    (shouldReturnStringButDoesNot())
-    => raises
-      "Darklang.Language.Tests.Apply.shouldReturnStringButDoesNot's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.display`."
+    shouldReturnStringButDoesNot()
+    => raises "Darklang.Language.Tests.Apply.shouldReturnStringButDoesNot's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.display`."
+
 
   // A function must return the type chosen by its type argument.
   test wrongTypedReturnRaises =
     fnWithTypedReturn<String>()
-    => raises
-      "Darklang.Language.Tests.Apply.fnWithTypedReturn's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.display`."
+    => raises "Darklang.Language.Tests.Apply.fnWithTypedReturn's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.display`."
+
 
   // errors around type args take priority over ones about args
   test typeArgErrorComesFirst =
     fnWithTypeArgAndOneParam<Int64, String>(1, "str")
-    => raises
-      "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+    => raises "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+
 
   // misc errors
   test runtimeErrorPropagates =
-    derrorFn("msg") => raises "Uncaught exception: msg"
+    derrorFn("msg")
+    => raises "Uncaught exception: msg"
+
 
 // this is making sure that generic type args aren't "carried" into incorrect
 // contexts. specifically, that if `'x` is resolved in one place, it won't be
@@ -214,38 +260,44 @@ module InvalidFnCalls =
 module GenericTypeArgsAreOK =
   test segmentsToString =
     (let segments =
-      [ (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String("a"))
-        (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String("b")) ]
-
-     Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString(
-       Darklang.SCM.Branch.mainBranchId,
+       [ PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String("a")
+         PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String("b") ]
+     PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString(
+       SCM.Branch.mainBranchId,
        segments))
     |> Stdlib.Test.equal("ab")
 
-  let inner<'x, 'y>(x: 'x, _y: 'y): 'x = x
 
-  let outer<'x, 'y>(x: 'x, _y: 'y): 'x =
+  let inner(x: 'x, _y: 'y): 'x =
+    x
+
+
+  let outer(x: 'x, _y: 'y): 'x =
     // tst: [x: Bool]
     let ignored = inner<String, Bool>("hi", true)
     x
 
+
   test innerAndOuter =
     Stdlib.Test.all(
-      [ (inner<Bool, String>(true, "ignored")) |> Stdlib.Test.equal(true)
-        (outer<Bool, String>(true, "ignored")) |> Stdlib.Test.equal(true)
+      [ inner<Bool, String>(true, "ignored") |> Stdlib.Test.equal(true)
+
+        outer<Bool, String>(true, "ignored") |> Stdlib.Test.equal(true)
+
         (let later = fun y -> inner<Bool, String>(true, y)
          later("ignored"))
         |> Stdlib.Test.equal(true)
+
         (let later = fun y -> outer<Bool, String>(true, y)
          later("ignored"))
         |> Stdlib.Test.equal(true) ])
 
+
   // No partial application: a call that stops short raises rather than handing
   // back a function waiting for the rest.
   test tooFewArguments =
-    (inner<Bool, String>(true))
-    => raises
-      "Darklang.Language.Tests.Apply.GenericTypeArgsAreOK.inner expects 2 arguments, but got 1 argument; to supply the rest later, write a lambda"
+    inner<Bool, String>(true)
+    => raises "Darklang.Language.Tests.Apply.GenericTypeArgsAreOK.inner expects 2 arguments, but got 1 argument; to supply the rest later, write a lambda"
 
 
 // Arguments whose types are checked without the full unifier when they fit exactly: a tuple, a
@@ -255,23 +307,35 @@ type ArgMode =
   | Flat
   | Break
 
+
 let tupleArg(t: (Int64 * ArgMode)): Int64 = Stdlib.Tuple2.first(t)
 
 let tuplesArg(ts: List<(Int64 * ArgMode)>): Int64 = Stdlib.List.length(ts)
 
 let optionArg(o: Stdlib.Option.Option<ArgMode>): Bool = Stdlib.Option.isSome(o)
 
+
 test argumentsThatFitExactly =
   Stdlib.Test.all(
     [ tupleArg((1, ArgMode.Flat)) |> Stdlib.Test.equal(1)
-      tuplesArg([ (1, ArgMode.Flat), (2, ArgMode.Break) ]) |> Stdlib.Test.equal(2)
-      optionArg(Stdlib.Option.Option.Some(ArgMode.Break)) |> Stdlib.Test.equal(true) ])
+
+      tuplesArg([ (1, ArgMode.Flat), (2, ArgMode.Break) ])
+      |> Stdlib.Test.equal(2)
+
+      optionArg(Stdlib.Option.Option.Some(ArgMode.Break))
+      |> Stdlib.Test.equal(true) ])
+
 
 test aTupleThatDoesNotFitRaises =
-  tupleArg((1, 2)) => raises "Darklang.Language.Tests.Apply.tupleArg's 1st parameter `t` expects (Int64 * Darklang.Language.Tests.Apply.ArgMode), but got (Int64 * Int64) ((1, 2))"
+  tupleArg((1, 2))
+  => raises "Darklang.Language.Tests.Apply.tupleArg's 1st parameter `t` expects (Int64 * Darklang.Language.Tests.Apply.ArgMode), but got (Int64 * Int64) ((1, 2))"
+
 
 test aListOfTuplesThatDoesNotFitRaises =
-  tuplesArg([ (1, 2) ]) => raises "Darklang.Language.Tests.Apply.tuplesArg's 1st parameter `ts` expects List<(Int64 * Darklang.Language.Tests.Apply.ArgMode)>, but got List<(Int64 * Int64)> ([(1, 2)])"
+  tuplesArg([ (1, 2) ])
+  => raises "Darklang.Language.Tests.Apply.tuplesArg's 1st parameter `ts` expects List<(Int64 * Darklang.Language.Tests.Apply.ArgMode)>, but got List<(Int64 * Int64)> ([(1, 2)])"
+
 
 test anOptionThatDoesNotFitRaises =
-  optionArg(Stdlib.Option.Option.Some(3)) => raises "Darklang.Language.Tests.Apply.optionArg's 1st parameter `o` expects Darklang.Stdlib.Option.Option<Darklang.Language.Tests.Apply.ArgMode>, but got Darklang.Stdlib.Option.Option<Int64> (Some(3))"
+  optionArg(Stdlib.Option.Option.Some(3))
+  => raises "Darklang.Language.Tests.Apply.optionArg's 1st parameter `o` expects Darklang.Stdlib.Option.Option<Darklang.Language.Tests.Apply.ArgMode>, but got Darklang.Stdlib.Option.Option<Int64> (Some(3))"

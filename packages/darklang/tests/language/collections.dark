@@ -7,41 +7,58 @@ test listLiterals =
       [ 1, 2 ] |> Stdlib.Test.equal([ 1, 2 ])
       [ 5, 1 + 5, 0 ] |> Stdlib.Test.equal([ 5, 6, 0 ]) ])
 
+
 test listRaisesElementError =
-  [ 5, Darklang.Language.Tests.raiseRuntimeError("test"), 0 ]
+  [ 5, Language.Tests.raiseRuntimeError("test"), 0 ]
   => raises "Uncaught exception: test"
 
+
 test listRaisesFirstElementError =
-  [ 5, Darklang.Language.Tests.raiseRuntimeError("1"), Darklang.Language.Tests.raiseRuntimeError("2") ]
+  [ 5
+    Language.Tests.raiseRuntimeError("1")
+    Language.Tests.raiseRuntimeError("2") ]
   => raises "Uncaught exception: 1"
+
 
 // A list holds one type; the first element of another type raises.
 test mixedListRaises =
-  [ 1, true ] => raises "Cannot add a Bool (true) to a list of Int64. Failed at index 1."
+  [ 1, true ]
+  => raises "Cannot add a Bool (true) to a list of Int64. Failed at index 1."
+
 
 test dictLiterals =
   Stdlib.Test.all(
-    [ (Dict { "a": 5 } |> Stdlib.Dict.get("a")) |> Stdlib.Test.equal(Some(5))
-      (Dict { "": 5 } |> Stdlib.Dict.get("")) |> Stdlib.Test.equal(Some(5))
-      (Dict { "a": 5 } |> Stdlib.Dict.get("b")) |> Stdlib.Test.equal(None) ])
+    [ (Dict { "a": 5 } |> Stdlib.Dict.get("a"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
+
+      (Dict { "": 5 } |> Stdlib.Dict.get(""))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
+
+      (Dict { "a": 5 } |> Stdlib.Dict.get("b"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 // A key written twice in a literal keeps its last value.
 test dictLiteralLastDuplicateWins =
   Dict { "t": true, "f": false, "t": false }
   |> Stdlib.Test.equal(Dict { "f": false, "t": false })
 
+
 // A list keeps one element type, down to tuple parts and type arguments.
 test mixedTupleListRaises =
   [ (1, "a"), (1, 2) ]
   => raises "Cannot add an (Int64 * Int64) ((1, 2)) to a list of (Int64 * String). Failed at index 1."
 
+
 test mixedTypeArgListRaises =
   [ Stdlib.Option.Option.Some(1), Stdlib.Option.Option.Some("a") ]
   => raises "Cannot add a Darklang.Stdlib.Option.Option<String> (Some(\"a\")) to a list of Darklang.Stdlib.Option.Option<Int64>. Failed at index 1."
 
+
 test appendOfAMismatchedTupleRaises =
   Stdlib.List.append([ (1, "a") ], (1, 2))
   => raises "Darklang.Stdlib.List.append's 2nd parameter `value` expects (Int64 * String), but got (Int64 * Int64) ((1, 2))"
+
 
 test prependOfAMismatchedTupleRaises =
   Stdlib.List.prepend([ (1, "a") ], (1, 2))

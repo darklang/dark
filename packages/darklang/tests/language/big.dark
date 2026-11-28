@@ -9,39 +9,36 @@ test evaluatesMixedExpressions =
    let bl = Stdlib.Bytes.length(blob)
    let t = true
    let f = false
-
-   let r = (Stdlib.Bool.xor(t, f)) |> Stdlib.Bool.not
-
+   let r = Stdlib.Bool.xor(t, f) |> Stdlib.Bool.not
    let d0 = 1234567.987654
    let d1 =
      d0
      |> (fun v -> v ** 2.1)
      |> (fun v -> v + 1.0)
      |> Stdlib.Float64.sqrt
-
    let reverse = Stdlib.String.reverse(str)
    let contains = Stdlib.String.contains("a string", str)
    let uuid = Stdlib.Uuid.parse("9c59ba07-1e20-4ce2-a2de-6a95391d67b2")
-
    str
    |> (fun v -> v + "\nbase64Encode: ")
    |> (fun v -> v + base64Encode)
    |> (fun v -> v + "\nhex64Encode: ")
    |> (fun v -> v + hexEncode)
    |> (fun v -> v + "\nstring length: ")
-   |> (fun v -> v + (Stdlib.display(sl)))
+   |> (fun v -> v + Stdlib.display(sl))
    |> (fun v -> v + "\nbytes length: ")
-   |> (fun v -> v + (Stdlib.display(bl)))
+   |> (fun v -> v + Stdlib.display(bl))
    |> (fun v -> v + "\nbool: ")
-   |> (fun v -> v + (Stdlib.display(r)))
+   |> (fun v -> v + Stdlib.display(r))
    |> (fun v -> v + "\nfloat: ")
-   |> (fun v -> v + (Stdlib.display(d0)))
+   |> (fun v -> v + Stdlib.display(d0))
    |> (fun v -> v + "\nanother double: ")
-   |> (fun v -> v + (Stdlib.display(d1)))
+   |> (fun v -> v + Stdlib.display(d1))
    |> (fun v -> v + "\nstring reverse: ")
    |> (fun v -> v + reverse)
    |> (fun v -> v + "\nstring contains: ")
-   |> (fun v -> v + (Stdlib.display(contains)))
+   |> (fun v -> v + Stdlib.display(contains))
    |> (fun v -> v + "\nuuid: ")
-   |> (fun v -> v + (Stdlib.display(Builtin.unwrap(uuid)))))
-  |> Stdlib.Test.equal("a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.987654\nanother double: 2489377.5125913904\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2")
+   |> (fun v -> v + Stdlib.display(Builtin.unwrap(uuid))))
+  |> Stdlib.Test.equal(
+    "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.987654\nanother double: 2489377.5125913904\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2")

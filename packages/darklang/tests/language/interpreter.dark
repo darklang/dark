@@ -2,13 +2,13 @@ module Darklang.Language.Tests.Interpreter
 
 // Tests that don't quite fit in the other files,
 // and are more focused on interpreter behavior.
-
 // mapping a long list must not overflow the stack
 test mapsRepeatedListWithoutOverflow =
   (Stdlib.List.repeat(348, 1)
    |> Stdlib.List.map(fun _f -> 1)
    |> Stdlib.List.length)
   |> Stdlib.Test.equal(348)
+
 
 // same, ten times longer
 test mapsLargerRepeatedListWithoutOverflow =
